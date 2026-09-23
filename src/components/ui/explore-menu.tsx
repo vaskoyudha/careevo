@@ -83,8 +83,38 @@ export function ExploreMenu() {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const close = useCallback(() => setIsOpen(false), []);
+  const clearCloseTimeout = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }, []);
+
+  const open = useCallback(() => {
+    clearCloseTimeout();
+    setIsOpen(true);
+  }, [clearCloseTimeout]);
+
+  const scheduleClose = useCallback(() => {
+    clearCloseTimeout();
+    timeoutRef.current = setTimeout(() => {
+      setIsOpen(false);
+    }, 180);
+  }, [clearCloseTimeout]);
+
+  const closeImmediately = useCallback(() => {
+    clearCloseTimeout();
+    setIsOpen(false);
+  }, [clearCloseTimeout]);
+
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => {
+      clearCloseTimeout();
+    };
+  }, [clearCloseTimeout]);
 
   // Close on click outside or escape key
   useEffect(() => {
@@ -95,13 +125,13 @@ export function ExploreMenu() {
         containerRef.current &&
         !containerRef.current.contains(e.target as Node)
       ) {
-        close();
+        closeImmediately();
       }
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        close();
+        closeImmediately();
         buttonRef.current?.focus();
       }
     };
@@ -112,11 +142,17 @@ export function ExploreMenu() {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isOpen, close]);
+  }, [isOpen, closeImmediately]);
 
   return (
-    <div ref={containerRef} className="static">
+    <div
+      ref={containerRef}
+      className="static"
+      onMouseEnter={open}
+      onMouseLeave={scheduleClose}
+    >
       {/* Explore Trigger Button inside center nav-float:
+          - Automatically selected and opens on hover
           - No border when not selected
           - Uses border when selected (open)
           - Features icon, text, and chevron matching other nav items
@@ -124,7 +160,13 @@ export function ExploreMenu() {
       <button
         ref={buttonRef}
         type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={() => {
+          if (isOpen) {
+            closeImmediately();
+          } else {
+            open();
+          }
+        }}
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         aria-label="Explore menu"
@@ -159,7 +201,9 @@ export function ExploreMenu() {
         <div
           role="dialog"
           aria-label="Explore catalog"
-          className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 max-h-[82vh] overflow-y-auto rounded-2xl border border-gray-200 bg-white p-6 text-gray-900 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.2),0_10px_20px_-5px_rgba(0,0,0,0.08)] sm:p-8 lg:p-9 [-ms-overflow-style:none] [scrollbar-width:thin]"
+          onMouseEnter={open}
+          onMouseLeave={scheduleClose}
+          className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 max-h-[82vh] overflow-y-auto rounded-2xl border border-gray-200 bg-white p-6 text-gray-900 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.2),0_10px_20px_-5px_rgba(0,0,0,0.08)] sm:p-8 lg:p-9 before:absolute before:-top-3 before:left-0 before:right-0 before:h-3 before:content-[''] [-ms-overflow-style:none] [scrollbar-width:thin]"
         >
           {/* 4-COLUMN CONTENT GRID */}
           <div className="grid grid-cols-1 gap-8 text-left sm:grid-cols-2 lg:grid-cols-4 lg:gap-10">
@@ -173,7 +217,7 @@ export function ExploreMenu() {
                   <li key={item.label}>
                     <Link
                       href={item.href}
-                      onClick={close}
+                      onClick={closeImmediately}
                       className="block text-[13px] text-gray-700 transition-colors hover:text-[#0056D2] hover:underline"
                     >
                       {item.label}
@@ -183,7 +227,7 @@ export function ExploreMenu() {
               </ul>
               <Link
                 href="/belajar"
-                onClick={close}
+                onClick={closeImmediately}
                 className="mt-3.5 inline-block text-xs font-semibold text-[#0056D2] underline underline-offset-2 transition-colors hover:text-[#003d99]"
               >
                 View all
@@ -200,7 +244,7 @@ export function ExploreMenu() {
                   <li key={item.label}>
                     <Link
                       href={item.href}
-                      onClick={close}
+                      onClick={closeImmediately}
                       className="block text-[13px] text-gray-700 transition-colors hover:text-[#0056D2] hover:underline"
                     >
                       {item.label}
@@ -210,7 +254,7 @@ export function ExploreMenu() {
               </ul>
               <Link
                 href="/belajar"
-                onClick={close}
+                onClick={closeImmediately}
                 className="mt-3.5 inline-block text-xs font-semibold text-[#0056D2] underline underline-offset-2 transition-colors hover:text-[#003d99]"
               >
                 View all
@@ -229,7 +273,7 @@ export function ExploreMenu() {
                     <li key={item.label}>
                       <Link
                         href={item.href}
-                        onClick={close}
+                        onClick={closeImmediately}
                         className="block text-[13px] text-gray-700 transition-colors hover:text-[#0056D2] hover:underline"
                       >
                         {item.label}
@@ -239,7 +283,7 @@ export function ExploreMenu() {
                 </ul>
                 <Link
                   href="/belajar"
-                  onClick={close}
+                  onClick={closeImmediately}
                   className="mt-3.5 inline-block text-xs font-semibold text-[#0056D2] underline underline-offset-2 transition-colors hover:text-[#003d99]"
                 >
                   View all
@@ -256,7 +300,7 @@ export function ExploreMenu() {
                     <li key={item.label}>
                       <Link
                         href={item.href}
-                        onClick={close}
+                        onClick={closeImmediately}
                         className="block text-[13px] text-gray-700 transition-colors hover:text-[#0056D2] hover:underline"
                       >
                         {item.label}
@@ -266,7 +310,7 @@ export function ExploreMenu() {
                 </ul>
                 <Link
                   href="/belajar"
-                  onClick={close}
+                  onClick={closeImmediately}
                   className="mt-3.5 inline-block text-xs font-semibold text-[#0056D2] underline underline-offset-2 transition-colors hover:text-[#003d99]"
                 >
                   View all
@@ -286,7 +330,7 @@ export function ExploreMenu() {
                     <li key={item.label}>
                       <Link
                         href={item.href}
-                        onClick={close}
+                        onClick={closeImmediately}
                         className="block text-[13px] text-gray-700 transition-colors hover:text-[#0056D2] hover:underline"
                       >
                         {item.label}
@@ -303,7 +347,7 @@ export function ExploreMenu() {
                 </h3>
                 <Link
                   href="/challenge/1"
-                  onClick={close}
+                  onClick={closeImmediately}
                   className="mt-1 inline-block text-xs font-semibold text-[#0056D2] underline underline-offset-2 transition-colors hover:text-[#003d99]"
                 >
                   View all
@@ -318,7 +362,7 @@ export function ExploreMenu() {
               <span>Not sure where to begin?</span>
               <Link
                 href="/belajar"
-                onClick={close}
+                onClick={closeImmediately}
                 className="font-medium text-gray-900 underline underline-offset-2 transition-colors hover:text-[#0056D2]"
               >
                 Browse free courses
@@ -326,7 +370,7 @@ export function ExploreMenu() {
               <span>or</span>
               <Link
                 href="/careevo-plus"
-                onClick={close}
+                onClick={closeImmediately}
                 className="inline-flex items-center gap-1 font-medium text-gray-900 underline underline-offset-2 transition-colors hover:text-[#0056D2]"
               >
                 <span>Learn more about</span>
