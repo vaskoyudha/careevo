@@ -98,13 +98,11 @@ export function Chrome() {
         Lewati ke konten utama
       </a>
       <div className="chrome relative">
-        <div className="flex flex-1 min-w-0 items-center gap-2 sm:gap-3">
-          <Link className="chrome-brand !flex-none" href={onHome ? "#main" : "/"}>
-            Care<span>evo</span>
-          </Link>
-          <ExploreMenu />
-        </div>
+        <Link className="chrome-brand" href={onHome ? "#main" : "/"}>
+          Care<span>evo</span>
+        </Link>
         <nav className="nav-float" aria-label="Navigasi utama">
+          <ExploreMenu />
           {navItems.map((item) => {
             const active = isActive(item.href);
             return (

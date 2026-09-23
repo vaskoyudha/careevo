@@ -59,6 +59,26 @@ const TRENDING_SKILLS: ExploreMenuItem[] = [
   { label: "Marketing", href: "/belajar" },
 ];
 
+function CompassIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+    </svg>
+  );
+}
+
 export function ExploreMenu() {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -96,7 +116,11 @@ export function ExploreMenu() {
 
   return (
     <div ref={containerRef} className="static">
-      {/* Explore Trigger Button */}
+      {/* Explore Trigger Button inside center nav-float:
+          - No border when not selected
+          - Uses border when selected (open)
+          - Features icon, text, and chevron matching other nav items
+      */}
       <button
         ref={buttonRef}
         type="button"
@@ -104,12 +128,13 @@ export function ExploreMenu() {
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         aria-label="Explore menu"
-        className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-200 sm:text-sm cursor-pointer ${
+        className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13.5px] font-medium transition-all duration-200 cursor-pointer ${
           isOpen
-            ? "border border-[#0056D2] bg-blue-50 text-[#0056D2] shadow-xs"
-            : "border border-blue-200/90 bg-blue-50/70 text-[#0056D2] hover:border-[#0056D2] hover:bg-blue-100/70"
+            ? "border border-blue-500/80 bg-white text-black shadow-xs"
+            : "border border-transparent text-black hover:bg-white/85 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]"
         }`}
       >
+        <CompassIcon className="size-[15px] shrink-0 text-black" />
         <span>Explore</span>
         <svg
           width="12"
@@ -117,17 +142,19 @@ export function ExploreMenu() {
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          strokeWidth="2.5"
+          strokeWidth="2.2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+          className={`shrink-0 transition-transform duration-200 ${
+            isOpen ? "rotate-180 text-blue-600" : "text-black/60"
+          }`}
           aria-hidden="true"
         >
           <path d="m6 9 6 6 6-6" />
         </svg>
       </button>
 
-      {/* Mega Dropdown Panel — Solid opaque white background matching reference */}
+      {/* Mega Dropdown Panel — Solid opaque white background */}
       {isOpen && (
         <div
           role="dialog"
