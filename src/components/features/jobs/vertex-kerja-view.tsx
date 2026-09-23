@@ -21,6 +21,7 @@ import {
 import type { JobFixture } from "@/lib/fixtures";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { JobsBoard } from "@/components/features/jobs/jobs-board";
+import { MovingBorder } from "@/components/ui/moving-border";
 import { cn } from "@/lib/utils";
 
 interface VertexKerjaViewProps {
@@ -339,30 +340,27 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                     Setiap lowongan kerja dipindai otomatis dari indikasi scam, pungutan fee seleksi, dan rekening pribadi. Dilengkapi Fit Score AI dan portofolio bukti karya nyata.
                   </p>
 
-                  {/* Search Bar with Rotating Blue Gradient Glowing Border */}
+                  {/* Search Bar with Moving Border Blue Gradient Glowing Animation */}
                   <div className="mx-auto mt-7 w-full max-w-2xl">
                     <div className="group relative">
                       {/* Outer ambient blur glow */}
                       <div
                         aria-hidden="true"
-                        className="pointer-events-none absolute -inset-1 rounded-2xl bg-gradient-to-r from-blue-600/25 via-sky-400/30 to-blue-500/25 blur-lg opacity-75 transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100"
+                        className="pointer-events-none absolute -inset-1 rounded-2xl bg-gradient-to-r from-blue-500/20 via-sky-400/25 to-blue-600/20 blur-xl opacity-60 transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100"
                       />
 
-                      {/* Rotating conic blue gradient border */}
-                      <div className="relative overflow-hidden rounded-2xl p-[2px] shadow-xs">
-                        <div
-                          aria-hidden="true"
-                          className="pointer-events-none absolute -inset-[150%] animate-border-rotate"
-                          style={{
-                            background:
-                              "conic-gradient(from 0deg, transparent 0deg, transparent 200deg, rgba(56, 189, 248, 0.45) 250deg, #38bdf8 285deg, #3b82f6 320deg, #1d4ed8 345deg, #60a5fa 360deg)",
-                          }}
-                        />
+                      {/* Moving border container with SVG perimeter tracking */}
+                      <div className="relative overflow-hidden rounded-2xl border border-neutral-200/70 bg-neutral-100/70 p-[2px] shadow-xs">
+                        <div className="pointer-events-none absolute inset-0">
+                          <MovingBorder duration={3500} rx="14px" ry="14px">
+                            <div className="size-32 bg-[radial-gradient(ellipse_at_center,#38bdf8_15%,#3b82f6_45%,#1d4ed8_75%,transparent_90%)] opacity-95 blur-[1px]" />
+                          </MovingBorder>
+                        </div>
 
                         {/* Inner search bar surface */}
                         <form
                           onSubmit={handleHeroSearch}
-                          className="relative z-10 flex items-center gap-2 rounded-[14px] bg-white px-4 py-2 sm:py-2.5 transition-colors"
+                          className="relative z-10 flex items-center gap-2 rounded-[14px] bg-white px-4 py-2.5 sm:py-3 transition-colors"
                         >
                           <Search className="size-5 shrink-0 text-[#2A7FB8] transition-colors group-focus-within:text-[#124E78]" />
                           <input
@@ -377,7 +375,7 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                             <button
                               type="button"
                               onClick={() => setSearchQuery("")}
-                              className="text-neutral-400 hover:text-neutral-600 p-1 text-xs"
+                              className="cursor-pointer text-neutral-400 hover:text-neutral-600 p-1 text-xs"
                               aria-label="Hapus pencarian"
                             >
                               ✕
