@@ -324,14 +324,8 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
             <div className="relative z-20 w-full bg-white pt-16 sm:pt-20 md:pt-24 lg:pt-28">
               <div className="px-6 sm:px-8 lg:px-12">
                 <div className="mx-auto max-w-4xl text-center">
-                  {/* Eyebrow Badge */}
-                  <div className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-50 px-3.5 py-1 text-xs font-medium text-neutral-700 shadow-xs">
-                    <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span>Audit Loker Otonom & KarirHub Kemnaker</span>
-                  </div>
-
                   {/* Main Headline */}
-                  <h1 className="mt-6 text-balance font-semibold text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-neutral-950 tracking-tight leading-[1.12]">
+                  <h1 className="text-balance font-semibold text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-neutral-950 tracking-tight leading-[1.12]">
                     Kurasi lowongan kerja resmi yang diaudit Sentinel, tanpa biaya
                   </h1>
 
