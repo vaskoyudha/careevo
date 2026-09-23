@@ -529,6 +529,16 @@ body {
   scroll-margin-top: 104px;
 }
 
+/* In-page anchor targets on the Careevo Plus landing page */
+#keahlian,
+#keunggulan,
+#testimoni,
+#paket,
+#faq,
+#ketentuan {
+  scroll-margin-top: 96px;
+}
+
 .ax-section {
   position: relative;
   padding: clamp(64px, 12vw, 120px) var(--page-pad);
