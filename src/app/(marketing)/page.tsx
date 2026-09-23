@@ -1,6 +1,7 @@
 import { HeroFinancial } from "@/components/ui/hero-financial";
 import { MarketingAgents } from "@/components/features/marketing/guild-agents";
 import { MarketingLogos } from "@/components/features/marketing/logos";
+import { MarketingProblemsSolutions } from "@/components/features/marketing/problems-solutions";
 import { MarketingFeatures } from "@/components/features/marketing/features";
 import { MarketingUseCases } from "@/components/features/marketing/use-cases";
 import { MarketingIntegrations } from "@/components/features/marketing/integrations";
@@ -16,6 +17,7 @@ export default function Home() {
       <MarketingAgents />
       <div className="marketing-type">
         <MarketingLogos />
+        <MarketingProblemsSolutions />
         <MarketingFeatures />
         <MarketingUseCases />
         <MarketingIntegrations />
