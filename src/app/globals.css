@@ -2944,3 +2944,50 @@ body {
     animation: none;
   }
 }
+
+/* ===== Vertex Light Layout & Animations ===== */
+@keyframes orbit {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes counter-orbit {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(-360deg); }
+}
+
+@keyframes scroll-left {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes scroll-right {
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
+}
+
+.animate-orbit {
+  animation: orbit var(--duration, 34s) linear infinite;
+}
+
+.animate-counter-orbit {
+  animation: counter-orbit var(--duration, 34s) linear infinite;
+}
+
+.animate-scroll-left-slow {
+  animation: scroll-left 35s linear infinite;
+}
+
+.animate-scroll-right-slow {
+  animation: scroll-right 35s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-orbit,
+  .animate-counter-orbit,
+  .animate-scroll-left-slow,
+  .animate-scroll-right-slow {
+    animation: none;
+  }
+}
+
