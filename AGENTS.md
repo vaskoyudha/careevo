@@ -9,11 +9,24 @@ Careevo — Next.js prototype ("Learn. Verify. Earn."): a learning-to-job bridge
 - `npm run lint` — runs `eslint` (flat config). Note: **not** `next lint`.
 - `npm run typecheck` — `tsc --noEmit`. Faster standalone check than a full `build`.
 - `npm test` — `vitest run` (one-shot). `npm run test:watch` to watch.
+- `npm run check` — **the gate**: typecheck + lint + skills:check + test.
+- `npm run skills:check` — validate `.agents/skills/` against the Agent Skills spec.
 - `npx vitest run src/lib/scoring/scoring.test.ts` — single file.
 - `npx vitest run -t "A1:"` — single test by name.
 - `npm run smoke [baseUrl]` — HTTP smoke test of 15 routes. **Requires a running server** (`npm run dev`) first; defaults to `http://localhost:3000`.
 
 Deps use npm (`package-lock.json`); `node_modules` is not checked in — run `npm install` before any command.
+
+## Skills
+
+`.agents/skills/` holds Agent Skills (`SKILL.md`, [agentskills.io](https://agentskills.io/specification)) that encode this repo's non-obvious knowledge. Read the relevant one before working in its area:
+
+- **`loker-sentinel`** — the job-board audit: verdict policy, the `flags` vs `fee_flags` contract, why verdicts are derived not stored. Read before touching `src/lib/jobs/` or the loker pages.
+- **`careevo-review`** — self-review checklist built from real defects that shipped here. Read before committing.
+- **`careevo-attribution`** — MIT notice requirements for code ported from career-ops. Read before adding adapted code.
+- **`career-ops-port`** — what was adopted from career-ops, what was rejected and why. Read before proposing further integration.
+
+A skill with invalid frontmatter fails silently, so `npm run skills:check` validates them.
 
 ## Testing quirks
 

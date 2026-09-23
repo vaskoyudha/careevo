@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { auditLoker, labelSinyal } from "@/lib/agents/sentinel";
+import { FEE_RULES, ID_ATURAN_FEE } from "@/lib/agents/rules/fee-rules";
 import { jobs } from "@/lib/fixtures";
 
 /**
@@ -170,6 +171,53 @@ describe("fee_flags vs flags", () => {
       for (const flag of job.fee_flags) {
         expect(job.flags).toContain(flag);
       }
+    }
+  });
+
+  it("a firing rule always reaches fee_flags", () => {
+    // Proves the derivation is wired through, not just declared: each rule that
+    // actually fires must land on the no-fee axis. This is the test that fails if
+    // a hand-written copy of the set is reintroduced.
+    const cases: Array<[string, string]> = [
+      ["biaya_administrasi", "Pelamar menyiapkan biaya administrasi."],
+      ["rekening_pribadi", "Pembayaran transfer ke rekening pribadi."],
+      ["tiket_travel", "Biaya tiket travel ditanggung pelamar."],
+      ["pungutan_seragam", "Ada pungutan untuk seragam."],
+      ["panen_data", "Kirim KTP dan selfie."],
+      ["link_apk", "Wajib unduh APK."],
+    ];
+    for (const [rule, description] of cases) {
+      const result = auditLoker({ ...DASAR, description });
+      expect(result.flags, `${rule} should fire`).toContain(rule);
+      expect(result.fee_flags, `${rule} should be on the no-fee axis`).toContain(rule);
+    }
+  });
+
+  it("the no-fee axis covers EVERY fee rule, with no hard-coded list", () => {
+    // The drift guard. The examples below are keyed by rule id, and the
+    // exhaustiveness check at the end means adding a rule to FEE_RULES without
+    // adding an example here FAILS — so the coverage cannot silently fall behind.
+    //
+    // If the no-fee axis were a separate hard-coded set (as it once was), a new
+    // rule would fire in `flags` but be missing from `fee_flags`, and the
+    // assertion below fails.
+    const CONTOH: Record<string, string> = {
+      biaya_administrasi: "Pelamar menyiapkan biaya administrasi untuk seleksi.",
+      rekening_pribadi: "Pembayaran diminta transfer ke rekening pribadi.",
+      link_apk: "Wajib unduh APK sebelum seleksi.",
+      tiket_travel: "Biaya tiket travel ditanggung pelamar.",
+      pungutan_seragam: "Ada pungutan untuk seragam.",
+      panen_data: "Kirim KTP dan selfie via chat.",
+    };
+
+    // Exhaustiveness: every rule has an example, and no example is orphaned.
+    expect(Object.keys(CONTOH).sort()).toEqual(FEE_RULES.map((r) => r.rule).sort());
+
+    for (const { rule } of FEE_RULES) {
+      const sample = CONTOH[rule];
+      const result = auditLoker({ ...DASAR, description: sample });
+      expect(result.flags, `${rule} should fire on "${sample}"`).toContain(rule);
+      expect(result.fee_flags, `${rule} must reach the no-fee axis`).toContain(rule);
     }
   });
 

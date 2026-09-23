@@ -56,3 +56,13 @@ export function deteksiFee(description: string): FeeRuleMatch[] {
 export function labelAturan(rule: string): string {
   return FEE_RULES.find((item) => item.rule === rule)?.label ?? rule;
 }
+
+/**
+ * The ids of every fee rule, derived from `FEE_RULES` rather than listed again.
+ *
+ * A second hand-written copy of this set is a drift risk with a silent failure
+ * mode: add a rule to `FEE_RULES`, forget the copy, and the board's "no-fee"
+ * filter stops recognising the new demand while the audit still flags it — the
+ * filter and the verdict disagree, and nothing errors.
+ */
+export const ID_ATURAN_FEE: ReadonlySet<string> = new Set(FEE_RULES.map((item) => item.rule));

@@ -1,5 +1,5 @@
 import type { SentinelStatus } from "@/types/domain";
-import { deteksiFee, labelAturan } from "./rules/fee-rules";
+import { deteksiFee, ID_ATURAN_FEE, labelAturan } from "./rules/fee-rules";
 import {
   FLAG_KEPERCAYAAN_KUAT,
   LABEL_KEPERCAYAAN,
@@ -36,15 +36,19 @@ export interface SentinelOutput {
 
 const FREE_MAIL = /@(gmail|yahoo|outlook|hotmail|mail)\./i;
 
-/** Signals that mean the posting is asking the candidate for something. */
-const SINYAL_FEE = new Set([
-  "biaya_administrasi",
-  "rekening_pribadi",
-  "tiket_travel",
-  "pungutan_seragam",
-  "panen_data",
-  "link_apk",
-]);
+/**
+ * Signals that mean the posting is asking the candidate for something: the
+ * `FEE_RULES` demand set, referenced directly rather than copied.
+ *
+ * There is deliberately no separate constant here. An intermediate set — even
+ * one initialised from `ID_ATURAN_FEE` — is a place a hand-written list can
+ * reappear, and it drifts silently: a new rule would be flagged by the audit but
+ * unrecognised by the board's "no-fee" filter, so filter and verdict disagree
+ * with no error. Referencing the derived set directly removes the surface.
+ *
+ * `link_apk` needs no separate entry: it is a `FEE_RULES` id already, and the
+ * apply-URL check below reuses the same id.
+ */
 
 /**
  * Rule-based loker audit — the deterministic counterpart to career-ops' LLM
@@ -113,9 +117,10 @@ export function auditLoker(input: SentinelInput): SentinelOutput {
   return {
     status,
     flags: allFlags,
-    // The "no-fee" axis: demand signals only. A domain mismatch or a free-mail
-    // employer is a reason to look closer, not a claim that money was requested.
-    fee_flags: allFlags.filter((flag) => SINYAL_FEE.has(flag)),
+    // The "no-fee" axis: demand signals only, straight from the derived rule set.
+    // A domain mismatch or a free-mail employer is a reason to look closer, not a
+    // claim that money was requested.
+    fee_flags: allFlags.filter((flag) => ID_ATURAN_FEE.has(flag)),
     trust_flags: trust.flags,
     trust_score: trust.score,
     trust_level: trust.level,
