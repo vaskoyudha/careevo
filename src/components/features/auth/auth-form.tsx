@@ -15,7 +15,7 @@ const copy: Record<AuthMode, { submit: string; pending: string }> = {
 };
 
 const inputClass =
-  "min-w-0 flex-1 truncate bg-transparent text-base text-black outline-none placeholder:text-black/35";
+  "min-w-0 flex-1 truncate bg-transparent text-base text-black outline-none placeholder:text-black/35 focus:outline-none focus-visible:outline-none";
 
 function Field({
   id,
@@ -34,7 +34,7 @@ function Field({
     <div>
       <label
         htmlFor={id}
-        className="flex h-11 items-center gap-4 rounded-[8px] border border-black/20 bg-white px-4 text-base leading-none"
+        className="auth-field flex h-11 items-center gap-4 rounded-[8px] border border-black/20 bg-white px-4 text-base leading-none transition-colors"
       >
         <span className="shrink-0 text-black">{label}</span>
         {children}
@@ -155,7 +155,7 @@ export function AuthForm({
               id="role"
               name="role"
               defaultValue={state.values?.role ?? "user"}
-              className="min-w-0 flex-1 truncate bg-transparent text-base text-black outline-none"
+              className="min-w-0 flex-1 truncate bg-transparent text-base text-black outline-none focus:outline-none focus-visible:outline-none"
               aria-invalid={errors.role ? true : undefined}
               aria-describedby={errors.role ? "role-error" : undefined}
             >
