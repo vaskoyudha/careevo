@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   ChevronRight,
   BookOpen,
+  UserRound,
 } from "lucide-react";
 
 export type SidebarNavItem = {
@@ -226,6 +227,11 @@ export function DashboardSidebar({
         </div>
 
         <div className="mt-auto flex flex-col gap-0.5 border-t border-border/50 pt-4">
+          <NavItem
+            item={{ href: "/profil", title: "Profil", icon: UserRound }}
+            current={current}
+            onNavigate={onNavigate}
+          />
           <NavItem
             item={{ href: "/pengaturan", title: "Pengaturan", icon: Settings }}
             current={current}

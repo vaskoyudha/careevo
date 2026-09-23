@@ -9,6 +9,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
+  UserRound,
 } from "lucide-react";
 import { logoutAction } from "@/actions/auth";
 import { DashboardSidebar } from "./dashboard-sidebar";
@@ -26,6 +27,7 @@ const PAGE_LABELS: Record<string, string> = {
   "/dashboard": "Dashboard",
   "/belajar": "Belajar",
   "/loker": "Loker",
+  "/profil": "Profil",
   "/pengaturan": "Pengaturan",
   "/review": "Review",
   "/audit": "Audit",
@@ -150,6 +152,16 @@ export function AppShell({
               </DropdownMenuLabel>
 
               <DropdownMenuSeparator />
+
+              <DropdownMenuItem asChild>
+                <Link
+                  href="/profil"
+                  className="flex w-full cursor-pointer items-center gap-2 text-[13px]"
+                >
+                  <UserRound className="h-4 w-4" strokeWidth={1.5} />
+                  Profil
+                </Link>
+              </DropdownMenuItem>
 
               <DropdownMenuItem asChild>
                 <Link
