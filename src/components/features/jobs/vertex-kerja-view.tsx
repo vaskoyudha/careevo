@@ -409,7 +409,7 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                     </a>
                     <a
                       href="#features"
-                      className="chrome-btn chrome-btn-text chrome-btn-ghost !h-11 !px-6 !text-sm"
+                      className="chrome-btn chrome-btn-white !h-11 !px-6 !text-sm"
                     >
                       Pelajari Audit Sentinel
                     </a>
@@ -421,9 +421,9 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                   </p>
                 </div>
 
-                {/* Stacked Showcase Card Deck (Vertex Signature) */}
+                {/* Stacked Showcase Card Deck (Vertex Signature - Full Width, Plain Flat, Unrounded, Crisp Border) */}
                 <div
-                  className="relative mx-auto mt-12 w-full max-w-6xl sm:mt-16"
+                  className="relative mx-auto mt-12 w-full max-w-full sm:mt-16"
                   style={{ paddingTop: "96px" }}
                   onMouseEnter={() => setIsPaused(true)}
                   onMouseLeave={() => setIsPaused(false)}
@@ -437,7 +437,7 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                       {FEATURED_ROLES.map((role) => (
                         <div
                           key={role.tabLabel}
-                          className="col-start-1 row-start-1 rounded-2xl border border-neutral-200"
+                          className="col-start-1 row-start-1 rounded-none border border-neutral-300"
                         >
                           {/* Card Tab Header */}
                           <div className="flex h-11 items-center gap-x-2 border-b border-neutral-200 px-4">
@@ -522,7 +522,7 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                       return (
                         <article
                           key={role.tabLabel}
-                          className="absolute inset-x-0 top-0 overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-xl"
+                          className="absolute inset-x-0 top-0 overflow-hidden rounded-none border border-neutral-300 bg-white shadow-none ring-1 ring-neutral-200/80"
                           style={{
                             transformOrigin: "center top",
                             transform: `scale(${scale})`,
@@ -594,7 +594,7 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                                   href={role.externalApplyUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="chrome-btn chrome-btn-text chrome-btn-ghost !h-8 !px-3.5 !text-xs gap-1.5"
+                                  className="chrome-btn chrome-btn-white !h-8 !px-3.5 !text-xs gap-1.5"
                                 >
                                   <ExternalLink className="size-3.5 text-neutral-500" />
                                   <span>KarirHub</span>
@@ -708,7 +708,7 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
               </div>
 
               {/* Full-width Interactive 3D Globe Feature Section */}
-              <div className="w-full px-4 sm:px-6 lg:px-8 mt-12 sm:mt-16">
+              <div className="w-full mt-12 sm:mt-16">
                 <Featured_05 />
               </div>
             </div>
@@ -1263,7 +1263,7 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
 
                     <a
                       href="#board"
-                      className="chrome-btn chrome-btn-text chrome-btn-ghost mt-8 !w-full !h-10 !text-xs"
+                      className="chrome-btn chrome-btn-white mt-8 !w-full !h-10 !text-xs"
                     >
                       Mulai Eksplor Loker
                     </a>
@@ -1352,7 +1352,7 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
 
                     <a
                       href="mailto:rekruter@careevo.id"
-                      className="chrome-btn chrome-btn-text chrome-btn-ghost mt-8 !w-full !h-10 !text-xs"
+                      className="chrome-btn chrome-btn-white mt-8 !w-full !h-10 !text-xs"
                     >
                       Hubungi Tim Kemitraan
                     </a>

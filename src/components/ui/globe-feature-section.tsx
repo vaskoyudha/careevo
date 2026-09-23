@@ -130,21 +130,21 @@ export function Globe({
 
 export default function Featured_05() {
   return (
-    <section className="relative w-full mx-auto overflow-hidden rounded-3xl bg-muted border border-gray-200 dark:border-gray-800 shadow-md px-6 py-16 md:px-16 md:py-24 my-12 sm:my-16">
-      <div className="flex flex-col-reverse items-center justify-between gap-10 md:flex-row">
+    <section className="relative w-full overflow-hidden rounded-none bg-neutral-50/70 dark:bg-muted/30 border-y border-neutral-300 dark:border-neutral-800 shadow-none px-6 py-16 sm:px-12 md:px-16 md:py-24 my-12 sm:my-16">
+      <div className="mx-auto max-w-7xl flex flex-col-reverse items-center justify-between gap-10 md:flex-row">
         <div className="z-10 max-w-xl text-left">
-          <h1 className="text-3xl font-normal text-gray-900 dark:text-white">
+          <h2 className="text-3xl font-normal text-neutral-900 dark:text-white tracking-tight">
             Build with <span className="text-primary font-medium">Ruixen UI</span>{" "}
-            <span className="text-gray-500 dark:text-gray-400">
+            <span className="text-neutral-500 dark:text-neutral-400 block mt-2 text-lg leading-relaxed">
               Empower your team with fast, elegant, and scalable UI components. Ruixen UI brings simplicity and performance to your modern apps.
             </span>
-          </h1>
-          <Button className="mt-6 inline-flex items-center gap-2 rounded-full bg-foreground px-5 py-2 text-sm font-semibold text-background transition hover:bg-black">
+          </h2>
+          <Button className="mt-6 inline-flex items-center gap-2 rounded-none bg-foreground px-5 py-2 text-sm font-semibold text-background transition hover:bg-black">
             Join Today <ArrowRight className="h-4 w-4" />
           </Button>
         </div>
-        <div className="relative h-[180px] w-full max-w-xl">
-          <Globe className="absolute -bottom-20 -right-40 scale-150" />
+        <div className="relative h-[220px] sm:h-[260px] md:h-[280px] w-full max-w-xl overflow-hidden md:overflow-visible">
+          <Globe className="absolute -bottom-16 -right-20 sm:-bottom-20 sm:-right-40 scale-125 sm:scale-150" />
         </div>
       </div>
     </section>
