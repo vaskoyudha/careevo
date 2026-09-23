@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
-import { AppShell } from "@/components/ui/app-shell";
+import { LearnerShell } from "@/components/ui/learner-shell";
 import { DetailKursus, type KursusTerkait } from "@/components/features/learning/detail-kursus";
 import { cariEntri, katalogBelajar } from "@/lib/courses/katalog";
 import { modulKursus } from "@/lib/courses/kurikulum";
@@ -65,7 +65,7 @@ export default async function DetailKursusPage({
   const tugas = tasks.find((task) => task.status === "available" || task.status === "review") ?? null;
 
   return (
-    <AppShell session={session} current="/belajar">
+    <LearnerShell session={session}>
       <DetailKursus
         key={`${entri.id}-${(pendaftaran?.selesai_modul ?? []).join(",")}`}
         kursus={{
@@ -90,6 +90,6 @@ export default async function DetailKursusPage({
         terkait={terkait}
         tugas={tugas ? { id: tugas.id, title: tugas.title, brief: tugas.brief } : null}
       />
-    </AppShell>
+    </LearnerShell>
   );
 }

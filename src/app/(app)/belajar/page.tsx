@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getSession } from "@/lib/auth/session";
-import { AppShell } from "@/components/ui/app-shell";
+import { LearnerShell } from "@/components/ui/learner-shell";
 import { BelajarHome, type KursusTerdaftar } from "@/components/features/learning/belajar-home";
 import { katalogBelajar } from "@/lib/courses/katalog";
 import { modulKursus, hitungProgres, irisModulSelesai } from "@/lib/courses/kurikulum";
@@ -11,9 +11,16 @@ export const metadata: Metadata = {
   title: "Belajar",
 };
 
-export default async function BelajarPage() {
+export default async function BelajarPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
   const session = await getSession();
   if (!session) return null;
+
+  const { q } = await searchParams;
+  const queryAwal = typeof q === "string" ? q.slice(0, 120) : "";
 
   const katalog = await katalogBelajar();
   const pendaftaran = await listPendaftaran();
@@ -43,8 +50,13 @@ export default async function BelajarPage() {
   });
 
   return (
-    <AppShell session={session} current="/belajar">
-      <BelajarHome resources={katalog} tasks={tasks} terdaftar={terdaftar} />
-    </AppShell>
+    <LearnerShell session={session} queryAwal={queryAwal}>
+      <BelajarHome
+        resources={katalog}
+        tasks={tasks}
+        terdaftar={terdaftar}
+        queryAwal={queryAwal}
+      />
+    </LearnerShell>
   );
 }
