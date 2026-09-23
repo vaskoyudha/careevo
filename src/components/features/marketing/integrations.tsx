@@ -51,13 +51,13 @@ export function MarketingIntegrations() {
         <div className="mx-auto mb-8 max-w-2xl text-center lg:mb-16">
           <Reveal>
             <h2 className="mb-3 text-3xl font-medium -tracking-[1.9px] text-gray-900 lg:mb-4 lg:text-6xl">
-              Satu loop, dari jadwal sampai terverifikasi
+              Satu alur terarah dari belajar sampai dapat kerja
             </h2>
           </Reveal>
           <Reveal delay={80}>
             <p className="text-sm text-gray-500 lg:text-base">
-              Jadwal belajar, challenge, review verifikator, sampai attestation
-              publik tersambung dalam satu alur yang jelas.
+              Jadwal belajar, bimbingan Sokratik, verifikasi bukti kerja, hingga
+              rekomendasi lowongan kerja tersambung dalam satu alur terstruktur.
             </p>
           </Reveal>
         </div>

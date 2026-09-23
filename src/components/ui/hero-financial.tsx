@@ -34,7 +34,7 @@ export const HeroFinancial = () => {
             Baru
           </span>
           <span className="text-sm font-medium">
-            Belajar terverifikasi untuk lulusan Computer Science
+            Latihan coding interaktif & kurasi loker
           </span>
         </TimelineAnimation>
 
@@ -45,7 +45,7 @@ export const HeroFinancial = () => {
           timelineRef={timelineRef}
           className="max-w-4xl text-4xl font-medium tracking-tight text-neutral-900 sm:text-5xl md:text-6xl"
         >
-          Portofolio bisa dibuat AI. <br /> Kompetensi tidak.
+          Rekruter ingin melihat caramu berpikir, <br /> bukan sekadar kode hasil salinan.
         </TimelineAnimation>
 
         <TimelineAnimation
@@ -54,9 +54,7 @@ export const HeroFinancial = () => {
           timelineRef={timelineRef}
           className="mx-auto max-w-2xl px-4 text-base font-medium leading-relaxed text-neutral-500 md:text-lg"
         >
-          Careevo adalah jembatan terverifikasi dari course ke kerja
-          pertama. Proses belajar terekam, hasil ditandatangani HMAC-SHA256, dan
-          setiap loker diaudit agen. Nir-biometrik dan Zero-PII.
+          Careevo mencocokkan lowongan kerja yang sesuai dengan skill dan CV kamu saat ini, lalu membantu latihan teknis terarah sampai kamu siap lulus interview.
         </TimelineAnimation>
 
         <div className="flex gap-4 justify-center">
@@ -67,16 +65,16 @@ export const HeroFinancial = () => {
             timelineRef={timelineRef}
             className="rounded-lg border border-blue-300 bg-linear-to-br from-blue-500 via-blue-400 to-blue-200 px-4 py-2.5 text-base text-white shadow-sm transition"
           >
-            Mulai gratis
+            Coba Latihan Gratis
           </TimelineAnimation>
           <TimelineAnimation
             as={Link}
-            href="#loop"
+            href="/loker"
             animationNum={5}
             timelineRef={timelineRef}
             className="rounded-lg border border-neutral-300 bg-linear-to-br from-neutral-50 via-neutral-100 to-neutral-300 px-4 py-2.5 text-base text-black shadow-sm transition"
           >
-            Lihat cara kerja
+            Cek Lowongan Kerja
           </TimelineAnimation>
         </div>
       </div>

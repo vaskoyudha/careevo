@@ -69,7 +69,7 @@ const CARDS: AgentCard[] = [
     icon: ShieldAlert,
     tone: "amber",
     name: "sentinel",
-    description: "Memindai pola fee dan regex transfer pribadi.",
+    description: "Menyaring lowongan kerja dari indikasi penipuan.",
     status: "queued",
     delay: 0.6,
   },
@@ -78,7 +78,7 @@ const CARDS: AgentCard[] = [
     icon: MessagesSquare,
     tone: "sky",
     name: "socrates",
-    description: "Menanyakan alasan di balik setiap submission.",
+    description: "Melatih pemahaman logika dan kesiapan interview teknis.",
     status: "idle",
     delay: 1.2,
   },
@@ -87,7 +87,7 @@ const CARDS: AgentCard[] = [
     icon: BadgeCheck,
     tone: "blue",
     name: "verifier",
-    description: "Menandatangani hasil dengan HMAC-SHA256.",
+    description: "Menandatangani hasil dengan bukti kriptografis.",
     status: "running",
     delay: 1.8,
   },
@@ -105,7 +105,7 @@ const CARDS: AgentCard[] = [
     icon: ScrollText,
     tone: "amber",
     name: "audit-log",
-    description: "Menjaga rantai audit append-only tetap utuh.",
+    description: "Menjaga catatan proses belajar tetap transparan.",
     status: "queued",
     delay: 3.0,
   },
@@ -132,7 +132,7 @@ const CARDS: AgentCard[] = [
     icon: Target,
     tone: "blue",
     name: "match-bot",
-    description: "Mencocokkan skill dengan lowongan teraudit.",
+    description: "Mencocokkan skill dan CV dengan lowongan valid.",
     status: "idle",
     delay: 4.8,
   },
@@ -215,23 +215,24 @@ export function MarketingAgents() {
         <Reveal>
           <div className="flex items-center justify-center gap-3 font-mono text-xs tracking-[0.02em] text-[#110f1a]/55 uppercase">
             <Bracket className="size-2 text-blue-500" />
-            Lapisan verifikasi untuk talenta tech
+            Sistem AI pendukung kariermu
             <Bracket className="size-2 rotate-180 text-blue-500" />
           </div>
         </Reveal>
 
         <Reveal delay={90}>
           <h1 className="mt-6 text-5xl leading-[1.08] font-light tracking-[-0.03em] text-[#0d0c11] sm:text-6xl lg:text-[64px] lg:leading-[1.06]">
-            Agen yang bekerja,
+            Asisten belajar cerdas,
             <br />
-            bukti yang bicara
+            pelindung saat mencari kerja
           </h1>
         </Reveal>
 
         <Reveal delay={180}>
           <p className="mx-auto mt-6 max-w-xl text-[15px] leading-relaxed text-[#110f1a]/55">
-            Careevo memberi setiap agen tempat kerja: tugas, batas, dan jejak
-            audit lengkap, dari jadwal belajar sampai attestation HMAC.
+            Di balik Careevo, agen AI bekerja saling melengkapi: memandu logika
+            berpikirmu, menganalisis kesesuaian CV, memverifikasi hasil belajar,
+            dan menyaring loker palsu sebelum kamu melamar.
           </p>
         </Reveal>
 
@@ -241,13 +242,13 @@ export function MarketingAgents() {
               href="/daftar"
               className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#14121c] px-6 text-[15px] font-medium whitespace-nowrap text-white transition-colors duration-200 select-none hover:bg-[#14121c]/85"
             >
-              Mulai gratis
+              Coba Latihan Gratis
             </Link>
             <Link
               href="#loop"
               className="group inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl px-6 text-[15px] font-medium whitespace-nowrap text-[#0d0c11]/85 transition-colors duration-200 select-none hover:bg-black/5"
             >
-              Lihat cara kerja
+              Pelajari Alurnya
               <ArrowUpRight
                 className="size-4 text-blue-500 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
                 strokeWidth={2}

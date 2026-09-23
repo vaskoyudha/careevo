@@ -8,26 +8,28 @@ const FEATURES: {
   image: string;
 }[] = [
   {
-    id: "verifikasi",
-    title: "Bukti belajar terverifikasi",
+    id: "socrates",
+    title: "Bimbingan & evaluasi Sokratik",
     description:
-      "Setiap task yang lulus ditandatangani HMAC-SHA256 dan bisa diverifikasi publik lewat satu tautan.",
+      "Bukan memberi jawaban instan. Socrates menguji logika kode yang kamu tulis, menanyakan alasan trade-off arsitektur, dan melatihmu agar siap saat menghadapi interview teknis.",
+    image:
+      "https://images.unsplash.com/photo-1531482615713-2afd69097998?w=900&q=80",
+  },
+  {
+    id: "verifikasi",
+    title: "Bukti kompetensi terverifikasi",
+    description:
+      "Alur penyelesaian tugas dan pengujian dicatat otomatis tanpa kamera pengawas. Hasilkan bukti proses kerja yang bisa langsung dicek dan dipercaya rekruter.",
     image:
       "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=900&q=80",
   },
   {
-    title: "Audit loker otomatis",
+    id: "loker",
+    title: "Rekomendasi loker & penutup skill gap",
     description:
-      "Sentinel memeriksa pola fee, regex transfer pribadi, dan usia domain sebelum lowongan tampil.",
+      "Temukan lowongan kerja yang sesuai dengan skill dan CV kamu saat ini, bebas dari pungutan liar, lengkap dengan panduan materi untuk menutup skill yang masih kurang.",
     image:
       "https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=900&q=80",
-  },
-  {
-    title: "Navigator skill gap",
-    description:
-      "Rekomendasi task diambil dari tren loker, transparan, dan tidak pernah mengubah skor kamu.",
-    image:
-      "https://images.unsplash.com/photo-1531482615713-2afd69097998?w=900&q=80",
   },
 ];
 
@@ -38,13 +40,13 @@ export function MarketingFeatures() {
         <div className="mx-auto mb-16 max-w-2xl text-center">
           <Reveal>
             <h2 className="mb-4 text-4xl font-medium -tracking-[1.9px] text-gray-900 lg:text-6xl">
-              Semua yang kamu butuhkan untuk membuktikan kompetensi
+              Tiga langkah nyata: belajar, buktikan, dan siap kerja
             </h2>
           </Reveal>
           <Reveal delay={80}>
             <p className="text-base text-gray-500">
-              Proses belajar terekam, hasil ditandatangani, dan tiap lowongan
-              melewati audit agen sebelum sampai ke kamu.
+              Mulai dari bimbingan logika coding, verifikasi alur kerja tanpa
+              kamera pengawas, sampai kurasi lowongan kerja yang relevan.
             </p>
           </Reveal>
         </div>

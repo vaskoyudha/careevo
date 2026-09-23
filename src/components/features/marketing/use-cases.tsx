@@ -7,23 +7,23 @@ import { Reveal } from "./primitives";
 
 const CASES = [
   {
-    title: "Peserta / pencari kerja",
+    title: "Pencari kerja & developer",
     description:
-      "Rekam proses, kumpulkan badge terverifikasi, dan tunjukkan kompetensi tanpa biometrik.",
+      "Latihan coding terpandu, bangun kesiapan interview teknis, dan temukan lowongan kerja yang cocok dengan keahlian serta CV kamu.",
     image:
       "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1200&q=80",
   },
   {
-    title: "Verifikator",
+    title: "Verifikator & mentor",
     description:
-      "Review laporan, nilai rubrik lima kriteria, dan jaga kualitas verifikasi tetap konsisten.",
+      "Tinjau alur kerja kandidat, uji pemahaman logika, dan jaga standar penilaian kompetensi tetap objektif tanpa bias.",
     image:
       "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=1200&q=80",
   },
   {
     title: "Tim rekrutmen",
     description:
-      "Temukan kandidat dengan bukti kerja yang bisa dibuka dan diaudit, bukan sekadar CV.",
+      "Temukan kandidat dengan bukti proses berpikir dan pemecahan masalah nyata, bukan sekadar repo atau CV hasil salinan AI.",
     image:
       "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=1200&q=80",
   },

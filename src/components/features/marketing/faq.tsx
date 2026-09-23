@@ -8,23 +8,27 @@ import { Reveal } from "./primitives";
 const FAQS = [
   {
     q: "Apa itu Careevo dan untuk siapa?",
-    a: "Careevo adalah jembatan terverifikasi dari course ke pekerjaan pertama. Dibuat untuk peserta, verifikator, dan tim rekrutmen yang ingin bukti kompetensi, bukan sekadar klaim.",
+    a: "Careevo adalah platform persiapan kerja dan verifikasi kompetensi bagi developer yang ingin membuktikan keahlian nyata di era AI, mulai dari latihan coding, persiapan interview, sampai kurasi lowongan kerja.",
   },
   {
-    q: "Bagaimana verifikasi HMAC-SHA256 bekerja?",
-    a: "Setiap hasil submission ditandatangani dengan HMAC-SHA256. Siapa pun bisa membuka tautan verifikasi untuk memastikan data tidak diubah setelah diterbitkan.",
+    q: "Bagaimana Careevo membantu saya lulus interview kerja?",
+    a: "Careevo tidak hanya menguji kode jadi. Melalui Socrates AI, kamu diajak berdiskusi tentang alasan memilih struktur kode tertentu, pengujian sistem, dan trade-off arsitektur, layaknya interview teknis sungguhan.",
+  },
+  {
+    q: "Bagaimana sistem mencocokkan lowongan dengan skill dan CV saya?",
+    a: "Careevo membandingkan keahlian dan CV kamu dengan lowongan kerja yang telah diverifikasi bebas scam oleh Sentinel. Jika ada skill yang belum terpenuhi, Navigator langsung menyarankan task latihan untuk menutup gap tersebut.",
+  },
+  {
+    q: "Bagaimana verifikasi bukti kerja bekerja?",
+    a: "Setiap proses penyelesaian tugas dan pengujian dicatat otomatis dan ditandatangani secara kriptografis. Rekruter dapat membuka tautan publik untuk memastikan keaslian bukti kerjamu.",
   },
   {
     q: "Apakah data saya aman tanpa biometrik?",
-    a: "Ya. Careevo nir-biometrik dan Zero-PII: tanpa webcam, tanpa rekam ketukan, dan tanpa email yang dipublikasikan. Identitas di halaman publik hanya memakai username.",
+    a: "Ya. Careevo tidak menggunakan kamera pengawas webcam, keylogger, atau data pribadi sensitif. Identitas di halaman portofolio publik terlindungi dan hanya menampilkan username.",
   },
   {
-    q: "Bisakah dipakai untuk kampus atau bootcamp?",
-    a: "Bisa. Paket Kampus menambahkan SSO, integrasi LMS, laporan akreditasi, dan onboarding khusus untuk institusi.",
-  },
-  {
-    q: "Bagaimana loker diaudit oleh agen?",
-    a: "Sentinel memeriksa usia domain, pola biaya, dan regex transfer pribadi. Loker yang mencurigakan dikarantina sebelum tampil di daftar.",
+    q: "Bagaimana loker diaudit agar bebas penipuan?",
+    a: "Agen Sentinel memindai setiap lowongan kerja dari pola permintaan biaya rekrutmen, nomor rekening transfer pribadi, dan usia domain situs sebelum lowongan tersebut ditampilkan.",
   },
 ];
 
