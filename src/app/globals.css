@@ -3047,6 +3047,29 @@ body {
   background: radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.35), transparent 70%);
   transition: opacity 0.3s ease;
   z-index: 0;
+  overflow: hidden;
+  border-radius: 20px;
+}
+
+.uiverse-glow::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 999px;
+  height: 999px;
+  transform: translate(-50%, -50%) rotate(0deg);
+  background-image: conic-gradient(
+    from 0deg,
+    transparent 0%,
+    rgba(37, 99, 235, 0.7) 6%,
+    transparent 14%,
+    transparent 50%,
+    rgba(56, 189, 248, 0.7) 56%,
+    transparent 64%,
+    transparent 100%
+  );
+  animation: uiverse-rotate 4s linear infinite;
 }
 
 .uiverse-poda:hover .uiverse-glow,
@@ -3071,14 +3094,15 @@ body {
   transform: translate(-50%, -50%) rotate(0deg);
   background-image: conic-gradient(
     from 0deg,
-    transparent 0deg,
-    transparent 180deg,
-    rgba(56, 189, 248, 0.25) 230deg,
-    #38bdf8 275deg,
-    #2563eb 315deg,
-    #1d4ed8 340deg,
-    #60a5fa 355deg,
-    transparent 360deg
+    transparent 0%,
+    #1e40af 5%,
+    #0284c7 9%,
+    transparent 15%,
+    transparent 50%,
+    #2563eb 55%,
+    #38bdf8 59%,
+    transparent 65%,
+    transparent 100%
   );
   animation: uiverse-rotate 4s linear infinite;
 }
@@ -3099,14 +3123,18 @@ body {
   width: 900px;
   height: 900px;
   transform: translate(-50%, -50%) rotate(0deg);
+  filter: brightness(1.35);
   background-image: conic-gradient(
     from 0deg,
-    transparent 0deg,
-    transparent 200deg,
-    rgba(147, 197, 253, 0.4) 250deg,
-    #93c5fd 290deg,
-    #38bdf8 330deg,
-    transparent 360deg
+    transparent 0%,
+    #93c5fd 5%,
+    #60a5fa 8%,
+    transparent 13%,
+    transparent 50%,
+    #7dd3fc 55%,
+    #38bdf8 58%,
+    transparent 63%,
+    transparent 100%
   );
   animation: uiverse-rotate 4s linear infinite;
 }
@@ -3126,14 +3154,20 @@ body {
   width: 900px;
   height: 900px;
   transform: translate(-50%, -50%) rotate(0deg);
+  filter: brightness(1.25);
   background-image: conic-gradient(
     from 0deg,
-    transparent 0deg,
-    transparent 190deg,
-    rgba(37, 99, 235, 0.2) 240deg,
-    #38bdf8 285deg,
-    #1d4ed8 335deg,
-    transparent 360deg
+    transparent 0%,
+    #1d4ed8 4%,
+    #2563eb 7%,
+    #38bdf8 10%,
+    transparent 15%,
+    transparent 50%,
+    #0284c7 54%,
+    #38bdf8 57%,
+    #60a5fa 60%,
+    transparent 65%,
+    transparent 100%
   );
   animation: uiverse-rotate 4s 0.05s linear infinite;
 }
