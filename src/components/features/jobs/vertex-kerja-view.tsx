@@ -21,7 +21,7 @@ import {
 import type { JobFixture } from "@/lib/fixtures";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { JobsBoard } from "@/components/features/jobs/jobs-board";
-import { MovingBorder } from "@/components/ui/moving-border";
+import { CurvySearchBar } from "@/components/features/jobs/curvy-search-bar";
 import { cn } from "@/lib/utils";
 
 interface VertexKerjaViewProps {
@@ -340,60 +340,17 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                     Setiap lowongan kerja dipindai otomatis dari indikasi scam, pungutan fee seleksi, dan rekening pribadi. Dilengkapi Fit Score AI dan portofolio bukti karya nyata.
                   </p>
 
-                  {/* Search Bar with Moving Border Blue Gradient Glowing Animation */}
-                  <div className="mx-auto mt-7 w-full max-w-2xl">
-                    <div className="group relative">
-                      {/* Outer ambient blur glow */}
-                      <div
-                        aria-hidden="true"
-                        className="pointer-events-none absolute -inset-1 rounded-2xl bg-gradient-to-r from-blue-500/20 via-sky-400/25 to-blue-600/20 blur-xl opacity-60 transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100"
-                      />
-
-                      {/* Moving border container with SVG perimeter tracking */}
-                      <div className="relative overflow-hidden rounded-2xl border border-neutral-200/70 bg-neutral-100/70 p-[2px] shadow-xs">
-                        <div className="pointer-events-none absolute inset-0">
-                          <MovingBorder duration={3500} rx="14px" ry="14px">
-                            <div className="size-32 bg-[radial-gradient(ellipse_at_center,#38bdf8_15%,#3b82f6_45%,#1d4ed8_75%,transparent_90%)] opacity-95 blur-[1px]" />
-                          </MovingBorder>
-                        </div>
-
-                        {/* Inner search bar surface */}
-                        <form
-                          onSubmit={handleHeroSearch}
-                          className="relative z-10 flex items-center gap-2 rounded-[14px] bg-white px-4 py-2.5 sm:py-3 transition-colors"
-                        >
-                          <Search className="size-5 shrink-0 text-[#2A7FB8] transition-colors group-focus-within:text-[#124E78]" />
-                          <input
-                            type="search"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Cari loker: Frontend, Node.js, Remote, Jakarta, Rp8-12 jt…"
-                            aria-label="Cari lowongan kerja cepat"
-                            className="w-full bg-transparent text-sm sm:text-base text-neutral-900 placeholder:text-neutral-400 focus:outline-none"
-                          />
-                          {searchQuery ? (
-                            <button
-                              type="button"
-                              onClick={() => setSearchQuery("")}
-                              className="cursor-pointer text-neutral-400 hover:text-neutral-600 p-1 text-xs"
-                              aria-label="Hapus pencarian"
-                            >
-                              ✕
-                            </button>
-                          ) : null}
-                          <button
-                            type="submit"
-                            className="chrome-btn chrome-btn-brand !h-9 !px-4 !text-xs shrink-0 gap-1.5"
-                          >
-                            <span>Cari</span>
-                            <ArrowRight className="size-3.5" />
-                          </button>
-                        </form>
-                      </div>
-                    </div>
+                  {/* Search Bar UIverse curvy-earwig-22 (Blue Edition) */}
+                  <div className="mx-auto mt-7 w-full max-w-xl">
+                    <CurvySearchBar
+                      value={searchQuery}
+                      onChange={setSearchQuery}
+                      onSubmit={handleHeroSearch}
+                      placeholder="Cari loker: Frontend, Node.js, Remote, Jakarta, Rp8-12 jt…"
+                    />
 
                     {/* Quick Search Chips */}
-                    <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5 text-xs text-neutral-500">
+                    <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5 text-xs text-neutral-500">
                       <span className="text-[11px] text-neutral-400">Paling dicari:</span>
                       {["Frontend", "Node.js", "Remote", "Jakarta", "React", "Fullstack"].map((term) => (
                         <button
