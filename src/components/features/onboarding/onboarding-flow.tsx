@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useActionState } from "react";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import {
   BriefcaseBusiness,
   Check,
@@ -26,7 +26,7 @@ import {
   type WorkPreference,
 } from "@/lib/onboarding/types";
 import { cn } from "@/lib/utils";
-import { OnboardingStepCard } from "@/components/ui/onboarding-step-card";
+import { OnboardingShell } from "@/components/ui/onboarding-shell";
 
 /**
  * Three-step personalization wizard.
@@ -42,17 +42,14 @@ const STEP_META = [
   {
     title: "Latar belakangmu",
     subtitle: "Biar kami tahu titik awalmu dan menyusun materi yang pas.",
-    hero: "/onboarding/hero-learn.jpg",
   },
   {
     title: "Apa yang mau kamu kuasai?",
     subtitle: "Pilih 1–3 bidang. Ini menentukan rekomendasi kursus dan loker.",
-    hero: "/onboarding/hero-code.jpg",
   },
   {
     title: "Tujuan & komitmen",
     subtitle: "Terakhir, supaya rekomendasi loker dan jadwal belajar realistis.",
-    hero: "/onboarding/hero-team.jpg",
   },
 ] as const;
 
@@ -131,7 +128,7 @@ export function OnboardingFlow({
   };
 
   return (
-    <form action={formAction} onSubmit={handleSubmit} className="w-full max-w-xl">
+    <form action={formAction} onSubmit={handleSubmit} className="w-full">
       {/* Serialized payload — single source of truth for the server action. */}
       <input type="hidden" name="experience" value={draft.experience ?? ""} />
       <input type="hidden" name="background" value={draft.background ?? ""} />
@@ -142,14 +139,13 @@ export function OnboardingFlow({
         <input key={interest} type="hidden" name="interests" value={interest} />
       ))}
 
-      <OnboardingStepCard
-        heroImageSrc={meta.hero}
-        title={meta.title}
-        subtitle={step === 0 ? `Halo ${nama}, ${meta.subtitle}` : meta.subtitle}
+      <OnboardingShell
         step={step + 1}
         totalSteps={STEP_META.length}
+        title={meta.title}
+        subtitle={step === 0 ? `Halo ${nama}, ${meta.subtitle}` : meta.subtitle}
         footer={
-          <>
+          <div className="flex items-center gap-3">
             {step > 0 ? (
               <button
                 type="button"
@@ -171,26 +167,37 @@ export function OnboardingFlow({
                 <>{pending ? "Menyimpan..." : "Mulai belajar"}</>
               )}
             </button>
-          </>
+          </div>
         }
       >
         {state.message ? (
           <p
-            className="rounded-[8px] border border-[#e4572e]/35 bg-[#e4572e]/10 px-3 py-2 text-sm text-[#e4572e]"
+            className="mb-5 rounded-[8px] border border-[#e4572e]/35 bg-[#e4572e]/10 px-3 py-2 text-sm text-[#e4572e]"
             role="alert"
           >
             {state.message}
           </p>
         ) : null}
 
-        {step === 0 ? (
-          <StepBackground draft={draft} set={set} />
-        ) : step === 1 ? (
-          <StepInterests draft={draft} toggle={toggleInterest} />
-        ) : (
-          <StepGoals draft={draft} set={set} />
-        )}
-      </OnboardingStepCard>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={step}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="grid gap-6"
+          >
+            {step === 0 ? (
+              <StepBackground draft={draft} set={set} />
+            ) : step === 1 ? (
+              <StepInterests draft={draft} toggle={toggleInterest} />
+            ) : (
+              <StepGoals draft={draft} set={set} />
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </OnboardingShell>
     </form>
   );
 }
