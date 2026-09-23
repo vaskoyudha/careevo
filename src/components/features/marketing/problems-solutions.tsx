@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { ArrowRight, Quote } from "lucide-react";
+import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { Reveal } from "./primitives";
 
@@ -112,13 +113,13 @@ export function MarketingProblemsSolutions() {
           </Reveal>
         </div>
 
-        {/* 2-Column Split: Left Scrolls, Right Sticky Preview */}
-        <div className="relative grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-start">
-          {/* Left Column: Quote + Narrative Cards */}
-          <div className="lg:col-span-6 space-y-10 lg:space-y-14">
+        {/* 2-Column Split: Left Scrolls, Right Centered Sticky Preview */}
+        <div className="relative grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 xl:gap-20 items-start">
+          {/* Left Column: Quote + Narrative Cards with increased vertical spacing */}
+          <div className="lg:col-span-6 space-y-16 lg:space-y-24">
             {/* Dario Amodei Quote Card */}
             <Reveal delay={100}>
-              <div className="rounded-2xl bg-white p-6 shadow-feature-card border border-gray-100">
+              <div className="rounded-2xl bg-white p-6 sm:p-7 shadow-feature-card border border-gray-100">
                 <Quote className="size-5 text-[#388AF3] mb-3" />
                 <p className="text-sm sm:text-base text-gray-700 italic leading-relaxed">
                   &ldquo;In a world where AI can generate anything, having basic critical thinking skills may be the most important thing to success. You don&rsquo;t want to fall for things that are fake, and you don&rsquo;t want to get scammed.&rdquo;
@@ -141,47 +142,52 @@ export function MarketingProblemsSolutions() {
               </div>
             </Reveal>
 
-            {/* Scrollable Problem Cards */}
+            {/* Scrollable Problem Cards: Focused card stays full opacity, unfocused cards dim */}
             {PROBLEMS.map((item, index) => {
               const isActive = active === index;
 
               return (
-                <div
+                <motion.div
                   key={item.id}
                   ref={(el) => {
                     cardRefs.current[index] = el;
                   }}
                   onClick={() => setActive(index)}
+                  animate={{
+                    opacity: isActive ? 1 : 0.35,
+                    scale: isActive ? 1 : 0.98,
+                  }}
+                  transition={{ duration: 0.35, ease: "easeOut" }}
                   className={cn(
-                    "cursor-pointer rounded-2xl bg-white p-6 lg:p-8 transition-all duration-200 border-l-4 shadow-feature-card",
+                    "cursor-pointer rounded-2xl bg-white p-7 sm:p-8 lg:p-9 border-l-4 shadow-feature-card transition-colors duration-200",
                     isActive
-                      ? "border-[#388AF3] ring-1 ring-[#388AF3]/20"
-                      : "border-transparent opacity-80 hover:opacity-100",
+                      ? "border-[#388AF3] ring-1 ring-[#388AF3]/20 shadow-md"
+                      : "border-transparent hover:opacity-60",
                   )}
                 >
-                  <h3 className="text-2xl font-medium text-gray-900 mb-2">
+                  <h3 className="text-2xl font-medium text-gray-900 mb-3">
                     {item.problemTitle}
                   </h3>
 
-                  <p className="text-sm text-gray-500 leading-relaxed mb-4">
+                  <p className="text-base text-gray-500 leading-relaxed mb-5">
                     {item.problemDescription}
                   </p>
 
-                  <div className="border-t border-gray-100 pt-3">
-                    <p className="text-xs font-medium text-[#388AF3] uppercase tracking-wider mb-1">
+                  <div className="border-t border-gray-100 pt-4">
+                    <p className="text-xs font-medium text-[#388AF3] uppercase tracking-wider mb-1.5">
                       Solusi Careevo
                     </p>
                     <p className="text-sm text-gray-700 leading-relaxed">
                       {item.solutionShort}
                     </p>
                   </div>
-                </div>
+                </motion.div>
               );
             })}
           </div>
 
-          {/* Right Column: Sticky Visual Showcase */}
-          <div className="lg:col-span-6 sticky top-28 self-start w-full">
+          {/* Right Column: Centered Sticky Visual Showcase */}
+          <div className="lg:col-span-6 sticky top-[16vh] lg:top-[20vh] self-start w-full">
             <div className="rounded-2xl bg-white p-3 shadow-feature-card">
               {/* Active Image */}
               <div className="relative aspect-[16/10] w-full overflow-hidden rounded-xl bg-gray-100">
@@ -201,7 +207,7 @@ export function MarketingProblemsSolutions() {
               </div>
 
               {/* Text Caption Matching Features & Use-Cases */}
-              <div className="p-5 sm:p-6">
+              <div className="p-6">
                 <h3 className="text-2xl font-medium text-gray-900 mb-2">
                   {current.solutionTitle}
                 </h3>
