@@ -353,7 +353,7 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
         {/* Layer 2: Wallpaper Background (In Front of Striped Radial White) */}
         <div className="relative z-10 h-[640px] sm:h-[720px] md:h-[820px] w-full overflow-hidden">
           <Image
-            src="/images/hero-loker-header.jpg"
+            src="/images/hero-loker-header.png"
             alt="Careevo header visual"
             fill
             priority
@@ -370,13 +370,13 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
       <div className="relative z-10 w-full pt-16 sm:pt-20 md:pt-24 lg:pt-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-4xl text-center">
-            {/* Main Headline */}
-            <h1 className="text-balance font-semibold text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-neutral-950 tracking-tight leading-[1.12]">
-                    Kurasi lowongan kerja resmi yang diaudit Sentinel, tanpa biaya
-                  </h1>
+            {/* Main Headline (Matched to Home Page Hero Typography & White Color) */}
+            <h1 className="mx-auto max-w-4xl text-balance text-4xl font-medium tracking-tight text-white sm:text-5xl md:text-6xl drop-shadow-sm">
+              Kurasi lowongan kerja resmi yang diaudit Sentinel, tanpa biaya
+            </h1>
 
                   {/* Lead Subtitle */}
-                  <p className="mx-auto mt-5 max-w-2xl text-balance text-base text-neutral-600 sm:text-lg leading-relaxed">
+                  <p className="mx-auto mt-5 max-w-2xl text-balance text-base text-white/85 sm:text-lg leading-relaxed">
                     Setiap lowongan kerja dipindai otomatis dari indikasi scam, pungutan fee seleksi, dan rekening pribadi. Dilengkapi Fit Score AI dan portofolio bukti karya nyata.
                   </p>
 
@@ -423,8 +423,8 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                   </div>
 
                   {/* Credit label */}
-                  <p className="mt-4 text-xs text-neutral-400">
-                    Didukung oleh <strong className="font-medium text-neutral-600">Sentinel AI</strong> · Data resmi <strong className="font-medium text-neutral-600">KarirHub Kemnaker</strong>
+                  <p className="mt-4 text-xs text-white/70">
+                    Didukung oleh <strong className="font-medium text-white">Sentinel AI</strong> · Data resmi <strong className="font-medium text-white">KarirHub Kemnaker</strong>
                   </p>
                 </div>
 
