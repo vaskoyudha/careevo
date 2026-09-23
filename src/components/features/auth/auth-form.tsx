@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState, type ReactNode } from "react";
 import { loginAction, registerAction } from "@/actions/auth";
 import type { AuthFormState } from "@/lib/auth/types";
+import { cn } from "@/lib/utils";
 
 const initialState: AuthFormState = { ok: false };
 
@@ -15,28 +16,41 @@ const copy: Record<AuthMode, { submit: string; pending: string }> = {
 };
 
 const inputClass =
-  "min-w-0 flex-1 truncate bg-transparent text-base text-black outline-none placeholder:text-black/35 focus:outline-none focus-visible:outline-none";
+  "w-full min-w-0 flex-1 truncate bg-transparent text-base text-black outline-none placeholder:text-transparent focus:outline-none focus-visible:outline-none";
 
 function Field({
   id,
   label,
   hint,
   error,
+  floating = true,
   children,
 }: {
   id: string;
   label: string;
   hint?: string;
   error?: string;
+  /** Text inputs float/fade the label; selects keep it inline as a prefix. */
+  floating?: boolean;
   children: ReactNode;
 }) {
   return (
     <div>
       <label
         htmlFor={id}
-        className="auth-field flex h-11 items-center gap-4 rounded-[8px] border border-black/20 bg-white px-4 text-base leading-none transition-colors"
+        className={cn(
+          "auth-field group relative flex h-11 items-center rounded-[8px] border border-black/20 bg-white px-4 text-base leading-none transition-colors",
+          !floating && "gap-4",
+        )}
       >
-        <span className="shrink-0 text-black">{label}</span>
+        <span
+          className={cn(
+            "auth-field-label pointer-events-none text-black",
+            floating ? "absolute" : "shrink-0",
+          )}
+        >
+          {label}
+        </span>
         {children}
       </label>
       {hint && !error ? (
@@ -97,6 +111,7 @@ export function AuthForm({
                 name="nama"
                 type="text"
                 autoComplete="name"
+                placeholder=" "
                 defaultValue={state.values?.nama}
                 className={inputClass}
                 aria-invalid={errors.nama ? true : undefined}
@@ -109,6 +124,7 @@ export function AuthForm({
                 name="username"
                 type="text"
                 autoComplete="username"
+                placeholder=" "
                 defaultValue={state.values?.username}
                 className={inputClass}
                 aria-invalid={errors.username ? true : undefined}
@@ -124,6 +140,7 @@ export function AuthForm({
             name="email"
             type="email"
             autoComplete="email"
+            placeholder=" "
             defaultValue={state.values?.email ?? defaultEmail}
             className={inputClass}
             aria-invalid={errors.email ? true : undefined}
@@ -142,6 +159,7 @@ export function AuthForm({
             name="password"
             type="password"
             autoComplete={isDaftar ? "new-password" : "current-password"}
+            placeholder=" "
             defaultValue={defaultPassword}
             className={inputClass}
             aria-invalid={errors.password ? true : undefined}
@@ -150,7 +168,7 @@ export function AuthForm({
         </Field>
 
         {isDaftar ? (
-          <Field id="role" label="Daftar sebagai" error={errors.role}>
+          <Field id="role" label="Daftar sebagai" error={errors.role} floating={false}>
             <select
               id="role"
               name="role"

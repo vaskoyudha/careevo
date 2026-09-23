@@ -1738,6 +1738,21 @@ body {
   box-shadow: 0 0 0 3px var(--aqua-glow);
 }
 
+/* The field label acts as a placeholder: it sits inline while the input is
+   empty and untouched, then fades out as soon as the field is focused or has
+   content. `:placeholder-shown` needs the input's `placeholder=" "`. */
+.auth-field-label {
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+}
+
+.auth-field:focus-within .auth-field-label,
+.auth-field:has(input:not(:placeholder-shown)) .auth-field-label {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
 @media (max-width: 560px) {
   .chrome-btn-text,
   .chrome-btn-brand {
