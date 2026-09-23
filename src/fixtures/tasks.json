@@ -1,0 +1,87 @@
+[
+  {
+    "id": "1",
+    "title": "Rebuild Landing Page",
+    "track": "web-dev",
+    "level": "dasar",
+    "brief": "Rebuild halaman landing dari referensi gambar memakai HTML + CSS murni tanpa framework. Fokus pada layout responsif dan semantic HTML.",
+    "criteria": [
+      "Layout sesuai referensi di 375px dan 1440px",
+      "Semantic HTML (header, nav, main, footer)",
+      "Tanpa horizontal scroll di mobile",
+      "Gambar punya alt text"
+    ],
+    "constraints": ["Tanpa framework CSS", "Tanpa JavaScript"],
+    "estimate_min": 90,
+    "status": "passed",
+    "score": 87
+  },
+  {
+    "id": "2",
+    "title": "Async Data Fetching",
+    "track": "web-dev",
+    "level": "menengah",
+    "brief": "Ambil data dari API publik, tampilkan loading/error/empty state, dan tangani race condition saat pencarian cepat.",
+    "criteria": [
+      "Loading dan error state terlihat",
+      "AbortController dipakai untuk membatalkan request",
+      "Debounce pencarian 300ms",
+      "Tidak ada memory leak saat unmount"
+    ],
+    "constraints": ["Tanpa library data fetching"],
+    "estimate_min": 120,
+    "status": "review",
+    "score": null
+  },
+  {
+    "id": "3",
+    "title": "Form Validation & Error States",
+    "track": "web-dev",
+    "level": "menengah",
+    "brief": "Bangun form registrasi dengan validasi inline, pesan error yang jelas, dan aksesibilitas keyboard penuh.",
+    "criteria": [
+      "Error inline per field",
+      "aria-invalid dan aria-describedby dipakai",
+      "Fokus pindah ke field error pertama",
+      "Berhasil submit dengan keyboard saja"
+    ],
+    "constraints": ["Validasi tanpa library"],
+    "estimate_min": 100,
+    "status": "available",
+    "score": null
+  },
+  {
+    "id": "4",
+    "title": "Virtualized List & Performance",
+    "track": "web-dev",
+    "level": "lanjut",
+    "brief": "Render 10.000 baris data tanpa lag memakai virtualisasi sederhana, ukur dengan Performance API.",
+    "criteria": [
+      "Hanya render item yang terlihat",
+      "Scroll 60fps di perangkat low-end",
+      "Ukuran DOM node terbatas",
+      "Ada pengukuran sebelum/sesudah"
+    ],
+    "constraints": ["Tanpa library virtualisasi"],
+    "estimate_min": 150,
+    "status": "locked",
+    "requires": "Selesaikan Form Validation & Error States"
+  },
+  {
+    "id": "5",
+    "title": "REST API + Testing",
+    "track": "web-dev",
+    "level": "lanjut",
+    "brief": "Bangun endpoint REST sederhana dengan validasi input dan test integrasi.",
+    "criteria": [
+      "Validasi input dengan Zod",
+      "Test happy path dan error path",
+      "Status code konsisten",
+      "Dokumentasi endpoint singkat"
+    ],
+    "constraints": ["Tanpa ORM"],
+    "estimate_min": 180,
+    "status": "locked",
+    "requires": "Virtualized List & Performance"
+  }
+]

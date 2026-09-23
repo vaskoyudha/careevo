@@ -1,0 +1,145 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { getSession } from "@/lib/auth/session";
+import { AppShell } from "@/components/ui/app-shell";
+import { PageHead } from "@/components/ui/page-head";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { ProgressBar } from "@/components/ui/progress-bar";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Button } from "@/components/ui/button";
+import { getJob, profile } from "@/lib/fixtures";
+import { labelAturan } from "@/lib/agents/rules/fee-rules";
+
+export const metadata: Metadata = {
+  title: "Detail Loker",
+};
+
+const SKILLS = ["HTML", "CSS", "JavaScript", "React", "TypeScript", "Git"];
+
+const TRACKER = ["applied", "reviewed", "interview", "outcome"] as const;
+
+export default async function LokerDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const session = await getSession();
+  if (!session) return null;
+
+  const { id } = await params;
+  const job = getJob(id);
+  if (!job) notFound();
+
+  const matched = job.tags.filter((tag) => SKILLS.includes(tag));
+  const fitScore = job.fit_score ?? matched.length * 15;
+
+  return (
+    <AppShell session={session} current="/loker">
+        <PageHead
+          eyebrow={`${job.source} · ${job.external_id}`}
+          title={job.title}
+          lead={`${job.company} · ${job.location}`}
+          actions={<StatusBadge status={job.sentinel_status} />}
+        />
+
+        <div className="grid-2">
+          <section className="card" aria-labelledby="desc-title">
+            <div className="card-head">
+              <h2 className="card-title" id="desc-title">
+                Deskripsi
+              </h2>
+              {job.salary_range ? <span className="status status-info">{job.salary_range}</span> : null}
+            </div>
+            <p style={{ marginTop: 0 }}>{job.description}</p>
+            <div className="tag-row" style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", marginTop: "0.75rem" }}>
+              {job.tags.map((tag) => (
+                <span className="tag" key={tag}>
+                  {tag}
+                </span>
+              ))}
+            </div>
+            <p className="caption muted" style={{ marginTop: "0.75rem" }}>
+              Level {job.level} · {job.work_type} · diposting {job.posted_at}
+            </p>
+          </section>
+
+          <section className="card" aria-labelledby="sentinel-title">
+            <div className="card-head">
+              <div>
+                <h2 className="card-title" id="sentinel-title">
+                  Hasil audit Sentinel
+                </h2>
+                <p className="card-sub">Rule-based: usia domain, pola fee, regex transfer pribadi</p>
+              </div>
+              <StatusBadge status={job.sentinel_status} />
+            </div>
+            {job.fee_flags.length === 0 ? (
+              <p className="alert alert-ok">Tidak ada sinyal scam terdeteksi. Loker aman untuk dilamar.</p>
+            ) : (
+              <ul className="list-app" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+                {job.fee_flags.map((flag) => (
+                  <li className="log-line" key={flag}>
+                    <span>{labelAturan(flag)}</span>
+                    <span className="status status-danger">flag</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="caption muted" style={{ marginTop: "0.75rem" }}>
+              Karantina bisa dibanding. Keputusan akhir ada di verifikator, bukan agen.
+            </p>
+          </section>
+        </div>
+
+        <div className="grid-2" style={{ marginTop: "1.25rem" }}>
+          <section className="card" aria-labelledby="fit-title">
+            <div className="card-head">
+              <div>
+                <h2 className="card-title" id="fit-title">
+                  Fit score
+                </h2>
+                <p className="card-sub">Kecocokan skill kamu vs lowongan, dengan alasan terbuka</p>
+              </div>
+              <span className="score-hero">
+                <b>{fitScore}</b>
+                <span>/100</span>
+              </span>
+            </div>
+            <ProgressBar value={fitScore} max={100} tone={fitScore >= 70 ? "ok" : "warn"} label="Fit score" />
+            <p className="caption muted" style={{ marginTop: "0.75rem" }}>
+              Cocok pada {matched.length} tag: {matched.join(", ") || "belum ada"}. Skor skill kamu{" "}
+              {profile.score_total} memperkuat kecocokan.
+            </p>
+          </section>
+
+          <section className="card" aria-labelledby="tracker-title">
+            <div className="card-head">
+              <h2 className="card-title" id="tracker-title">
+                Apply dan tracker
+              </h2>
+            </div>
+            {job.sentinel_status === "clean" ? (
+              <>
+                <p className="muted">Status lamaran kamu</p>
+                <ol style={{ listStyle: "none", padding: 0, margin: "0.5rem 0 1rem" }}>
+                  {TRACKER.map((step, index) => (
+                    <li key={step} style={{ display: "flex", gap: "0.6rem", alignItems: "center", padding: "0.3rem 0" }}>
+                      <span className={`status ${index === 0 ? "status-ok" : "status-info"}`}>{index + 1}</span>
+                      <span>{step}</span>
+                    </li>
+                  ))}
+                </ol>
+                <Button type="button" variant="brand" size="pill">
+                  Lamar sekarang
+                </Button>
+              </>
+            ) : (
+              <EmptyState title="Loker dikarantina">
+                Loker ini tidak bisa dilamar sebelum banding diverifikasi verifikator.
+              </EmptyState>
+            )}
+          </section>
+        </div>
+    </AppShell>
+  );
+}

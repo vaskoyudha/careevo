@@ -1,0 +1,68 @@
+{
+  "id": "1",
+  "task_id": "1",
+  "task_title": "Rebuild Landing Page",
+  "track": "Web Dev",
+  "status": "revision",
+  "submitted_at": "21 Sep 2026, 10:12",
+  "autocheck": {
+    "tests": [
+      { "name": "Halaman memuat tanpa error", "passed": true, "duration_ms": 820 },
+      { "name": "Semantic HTML valid", "passed": true, "duration_ms": 310 },
+      { "name": "Layout 375px tanpa scroll horizontal", "passed": true, "duration_ms": 640 },
+      { "name": "Semua gambar punya alt text", "passed": false, "duration_ms": 120, "error": "2 gambar tanpa alt" },
+      { "name": "Kontras teks memenuhi 4.5:1", "passed": true, "duration_ms": 480 },
+      { "name": "Navigasi keyboard mencapai semua kontrol", "passed": true, "duration_ms": 900 },
+      { "name": "Tidak ada console error", "passed": true, "duration_ms": 260 },
+      { "name": "Lighthouse performance >= 85", "passed": true, "duration_ms": 5400 },
+      { "name": "Lighthouse accessibility >= 90", "passed": false, "duration_ms": 5400, "error": "Skor 88, target 90" },
+      { "name": "Footer link tidak putus", "passed": true, "duration_ms": 210 }
+    ],
+    "lighthouse": {
+      "performance": 92,
+      "accessibility": 88,
+      "best_practices": 96,
+      "seo": 90
+    }
+  },
+  "vts": {
+    "score": 80,
+    "components": [
+      { "label": "Event paste massal", "value": 18, "max": 25 },
+      { "label": "Jumlah iterasi", "value": 20, "max": 25 },
+      { "label": "Test run", "value": 15, "max": 20 },
+      { "label": "Perbaikan debug", "value": 12, "max": 15 },
+      { "label": "Disclose AI", "value": 15, "max": 15 }
+    ]
+  },
+  "socrates": {
+    "questions": [
+      "Kenapa kamu memilih CSS Grid untuk seksi hero, bukan Flexbox? Apa konsekuensinya di 375px?",
+      "Di diff terlihat dua revisi pada media query yang sama. Apa yang salah pada percobaan pertama?",
+      "Kalau konten hero bertambah 2x, bagian mana yang paling dulu rusak dan bagaimana kamu mengujinya?"
+    ],
+    "answered": true,
+    "answered_at": "21 Sep 2026, 13:40",
+    "deadline": "23 Sep 2026, 10:12",
+    "draft_score": 82
+  },
+  "timeline": [
+    { "at": "10:12", "actor_type": "user", "actor_id": "budi", "action": "submission.created", "summary": "Submit versi 2 dengan 6 file" },
+    { "at": "10:14", "actor_type": "system", "actor_id": "system", "action": "autocheck.completed", "summary": "8/10 test lulus, Lighthouse performance 92" },
+    { "at": "10:16", "actor_type": "agent", "actor_id": "socrates", "action": "agent.socrates_run", "summary": "3 pertanyaan nalar dibuat (fallback template)" },
+    { "at": "13:40", "actor_type": "user", "actor_id": "budi", "action": "socrates.answered", "summary": "Jawaban dikirim, draft score 82" },
+    { "at": "15:05", "actor_type": "verifikator", "actor_id": "sari", "action": "review.decided", "summary": "Minta revisi: alt text dan skor aksesibilitas" }
+  ],
+  "rubric": [
+    { "criterion": "Kelengkapan", "score": 3, "max": 4, "note": "Semua seksi ada, satu link footer masih kosong." },
+    { "criterion": "Kualitas", "score": 3, "max": 4, "note": "Layout rapi, spacing konsisten." },
+    { "criterion": "Orisinalitas", "score": 3, "max": 4, "note": "Struktur sendiri, bukan salinan referensi." },
+    { "criterion": "Ketepatan brief", "score": 2, "max": 4, "note": "Dua gambar tanpa alt text." },
+    { "criterion": "Dokumentasi", "score": 3, "max": 4, "note": "README menjelaskan cara menjalankan." }
+  ],
+  "decision": {
+    "status": "revision",
+    "total": 72,
+    "reason": "Perbaiki alt text pada dua gambar dan naikkan skor aksesibilitas Lighthouse minimal 90, lalu submit ulang."
+  }
+}

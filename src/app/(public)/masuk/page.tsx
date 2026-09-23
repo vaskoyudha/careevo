@@ -1,0 +1,32 @@
+import type { Metadata } from "next";
+import AuthSectionTwo from "@/components/ui/auth-section-2";
+import { AuthForm } from "@/components/features/auth/auth-form";
+import { DEMO_ACCOUNTS, DEMO_PASSWORD } from "@/lib/auth/session";
+
+export const metadata: Metadata = {
+  title: "Masuk",
+  description: "Masuk ke akun Careevo untuk melanjutkan course, submission, dan job seeking.",
+};
+
+export default async function MasukPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ email?: string }>;
+}) {
+  const { email } = await searchParams;
+  const prefill = DEMO_ACCOUNTS.some((account) => account.email === email) ? email : undefined;
+
+  return (
+    <AuthSectionTwo title="Masuk ke akun Careevo">
+      <AuthForm
+        mode="masuk"
+        defaultEmail={prefill}
+        defaultPassword={prefill ? DEMO_PASSWORD : undefined}
+      />
+      <p className="mt-6 mb-0 text-center text-xs leading-5 text-black/45">
+        Akun demo: {DEMO_ACCOUNTS.map((account) => account.email).join(" · ")}, password{" "}
+        <span className="font-mono text-black/65">{DEMO_PASSWORD}</span>
+      </p>
+    </AuthSectionTwo>
+  );
+}

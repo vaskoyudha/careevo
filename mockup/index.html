@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Careevo — portofolio dengan attestation HMAC-SHA256, audit append-only, dan Socrates. Kompetensi yang bisa dicek." />
+  <title>Careevo — Kompetensi yang bisa dicek</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main">Lewati ke konten utama</a>
+
+  <div class="chrome">
+    <span class="chrome-loc">Asia/Jakarta</span>
+    <nav class="nav-float" aria-label="Navigasi utama">
+      <a class="nav-item is-active" href="#main" aria-current="page" title="Beranda">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m3 10 9-7 9 7v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>
+        <span class="sr-only">Beranda</span>
+      </a>
+      <span class="nav-sep" aria-hidden="true"></span>
+      <a class="nav-item" href="#tentang">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg>
+        Manifesto
+      </a>
+      <a class="nav-item" href="#agen">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Agen
+      </a>
+      <a class="nav-item" href="#loop">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+        Loop
+      </a>
+      <a class="nav-item" href="#verifikasi">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+        Verifikasi
+      </a>
+      <a class="nav-item" href="audit.html">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/><path d="m15 16 2 2 4-4"/></svg>
+        Audit
+      </a>
+    </nav>
+    <div class="chrome-actions">
+      <button type="button" class="chrome-btn" id="btn-refresh" title="Muat ulang" aria-label="Muat ulang bagian atas">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+      </button>
+      <a class="chrome-btn" href="#cta" title="Ke CTA" aria-label="Menuju call to action">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>
+      </a>
+    </div>
+  </div>
+
+  <main id="main">
+    <section class="hero-mp" aria-labelledby="hero-title">
+      <div class="blob blob-ocean" aria-hidden="true"></div>
+      <div class="blob blob-aqua" aria-hidden="true"></div>
+      <div class="blob blob-foam" aria-hidden="true"></div>
+
+      <div class="hero-mp-inner">
+        <div class="pill-badge">
+          <span class="pill-badge-label">Careevo</span>
+          <span class="pill-badge-sep" aria-hidden="true"></span>
+          <span class="pill-badge-text">Featured · Trusted Web</span>
+        </div>
+
+        <h1 class="display" id="hero-title">
+          Membangun jembatan<br />antara proses dan bukti
+        </h1>
+
+        <p class="hero-mp-lead">
+          Careevo adalah platform <strong>attestation HMAC-SHA256</strong> dan audit append-only
+          untuk kompetensi digital. Dirancang untuk juri <strong>NextGen Secure</strong> —
+          lokal, nir-biometrik, bisa diverifikasi siapa saja.
+        </p>
+
+        <a class="pill-link" href="#tentang">
+          <span class="pill-avatar" aria-hidden="true">C</span>
+          <span>Tentang — Careevo</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>
+        </a>
+      </div>
+
+      <div class="showcase">
+        <div class="terminal" role="img" aria-label="Pratinjau terminal Careevo: verifikasi attestation berhasil, rantai audit utuh.">
+          <div class="terminal-bar">
+            <span class="lights" aria-hidden="true"><span></span><span></span><span></span></span>
+            <span>careevo — session preview</span>
+            <span>PREVIEW</span>
+          </div>
+          <div class="terminal-body">
+            <div><span class="prompt">$</span> <span class="cmd">careevo attest --sign badge:42</span></div>
+            <div class="dim">→ payload hash&nbsp;&nbsp;: 9f3c…a1e7</div>
+            <div class="dim">→ hmac alg&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: SHA-256 (public verify)</div>
+            <div class="ok">→ VERIFY&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: OK (js ↔ python)</div>
+            <div style="margin-top:0.75rem"><span class="prompt">$</span> <span class="cmd">careevo audit chain --depth 128</span></div>
+            <div class="dim">→ blocks sealed&nbsp;: 128/128</div>
+            <div class="dim">→ merkle root&nbsp;&nbsp;: 0x7b…c2</div>
+            <div class="ok">→ chain status&nbsp;&nbsp;: INTACT</div>
+            <div style="margin-top:0.75rem"><span class="prompt">$</span> <span class="cmd">careevo agents</span></div>
+            <div class="ok">[ok] Navigator&nbsp;&nbsp; ready</div>
+            <div class="ok">[ok] Socrates&nbsp;&nbsp;&nbsp; quorum</div>
+            <div class="ok">[ok] Sentinel&nbsp;&nbsp;&nbsp; audit</div>
+            <div style="margin-top:0.75rem"><span class="prompt">$</span> <span class="cmd">_</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Manifesto (AURA-style) -->
+    <section class="ax-section ax-manifesto" id="tentang" aria-labelledby="manifesto-title">
+      <div class="ax-inner">
+        <p class="ax-label">Manifesto</p>
+        <p class="ax-manifesto-text" id="manifesto-title">
+          <span class="w">Kompetensi</span>
+          <span class="w">tidak</span>
+          <span class="w">cukup</span>
+          <span class="w">diklaim</span>
+          <span class="w">—</span>
+          <span class="w">ia</span>
+          <span class="w">harus</span>
+          <span class="w">meninggalkan</span>
+          <span class="w">jejak</span>
+          <span class="w">yang</span>
+          <span class="w">bisa</span>
+          <span class="w">diverifikasi.</span>
+          <span class="w">Careevo</span>
+          <span class="w">merekam</span>
+          <span class="w">proses,</span>
+          <span class="w">menandatangani</span>
+          <span class="w">hasil,</span>
+          <span class="w">dan</span>
+          <span class="w">membuka</span>
+          <span class="w">audit</span>
+          <span class="w">kepada</span>
+          <span class="w">siapa</span>
+          <span class="w">saja</span>
+          <span class="w">—</span>
+          <span class="w">tanpa</span>
+          <span class="w">biometrik,</span>
+          <span class="w">tanpa</span>
+          <span class="w">server</span>
+          <span class="w">tunggal,</span>
+          <span class="w">tanpa</span>
+          <span class="w">kepercayaan</span>
+          <span class="w">buta.</span>
+        </p>
+      </div>
+    </section>
+
+    <!-- Stats -->
+    <section class="ax-section" aria-labelledby="stats-title">
+      <div class="ax-inner ax-wide">
+        <p class="ax-label">Indikator</p>
+        <h2 id="stats-title" class="sr-only">Indikator utama</h2>
+        <div class="ax-stats" role="list">
+          <div class="ax-stat" role="listitem">
+            <span class="ax-stat-label">Paparan risiko digital</span>
+            <span class="ax-stat-value alert">17,37%</span>
+            <span class="ax-stat-source">Sumber: [referensi primer — Daftar Pustaka]</span>
+          </div>
+          <div class="ax-stat" role="listitem">
+            <span class="ax-stat-label">Cognitive debt</span>
+            <span class="ax-stat-value warn">Tinggi</span>
+            <span class="ax-stat-source">Ketergantungan AI tanpa jejak verifikasi</span>
+          </div>
+          <div class="ax-stat" role="listitem">
+            <span class="ax-stat-label">Estimasi paparan fraud</span>
+            <span class="ax-stat-value">Rp7,9T</span>
+            <span class="ax-stat-source">Sumber: [referensi resmi — wajib ada]</span>
+          </div>
+          <div class="ax-stat" role="listitem">
+            <span class="ax-stat-label">Task → fitur</span>
+            <span class="ax-stat-value">13</span>
+            <span class="ax-stat-source">Acceptance gate per item (PRD)</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Marquee -->
+    <section class="ax-section ax-marquee-section" aria-label="Stack dan mitra">
+      <p class="ax-label">Dibangun dengan · diverifikasi bersama</p>
+      <div class="ax-marquee" aria-hidden="true">
+        <div class="ax-marquee-track">
+          <span>Next.js</span><span>Tailwind</span><span>shadcn/ui</span><span>Dexie</span>
+          <span>HMAC</span><span>PWA</span><span>Vitest</span><span>Playwright</span>
+          <span>Socrates</span><span>Sentinel</span><span>Navigator</span><span>Trusted Web</span>
+          <span>Next.js</span><span>Tailwind</span><span>shadcn/ui</span><span>Dexie</span>
+          <span>HMAC</span><span>PWA</span><span>Vitest</span><span>Playwright</span>
+          <span>Socrates</span><span>Sentinel</span><span>Navigator</span><span>Trusted Web</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Three pillars (centered editorial) -->
+    <section class="ax-section" id="pillars" aria-labelledby="about-title">
+      <div class="ax-inner">
+        <p class="ax-label">Tiga pilar</p>
+        <h2 id="about-title" class="ax-h2">Apa itu Careevo?</h2>
+        <div class="ax-pillars">
+          <article class="ax-pillar">
+            <span class="ax-pillar-num">01</span>
+            <h3>Belajar terukur</h3>
+            <p>Learning path, task praktik, dan timer sesi — progres terekam sebagai data, bukan klaim.</p>
+          </article>
+          <article class="ax-pillar">
+            <span class="ax-pillar-num">02</span>
+            <h3>Bukti yang bisa dicek</h3>
+            <p>Setiap badge ditandatangani HMAC-SHA256. Verifikasi publik tanpa login, tanpa biometrik.</p>
+          </article>
+          <article class="ax-pillar">
+            <span class="ax-pillar-num">03</span>
+            <h3>Loker yang diaudit</h3>
+            <p>Sentinel memeriksa pola fee, domain, dan regex transfer — lowongan beracun dikarantina.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Problem / solution -->
+    <section class="ax-section" id="masalah" aria-labelledby="problem-title">
+      <div class="ax-inner">
+        <p class="ax-label">Latar belakang</p>
+        <h2 id="problem-title" class="ax-h2">Masalah &amp; solusi</h2>
+        <div class="ax-split">
+          <div class="ax-split-col">
+            <h3 class="ax-split-title danger">Masalah</h3>
+            <p>
+              Portofolio dan hasil AI mudah dipalsukan. Tanpa attestation, klaim kompetensi tidak bisa
+              diaudit. Cognitive debt naik ketika proses tidak direkam. Biometrik bukan opsi — privasi &amp; inklusivitas.
+            </p>
+          </div>
+          <div class="ax-split-rule" aria-hidden="true"></div>
+          <div class="ax-split-col">
+            <h3 class="ax-split-title success">Solusi</h3>
+            <p>
+              Proses terekam (snapshot, prompt log, timeline), hasil ditandatangani HMAC lintas bahasa,
+              dan audit log append-only tamper-evident. Local-first: aman didemokan offline.
+            </p>
+          </div>
+        </div>
+        <div class="chips ax-chips">
+          <span class="chip ok">Next.js</span>
+          <span class="chip ok">Tailwind v4</span>
+          <span class="chip ok">shadcn/ui</span>
+          <span class="chip ok">Dexie</span>
+          <span class="chip ok">HMAC cross-language</span>
+          <span class="chip ok">PWA</span>
+          <span class="chip ok">Vitest · Playwright</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Agents -->
+    <section class="ax-section" id="agen" aria-labelledby="arch-title">
+      <div class="ax-inner">
+        <p class="ax-label">Arsitektur</p>
+        <h2 id="arch-title" class="ax-h2">Tiga agen · Socrates · rantai audit</h2>
+        <ul class="ax-rows">
+          <li class="ax-row">
+            <span class="ax-row-index">01</span>
+            <div class="ax-row-body">
+              <div class="ax-row-title">Navigator</div>
+              <div class="ax-row-meta">Menyiapkan brief, modul, dan rekomendasi task berikutnya.</div>
+            </div>
+            <span class="ax-row-tag">Input gate</span>
+          </li>
+          <li class="ax-row">
+            <span class="ax-row-index">02</span>
+            <div class="ax-row-body">
+              <div class="ax-row-title">Socrates</div>
+              <div class="ax-row-meta">Agen penanya: 2–3 pertanyaan pemahaman sebelum badge terbit (countdown 48 jam).</div>
+            </div>
+            <span class="ax-row-tag">Quorum</span>
+          </li>
+          <li class="ax-row">
+            <span class="ax-row-index">03</span>
+            <div class="ax-row-body">
+              <div class="ax-row-title">Sentinel</div>
+              <div class="ax-row-meta">Audit loker &amp; entitas: usia domain, pola fee, regex transfer, status karantina.</div>
+            </div>
+            <span class="ax-row-tag">Anti-fraud</span>
+          </li>
+          <li class="ax-row">
+            <span class="ax-row-index">04</span>
+            <div class="ax-row-body">
+              <div class="ax-row-title">Attestation HMAC-SHA256</div>
+              <div class="ax-row-meta">Tanda tangan lintas bahasa (JS ↔ Python); key scope publik untuk verifikasi siapa saja.</div>
+            </div>
+            <span class="ax-row-tag accent">Terverifikasi</span>
+          </li>
+          <li class="ax-row">
+            <span class="ax-row-index">05</span>
+            <div class="ax-row-body">
+              <div class="ax-row-title">Audit chain append-only</div>
+              <div class="ax-row-meta">Hash entry sebelumnya ditautkan — edit di masa lalu merambat &amp; gagal verifikasi.</div>
+            </div>
+            <span class="ax-row-tag">Tamper-evident</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Loop -->
+    <section class="ax-section" id="loop" aria-labelledby="how-title">
+      <div class="ax-inner">
+        <p class="ax-label">Loop demo</p>
+        <h2 id="how-title" class="ax-h2">Dari task sampai badge</h2>
+        <p class="ax-lead">Acceptance gate per langkah — siap untuk demo 5 menit.</p>
+        <ol class="ax-steps">
+          <li>
+            <span class="ax-step-num">01</span>
+            <div>
+              <h3>Check-in &amp; kerjakan task</h3>
+              <p>IDE-lite: snapshot log + prompt AI + Paste Guard. Gate: auto-save &amp; test hijau.</p>
+            </div>
+          </li>
+          <li>
+            <span class="ax-step-num">02</span>
+            <div>
+              <h3>Submit + auto-check</h3>
+              <p>Test suite, Lighthouse, VTS (Vibe Transparency Score). Gate: kriteria minimum lolos.</p>
+            </div>
+          </li>
+          <li>
+            <span class="ax-step-num">03</span>
+            <div>
+              <h3>Socrates bertanya</h3>
+              <p>2–3 pertanyaan pemahaman. Gate: terjawab sebelum quorum review.</p>
+            </div>
+          </li>
+          <li>
+            <span class="ax-step-num">04</span>
+            <div>
+              <h3>Review rubrik 5 kriteria</h3>
+              <p>Verifikator memberi skor + alasan wajib. Gate: tidak ada silent reject.</p>
+            </div>
+          </li>
+          <li>
+            <span class="ax-step-num">05</span>
+            <div>
+              <h3>Badge + attestation terbit</h3>
+              <p>HMAC ditandatangani, entry masuk rantai. Gate: verify publik OK.</p>
+            </div>
+          </li>
+        </ol>
+        <p class="caption ax-caption">
+          Demo Zoom aman: Dexie (IndexedDB) local-first — tidak bergantung jaringan.
+        </p>
+      </div>
+    </section>
+
+    <!-- Theme + SDG -->
+    <section class="ax-section" id="verifikasi" aria-labelledby="theme-title">
+      <div class="ax-inner ax-wide">
+        <p class="ax-label">NextGen Secure → fitur</p>
+        <h2 id="theme-title" class="ax-h2">Kesesuaian tema &amp; SDG</h2>
+        <div class="table-wrap" style="margin-top:1.5rem">
+          <table class="map-table ax-table">
+            <caption class="sr-only">Pemetaan subtema NextGen Secure ke fitur Careevo</caption>
+            <thead>
+              <tr>
+                <th scope="col">Subtema</th>
+                <th scope="col">Implementasi</th>
+                <th scope="col">Bukti verifikasi</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Trusted Web</td>
+                <td>Attestation HMAC lintas bahasa; audit append-only publik</td>
+                <td>Halaman Audit — siapa pun dapat verify</td>
+              </tr>
+              <tr>
+                <td>Anti-fraud</td>
+                <td>Nonce tunggal + chain hash per entry; Sentinel karantina loker</td>
+                <td>Simulasi tamper → chain FAIL</td>
+              </tr>
+              <tr>
+                <td>Privacy-by-design</td>
+                <td>Zero-PII, nir-biometrik; identitas berbasis username + key</td>
+                <td>Tidak ada modul fingerprint/face</td>
+              </tr>
+              <tr>
+                <td>Resilient infra</td>
+                <td>Local-first Dexie + PWA — tetap jalan offline</td>
+                <td>Demo offline Playwright</td>
+              </tr>
+              <tr>
+                <td>Accountable AI</td>
+                <td>Navigator · Socrates · Sentinel; setiap keputusan ditandatangani</td>
+                <td>Agent log ter-commit ke audit chain</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="ax-sdg">
+          <div class="ax-sdg-item">
+            <span class="ax-sdg-num">08</span>
+            <div>
+              <h3>SDG 8 · Pekerjaan Layak</h3>
+              <p>Bukti kompetensi transparan untuk loker bebas biaya &amp; terverifikasi — melawan fraud rekrutmen.</p>
+            </div>
+          </div>
+          <div class="ax-sdg-item">
+            <span class="ax-sdg-num">04</span>
+            <div>
+              <h3>SDG 4 · Pendidikan Berkualitas</h3>
+              <p>Socrates + rubrik memaksa pemahaman aktif — melawan cognitive debt, bukan mempercepatnya.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ax-cta" id="cta" aria-labelledby="cta-title">
+      <div class="ax-inner">
+        <p class="ax-label">Call to action</p>
+        <h2 id="cta-title" class="ax-cta-title">Jejak yang bisa dibuktikan, bukan klaim.</h2>
+        <p class="ax-lead">Buka Audit Trail untuk melihat rantai append-only, atau mulai loop demo lokal.</p>
+        <div class="hero-actions" style="justify-content:center">
+          <a class="btn btn-primary" href="audit.html">Buka Audit Trail</a>
+          <a class="btn ax-btn-ghost" href="#loop">Lihat Loop Demo</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <h4>Produk</h4>
+          <ul>
+            <li><a href="#tentang">Manifesto</a></li>
+            <li><a href="#loop">Loop demo</a></li>
+            <li><a href="audit.html">Audit log</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Track</h4>
+          <ul>
+            <li><a href="#agen">Belajar terukur</a></li>
+            <li><a href="#verifikasi">Badge &amp; attestation</a></li>
+            <li><a href="#masalah">Loker diaudit</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Sumber Daya</h4>
+          <ul>
+            <li><a href="#verifikasi">NextGen Secure</a></li>
+            <li><a href="#masalah">Stack teknis</a></li>
+            <li><a href="audit.html">Cara verify</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Legal</h4>
+          <ul>
+            <li><a href="#">Zero-PII</a></li>
+            <li><a href="#">UU PDP consent</a></li>
+            <li><a href="#">HMAC &amp; audit</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 Careevo — mockup landing proposal (Bab II).</span>
+        <span>Attestation HMAC-SHA256 · Trusted Web</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      var btn = document.getElementById('btn-refresh');
+      if (btn) {
+        btn.addEventListener('click', function () {
+          window.scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+        });
+      }
+
+      var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      var words = document.querySelectorAll('.ax-manifesto-text .w');
+      if (!words.length) return;
+
+      if (reduce || !('IntersectionObserver' in window)) {
+        words.forEach(function (w) { w.classList.add('is-on'); });
+        return;
+      }
+
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (!entry.isIntersecting) return;
+          var el = entry.target;
+          var idx = Array.prototype.indexOf.call(words, el);
+          var delay = Math.min(idx * 45, 1400);
+          setTimeout(function () { el.classList.add('is-on'); }, delay);
+          io.unobserve(el);
+        });
+      }, { rootMargin: '0px 0px -12% 0px', threshold: 0.1 });
+
+      words.forEach(function (w) { io.observe(w); });
+    })();
+  </script>
+</body>
+</html>

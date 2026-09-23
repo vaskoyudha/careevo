@@ -1,0 +1,61 @@
+{
+  "username": "budi",
+  "display_name": "Budi Santoso",
+  "track": "Web Dev",
+  "verified_at": "21 Sep 2026",
+  "score_total": 87,
+  "scores": [
+    { "label": "Jadwal", "value": 27, "max": 30 },
+    { "label": "Karya", "value": 35, "max": 40 },
+    { "label": "Validasi", "value": 25, "max": 30 }
+  ],
+  "badges": [
+    {
+      "id": "b1",
+      "task_title": "Rebuild Landing Page",
+      "track": "Web Dev",
+      "level": "dasar",
+      "issued_at": "21 Sep 2026",
+      "score": 87
+    },
+    {
+      "id": "b2",
+      "task_title": "Async Data Fetching",
+      "track": "Web Dev",
+      "level": "menengah",
+      "issued_at": "18 Sep 2026",
+      "score": 84
+    },
+    {
+      "id": "b3",
+      "task_title": "Git & Version Control",
+      "track": "Web Dev",
+      "level": "dasar",
+      "issued_at": "12 Sep 2026",
+      "score": 90
+    }
+  ],
+  "works": [
+    {
+      "id": "w1",
+      "title": "Rebuild Landing Page",
+      "demo_url": "https://example.com/budi/landing",
+      "raw_url": "https://example.com/budi/landing.zip",
+      "status": "revision"
+    },
+    {
+      "id": "w2",
+      "title": "Async Data Fetching",
+      "demo_url": "https://example.com/budi/async",
+      "raw_url": "https://example.com/budi/async.zip",
+      "status": "approved"
+    }
+  ],
+  "timeline": [
+    { "at": "21 Sep 2026, 10:12", "title": "Submit Rebuild Landing Page v2", "actor": "user · @budi" },
+    { "at": "21 Sep 2026, 10:14", "title": "Auto-check selesai: 8/10 test lulus", "actor": "system" },
+    { "at": "21 Sep 2026, 13:40", "title": "Socrates dijawab", "actor": "user · @budi" },
+    { "at": "21 Sep 2026, 15:05", "title": "Verifikator meminta revisi", "actor": "verifikator · @sari" },
+    { "at": "18 Sep 2026, 16:20", "title": "Badge Async Data Fetching terbit", "actor": "system" }
+  ]
+}

@@ -1,0 +1,134 @@
+[
+  {
+    "id": "a1",
+    "at": "21 Sep 2026, 10:12",
+    "actor_type": "user",
+    "actor_id": "budi",
+    "action": "submission.created",
+    "entity": "submission",
+    "entity_id": "1",
+    "summary": "Submit versi 2 Rebuild Landing Page dengan 6 file",
+    "metadata": { "versi": 2, "file": 6 }
+  },
+  {
+    "id": "a2",
+    "at": "21 Sep 2026, 10:14",
+    "actor_type": "system",
+    "actor_id": "system",
+    "action": "autocheck.completed",
+    "entity": "submission",
+    "entity_id": "1",
+    "summary": "Auto-check selesai: 8/10 test lulus, Lighthouse performance 92",
+    "metadata": { "lulus": 8, "total": 10 }
+  },
+  {
+    "id": "a3",
+    "at": "21 Sep 2026, 10:16",
+    "actor_type": "agent",
+    "actor_id": "socrates",
+    "action": "agent.socrates_run",
+    "entity": "submission",
+    "entity_id": "1",
+    "summary": "3 pertanyaan nalar dibuat dari diff",
+    "metadata": { "used_fallback": true, "latency_ms": 412 }
+  },
+  {
+    "id": "a4",
+    "at": "21 Sep 2026, 13:40",
+    "actor_type": "user",
+    "actor_id": "budi",
+    "action": "socrates.answered",
+    "entity": "submission",
+    "entity_id": "1",
+    "summary": "Jawaban Socrates dikirim, draft score 82",
+    "metadata": { "draft_score": 82 }
+  },
+  {
+    "id": "a5",
+    "at": "21 Sep 2026, 15:05",
+    "actor_type": "verifikator",
+    "actor_id": "sari",
+    "action": "review.decided",
+    "entity": "review",
+    "entity_id": "1",
+    "summary": "Minta revisi dengan alasan alt text dan skor aksesibilitas",
+    "metadata": { "keputusan": "revision", "total": 72 }
+  },
+  {
+    "id": "a6",
+    "at": "21 Sep 2026, 08:02",
+    "actor_type": "agent",
+    "actor_id": "sentinel",
+    "action": "job.quarantined",
+    "entity": "job",
+    "entity_id": "2",
+    "summary": "Loker Web Developer dikarantina: pola biaya administrasi",
+    "metadata": { "rules": ["biaya_administrasi"] }
+  },
+  {
+    "id": "a7",
+    "at": "21 Sep 2026, 08:03",
+    "actor_type": "agent",
+    "actor_id": "sentinel",
+    "action": "job.rejected",
+    "entity": "job",
+    "entity_id": "9",
+    "summary": "Loker Magang Web Developer ditolak: biaya administrasi + link APK",
+    "metadata": { "rules": ["biaya_administrasi", "link_apk"] }
+  },
+  {
+    "id": "a8",
+    "at": "21 Sep 2026, 07:30",
+    "actor_type": "agent",
+    "actor_id": "navigator",
+    "action": "agent.navigator_run",
+    "entity": "profile",
+    "entity_id": "budi",
+    "summary": "3 rekomendasi task disusun dari skill gap vs tren loker",
+    "metadata": { "used_fallback": false, "latency_ms": 890 }
+  },
+  {
+    "id": "a9",
+    "at": "20 Sep 2026, 19:04",
+    "actor_type": "user",
+    "actor_id": "budi",
+    "action": "checkin.created",
+    "entity": "checkin",
+    "entity_id": "c-201",
+    "summary": "Check-in sesi belajar 19.00-21.00",
+    "metadata": { "durasi_menit": 118 }
+  },
+  {
+    "id": "a10",
+    "at": "20 Sep 2026, 21:02",
+    "actor_type": "system",
+    "actor_id": "system",
+    "action": "snapshot.recorded",
+    "entity": "submission",
+    "entity_id": "1",
+    "summary": "Snapshot ke-4 tercatat (hash 8 karakter)",
+    "metadata": { "hash": "9f2c1a7d", "ukuran": 8421 }
+  },
+  {
+    "id": "a11",
+    "at": "18 Sep 2026, 16:20",
+    "actor_type": "system",
+    "actor_id": "system",
+    "action": "attestation.issued",
+    "entity": "attestation",
+    "entity_id": "t-88",
+    "summary": "Attestation badge Async Data Fetching diterbitkan",
+    "metadata": { "token": "t-88f2...", "algoritma": "HMAC-SHA256" }
+  },
+  {
+    "id": "a12",
+    "at": "18 Sep 2026, 16:19",
+    "actor_type": "system",
+    "actor_id": "system",
+    "action": "score.recalculated",
+    "entity": "profile",
+    "entity_id": "budi",
+    "summary": "Skor total naik 79 → 84",
+    "metadata": { "sebelum": 79, "sesudah": 84 }
+  }
+]

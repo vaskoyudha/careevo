@@ -1,0 +1,35 @@
+[
+  {
+    "id": "1",
+    "username": "budi",
+    "task_title": "Rebuild Landing Page",
+    "track": "Web Dev",
+    "level": "dasar",
+    "submitted_at": "2 jam lalu",
+    "vts_score": 80,
+    "socrates_answered": true,
+    "status": "waiting_review"
+  },
+  {
+    "id": "2",
+    "username": "rina",
+    "task_title": "Async Data Fetching",
+    "track": "Web Dev",
+    "level": "menengah",
+    "submitted_at": "5 jam lalu",
+    "vts_score": 64,
+    "socrates_answered": false,
+    "status": "waiting_socrates"
+  },
+  {
+    "id": "3",
+    "username": "dani",
+    "task_title": "Form Validation & Error States",
+    "track": "Web Dev",
+    "level": "menengah",
+    "submitted_at": "1 hari lalu",
+    "vts_score": 88,
+    "socrates_answered": true,
+    "status": "waiting_review"
+  }
+]
