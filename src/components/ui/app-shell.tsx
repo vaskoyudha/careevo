@@ -29,6 +29,7 @@ const PAGE_LABELS: Record<string, string> = {
   "/pengaturan": "Pengaturan",
   "/review": "Review",
   "/audit": "Audit",
+  "/admin/courses": "Kelola Kursus",
 };
 
 export function AppShell({

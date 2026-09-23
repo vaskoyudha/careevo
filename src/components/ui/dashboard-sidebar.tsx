@@ -15,6 +15,7 @@ import {
   ClipboardCheck,
   ShieldCheck,
   ChevronRight,
+  BookOpen,
 } from "lucide-react";
 
 export type SidebarNavItem = {
@@ -40,6 +41,12 @@ const USER_GROUPS: SidebarNavGroup[] = [
 ];
 
 const STAFF_GROUPS: SidebarNavGroup[] = [
+  {
+    heading: "Admin",
+    items: [
+      { href: "/admin/courses", title: "Kelola Kursus", icon: BookOpen },
+    ],
+  },
   {
     heading: "Verifikator",
     items: [
@@ -175,7 +182,7 @@ export function DashboardSidebar({
     >
       <div className="flex h-full w-[260px] flex-col border-r border-border/50 bg-card/50 p-3 font-sans">
         <Link
-          href={staff ? "/review" : "/dashboard"}
+          href={session.role === "admin" ? "/admin/courses" : staff ? "/review" : "/dashboard"}
           onClick={onNavigate}
           className="group mb-4 flex items-center justify-between rounded-lg px-2 py-2 transition-colors select-none hover:bg-black/5"
         >
@@ -188,7 +195,7 @@ export function DashboardSidebar({
                 {session.nama}
               </span>
               <span className="text-[11px] leading-none text-muted-foreground">
-                {staff ? "Verifikator" : "Peserta"}
+                {session.role === "admin" ? "Admin" : staff ? "Verifikator" : "Peserta"}
               </span>
             </div>
           </div>
