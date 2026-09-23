@@ -14,16 +14,16 @@ import { CareevoPlusFaq } from "@/components/features/marketing/careevo-plus/faq
 import { CareevoPlusTerms } from "@/components/features/marketing/careevo-plus/terms";
 
 export const metadata: Metadata = {
-  title: "Careevo Plus",
+  title: "Careevo Plus | Hemat 40% — Belajar Fleksibel, Raih Karier Impian",
   description:
-    "Hemat 40% selama 3 bulan dan akses 10.000+ program dari Microsoft, Google, Meta, Stanford, dan lainnya dengan Careevo Plus.",
+    "Akses 10.000+ program dari Microsoft, Google, Meta, Stanford, dan lainnya. Hemat 40% selama 3 bulan dengan Careevo Plus. Batalkan kapan saja.",
 };
 
 export default function CareevoPlusPage() {
   return (
-    <div className="marketing-type">
-      <CareevoPlusSubNav />
+    <div className="marketing-type bg-white">
       <CareevoPlusPromoBanner />
+      <CareevoPlusSubNav />
       <CareevoPlusHero />
       <CareevoPlusLogos />
       <CareevoPlusSkills />

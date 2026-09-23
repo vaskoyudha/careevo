@@ -1,5 +1,4 @@
 import Image from "next/image";
-import { cn } from "@/lib/utils";
 import { Reveal } from "../primitives";
 
 type Feature = {
@@ -16,16 +15,16 @@ const FEATURES: Feature[] = [
     description:
       "Dapatkan kredensial dan sertifikat yang bisa kamu tambahkan ke resume dan LinkedIn, yang mencerminkan keahlian yang kamu latih, alat yang kamu pelajari, dan karya yang kamu buat.",
     image:
-      "https://images.unsplash.com/photo-1552664730-d307ca884978?w=1316&h=600&q=80",
-    alt: "Ilustrasi kemajuan sebuah course",
+      "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=1316&h=600&q=80",
+    alt: "Tampilan kredensial dan sertifikat digital dari berbagai program",
   },
   {
     title: "Tahu harus mulai dari mana — maju dalam hitungan menit setiap hari",
     description:
       "Baik kamu pemula atau sedang mengembangkan pengalaman, ikuti jalur terstruktur dengan langkah berikutnya yang jelas agar kamu bisa maju nyata, bahkan dalam sesi singkat.",
     image:
-      "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=1316&h=600&q=80",
-    alt: "Ilustrasi ikon alat industri yang saling bertumpuk",
+      "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1316&h=600&q=80",
+    alt: "Ikon alat industri seperti Excel, Python, dan Power BI",
     reverse: true,
   },
   {
@@ -34,34 +33,34 @@ const FEATURES: Feature[] = [
       "Belajar dengan praktik. Bangun proyek memakai alat yang sama dengan para profesional industri—dan tunjukkan hasil belajarmu kepada perusahaan.",
     image:
       "https://images.unsplash.com/photo-1531482615713-2afd69097998?w=1316&h=600&q=80",
-    alt: "Ilustrasi proyek portofolio siap kerja",
+    alt: "Tim kolaborasi mengerjakan proyek portofolio",
   },
 ];
 
 /**
- * Three alternating image/text feature blocks.
+ * Three alternating image/text feature blocks matching the original layout.
  */
 export function CareevoPlusFeatures() {
   return (
     <section id="keunggulan" className="bg-white py-6 lg:py-10">
-      <div className="mx-auto max-w-7xl space-y-16 px-4 lg:space-y-28 lg:px-6">
+      <div className="mx-auto max-w-7xl px-4 lg:px-6">
         {FEATURES.map((feature) => (
-          <Reveal key={feature.title}>
-            <div
-              className={cn(
-                "grid grid-cols-1 items-center gap-10 lg:grid-cols-2 lg:gap-16",
-                feature.reverse && "lg:[&>*:first-child]:order-2",
-              )}
-            >
-              <div className="flex flex-col justify-center">
-                <h2 className="mb-4 text-3xl font-medium -tracking-[1.9px] text-gray-900 lg:text-5xl">
+          <div
+            key={feature.title}
+            className={`grid grid-cols-1 items-center gap-10 py-10 lg:grid-cols-2 lg:gap-16 ${feature.reverse ? "lg:[&>*:first-child]:order-2" : ""}`}
+          >
+            <Reveal>
+              <div>
+                <h2 className="mb-4 text-3xl font-medium -tracking-[1.9px] text-gray-900 lg:text-4xl">
                   {feature.title}
                 </h2>
-                <p className="max-w-xl text-base text-gray-500">
+                <p className="max-w-lg text-base text-gray-500">
                   {feature.description}
                 </p>
               </div>
-              <div className="rounded-2xl bg-white p-3 shadow-feature-card">
+            </Reveal>
+            <Reveal variant="scale" delay={80}>
+              <div className="overflow-hidden rounded-2xl bg-white p-3 shadow-feature-card">
                 <Image
                   className="w-full rounded-xl"
                   alt={feature.alt}
@@ -70,8 +69,8 @@ export function CareevoPlusFeatures() {
                   height={600}
                 />
               </div>
-            </div>
-          </Reveal>
+            </Reveal>
+          </div>
         ))}
       </div>
     </section>

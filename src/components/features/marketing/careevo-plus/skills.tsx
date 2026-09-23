@@ -40,14 +40,14 @@ const TABS = [
 ];
 
 /**
- * "Gain the skills employers want" — intro copy + CTA, category tabs,
- * then the tabbed image with carousel dots, mirroring the original page.
+ * "Raih keahlian yang dicari perusahaan" — heading, paragraph, CTA, then
+ * category tabs above a large image with carousel dots (like the original).
  */
 export function CareevoPlusSkills() {
   const [active, setActive] = useState(0);
 
   return (
-    <section id="keahlian" className="bg-white py-14 lg:py-20">
+    <section id="keahlian" className="bg-[#f2f5fa] py-14 lg:py-20">
       <div className="mx-auto max-w-7xl px-4 lg:px-6">
         <div className="mx-auto mb-8 max-w-2xl text-center">
           <Reveal>
