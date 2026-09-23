@@ -1,24 +1,12 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import createGlobe, { type COBEOptions } from "cobe";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type GlobeState = {
-  phi?: number;
-  theta?: number;
-  width?: number;
-  height?: number;
-  [key: string]: unknown;
-};
-
-type GlobeConfig = COBEOptions & {
-  onRender?: (state: GlobeState) => void;
-};
-
-const GLOBE_CONFIG: GlobeConfig = {
+const GLOBE_CONFIG: COBEOptions = {
   width: 800,
   height: 800,
   onRender: () => {},
@@ -26,10 +14,10 @@ const GLOBE_CONFIG: GlobeConfig = {
   phi: 0,
   theta: 0.3,
   dark: 0,
-  diffuse: 1.2,
+  diffuse: 0.4,
   mapSamples: 16000,
-  mapBrightness: 2.5,
-  baseColor: [0.75, 0.82, 0.92],
+  mapBrightness: 1.2,
+  baseColor: [1, 1, 1],
   markerColor: [251 / 255, 100 / 255, 21 / 255],
   glowColor: [1, 1, 1],
   markers: [
@@ -51,12 +39,14 @@ export function Globe({
   config = GLOBE_CONFIG,
 }: {
   className?: string;
-  config?: GlobeConfig;
+  config?: COBEOptions;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pointerInteracting = useRef<number | null>(null);
   const pointerInteractionMovement = useRef(0);
-  const [r, setR] = useState(0);
+  const phiRef = useRef(0);
+  const widthRef = useRef(0);
+  const rRef = useRef(0);
 
   const updatePointerInteraction = (value: number | null) => {
     pointerInteracting.current = value;
@@ -69,38 +59,33 @@ export function Globe({
     if (pointerInteracting.current !== null) {
       const delta = clientX - pointerInteracting.current;
       pointerInteractionMovement.current = delta;
-      setR(delta / 200);
+      rRef.current = delta / 200;
     }
   };
 
   useEffect(() => {
-    let phi = 0;
-    let width = canvasRef.current?.offsetWidth || 600;
-
     const onResize = () => {
       if (canvasRef.current) {
-        width = canvasRef.current.offsetWidth || 600;
+        widthRef.current = canvasRef.current.offsetWidth;
       }
     };
 
     window.addEventListener("resize", onResize);
     onResize();
 
-    const onRender = (state: GlobeState) => {
-      if (pointerInteracting.current === null) {
-        phi += 0.005;
-      }
-      state.phi = phi + r;
-      state.width = width * 2;
-      state.height = width * 2;
-    };
-
     const globe = createGlobe(canvasRef.current!, {
       ...config,
-      width: width * 2,
-      height: width * 2,
-      onRender,
-    } as unknown as COBEOptions);
+      width: (widthRef.current || 600) * 2,
+      height: (widthRef.current || 600) * 2,
+      onRender: (state: Record<string, number>) => {
+        if (pointerInteracting.current === null) {
+          phiRef.current += 0.005;
+        }
+        state.phi = phiRef.current + rRef.current;
+        state.width = (widthRef.current || 600) * 2;
+        state.height = (widthRef.current || 600) * 2;
+      },
+    });
 
     const timer = setTimeout(() => {
       if (canvasRef.current) {
@@ -113,7 +98,7 @@ export function Globe({
       window.removeEventListener("resize", onResize);
       globe.destroy();
     };
-  }, [config, r]);
+  }, [config]);
 
   return (
     <div
@@ -145,21 +130,21 @@ export function Globe({
 
 export default function Featured_05() {
   return (
-    <section className="relative w-full overflow-hidden rounded-3xl bg-muted/60 dark:bg-muted/20 border border-neutral-200 dark:border-neutral-800 shadow-md px-6 py-14 sm:px-10 md:px-16 md:py-20 my-12 sm:my-16">
+    <section className="relative w-full mx-auto overflow-hidden rounded-3xl bg-muted border border-gray-200 dark:border-gray-800 shadow-md px-6 py-16 md:px-16 md:py-24 my-12 sm:my-16">
       <div className="flex flex-col-reverse items-center justify-between gap-10 md:flex-row">
         <div className="z-10 max-w-xl text-left">
-          <h2 className="text-3xl font-normal text-gray-900 dark:text-white">
+          <h1 className="text-3xl font-normal text-gray-900 dark:text-white">
             Build with <span className="text-primary font-medium">Ruixen UI</span>{" "}
-            <span className="text-gray-500 dark:text-gray-400 text-xl block mt-2">
+            <span className="text-gray-500 dark:text-gray-400">
               Empower your team with fast, elegant, and scalable UI components. Ruixen UI brings simplicity and performance to your modern apps.
             </span>
-          </h2>
+          </h1>
           <Button className="mt-6 inline-flex items-center gap-2 rounded-full bg-foreground px-5 py-2 text-sm font-semibold text-background transition hover:bg-black">
             Join Today <ArrowRight className="h-4 w-4" />
           </Button>
         </div>
-        <div className="relative h-[220px] sm:h-[260px] md:h-[280px] w-full max-w-xl overflow-hidden md:overflow-visible">
-          <Globe className="absolute -bottom-16 -right-20 sm:-bottom-20 sm:-right-40 scale-125 sm:scale-150" />
+        <div className="relative h-[180px] w-full max-w-xl">
+          <Globe className="absolute -bottom-20 -right-40 scale-150" />
         </div>
       </div>
     </section>
