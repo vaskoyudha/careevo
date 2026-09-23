@@ -1957,6 +1957,7 @@ body {
 }
 
 .app-main {
+  width: 100%;
   max-width: var(--max);
   margin-inline: auto;
   padding: clamp(28px, 5vw, 48px) var(--page-pad) clamp(56px, 8vw, 88px);
