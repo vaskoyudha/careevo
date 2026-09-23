@@ -98,10 +98,6 @@ export const LABEL_KEPERCAYAAN: Record<string, string> = {
   domain_tidak_cocok: "Domain tidak cocok dengan nama perusahaan",
 };
 
-export function labelKepercayaan(flag: string): string {
-  return LABEL_KEPERCAYAAN[flag] ?? flag;
-}
-
 export function klasifikasiLevel(score: number): TrustLevel {
   if (score >= 90) return "high";
   if (score >= 60) return "medium";

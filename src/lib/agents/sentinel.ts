@@ -18,8 +18,15 @@ export interface SentinelInput {
 
 export interface SentinelOutput {
   status: SentinelStatus;
-  /** Fee-rule flags only (from `deteksiFee`) plus the email/domain/apk signals. */
+  /** Every signal, both families — for display. */
   flags: string[];
+  /**
+   * Content signals indicating a scam DEMAND: the `deteksiFee` rules plus
+   * `link_apk`. This is the "no-fee" axis — deliberately narrower than `flags`,
+   * which also carries the weaker identity signals (`email_pribadi`,
+   * `domain_baru`) and the structural `trust_flags`.
+   */
+  fee_flags: string[];
   /** URL/domain trust flags (from `nilaiKepercayaan`). */
   trust_flags: string[];
   /** 0–100, from `nilaiKepercayaan`. 100 = nothing structurally suspicious. */
@@ -28,6 +35,16 @@ export interface SentinelOutput {
 }
 
 const FREE_MAIL = /@(gmail|yahoo|outlook|hotmail|mail)\./i;
+
+/** Signals that mean the posting is asking the candidate for something. */
+const SINYAL_FEE = new Set([
+  "biaya_administrasi",
+  "rekening_pribadi",
+  "tiket_travel",
+  "pungutan_seragam",
+  "panen_data",
+  "link_apk",
+]);
 
 /**
  * Rule-based loker audit — the deterministic counterpart to career-ops' LLM
@@ -91,9 +108,14 @@ export function auditLoker(input: SentinelInput): SentinelOutput {
     status = "quarantined";
   }
 
+  const allFlags = [...coreList, ...trust.flags.filter((flag) => !core.has(flag))];
+
   return {
     status,
-    flags: [...coreList, ...trust.flags.filter((flag) => !core.has(flag))],
+    flags: allFlags,
+    // The "no-fee" axis: demand signals only. A domain mismatch or a free-mail
+    // employer is a reason to look closer, not a claim that money was requested.
+    fee_flags: allFlags.filter((flag) => SINYAL_FEE.has(flag)),
     trust_flags: trust.flags,
     trust_score: trust.score,
     trust_level: trust.level,
@@ -103,8 +125,12 @@ export function auditLoker(input: SentinelInput): SentinelOutput {
 /**
  * Human-readable label for any Sentinel signal id — fee rule or trust flag.
  * Keeps the detail page from having to know which family a flag came from.
+ *
+ * `Object.hasOwn` rather than `in`: `in` walks the prototype chain, so
+ * `"toString" in LABEL_KEPERCAYAAN` is true and this would return the inherited
+ * `toString` *function* where a string is expected.
  */
 export function labelSinyal(flag: string): string {
-  if (flag in LABEL_KEPERCAYAAN) return LABEL_KEPERCAYAAN[flag];
+  if (Object.hasOwn(LABEL_KEPERCAYAAN, flag)) return LABEL_KEPERCAYAAN[flag];
   return labelAturan(flag);
 }

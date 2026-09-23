@@ -1,4 +1,4 @@
-import { jobs, getVisibleJob, type JobFixture } from "@/lib/fixtures";
+import { cleanJobs, jobs, visibleJobs, getVisibleJob, type JobFixture } from "@/lib/fixtures";
 
 /**
  * Async data-access layer for loker listings.
@@ -9,9 +9,9 @@ import { jobs, getVisibleJob, type JobFixture } from "@/lib/fixtures";
  * public page already `await`s, so swapping the body for a network call is a
  * one-file change.
  *
- * Every accessor respects the visibility rule — `rejected` postings are never
- * returned — so a caller cannot accidentally surface a scam listing by using the
- * "wrong" helper.
+ * The visibility rules themselves live in `fixtures.ts` and are DELEGATED to, not
+ * re-spelled: two copies of "rejected is hidden" would be two definitions free to
+ * drift, and the one that drifts silently is the one that leaks a scam listing.
  */
 
 /** Every audited posting, including quarantined ones. For internal/admin views. */
@@ -21,12 +21,12 @@ export async function ambilLokerDariCache(): Promise<JobFixture[]> {
 
 /** Postings safe to show publicly: everything except `rejected`. */
 export async function ambilLokerTampil(): Promise<JobFixture[]> {
-  return jobs.filter((job) => job.sentinel_status !== "rejected");
+  return visibleJobs();
 }
 
-/** Postings that passed the audit with no signals at all. */
+/** Postings the audit passed with no signals at all (`clean`). */
 export async function ambilLokerBersih(): Promise<JobFixture[]> {
-  return jobs.filter((job) => job.sentinel_status === "clean");
+  return cleanJobs();
 }
 
 /**

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { auditLoker, labelSinyal } from "@/lib/agents/sentinel";
+import { jobs } from "@/lib/fixtures";
 
 /**
  * Tests for the merged Sentinel audit.
@@ -124,5 +125,57 @@ describe("labelSinyal", () => {
 
   it("falls back to the raw id for an unknown flag", () => {
     expect(labelSinyal("entah_apa")).toBe("entah_apa");
+  });
+
+  it("does not return an inherited Object member (regression)", () => {
+    // `"toString" in LABEL_KEPERCAYAAN` is true via the prototype chain, so an
+    // `in` check returned the inherited FUNCTION where a string belongs.
+    for (const inherited of ["toString", "constructor", "valueOf", "hasOwnProperty"]) {
+      const label = labelSinyal(inherited);
+      expect(typeof label).toBe("string");
+      expect(label).toBe(inherited);
+    }
+  });
+});
+
+describe("fee_flags vs flags", () => {
+  it("fee_flags carries only demand signals", () => {
+    const result = auditLoker({ ...DASAR, apply_url: "https://bit.ly/xyz" });
+    // A shortener is a structural signal, not a demand for money.
+    expect(result.fee_flags).toEqual([]);
+    expect(result.flags).toContain("link_pendek");
+  });
+
+  it("fee_flags excludes the weak identity signals", () => {
+    const result = auditLoker({ ...DASAR, company_email: "a@gmail.com" });
+    expect(result.fee_flags).toEqual([]);
+    expect(result.flags).toContain("email_pribadi");
+  });
+
+  it("fee_flags includes a genuine fee demand", () => {
+    const result = auditLoker({
+      ...DASAR,
+      description: "Pelamar menyiapkan biaya administrasi.",
+    });
+    expect(result.fee_flags).toContain("biaya_administrasi");
+  });
+
+  it("fee_flags includes an APK demand", () => {
+    const result = auditLoker({ ...DASAR, description: "Wajib unduh APK." });
+    expect(result.fee_flags).toContain("link_apk");
+  });
+
+  it("fee_flags is always a subset of flags", () => {
+    for (const job of jobs) {
+      for (const flag of job.fee_flags) {
+        expect(job.flags).toContain(flag);
+      }
+    }
+  });
+
+  it("a posting can be quarantined with an empty fee_flags (identity signal only)", () => {
+    const result = auditLoker({ ...DASAR, company_email: "hr@gmail.com" });
+    expect(result.status).toBe("quarantined");
+    expect(result.fee_flags).toEqual([]);
   });
 });

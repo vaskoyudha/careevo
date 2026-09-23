@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { profile } from "@/lib/fixtures";
 import { ambilLokerById } from "@/lib/jobs/cache";
 import { labelSinyal } from "@/lib/agents/sentinel";
+
 export const metadata: Metadata = {
   title: "Detail Loker",
 };
@@ -87,11 +88,11 @@ export default async function LokerDetailPage({
               Skor kepercayaan URL {job.trust_score}/100 (level {job.trust_level}) — memeriksa
               struktur link, link pendek, dan kecocokan domain dengan nama perusahaan.
             </p>
-            {job.fee_flags.length === 0 ? (
+            {job.flags.length === 0 ? (
               <p className="alert alert-ok">Tidak ada sinyal scam terdeteksi. Loker aman untuk dilamar.</p>
             ) : (
               <ul className="list-app" style={{ listStyle: "none", margin: 0, padding: 0 }}>
-                {job.fee_flags.map((flag) => (
+                {job.flags.map((flag) => (
                   <li className="log-line" key={flag}>
                     <span>{labelSinyal(flag)}</span>
                     <span className="status status-danger">flag</span>

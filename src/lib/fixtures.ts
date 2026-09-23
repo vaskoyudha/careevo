@@ -43,7 +43,9 @@ export interface JobSeed {
  */
 export interface JobFixture extends JobSeed {
   sentinel_status: SentinelStatus;
-  /** All Sentinel signals: fee rules plus trust flags. */
+  /** Every Sentinel signal — fee demands plus identity and trust flags. */
+  flags: string[];
+  /** Demand signals only: the "no-fee" axis. */
   fee_flags: string[];
   trust_score: number;
   trust_flags: string[];
@@ -173,7 +175,8 @@ export function auditJob(seed: JobSeed): JobFixture {
   return {
     ...seed,
     sentinel_status: audit.status,
-    fee_flags: audit.flags,
+    flags: audit.flags,
+    fee_flags: audit.fee_flags,
     trust_score: audit.trust_score,
     trust_flags: audit.trust_flags,
     trust_level: audit.trust_level,
