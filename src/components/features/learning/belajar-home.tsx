@@ -26,20 +26,35 @@ function levelLabel(level: string) {
   return "Lanjutan";
 }
 
-function CourseCard({ resource }: { resource: ResourceFixture }) {
+export interface KursusTerdaftar {
+  id: string;
+  slug: string;
+  title: string;
+  provider: string;
+  progres: number;
+  selesai: number;
+  total: number;
+}
+
+type EntriSumber = ResourceFixture & { slug?: string };
+
+function CourseCard({ resource }: { resource: EntriSumber }) {
+  const href = `/belajar/${resource.slug ?? resource.id}`;
   return (
     <article className="w-64 shrink-0 overflow-hidden rounded-xl bg-white shadow-[0_2px_12px_rgba(0,0,0,0.08)] ring-1 ring-black/5 lg:w-72">
-      <div className={cn("relative h-36 bg-gradient-to-br", gradientFor(resource.id))}>
-        <span
-          aria-hidden="true"
-          className="absolute right-3 bottom-2 text-3xl font-bold text-white/90"
-        >
-          {resource.provider.charAt(0)}
+      <Link href={href} aria-label={`Lihat detail ${resource.title}`} className="block">
+        <span className={cn("relative block h-36 bg-gradient-to-br", gradientFor(resource.id))}>
+          <span
+            aria-hidden="true"
+            className="absolute right-3 bottom-2 text-3xl font-bold text-white/90"
+          >
+            {resource.provider.charAt(0)}
+          </span>
+          <span className="absolute top-3 left-3 rounded-full bg-black/45 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur-sm">
+            {resource.type}
+          </span>
         </span>
-        <span className="absolute top-3 left-3 rounded-full bg-black/45 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur-sm">
-          {resource.type}
-        </span>
-      </div>
+      </Link>
       <div className="p-4">
         <p className="mb-1 flex items-center gap-2 text-xs text-gray-500">
           <span
@@ -51,9 +66,9 @@ function CourseCard({ resource }: { resource: ResourceFixture }) {
           <span className="truncate">{resource.provider}</span>
         </p>
         <h3 className="mb-1 line-clamp-2 min-h-10 text-sm font-semibold text-gray-900">
-          <a href={resource.url} target="_blank" rel="noreferrer" className="hover:underline">
+          <Link href={href} className="hover:underline">
             {resource.title}
-          </a>
+          </Link>
         </h3>
         <p className="mb-2 text-xs text-gray-500">
           {levelLabel(resource.level)} · {resource.duration_min} mnt
@@ -237,21 +252,6 @@ const POPULAR_TABS = [
 
 const ROLE_TABS = ["AI Engineer", "Software Developer", "Data Analyst", "QA Engineer"] as const;
 
-const CATEGORIES = [
-  "Bisnis",
-  "Kecerdasan Artifisial",
-  "Data Science",
-  "Computer Science",
-  "Teknologi Informasi",
-  "Pengembangan Diri",
-  "Kesehatan",
-  "Bahasa",
-  "Ilmu Sosial",
-  "Seni & Humaniora",
-  "Teknik & Sains",
-  "Matematika & Logika",
-];
-
 const TRENDING = ["HTML", "React", "TypeScript", "Testing", "Node.js", "Git", "Aksesibilitas"];
 
 const GOALS = [
@@ -305,14 +305,20 @@ const FAQS = [
     q: "Bagaimana Careevo membantu karier saya?",
     a: "Alurnya: belajar terukur → challenge praktik → review verifikator → karya terverifikasi di profil publik. Karya yang terverifikasi bisa dibagikan ke perekrut lewat halaman loker.",
   },
+  {
+    q: "Bagaimana cara mendaftar kursus dan melacak progres?",
+    a: "Buka halaman detail kursus lalu tekan Daftar gratis. Setiap kursus dibagi menjadi 5 modul — tandai modul yang selesai dan progresmu tersimpan otomatis, lalu lanjutkan ke challenge praktik terkait.",
+  },
 ];
 
 export function BelajarHome({
   resources,
   tasks,
+  terdaftar = [],
 }: {
-  resources: ResourceFixture[];
+  resources: EntriSumber[];
   tasks: TaskFixture[];
+  terdaftar?: KursusTerdaftar[];
 }) {
   const [query, setQuery] = useState("");
   const [popularTab, setPopularTab] = useState(0);
@@ -357,6 +363,18 @@ export function BelajarHome({
     [resources],
   );
 
+  const topik = useMemo(() => {
+    const hitung = new Map<string, number>();
+    for (const resource of resources) {
+      for (const tag of resource.tags) {
+        hitung.set(tag, (hitung.get(tag) ?? 0) + 1);
+      }
+    }
+    return [...hitung.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 12);
+  }, [resources]);
+
   return (
     <div className="min-w-0 space-y-10 overflow-x-clip">
       {nextTask ? (
@@ -383,6 +401,38 @@ export function BelajarHome({
       ) : null}
 
       <Hero query={query} onQuery={setQuery} />
+
+      {terdaftar.length > 0 ? (
+        <section aria-labelledby="pembelajaran-saya">
+          <h2 id="pembelajaran-saya" className="mb-4 text-2xl font-medium tracking-tight text-gray-900">
+            Pembelajaran saya
+          </h2>
+          <div className="grid gap-4 md:grid-cols-2">
+            {terdaftar.map((kursus) => (
+              <Link
+                key={kursus.id}
+                href={`/belajar/${kursus.slug}`}
+                className="rounded-2xl border border-gray-200 bg-white p-5 transition-colors hover:border-blue-300 hover:bg-blue-50/40"
+              >
+                <p className="text-xs text-gray-500">{kursus.provider}</p>
+                <h3 className="mt-0.5 line-clamp-2 text-sm font-semibold text-gray-900">
+                  {kursus.title}
+                </h3>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-200">
+                  <div
+                    className="h-full rounded-full bg-blue-600"
+                    style={{ width: `${kursus.progres}%` }}
+                  />
+                </div>
+                <p className="mt-1.5 text-xs text-gray-500">
+                  {kursus.progres}% · {kursus.selesai} dari {kursus.total} modul
+                  {kursus.progres === 100 ? " · selesai 🎉" : " · lanjutkan →"}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section aria-labelledby="baru-populer">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
@@ -523,18 +573,24 @@ export function BelajarHome({
 
       <section aria-labelledby="kategori">
         <h2 id="kategori" className="mb-4 text-2xl font-medium tracking-tight text-gray-900">
-          Jelajahi kategori
+          Jelajahi topik
         </h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {CATEGORIES.map((c) => (
-            <a
-              key={c}
-              href="#katalog"
-              onClick={() => setQuery("")}
-              className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-800 transition-colors hover:border-blue-300 hover:bg-blue-50/50"
+          {topik.map(([nama, jumlah]) => (
+            <button
+              key={nama}
+              type="button"
+              onClick={() => {
+                setQuery(nama);
+                document.getElementById("katalog")?.scrollIntoView({ behavior: "smooth" });
+              }}
+              className="cursor-pointer rounded-xl border border-gray-200 bg-white px-4 py-3 text-left transition-colors hover:border-blue-300 hover:bg-blue-50/50"
             >
-              {c}
-            </a>
+              <span className="block text-sm font-medium text-gray-800">{nama}</span>
+              <span className="mt-0.5 block text-xs text-gray-500">
+                {jumlah} kursus
+              </span>
+            </button>
           ))}
         </div>
       </section>
@@ -682,9 +738,18 @@ export function BelajarHome({
           ))}
         </div>
         {searched.length === 0 ? (
-          <p className="mt-2 text-sm text-gray-500">
-            Tidak ada resource yang cocok. Coba kata kunci lain.
-          </p>
+          <div className="mt-2 rounded-2xl border border-dashed border-gray-300 bg-white p-6 text-center">
+            <p className="text-sm text-gray-600">
+              Tidak ada hasil untuk “{query.trim()}”.
+            </p>
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              className="mt-2 cursor-pointer rounded-full bg-gray-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-gray-700"
+            >
+              Tampilkan semua
+            </button>
+          </div>
         ) : null}
       </section>
 

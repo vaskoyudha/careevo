@@ -1,0 +1,91 @@
+/**
+ * Kurikulum turunan untuk katalog kursus.
+ *
+ * Benih kursus (`Course`) dan resource fixture tidak menyimpan silabus per
+ * modul — agar tetap fixture-backed, modul diturunkan secara deterministik
+ * dari judul, tag, dan durasi. Fungsi di sini murni (tanpa cookie/IO)
+ * sehingga mudah diuji.
+ */
+
+export interface ModulKursus {
+  id: string;
+  judul: string;
+  ringkasan: string;
+  durasi_min: number;
+  url: string;
+}
+
+export interface SumberModul {
+  id: string;
+  title: string;
+  tags: string[];
+  duration_min: number;
+  url: string;
+}
+
+/** Porsi durasi per modul: orientasi 10%, tiga modul inti 25% each, penutup 15%. */
+const PORSI = [0.1, 0.25, 0.25, 0.25, 0.15];
+
+function bagiDurasi(total: number): number[] {
+  const aman = Number.isFinite(total) && total > 0 ? Math.floor(total) : 60;
+  const bagian = PORSI.map((porsi) => Math.max(5, Math.round(aman * porsi)));
+  const selisih = aman - bagian.reduce((a, b) => a + b, 0);
+  bagian[bagian.length - 1] += selisih;
+  return bagian;
+}
+
+/**
+ * Turunkan 5 modul belajar dari metadata kursus/resource.
+ * Deterministik: input sama selalu menghasilkan modul yang sama.
+ */
+export function modulKursus(sumber: SumberModul): ModulKursus[] {
+  const durasi = bagiDurasi(sumber.duration_min);
+  const tagInti = sumber.tags.slice(0, 3);
+
+  const inti: Array<Pick<ModulKursus, "judul" | "ringkasan">> = tagInti.map((tag) => ({
+    judul: `Mendalami ${tag}`,
+    ringkasan: `Konsep inti, contoh terapan, dan latihan mandiri seputar ${tag} dalam konteks "${sumber.title}".`,
+  }));
+
+  while (inti.length < 3) {
+    const kurang = 3 - inti.length;
+    inti.push(
+      kurang === 2
+        ? {
+            judul: "Praktik terbimbing",
+            ringkasan: `Latihan langkah demi langkah mengikuti materi "${sumber.title}".`,
+          }
+        : {
+            judul: "Review dan refleksi",
+            ringkasan: "Rangkum pemahaman, catat pertanyaan, dan susun rencana latihan lanjutan.",
+          },
+    );
+  }
+
+  const semua: Array<Pick<ModulKursus, "judul" | "ringkasan">> = [
+    {
+      judul: "Orientasi dan peta konsep",
+      ringkasan: `Gambaran besar "${sumber.title}": tujuan belajar, prasyarat, dan cara memakai materi.`,
+    },
+    ...inti,
+    {
+      judul: "Studi kasus dan penilaian akhir",
+      ringkasan: "Terapkan seluruh materi pada satu studi kasus utuh, lalu nilai pemahamanmu.",
+    },
+  ];
+
+  return semua.map((modul, index) => ({
+    id: `${sumber.id}-m${index + 1}`,
+    judul: modul.judul,
+    ringkasan: modul.ringkasan,
+    durasi_min: durasi[index],
+    url: sumber.url,
+  }));
+}
+
+/** Progres 0–100 (dibulatkan, dijepit) dari jumlah modul selesai. */
+export function hitungProgres(jumlahSelesai: number, jumlahTotal: number): number {
+  if (!Number.isFinite(jumlahTotal) || jumlahTotal <= 0) return 0;
+  const persen = Math.round((jumlahSelesai / jumlahTotal) * 100);
+  return Math.min(100, Math.max(0, persen));
+}

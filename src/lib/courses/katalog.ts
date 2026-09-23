@@ -1,0 +1,44 @@
+import { listCourses } from "@/lib/courses/store";
+import { resources, type ResourceFixture } from "@/lib/fixtures";
+
+/**
+ * Katalog gabungan untuk alur belajar: kursus yang dipublikasikan dari
+ * course store didahulukan, lalu dilengkapi fixture resource (tanpa duplikat
+ * id). Draft/arsip tidak tampil ke peserta — aturan visibilitas yang sama
+ * dipakai halaman daftar maupun detail.
+ */
+export interface EntriKatalog extends ResourceFixture {
+  slug: string;
+}
+
+export async function katalogBelajar(): Promise<EntriKatalog[]> {
+  const terbit = await listCourses({ status: "published" });
+  const dariKursus: EntriKatalog[] = terbit.map((kursus) => ({
+    id: kursus.id,
+    slug: kursus.slug,
+    title: kursus.title,
+    url: kursus.url,
+    provider: kursus.provider,
+    type: (kursus.type === "bootcamp" ? "course" : kursus.type) as
+      | "video"
+      | "artikel"
+      | "course",
+    tags: kursus.tags,
+    level: kursus.level,
+    is_free: kursus.is_free,
+    duration_min: kursus.duration_min,
+    completed: false,
+  }));
+
+  const idTerpakai = new Set(dariKursus.map((entri) => entri.id));
+  const dariFixture: EntriKatalog[] = resources
+    .filter((resource) => !idTerpakai.has(resource.id))
+    .map((resource) => ({ ...resource, slug: resource.id }));
+
+  return [...dariKursus, ...dariFixture];
+}
+
+export async function cariEntri(slug: string): Promise<EntriKatalog | undefined> {
+  const katalog = await katalogBelajar();
+  return katalog.find((entri) => entri.slug === slug);
+}

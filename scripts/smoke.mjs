@@ -21,6 +21,8 @@ const routes = [
   "/review/1",
   "/audit",
   "/careevo-plus",
+  "/belajar/fullstack-web-development-nextjs-15-react-19",
+  "/belajar/r1",
 ];
 
 let failed = 0;
