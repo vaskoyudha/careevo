@@ -344,7 +344,7 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
 
   return (
     <div className="relative min-h-screen bg-white text-neutral-900 selection:bg-neutral-200 overflow-x-hidden">
-      {/* Full-width Extended Header Image (100% Opacity, In Front of Container Lines, Bottom White Fade) */}
+      {/* Full-width Extended Header Image (100% Pure Opacity, Bottom White Fade Only) */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[640px] sm:h-[720px] md:h-[820px] w-full overflow-hidden select-none">
         <Image
           src="/images/hero-loker-header.jpg"
@@ -353,11 +353,8 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
           priority
           className="object-cover object-top opacity-100"
         />
-        {/* Soft center backlight to keep headline text crystal clear */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_75%_65%_at_50%_35%,rgba(255,255,255,0.72)_0%,rgba(255,255,255,0.2)_55%,transparent_85%)]" />
-        {/* White fading on the bottom of the image */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/10 to-white" />
-        <div className="absolute inset-x-0 bottom-0 h-72 bg-gradient-to-t from-white via-white/95 to-transparent" />
+        {/* White fading strictly on the bottom edge to blend into page */}
+        <div className="absolute inset-x-0 bottom-0 h-48 sm:h-64 bg-gradient-to-t from-white via-white/80 to-transparent" />
       </div>
 
       {/* ============================================================ */}
