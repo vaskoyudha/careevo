@@ -338,11 +338,11 @@ body {
   border-radius: 20px;
   background: linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.62),
-    rgba(236, 243, 247, 0.38)
+    rgba(255, 255, 255, 0.86),
+    rgba(236, 243, 247, 0.72)
   );
   backdrop-filter: blur(22px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.88);
   box-shadow:
     0 10px 30px -12px rgba(10, 61, 98, 0.28),
     0 2px 6px rgba(10, 61, 98, 0.06),
@@ -406,10 +406,10 @@ body {
 }
 
 .nav-item:hover {
-  background: rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.85);
   color: #000;
   text-decoration: none;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset;
 }
 
 .nav-item svg {
@@ -454,11 +454,11 @@ body {
   border-radius: 13px;
   background: linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.88),
-    rgba(236, 243, 247, 0.62)
+    rgba(255, 255, 255, 0.94),
+    rgba(236, 243, 247, 0.75)
   );
   color: var(--ocean-deep);
-  border: 1px solid rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.88);
   cursor: pointer;
   text-decoration: none;
   backdrop-filter: blur(14px) saturate(160%);
