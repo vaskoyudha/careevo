@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -350,8 +351,20 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
             {/* ============================================================ */}
             {/* 1. HERO SECTION (SEC 0)                                       */}
             {/* ============================================================ */}
-            <div className="relative z-20 w-full bg-white pt-16 sm:pt-20 md:pt-24 lg:pt-28">
-              <div className="px-6 sm:px-8 lg:px-12">
+            <div className="relative z-20 w-full bg-white pt-16 sm:pt-20 md:pt-24 lg:pt-28 overflow-hidden">
+              {/* Header Visual Image (Richard Horvath 3D Waves) */}
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-[520px] sm:h-[580px] md:h-[660px] overflow-hidden select-none">
+                <Image
+                  src="/images/hero-loker-header.jpg"
+                  alt="Careevo header ambient visual"
+                  fill
+                  priority
+                  className="object-cover object-top opacity-35 [mask-image:radial-gradient(ellipse_85%_70%_at_50%_15%,#000_25%,transparent_90%)]"
+                />
+                <div className="absolute inset-0 bg-gradient-to-b from-white/10 via-white/50 to-white" />
+              </div>
+
+              <div className="relative z-10 px-6 sm:px-8 lg:px-12">
                 <div className="mx-auto max-w-4xl text-center">
                   {/* Main Headline */}
                   <h1 className="text-balance font-semibold text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-neutral-950 tracking-tight leading-[1.12]">
