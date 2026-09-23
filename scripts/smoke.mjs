@@ -20,6 +20,7 @@ const routes = [
   "/review",
   "/review/1",
   "/audit",
+  "/careevo-plus",
 ];
 
 let failed = 0;

@@ -27,6 +27,14 @@ export function Reveal({
       show();
       return;
     }
+
+    // If already in viewport on mount, reveal immediately
+    const rect = el.getBoundingClientRect();
+    if (rect.top < window.innerHeight && rect.bottom > 0) {
+      show();
+      return;
+    }
+
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
@@ -37,7 +45,7 @@ export function Reveal({
           }
         }
       },
-      { rootMargin: "0px 0px -10% 0px", threshold: 0.1 },
+      { rootMargin: "0px 0px 40px 0px", threshold: 0.05 },
     );
     observer.observe(el);
     return () => observer.disconnect();

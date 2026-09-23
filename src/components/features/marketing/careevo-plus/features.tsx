@@ -4,8 +4,8 @@ import { Reveal } from "../primitives";
 type Feature = {
   title: string;
   description: string;
-  image: string;
-  alt: string;
+  image?: string;
+  alt?: string;
   reverse?: boolean;
 };
 
@@ -31,9 +31,6 @@ const FEATURES: Feature[] = [
     title: "Dari pelajaran pertama hingga karya siap portofolio",
     description:
       "Belajar dengan praktik. Bangun proyek memakai alat yang sama dengan para profesional industri—dan tunjukkan hasil belajarmu kepada perusahaan.",
-    image:
-      "https://images.unsplash.com/photo-1531482615713-2afd69097998?w=1316&h=600&q=80",
-    alt: "Tim kolaborasi mengerjakan proyek portofolio",
   },
 ];
 
@@ -47,7 +44,7 @@ export function CareevoPlusFeatures() {
         {FEATURES.map((feature) => (
           <div
             key={feature.title}
-            className={`grid grid-cols-1 items-center gap-10 py-10 lg:grid-cols-2 lg:gap-16 ${feature.reverse ? "lg:[&>*:first-child]:order-2" : ""}`}
+            className={`grid grid-cols-1 items-center gap-10 py-10 lg:gap-16 ${feature.image ? "lg:grid-cols-2" : "lg:grid-cols-1"} ${feature.reverse ? "lg:[&>*:first-child]:order-2" : ""}`}
           >
             <Reveal>
               <div>
@@ -59,17 +56,19 @@ export function CareevoPlusFeatures() {
                 </p>
               </div>
             </Reveal>
-            <Reveal variant="scale" delay={80}>
-              <div className="overflow-hidden rounded-2xl bg-white p-3 shadow-feature-card">
-                <Image
-                  className="w-full rounded-xl"
-                  alt={feature.alt}
-                  src={feature.image}
-                  width={1316}
-                  height={600}
-                />
-              </div>
-            </Reveal>
+            {feature.image ? (
+              <Reveal variant="scale" delay={80}>
+                <div className="overflow-hidden rounded-2xl bg-white p-3 shadow-feature-card">
+                  <Image
+                    className="w-full rounded-xl"
+                    alt={feature.alt ?? ""}
+                    src={feature.image}
+                    width={1316}
+                    height={600}
+                  />
+                </div>
+              </Reveal>
+            ) : null}
           </div>
         ))}
       </div>
