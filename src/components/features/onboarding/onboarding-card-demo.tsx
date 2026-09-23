@@ -1,46 +1,54 @@
 "use client";
 
 import * as React from "react";
-import { GraduationCap } from "lucide-react";
 import { OnboardingCard } from "@/components/ui/onboarding";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 
 /**
- * Standalone demo of the OnboardingCard shell in light mode.
+ * A demo component to showcase the OnboardingCard (light mode).
  * Rendered at /onboarding/demo — no server action, no persistence.
  */
 export default function OnboardingCardDemo() {
   const [displayName, setDisplayName] = React.useState("");
+  const [isLoading, setIsLoading] = React.useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setDisplayName(e.target.value.replace(/[^a-zA-Z0-9_]/g, ""));
+  // Handler for the display name input change
+  const handleDisplayNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Basic validation: allow only alphanumeric characters and underscores
+    const validUsername = e.target.value.replace(/[^a-zA-Z0-9_]/g, "");
+    setDisplayName(validUsername);
+  };
+
+  // Placeholder function for upload button click
+  const handleUploadClick = () => {
+    alert("Upload button clicked!");
+  };
+
+  // Placeholder function for continue button click
+  const handleContinueClick = () => {
+    if (!displayName) {
+      alert("Please enter a display name.");
+      return;
+    }
+    setIsLoading(true);
+    // Simulate an API call
+    setTimeout(() => {
+      setIsLoading(false);
+      alert(`Welcome, ${displayName}!`);
+    }, 2000);
   };
 
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-background p-4">
       <OnboardingCard
-        icon={<GraduationCap className="size-5" />}
-        title="Kenalan dulu, yuk"
-        subtitle="Ceritakan minatmu supaya Careevo bisa menyusun rekomendasi."
-        step={1}
-        totalSteps={3}
-        footer={
-          <Button className="w-full" size="lg">
-            Lanjut
-          </Button>
-        }
-      >
-        <label htmlFor="displayName" className="text-sm font-medium">
-          Nama tampilan
-        </label>
-        <Input
-          id="displayName"
-          placeholder="username"
-          value={displayName}
-          onChange={handleChange}
-        />
-      </OnboardingCard>
+        heroImageSrc="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&q=80"
+        title="Welcome to Genesis"
+        subtitle="Your first journey here!"
+        displayName={displayName}
+        onDisplayNameChange={handleDisplayNameChange}
+        onUploadClick={handleUploadClick}
+        onContinueClick={handleContinueClick}
+        isLoading={isLoading}
+      />
     </div>
   );
 }

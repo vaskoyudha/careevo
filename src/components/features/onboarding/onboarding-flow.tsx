@@ -30,7 +30,7 @@ import {
   type WorkPreference,
 } from "@/lib/onboarding/types";
 import { cn } from "@/lib/utils";
-import { OnboardingCard } from "@/components/ui/onboarding";
+import { OnboardingStepCard } from "@/components/ui/onboarding-step-card";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -147,7 +147,7 @@ export function OnboardingFlow({
         <input key={interest} type="hidden" name="interests" value={interest} />
       ))}
 
-      <OnboardingCard
+      <OnboardingStepCard
         icon={meta.icon}
         title={meta.title}
         subtitle={step === 0 ? `Halo ${nama}, ${meta.subtitle}` : meta.subtitle}
@@ -200,7 +200,7 @@ export function OnboardingFlow({
         ) : (
           <StepGoals draft={draft} set={set} />
         )}
-      </OnboardingCard>
+      </OnboardingStepCard>
     </form>
   );
 }

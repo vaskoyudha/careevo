@@ -2,79 +2,83 @@
 
 import * as React from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { Camera, AtSign, UserCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// Import shadcn/ui components
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+
 /**
- * OnboardingCard — the visual shell for a single onboarding step.
+ * OnboardingCard — onboarding card, kept visually identical to the reference
+ * design (same layout, spacing, hero image, photo-upload row, `@` display-name
+ * field and full-width Continue button). Only the theme is light-mode, because
+ * Careevo ships a light palette; all tokens used (`bg-card`, `bg-muted`,
+ * `border-input`, `text-muted-foreground`, `primary`) resolve to the light
+ * oceanic theme in `globals.css`.
  *
- * Adapted from the shadcn "onboarding" reference component, with three
- * deliberate changes:
- *   1. Light mode only — uses Careevo's shadcn theme tokens (`bg-card`,
- *      `text-foreground`, `text-muted-foreground`) so it inherits the oceanic
- *      light palette instead of hard-coded dark greys.
- *   2. No photo upload — this flow personalizes *interests and background*,
- *      not identity.
- *   3. The hero image is optional and replaced by an icon-led header, so the
- *      card works without a stock asset while still supporting one.
- *
- * Animation mirrors the reference: the parent orchestrates staggered children.
+ * The prop API matches the reference exactly, so this file is a drop-in.
  */
 
 export interface OnboardingCardProps {
-  /** Optional hero image. Omitted in the default Careevo flow. */
-  heroImageSrc?: string;
-  icon?: React.ReactNode;
+  heroImageSrc: string;
   title: string;
   subtitle: string;
-  /** Current step (1-based) for the progress indicator. */
-  step?: number;
-  totalSteps?: number;
-  children: React.ReactNode;
-  /** Footer actions (Back/Continue). */
-  footer?: React.ReactNode;
+  displayName: string;
+  onDisplayNameChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onUploadClick: () => void;
+  onContinueClick: () => void;
+  isLoading?: boolean;
   className?: string;
 }
-
-const containerVariants = {
-  initial: { opacity: 0 },
-  animate: {
-    opacity: 1,
-    transition: { staggerChildren: 0.12 },
-  },
-  exit: { opacity: 0 },
-};
-
-const itemVariants = {
-  initial: { opacity: 0, y: 16 },
-  animate: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.4, ease: "easeOut" as const },
-  },
-  exit: { opacity: 0, y: 16 },
-};
 
 export const OnboardingCard = React.forwardRef<HTMLDivElement, OnboardingCardProps>(
   (
     {
       heroImageSrc,
-      icon,
       title,
       subtitle,
-      step,
-      totalSteps,
-      children,
-      footer,
+      displayName,
+      onDisplayNameChange,
+      onUploadClick,
+      onContinueClick,
+      isLoading = false,
       className,
     },
     ref,
   ) => {
+    // Variants for the parent container to orchestrate animations
+    const containerVariants = {
+      initial: { opacity: 0 },
+      animate: {
+        opacity: 1,
+        transition: {
+          staggerChildren: 0.15, // Stagger the animation of children
+        },
+      },
+      exit: { opacity: 0 },
+    };
+
+    // Variants for individual child items to fade in
+    const itemVariants = {
+      initial: { opacity: 0, y: 20 },
+      animate: {
+        opacity: 1,
+        y: 0,
+        transition: {
+          duration: 0.5,
+          ease: "easeOut" as const,
+        },
+      },
+      exit: { opacity: 0, y: 20 },
+    };
+
     return (
-      <AnimatePresence mode="wait">
+      <AnimatePresence>
         <motion.div
           ref={ref}
           className={cn(
-            "w-full max-w-xl overflow-hidden rounded-2xl border bg-card text-card-foreground shadow-lg",
+            "w-full max-w-md overflow-hidden rounded-2xl border bg-card text-card-foreground shadow-lg",
             className,
           )}
           variants={containerVariants}
@@ -82,52 +86,68 @@ export const OnboardingCard = React.forwardRef<HTMLDivElement, OnboardingCardPro
           animate="animate"
           exit="exit"
         >
-          {heroImageSrc ? (
-            <motion.img
-              src={heroImageSrc}
-              alt=""
-              className="h-40 w-full object-cover"
+          {/* Hero Image Section */}
+          <motion.img
+            src={heroImageSrc}
+            alt="Welcome Hero Image"
+            className="h-48 w-full object-cover"
+            variants={itemVariants}
+          />
+
+          <div className="flex flex-col space-y-6 p-6 sm:p-8">
+            {/* Header Text */}
+            <motion.div variants={itemVariants} className="space-y-1.5 text-center">
+              <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+              <p className="text-muted-foreground">{subtitle}</p>
+            </motion.div>
+
+            {/* Photo Upload Section */}
+            <motion.div
               variants={itemVariants}
-            />
-          ) : null}
-
-          <div className="flex flex-col gap-6 p-6 sm:p-8">
-            <motion.div variants={itemVariants} className="flex flex-col items-start gap-3">
-              {typeof step === "number" && typeof totalSteps === "number" ? (
-                <div className="flex w-full items-center gap-2" aria-hidden="true">
-                  <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
-                    <div
-                      className="h-full rounded-full bg-primary transition-all duration-500"
-                      style={{ width: `${(step / totalSteps) * 100}%` }}
-                    />
-                  </div>
-                  <span className="text-xs font-medium text-muted-foreground tabular-nums">
-                    {step}/{totalSteps}
-                  </span>
+              className="flex items-center justify-between space-x-4 rounded-lg border p-4"
+            >
+              <div className="flex items-center space-x-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                  <UserCircle2 className="h-6 w-6 text-muted-foreground" />
                 </div>
-              ) : null}
-
-              {icon ? (
-                <span className="grid size-11 place-items-center rounded-xl bg-primary/10 text-primary">
-                  {icon}
-                </span>
-              ) : null}
-
-              <div className="space-y-1.5">
-                <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
-                <p className="text-muted-foreground">{subtitle}</p>
+                <div>
+                  <p className="font-semibold">Your Photo</p>
+                  <p className="text-xs text-muted-foreground">PNG or JPEG, up to 5MB</p>
+                </div>
               </div>
+              <Button variant="outline" size="sm" onClick={onUploadClick}>
+                <Camera className="mr-2 h-4 w-4" />
+                Upload
+              </Button>
             </motion.div>
 
-            <motion.div variants={itemVariants} className="flex flex-col gap-4">
-              {children}
+            {/* Display Name Input */}
+            <motion.div variants={itemVariants} className="relative flex flex-col space-y-2">
+              <label htmlFor="displayName" className="text-sm font-medium">
+                Display Name
+              </label>
+              <AtSign className="absolute bottom-2.5 left-3 h-5 w-5 text-muted-foreground" />
+              <Input
+                id="displayName"
+                type="text"
+                placeholder="username"
+                value={displayName}
+                onChange={onDisplayNameChange}
+                className="pl-10"
+              />
             </motion.div>
 
-            {footer ? (
-              <motion.div variants={itemVariants} className="flex items-center gap-3">
-                {footer}
-              </motion.div>
-            ) : null}
+            {/* Continue Button */}
+            <motion.div variants={itemVariants}>
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={onContinueClick}
+                disabled={isLoading}
+              >
+                {isLoading ? "Saving..." : "Continue"}
+              </Button>
+            </motion.div>
           </div>
         </motion.div>
       </AnimatePresence>
