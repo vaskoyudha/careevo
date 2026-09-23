@@ -10,10 +10,11 @@ import { hasProfile } from "@/lib/onboarding/store";
  * the two would drag server-only APIs into the client bundle.
  *
  * Staff skip onboarding (it personalizes learner recommendations). Learners
- * without a stored profile are funneled through `/onboarding`; the onboarding
- * page bounces already-onboarded users home, making this idempotent.
+ * without a stored profile for *this account* are funneled through
+ * `/onboarding`; the onboarding page bounces already-onboarded users home,
+ * making this idempotent.
  */
-export async function landingFor(role: Role): Promise<string> {
+export async function landingFor(role: Role, owner: string): Promise<string> {
   if (isStaffRole(role)) return "/review";
-  return (await hasProfile()) ? "/dashboard" : "/onboarding";
+  return (await hasProfile(owner)) ? "/dashboard" : "/onboarding";
 }

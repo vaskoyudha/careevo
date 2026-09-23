@@ -18,6 +18,7 @@ import {
  */
 
 const valid: OnboardingProfile = {
+  owner: "raka@careevo.test",
   experience: "dasar",
   background: "mahasiswa",
   interests: ["web-dev", "ai"],
@@ -25,7 +26,7 @@ const valid: OnboardingProfile = {
   weeklyHours: 8,
   workPreference: "remote",
   completedAt: new Date().toISOString(),
-  version: 1,
+  version: 2,
 };
 
 describe("isOnboardingProfile", () => {
@@ -37,6 +38,13 @@ describe("isOnboardingProfile", () => {
     expect(isOnboardingProfile(null)).toBe(false);
     expect(isOnboardingProfile("nope")).toBe(false);
     expect(isOnboardingProfile(42)).toBe(false);
+  });
+
+  it("rejects a profile with no owner (unattributable)", () => {
+    const noOwner = { ...valid } as Record<string, unknown>;
+    delete noOwner.owner;
+    expect(isOnboardingProfile(noOwner)).toBe(false);
+    expect(isOnboardingProfile({ ...valid, owner: "" })).toBe(false);
   });
 
   it("rejects an unknown experience value", () => {

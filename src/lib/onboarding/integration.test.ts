@@ -38,30 +38,48 @@ const sample = {
   workPreference: "remote" as const,
 };
 
+const OWNER = "raka@careevo.test";
+
 describe("onboarding store round-trip", () => {
   beforeEach(() => {
     jar.clear();
   });
 
   it("starts with no profile", async () => {
-    expect(await hasProfile()).toBe(false);
-    expect(await getProfile()).toBeNull();
+    expect(await hasProfile(OWNER)).toBe(false);
+    expect(await getProfile(OWNER)).toBeNull();
   });
 
   it("saves then reads back an identical, version-stamped profile", async () => {
-    const saved = await saveProfile({ ...sample, interests: [...sample.interests] });
-    expect(saved.version).toBe(1);
+    const saved = await saveProfile({ ...sample, interests: [...sample.interests] }, OWNER);
+    expect(saved.version).toBe(2);
+    expect(saved.owner).toBe(OWNER);
     expect(saved.completedAt).toBeTruthy();
 
-    const loaded = await getProfile();
+    const loaded = await getProfile(OWNER);
     expect(loaded).not.toBeNull();
     expect(loaded!.experience).toBe("menengah");
     expect(loaded!.interests).toEqual(["data", "ai"]);
-    expect(await hasProfile()).toBe(true);
+    expect(await hasProfile(OWNER)).toBe(true);
+  });
+
+  it("does not leak one account's profile to another on the same browser", async () => {
+    await saveProfile({ ...sample, interests: [...sample.interests] }, OWNER);
+
+    // A different account signing in on the same browser must look un-onboarded.
+    expect(await hasProfile("other@careevo.test")).toBe(false);
+    expect(await getProfile("other@careevo.test")).toBeNull();
+    // ...but the owner still sees theirs.
+    expect(await hasProfile(OWNER)).toBe(true);
+  });
+
+  it("matches owners case-insensitively", async () => {
+    await saveProfile({ ...sample, interests: [...sample.interests] }, "Raka@Careevo.TEST");
+    expect(await hasProfile("raka@careevo.test")).toBe(true);
   });
 
   it("rejects a tampered payload (signature mismatch)", async () => {
-    await saveProfile({ ...sample, interests: [...sample.interests] });
+    await saveProfile({ ...sample, interests: [...sample.interests] }, OWNER);
     const token = jar.get(PROFILE_COOKIE)!;
     const [body, sig] = token.split(".");
 
@@ -71,15 +89,15 @@ describe("onboarding store round-trip", () => {
     ).toString("base64url");
     jar.set(PROFILE_COOKIE, `${forged}.${sig}`);
 
-    expect(await getProfile()).toBeNull();
+    expect(await getProfile(OWNER)).toBeNull();
     // sanity: original body/sig pair is not simply re-derivable
     expect(body).not.toBe(forged);
   });
 
   it("clears the profile so onboarding can re-run", async () => {
-    await saveProfile({ ...sample, interests: [...sample.interests] });
-    expect(await hasProfile()).toBe(true);
+    await saveProfile({ ...sample, interests: [...sample.interests] }, OWNER);
+    expect(await hasProfile(OWNER)).toBe(true);
     await clearProfile();
-    expect(await hasProfile()).toBe(false);
+    expect(await hasProfile(OWNER)).toBe(false);
   });
 });

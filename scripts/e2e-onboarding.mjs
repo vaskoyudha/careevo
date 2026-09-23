@@ -26,6 +26,7 @@ const session = {
 };
 
 const profile = {
+  owner: session.email,
   experience: "dasar",
   background: "mahasiswa",
   interests: ["web-dev"],
@@ -33,8 +34,12 @@ const profile = {
   weeklyHours: 8,
   workPreference: "remote",
   completedAt: new Date().toISOString(),
-  version: 1,
+  version: 2,
 };
+
+// Same browser cookie, but the session belongs to a *different* account than
+// the profile's owner: the profile must be ignored (this is the register bug).
+const otherSession = { ...session, email: "someone-else@careevo.test", username: "else" };
 
 let failed = 0;
 async function check(label, path, cookie, expect) {
@@ -65,6 +70,11 @@ await check("dashboard ok", "/dashboard", `${sessionCookie}; ${profileCookie}`, 
 await check("onboarding bounce", "/onboarding", `${sessionCookie}; ${profileCookie}`, (r) => r.status === 307 && (r.headers.get("location") ?? "").includes("/dashboard"));
 await check("edit mode stays", "/onboarding?edit=1", `${sessionCookie}; ${profileCookie}`, (r) => r.status === 200);
 await check("demo public", "/onboarding/demo", "", (r) => r.status === 200);
+
+console.log("\n— profile owned by a different account (same browser) —");
+const otherSessionCookie = `ls_session=${encode(otherSession)}`;
+await check("not inherited", "/dashboard", `${otherSessionCookie}; ${profileCookie}`, (r) => r.status === 307 && (r.headers.get("location") ?? "").includes("/onboarding"));
+await check("onboarding open", "/onboarding", `${otherSessionCookie}; ${profileCookie}`, (r) => r.status === 200);
 
 console.log(`\n${failed === 0 ? "PASS" : "FAIL"} — ${failed} failing check(s).`);
 process.exit(failed === 0 ? 0 : 1);

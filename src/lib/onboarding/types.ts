@@ -45,6 +45,14 @@ export const WORK_PREFERENCES = ["remote", "hybrid", "onsite", "fleksibel"] as c
 export type WorkPreference = (typeof WORK_PREFERENCES)[number];
 
 export interface OnboardingProfile {
+  /**
+   * Normalized email of the account this profile belongs to.
+   *
+   * The profile cookie is per-browser, not per-account, so it must be bound to
+   * an identity: otherwise onboarding once would leak recommendations to every
+   * later account created/signed into on the same browser.
+   */
+  owner: string;
   /** Experience as chosen (four buckets), distinct from course `Level`. */
   experience: ExperienceLevel;
   background: Background;
@@ -60,7 +68,7 @@ export interface OnboardingProfile {
   version: number;
 }
 
-export const ONBOARDING_VERSION = 1;
+export const ONBOARDING_VERSION = 2;
 
 export const MAX_INTERESTS = 3;
 export const MIN_INTERESTS = 1;

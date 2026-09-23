@@ -16,7 +16,7 @@ export default async function FocusLayout({
     redirect("/masuk");
   }
 
-  if (!(await hasProfile())) {
+  if (!(await hasProfile(session.email))) {
     redirect("/onboarding");
   }
 

@@ -22,7 +22,11 @@ import {
  * prototype dependency-free (no DB) while still giving the flow a real,
  * tamper-evident store.
  *
- * Swapping this for a real database means replacing only these four functions
+ * Because the cookie is per-browser, every profile carries an `owner` (the
+ * account email) so a new account on the same browser does not inherit — or
+ * get skipped past — another account's onboarding.
+ *
+ * Swapping this for a real database means replacing only these functions
  * (`getProfile` / `saveProfile` / `clearProfile` / `hasProfile`) — nothing in
  * the UI or recommendation engine touches the cookie directly.
  */
@@ -46,6 +50,8 @@ export function isOnboardingProfile(value: unknown): value is OnboardingProfile 
   if (typeof value !== "object" || value === null) return false;
   const c = value as Record<string, unknown>;
   return (
+    typeof c.owner === "string" &&
+    c.owner.length > 0 &&
     isExperienceLevel(c.experience) &&
     isBackground(c.background) &&
     Array.isArray(c.interests) &&
@@ -88,23 +94,39 @@ export interface CompleteOnboardingInput {
   workPreference: OnboardingProfile["workPreference"];
 }
 
-/** Read the signed profile cookie, or null when absent/invalid. */
-export async function getProfile(): Promise<OnboardingProfile | null> {
+/** Normalize an account identifier (email) for storage/comparison. */
+export function normalizeOwner(owner: string): string {
+  return owner.trim().toLowerCase();
+}
+
+/**
+ * Read the signed profile cookie, or null when absent/invalid.
+ *
+ * Pass `owner` to additionally require that the profile belongs to that
+ * account. Omitted, the raw stored profile is returned (used by the store's
+ * own tests and the settings editor, which then checks ownership itself).
+ */
+export async function getProfile(owner?: string): Promise<OnboardingProfile | null> {
   const jar = await cookies();
-  return decode(jar.get(PROFILE_COOKIE)?.value);
+  const profile = decode(jar.get(PROFILE_COOKIE)?.value);
+  if (!profile) return null;
+  if (owner !== undefined && profile.owner !== normalizeOwner(owner)) return null;
+  return profile;
 }
 
-/** True when the learner has finished onboarding. */
-export async function hasProfile(): Promise<boolean> {
-  return (await getProfile()) !== null;
+/** True when *this account* has finished onboarding on this browser. */
+export async function hasProfile(owner: string): Promise<boolean> {
+  return (await getProfile(owner)) !== null;
 }
 
-/** Persist a completed profile, stamping version + completion time. */
+/** Persist a completed profile, stamping owner + version + completion time. */
 export async function saveProfile(
   input: CompleteOnboardingInput,
+  owner: string,
 ): Promise<OnboardingProfile> {
   const jar = await cookies();
   const profile: OnboardingProfile = {
+    owner: normalizeOwner(owner),
     experience: input.experience,
     background: input.background,
     interests: input.interests.slice(0, MAX_INTERESTS),

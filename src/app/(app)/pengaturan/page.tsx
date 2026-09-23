@@ -14,7 +14,7 @@ export default async function PengaturanPage() {
   const session = await getSession();
   if (!session) return null;
 
-  const profile = await getProfile();
+  const profile = await getProfile(session.email);
 
   return (
     <AppShell session={session} current="/pengaturan">

@@ -48,7 +48,7 @@ export async function loginAction(
   }
 
   await createSession(user);
-  redirect(await landingFor(user.role));
+  redirect(await landingFor(user.role, user.email));
 }
 
 export async function registerAction(
@@ -99,7 +99,7 @@ export async function registerAction(
     passwordHash: hashPassword(password),
   });
   await createSession({ email, nama, username, role });
-  redirect(await landingFor(role));
+  redirect(await landingFor(role, email));
 }
 
 export async function logoutAction(): Promise<void> {

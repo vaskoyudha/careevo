@@ -52,7 +52,7 @@ export async function completeOnboardingAction(
     };
   }
 
-  await saveProfile(parsed.data);
+  await saveProfile(parsed.data, session.email);
   redirect(homeForRole(session.role));
 }
 

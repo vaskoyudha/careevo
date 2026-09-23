@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth/session";
+import { landingFor } from "@/lib/auth/landing";
 import AuthSectionTwo from "@/components/ui/auth-section-2";
 import { AuthForm } from "@/components/features/auth/auth-form";
 import { DEMO_ACCOUNTS, DEMO_PASSWORD } from "@/lib/auth/session";
@@ -13,6 +16,10 @@ export default async function MasukPage({
 }: {
   searchParams: Promise<{ email?: string }>;
 }) {
+  // Already signed in? No reason to show the login form again.
+  const session = await getSession();
+  if (session) redirect(await landingFor(session.role, session.email));
+
   const { email } = await searchParams;
   const prefill = DEMO_ACCOUNTS.some((account) => account.email === email) ? email : undefined;
 

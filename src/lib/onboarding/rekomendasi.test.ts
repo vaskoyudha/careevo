@@ -10,6 +10,7 @@ import { jobs } from "@/lib/fixtures";
 import type { OnboardingProfile } from "@/lib/onboarding/types";
 
 const base: OnboardingProfile = {
+  owner: "raka@careevo.test",
   experience: "dasar",
   background: "mahasiswa",
   interests: ["web-dev"],
@@ -17,7 +18,7 @@ const base: OnboardingProfile = {
   weeklyHours: 8,
   workPreference: "remote",
   completedAt: "2026-09-01T00:00:00.000Z",
-  version: 1,
+  version: 2,
 };
 
 describe("skorKursus", () => {
