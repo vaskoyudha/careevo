@@ -344,17 +344,24 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
 
   return (
     <div className="relative min-h-screen bg-white text-neutral-900 selection:bg-neutral-200 overflow-x-hidden">
-      {/* Full-width Extended Header Image (100% Pure Opacity, Bottom White Fade Only) */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[640px] sm:h-[720px] md:h-[820px] w-full overflow-hidden select-none">
-        <Image
-          src="/images/hero-loker-header.jpg"
-          alt="Careevo header visual"
-          fill
-          priority
-          className="object-cover object-top opacity-100"
-        />
-        {/* White fading strictly on the bottom edge to blend into page */}
-        <div className="absolute inset-x-0 bottom-0 h-48 sm:h-64 bg-gradient-to-t from-white via-white/80 to-transparent" />
+      {/* Background Layers: Striped Radial White BEHIND Wallpaper Background */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[1100px] sm:h-[1200px] md:h-[1300px] w-full overflow-hidden select-none">
+        {/* Layer 1: Striped Radial White Background (Behind the Wallpaper) */}
+        <div className="absolute inset-0 z-0 bg-[size:12px_12px] [background-image:repeating-linear-gradient(315deg,rgba(0,0,0,0.04)_0_1px,transparent_0_50%)] [mask-image:radial-gradient(ellipse_85%_80%_at_50%_40%,black_40%,transparent_92%)]" />
+        <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_85%_75%_at_50%_35%,rgba(255,255,255,0.85)_0%,rgba(255,255,255,0.35)_55%,transparent_85%)]" />
+
+        {/* Layer 2: Wallpaper Background (In Front of Striped Radial White) */}
+        <div className="relative z-10 h-[640px] sm:h-[720px] md:h-[820px] w-full overflow-hidden">
+          <Image
+            src="/images/hero-loker-header.jpg"
+            alt="Careevo header visual"
+            fill
+            priority
+            className="object-cover object-top opacity-100"
+          />
+          {/* White fading on the bottom edge of the wallpaper */}
+          <div className="absolute inset-x-0 bottom-0 h-48 sm:h-64 bg-gradient-to-t from-white via-white/80 to-transparent" />
+        </div>
       </div>
 
       {/* ============================================================ */}
