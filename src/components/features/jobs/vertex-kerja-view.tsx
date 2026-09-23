@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -278,8 +278,18 @@ const FAQ_DATA = [
   },
 ];
 
+const DIAMOND_COLORS = [
+  "bg-emerald-500",
+  "bg-blue-500",
+  "bg-amber-500",
+  "bg-rose-500",
+];
+
 export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) {
-  const [activeTab, setActiveTab] = useState(0);
+  const [cards, setCards] = useState(() =>
+    FEATURED_ROLES.map((role, i) => ({ ...role, originalIndex: i }))
+  );
+  const [isPaused, setIsPaused] = useState(false);
   const [activeFaqCategory, setActiveFaqCategory] = useState("umum");
   const [openFaqIndexes, setOpenFaqIndexes] = useState<Record<string, boolean>>({
     "umum-0": true,
@@ -287,7 +297,26 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const selectedRole = FEATURED_ROLES[activeTab] || FEATURED_ROLES[0];
+  const bringToFront = (slotIndex: number) => {
+    if (slotIndex === 0) return;
+    setCards((prev) => [...prev.slice(slotIndex), ...prev.slice(0, slotIndex)]);
+  };
+
+  const bringRoleToFront = (tabLabel: string) => {
+    setCards((prev) => {
+      const idx = prev.findIndex((c) => c.tabLabel === tabLabel);
+      if (idx <= 0) return prev;
+      return [...prev.slice(idx), ...prev.slice(0, idx)];
+    });
+  };
+
+  useEffect(() => {
+    if (isPaused) return;
+    const interval = setInterval(() => {
+      setCards((prev) => [...prev.slice(1), prev[0]]);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [isPaused]);
 
   const handleHeroSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -382,172 +411,230 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                   </p>
                 </div>
 
-                {/* Hero Interactive Showcase Card (Vertex Signature) */}
-                <div className="mt-12 sm:mt-16 overflow-hidden rounded-xl border border-neutral-200 bg-neutral-50/50 shadow-sm">
-                  <div className="grid grid-rows-[auto_auto] lg:grid-cols-[320px_1fr] lg:grid-rows-[auto_1fr] divide-y lg:divide-y-0 lg:divide-x divide-neutral-200 bg-white">
-                    {/* Left Column: Job / Candidate Profile Card */}
-                    <div className="relative flex flex-col p-6 sm:p-7 bg-white">
-                      <div className="flex items-center justify-between">
-                        <div className="flex size-11 items-center justify-center rounded-xl border border-neutral-200 bg-neutral-50 text-neutral-800 shadow-xs">
-                          <Building2 className="size-5 text-neutral-700" />
-                        </div>
-                        <StatusBadge status={selectedRole.status} />
-                      </div>
+                {/* Stacked Showcase Card Deck (Vertex Signature) */}
+                <div
+                  className="relative mx-auto mt-12 w-full max-w-6xl sm:mt-16"
+                  style={{ paddingTop: "96px" }}
+                  onMouseEnter={() => setIsPaused(true)}
+                  onMouseLeave={() => setIsPaused(false)}
+                >
+                  <div className="relative">
+                    {cards.map((role, slotIndex) => {
+                      const isFront = slotIndex === 0;
+                      const topOffset = isFront ? 0 : -slotIndex * 32;
+                      const scale = 1 - slotIndex * 0.05;
+                      const zIndex = 4 - slotIndex;
 
-                      <div className="mt-4">
-                        <h2 className="text-lg font-semibold text-neutral-900 tracking-tight leading-snug">
-                          {selectedRole.role}
-                        </h2>
-                        <p className="mt-1 text-sm font-medium text-neutral-500">
-                          {selectedRole.company} · {selectedRole.location}
-                        </p>
-                      </div>
-
-                      {/* Quick Actions */}
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        <Link
-                          href={selectedRole.applyHref}
-                          className="chrome-btn chrome-btn-brand !h-8 !px-3.5 !text-xs gap-1.5"
+                      return (
+                        <article
+                          key={role.tabLabel}
+                          className={cn(
+                            "overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-xl transition-all duration-500 ease-out",
+                            isFront ? "relative" : "absolute inset-x-0"
+                          )}
+                          style={{
+                            transformOrigin: "center top",
+                            transform: isFront ? "none" : `scale(${scale})`,
+                            top: `${topOffset}px`,
+                            zIndex,
+                          }}
                         >
-                          <Briefcase className="size-3.5" />
-                          <span>Lamar Loker</span>
-                        </Link>
-                        <a
-                          href={selectedRole.externalApplyUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="chrome-btn chrome-btn-text chrome-btn-ghost !h-8 !px-3.5 !text-xs gap-1.5"
-                        >
-                          <ExternalLink className="size-3.5 text-neutral-500" />
-                          <span>KarirHub</span>
-                        </a>
-                      </div>
-
-                      {/* Job Metadata Table */}
-                      <div className="mt-6 border-t border-neutral-100 pt-5 space-y-2.5 text-xs">
-                        <div className="flex items-center justify-between">
-                          <span className="text-neutral-400">Rentang Gaji</span>
-                          <span className="font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
-                            {selectedRole.salary}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-neutral-400">Sumber Data</span>
-                          <span className="font-medium text-neutral-700">{selectedRole.source}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-neutral-400">Umur Domain</span>
-                          <span className="font-medium text-neutral-700">{selectedRole.domainAge}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-neutral-400">Fit Match AI</span>
-                          <span className="font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
-                            {selectedRole.fitScore}% Cocok
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Tag Pills */}
-                      <div className="mt-5 flex flex-wrap gap-1.5">
-                        {selectedRole.tags.map((t) => (
-                          <span
-                            key={t}
-                            className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-600"
-                          >
-                            {t}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Right Column: Highlights, Pipeline & Activity Log */}
-                    <div className="flex flex-col p-6 sm:p-7 bg-white">
-                      {/* Top Bar */}
-                      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-100 pb-4">
-                        <div className="flex items-center gap-2 text-xs font-semibold text-neutral-900 uppercase tracking-wider">
-                          <ShieldCheck className="size-4 text-emerald-600" />
-                          <span>Hasil Audit Sentinel & Evaluasi Kecocokan</span>
-                        </div>
-                        <span className="text-xs text-neutral-400">
-                          {selectedRole.upcomingReview}
-                        </span>
-                      </div>
-
-                      {/* Summary Section */}
-                      <div className="mt-4">
-                        <p className="text-sm text-neutral-700 leading-relaxed">
-                          {selectedRole.description}
-                        </p>
-                      </div>
-
-                      {/* Verification Pipeline Steps */}
-                      <div className="mt-6">
-                        <h3 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-3">
-                          Protokol Validasi Sentinel
-                        </h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {selectedRole.pipeline.map((item) => (
-                            <div
-                              key={item.step}
-                              className="rounded-lg border border-neutral-200/80 bg-neutral-50/60 p-3 text-xs"
-                            >
-                              <div className="flex items-center gap-2">
-                                <span className="flex size-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold">
-                                  ✓
-                                </span>
-                                <span className="font-semibold text-neutral-900">{item.title}</span>
-                              </div>
-                              <p className="mt-1 pl-7 text-neutral-500">{item.desc}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Realtime Activity Feed */}
-                      <div className="mt-6 border-t border-neutral-100 pt-5">
-                        <h3 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2.5">
-                          Jejak Audit Terakhir
-                        </h3>
-                        <div className="space-y-2 text-xs text-neutral-600">
-                          {selectedRole.activities.map((act, i) => (
-                            <div key={i} className="flex items-center justify-between gap-2">
-                              <span className="flex items-center gap-2">
-                                <span className="size-1.5 rounded-full bg-blue-500" />
-                                <span>{act.action}</span>
-                              </span>
-                              <span className="text-neutral-400 shrink-0">{act.time}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Bottom Role Switcher Tabs */}
-                  <div className="border-t border-neutral-200 bg-neutral-50 px-4 py-3 sm:px-6">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs font-medium text-neutral-400 mr-2 hidden sm:inline">
-                        Pilih Kategori:
-                      </span>
-                      {FEATURED_ROLES.map((item, index) => {
-                        const isActive = activeTab === index;
-                        return (
-                          <button
-                            key={item.tabLabel}
-                            type="button"
-                            onClick={() => setActiveTab(index)}
+                          {/* Card Tab Header */}
+                          <div
+                            onClick={() => bringToFront(slotIndex)}
                             className={cn(
-                              "cursor-pointer rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all active:scale-[0.97]",
-                              isActive
-                                ? "chrome-btn chrome-btn-brand !h-auto !py-1.5 !px-3.5"
-                                : "chrome-btn chrome-btn-text chrome-btn-ghost !h-auto !py-1.5 !px-3.5"
+                              "flex h-11 items-center gap-x-2 border-b border-neutral-200 px-4 transition-colors select-none",
+                              isFront
+                                ? "bg-neutral-50/90"
+                                : "bg-neutral-100/90 hover:bg-neutral-200/70 cursor-pointer"
                             )}
                           >
-                            {item.tabLabel}
-                          </button>
-                        );
-                      })}
-                    </div>
+                            <span
+                              aria-hidden="true"
+                              className={cn(
+                                "size-2 shrink-0 rotate-45 rounded-[2px]",
+                                DIAMOND_COLORS[role.originalIndex]
+                              )}
+                            />
+                            <span className="font-semibold text-neutral-900 text-xs sm:text-sm tracking-tight">
+                              {role.company}
+                            </span>
+                            <span className="text-neutral-300 text-sm">·</span>
+                            <span className="truncate text-neutral-600 text-xs sm:text-sm tracking-tight">
+                              {role.role} ({role.location})
+                            </span>
+                            <span className="ml-auto text-[11px] font-medium text-neutral-400">
+                              {role.tabLabel}
+                            </span>
+                          </div>
+
+                          {/* Card Content Grid */}
+                          <div className="grid grid-rows-[auto_auto] lg:grid-cols-[320px_1fr] lg:grid-rows-[auto_1fr] divide-y lg:divide-y-0 lg:divide-x divide-neutral-200 bg-white">
+                            {/* Left Column: Job / Candidate Profile Card */}
+                            <div className="relative flex flex-col p-6 sm:p-7 bg-white">
+                              <div className="flex items-center justify-between">
+                                <div className="flex size-11 items-center justify-center rounded-xl border border-neutral-200 bg-neutral-50 text-neutral-800 shadow-xs">
+                                  <Building2 className="size-5 text-neutral-700" />
+                                </div>
+                                <StatusBadge status={role.status} />
+                              </div>
+
+                              <div className="mt-4">
+                                <h2 className="text-lg font-semibold text-neutral-900 tracking-tight leading-snug">
+                                  {role.role}
+                                </h2>
+                                <p className="mt-1 text-sm font-medium text-neutral-500">
+                                  {role.company} · {role.location}
+                                </p>
+                              </div>
+
+                              {/* Quick Actions */}
+                              <div className="mt-4 flex flex-wrap gap-2">
+                                <Link
+                                  href={role.applyHref}
+                                  className="chrome-btn chrome-btn-brand !h-8 !px-3.5 !text-xs gap-1.5"
+                                >
+                                  <Briefcase className="size-3.5" />
+                                  <span>Lamar Loker</span>
+                                </Link>
+                                <a
+                                  href={role.externalApplyUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="chrome-btn chrome-btn-text chrome-btn-ghost !h-8 !px-3.5 !text-xs gap-1.5"
+                                >
+                                  <ExternalLink className="size-3.5 text-neutral-500" />
+                                  <span>KarirHub</span>
+                                </a>
+                              </div>
+
+                              {/* Job Metadata Table */}
+                              <div className="mt-6 border-t border-neutral-100 pt-5 space-y-2.5 text-xs">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-neutral-400">Rentang Gaji</span>
+                                  <span className="font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                                    {role.salary}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-neutral-400">Sumber Data</span>
+                                  <span className="font-medium text-neutral-700">{role.source}</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-neutral-400">Umur Domain</span>
+                                  <span className="font-medium text-neutral-700">{role.domainAge}</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-neutral-400">Fit Match AI</span>
+                                  <span className="font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+                                    {role.fitScore}% Cocok
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Tag Pills */}
+                              <div className="mt-5 flex flex-wrap gap-1.5">
+                                {role.tags.map((t) => (
+                                  <span
+                                    key={t}
+                                    className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-600"
+                                  >
+                                    {t}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Right Column: Highlights, Pipeline & Activity Log */}
+                            <div className="flex flex-col p-6 sm:p-7 bg-white">
+                              {/* Top Bar */}
+                              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-100 pb-4">
+                                <div className="flex items-center gap-2 text-xs font-semibold text-neutral-900 uppercase tracking-wider">
+                                  <ShieldCheck className="size-4 text-emerald-600" />
+                                  <span>Hasil Audit Sentinel & Evaluasi Kecocokan</span>
+                                </div>
+                                <span className="text-xs text-neutral-400">
+                                  {role.upcomingReview}
+                                </span>
+                              </div>
+
+                              {/* Summary Section */}
+                              <div className="mt-4">
+                                <p className="text-sm text-neutral-700 leading-relaxed">
+                                  {role.description}
+                                </p>
+                              </div>
+
+                              {/* Verification Pipeline Steps */}
+                              <div className="mt-6">
+                                <h3 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-3">
+                                  Protokol Validasi Sentinel
+                                </h3>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                  {role.pipeline.map((item) => (
+                                    <div
+                                      key={item.step}
+                                      className="rounded-lg border border-neutral-200/80 bg-neutral-50/60 p-3 text-xs"
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <span className="flex size-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold">
+                                          ✓
+                                        </span>
+                                        <span className="font-semibold text-neutral-900">{item.title}</span>
+                                      </div>
+                                      <p className="mt-1 pl-7 text-neutral-500">{item.desc}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Realtime Activity Feed */}
+                              <div className="mt-6 border-t border-neutral-100 pt-5">
+                                <h3 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2.5">
+                                  Jejak Audit Terakhir
+                                </h3>
+                                <div className="space-y-2 text-xs text-neutral-600">
+                                  {role.activities.map((act, i) => (
+                                    <div key={i} className="flex items-center justify-between gap-2">
+                                      <span className="flex items-center gap-2">
+                                        <span className="size-1.5 rounded-full bg-blue-500" />
+                                        <span>{act.action}</span>
+                                      </span>
+                                      <span className="text-neutral-400 shrink-0">{act.time}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+
+                  {/* Bottom Category Filter Controls */}
+                  <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+                    <span className="text-xs font-medium text-neutral-400 mr-2 hidden sm:inline">
+                      Pilih Kategori:
+                    </span>
+                    {FEATURED_ROLES.map((item) => {
+                      const isActive = cards[0]?.tabLabel === item.tabLabel;
+                      return (
+                        <button
+                          key={item.tabLabel}
+                          type="button"
+                          onClick={() => bringRoleToFront(item.tabLabel)}
+                          className={cn(
+                            "cursor-pointer rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all active:scale-[0.97]",
+                            isActive
+                              ? "chrome-btn chrome-btn-brand !h-auto !py-1.5 !px-3.5"
+                              : "chrome-btn chrome-btn-text chrome-btn-ghost !h-auto !py-1.5 !px-3.5"
+                          )}
+                        >
+                          {item.tabLabel}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
