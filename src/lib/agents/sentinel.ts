@@ -1,5 +1,11 @@
 import type { SentinelStatus } from "@/types/domain";
-import { deteksiFee } from "./rules/fee-rules";
+import { deteksiFee, labelAturan } from "./rules/fee-rules";
+import {
+  FLAG_KEPERCAYAAN_KUAT,
+  LABEL_KEPERCAYAAN,
+  nilaiKepercayaan,
+  type TrustLevel,
+} from "@/lib/jobs/trust";
 
 export interface SentinelInput {
   title: string;
@@ -12,37 +18,93 @@ export interface SentinelInput {
 
 export interface SentinelOutput {
   status: SentinelStatus;
+  /** Fee-rule flags only (from `deteksiFee`) plus the email/domain/apk signals. */
   flags: string[];
+  /** URL/domain trust flags (from `nilaiKepercayaan`). */
+  trust_flags: string[];
+  /** 0–100, from `nilaiKepercayaan`. 100 = nothing structurally suspicious. */
+  trust_score: number;
+  trust_level: TrustLevel;
 }
 
 const FREE_MAIL = /@(gmail|yahoo|outlook|hotmail|mail)\./i;
 
+/**
+ * Rule-based loker audit — the deterministic counterpart to career-ops' LLM
+ * "Block G". Two independent signal families feed one verdict:
+ *
+ *   1. Content signals (Indonesian scam modus), from `deteksiFee`:
+ *      biaya administrasi, rekening pribadi, APK, tiket travel, seragam, KTP/OTP.
+ *   2. Structural signals (URL/domain trust), from `nilaiKepercayaan`:
+ *      malformed links, link shorteners, company↔domain mismatch.
+ *
+ * Family 1 is unique to Careevo — career-ops has no Indonesian scam rules.
+ * Family 2 is adapted from career-ops' `_trust-validator.mjs` (MIT).
+ *
+ * Verdict escalation is deliberately conservative: a weak structural flag never
+ * rejects a posting on its own, because "we couldn't confirm this link" is not
+ * "this is a scam". Only a malformed URL, or two independent strong signals,
+ * escalate to `rejected`.
+ */
 export function auditLoker(input: SentinelInput): SentinelOutput {
-  const flags = new Set<string>();
+  const core = new Set<string>();
 
   for (const match of deteksiFee(input.description)) {
-    flags.add(match.rule);
+    core.add(match.rule);
   }
 
   if (input.company_email && FREE_MAIL.test(input.company_email)) {
-    flags.add("email_pribadi");
+    core.add("email_pribadi");
   }
 
   if (typeof input.domain_age_days === "number" && input.domain_age_days < 30) {
-    flags.add("domain_baru");
+    core.add("domain_baru");
   }
 
   if (input.apply_url && /\.apk(\?|#|$)/i.test(input.apply_url)) {
-    flags.add("link_apk");
+    core.add("link_apk");
   }
 
-  const list = [...flags];
+  const trust = nilaiKepercayaan({ url: input.apply_url, company: input.company });
+
+  const coreList = [...core];
+  const trustStrong = trust.flags.filter((flag) => FLAG_KEPERCAYAAN_KUAT.includes(flag));
+
+  // Escalation policy, most decisive first. The shape of it matters: a weak
+  // structural signal never rejects on its own, and two signals only reject when
+  // they are genuinely independent (one content + one strong structural, or two
+  // content). Counting a shortener and the company mismatch it *causes* as two
+  // independent signals would over-escalate a single cause.
   let status: SentinelStatus = "clean";
-  if (list.includes("link_apk") || list.length >= 2) {
+  if (
+    // A posting demanding an APK download is decisive on its own.
+    coreList.includes("link_apk") ||
+    // Two independent content signals.
+    coreList.length >= 2 ||
+    // An unparseable URL cannot be verified at all.
+    trustStrong.includes("url_tidak_valid") ||
+    // A content signal corroborated by a strong structural one.
+    (coreList.length >= 1 && trustStrong.length >= 1)
+  ) {
     status = "rejected";
-  } else if (list.length === 1) {
+  } else if (coreList.length === 1 || trustStrong.length === 1) {
     status = "quarantined";
   }
 
-  return { status, flags: list };
+  return {
+    status,
+    flags: [...coreList, ...trust.flags.filter((flag) => !core.has(flag))],
+    trust_flags: trust.flags,
+    trust_score: trust.score,
+    trust_level: trust.level,
+  };
+}
+
+/**
+ * Human-readable label for any Sentinel signal id — fee rule or trust flag.
+ * Keeps the detail page from having to know which family a flag came from.
+ */
+export function labelSinyal(flag: string): string {
+  if (flag in LABEL_KEPERCAYAAN) return LABEL_KEPERCAYAAN[flag];
+  return labelAturan(flag);
 }

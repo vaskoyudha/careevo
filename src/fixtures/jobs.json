@@ -10,11 +10,12 @@
     "level": "dasar",
     "tags": ["React", "TypeScript", "Testing"],
     "salary_range": "Rp6-8 jt",
-    "sentinel_status": "clean",
-    "fee_flags": [],
     "fit_score": 78,
     "posted_at": "2026-09-18",
-    "description": "Membangun antarmuka produk B2B dengan React dan TypeScript, menulis test, dan berkolaborasi dengan tim desain."
+    "description": "Membangun antarmuka produk B2B dengan React dan TypeScript, menulis test, dan berkolaborasi dengan tim desain.",
+    "apply_url": "https://nusantaradigital.co.id/karier/frontend-engineer",
+    "company_email": "rekrutmen@nusantaradigital.co.id",
+    "domain_age_days": 1240
   },
   {
     "id": "2",
@@ -27,11 +28,12 @@
     "level": "dasar",
     "tags": ["HTML", "CSS", "JavaScript"],
     "salary_range": null,
-    "sentinel_status": "quarantined",
-    "fee_flags": ["biaya_administrasi"],
     "fit_score": 64,
     "posted_at": "2026-09-17",
-    "description": "Lowongan mendesak, pelamar diminta menyiapkan biaya administrasi untuk proses seleksi."
+    "description": "Lowongan mendesak, pelamar diminta menyiapkan biaya administrasi untuk proses seleksi.",
+    "apply_url": "https://karir-kita.xyz/lowongan/web-developer",
+    "company_email": "info@koperasikaryadigital.id",
+    "domain_age_days": 410
   },
   {
     "id": "3",
@@ -44,11 +46,12 @@
     "level": "menengah",
     "tags": ["React", "Node.js", "API"],
     "salary_range": "Rp10-14 jt",
-    "sentinel_status": "clean",
-    "fee_flags": [],
     "fit_score": 71,
     "posted_at": "2026-09-15",
-    "description": "Mengembangkan fitur end-to-end: API Node.js, antarmuka React, dan integrasi basis data."
+    "description": "Mengembangkan fitur end-to-end: API Node.js, antarmuka React, dan integrasi basis data.",
+    "apply_url": "https://sinergiteknologi.id/karier/fullstack",
+    "company_email": "hr@sinergiteknologi.id",
+    "domain_age_days": 930
   },
   {
     "id": "4",
@@ -61,11 +64,12 @@
     "level": "dasar",
     "tags": ["CSS", "React", "Accessibility"],
     "salary_range": "Rp5-7 jt",
-    "sentinel_status": "clean",
-    "fee_flags": [],
     "fit_score": 82,
     "posted_at": "2026-09-19",
-    "description": "Menerjemahkan desain menjadi komponen aksesibel, menjaga konsistensi design token dan performa."
+    "description": "Menerjemahkan desain menjadi komponen aksesibel, menjaga konsistensi design token dan performa.",
+    "apply_url": "https://studioaksara.com/karier/ui-engineer",
+    "company_email": "halo@studioaksara.com",
+    "domain_age_days": 760
   },
   {
     "id": "5",
@@ -78,11 +82,12 @@
     "level": "menengah",
     "tags": ["Node.js", "PostgreSQL", "API"],
     "salary_range": "Rp9-12 jt",
-    "sentinel_status": "clean",
-    "fee_flags": [],
     "fit_score": 55,
     "posted_at": "2026-09-12",
-    "description": "Merancang REST API, optimasi query PostgreSQL, dan menjaga kualitas test integrasi."
+    "description": "Merancang REST API, optimasi query PostgreSQL, dan menjaga kualitas test integrasi.",
+    "apply_url": "https://dataraya.co.id/karier/backend-engineer",
+    "company_email": "karier@dataraya.co.id",
+    "domain_age_days": 1580
   },
   {
     "id": "6",
@@ -95,11 +100,12 @@
     "level": "dasar",
     "tags": ["Testing", "Playwright", "Git"],
     "salary_range": null,
-    "sentinel_status": "quarantined",
-    "fee_flags": ["rekening_pribadi"],
     "fit_score": 48,
     "posted_at": "2026-09-20",
-    "description": "Penulisan test otomatis. Pembayaran biaya pelatihan diminta transfer ke rekening pribadi."
+    "description": "Penulisan test otomatis. Pembayaran diminta transfer ke rekening pribadi.",
+    "apply_url": "https://bit.ly/rekrutmen-qa-prima",
+    "company_email": "kualitasprima.recruit@gmail.com",
+    "domain_age_days": 640
   },
   {
     "id": "7",
@@ -112,11 +118,12 @@
     "level": "dasar",
     "tags": ["JavaScript", "CSS", "Git"],
     "salary_range": "Rp4-6 jt",
-    "sentinel_status": "clean",
-    "fee_flags": [],
     "fit_score": 76,
     "posted_at": "2026-09-16",
-    "description": "Membangun landing page dan dashboard internal, bekerja dengan tim konten dan desain."
+    "description": "Membangun landing page dan dashboard internal, bekerja dengan tim konten dan desain.",
+    "apply_url": "https://mediacipta.co.id/karier/junior-frontend",
+    "company_email": "hrd@mediacipta.co.id",
+    "domain_age_days": 1120
   },
   {
     "id": "8",
@@ -129,11 +136,12 @@
     "level": "menengah",
     "tags": ["React Native", "TypeScript", "API"],
     "salary_range": "Rp8-11 jt",
-    "sentinel_status": "clean",
-    "fee_flags": [],
     "fit_score": 61,
     "posted_at": "2026-09-14",
-    "description": "Mengembangkan aplikasi mobile lintas platform dengan React Native dan integrasi API."
+    "description": "Mengembangkan aplikasi mobile lintas platform dengan React Native dan integrasi API.",
+    "apply_url": "https://mobilenusantara.co.id/karier/react-native",
+    "company_email": "talent@mobilenusantara.co.id",
+    "domain_age_days": 890
   },
   {
     "id": "9",
@@ -146,10 +154,11 @@
     "level": "dasar",
     "tags": ["HTML", "JavaScript"],
     "salary_range": null,
-    "sentinel_status": "rejected",
-    "fee_flags": ["biaya_administrasi", "link_apk"],
     "fit_score": null,
     "posted_at": "2026-09-21",
-    "description": "Magang berbayar, wajib unduh APK dan transfer uang jaminan sebelum seleksi."
+    "description": "Magang berbayar, wajib unduh APK dan transfer uang jaminan sebelum seleksi.",
+    "apply_url": "https://bit.ly/magang-cepat-untung",
+    "company_email": "cepatuntung.magang@gmail.com",
+    "domain_age_days": 12
   }
 ]

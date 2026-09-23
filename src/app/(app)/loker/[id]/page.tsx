@@ -7,9 +7,9 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
-import { getJob, profile } from "@/lib/fixtures";
-import { labelAturan } from "@/lib/agents/rules/fee-rules";
-
+import { profile } from "@/lib/fixtures";
+import { ambilLokerById } from "@/lib/jobs/cache";
+import { labelSinyal } from "@/lib/agents/sentinel";
 export const metadata: Metadata = {
   title: "Detail Loker",
 };
@@ -27,7 +27,9 @@ export default async function LokerDetailPage({
   if (!session) return null;
 
   const { id } = await params;
-  const job = getJob(id);
+  // `ambilLokerById` refuses `rejected` postings, so a direct URL to a scam
+  // listing 404s instead of rendering an apply flow for it.
+  const job = await ambilLokerById(id);
   if (!job) notFound();
 
   const matched = job.tags.filter((tag) => SKILLS.includes(tag));
@@ -69,24 +71,37 @@ export default async function LokerDetailPage({
                 <h2 className="card-title" id="sentinel-title">
                   Hasil audit Sentinel
                 </h2>
-                <p className="card-sub">Rule-based: usia domain, pola fee, regex transfer pribadi</p>
+                <p className="card-sub">
+                  Rule-based: usia domain, pola fee, regex transfer pribadi, kepercayaan URL
+                </p>
               </div>
               <StatusBadge status={job.sentinel_status} />
             </div>
+            <ProgressBar
+              value={job.trust_score}
+              max={100}
+              tone={job.trust_score >= 90 ? "ok" : job.trust_score >= 60 ? "warn" : "danger"}
+              label="Skor kepercayaan"
+            />
+            <p className="caption muted" style={{ marginTop: "0.5rem" }}>
+              Skor kepercayaan URL {job.trust_score}/100 (level {job.trust_level}) — memeriksa
+              struktur link, link pendek, dan kecocokan domain dengan nama perusahaan.
+            </p>
             {job.fee_flags.length === 0 ? (
               <p className="alert alert-ok">Tidak ada sinyal scam terdeteksi. Loker aman untuk dilamar.</p>
             ) : (
               <ul className="list-app" style={{ listStyle: "none", margin: 0, padding: 0 }}>
                 {job.fee_flags.map((flag) => (
                   <li className="log-line" key={flag}>
-                    <span>{labelAturan(flag)}</span>
+                    <span>{labelSinyal(flag)}</span>
                     <span className="status status-danger">flag</span>
                   </li>
                 ))}
               </ul>
             )}
             <p className="caption muted" style={{ marginTop: "0.75rem" }}>
-              Karantina bisa dibanding. Keputusan akhir ada di verifikator, bukan agen.
+              Sinyal ini bahan pertimbangan, bukan tuduhan. Karantina bisa dibanding. Keputusan akhir
+              ada di verifikator, bukan agen.
             </p>
           </section>
         </div>
