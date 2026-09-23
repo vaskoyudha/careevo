@@ -23,6 +23,7 @@ import type { JobFixture } from "@/lib/fixtures";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { JobsBoard } from "@/components/features/jobs/jobs-board";
 import { CurvySearchBar } from "@/components/features/jobs/curvy-search-bar";
+import Featured_05 from "@/components/ui/globe-feature-section";
 import { cn } from "@/lib/utils";
 
 interface VertexKerjaViewProps {
@@ -303,14 +304,6 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
     setCards((prev) => [...prev.slice(slotIndex), ...prev.slice(0, slotIndex)]);
   };
 
-  const bringRoleToFront = (tabLabel: string) => {
-    setCards((prev) => {
-      const idx = prev.findIndex((c) => c.tabLabel === tabLabel);
-      if (idx <= 0) return prev;
-      return [...prev.slice(idx), ...prev.slice(0, idx)];
-    });
-  };
-
   useEffect(() => {
     if (isPaused) return;
     const interval = setInterval(() => {
@@ -367,7 +360,7 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
       {/* ============================================================ */}
       {/* 1. HERO SECTION (SEC 0) - Outside grid lines to remove vertical lines */}
       {/* ============================================================ */}
-      <div className="relative z-10 w-full pt-16 sm:pt-20 md:pt-24 lg:pt-28">
+      <div className="relative z-10 w-full pt-16 sm:pt-20 md:pt-24 lg:pt-28 pb-24 sm:pb-28 lg:pb-32">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-4xl text-center">
             {/* Main Headline (Matched to Home Page Hero Typography & White Color) */}
@@ -436,27 +429,89 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                   onMouseLeave={() => setIsPaused(false)}
                 >
                   <div className="relative">
-                    {/* Natural height anchor to establish container height responsively */}
+                    {/* Natural height anchor: measures tallest card so container dynamically matches actual card height on all breakpoints */}
                     <div
-                      className="invisible pointer-events-none select-none opacity-0"
+                      className="grid invisible pointer-events-none select-none opacity-0"
                       aria-hidden="true"
                     >
-                      <div className="h-11" />
-                      <div className="grid grid-rows-[auto_auto] lg:grid-cols-[320px_1fr] lg:grid-rows-[auto_1fr] divide-y lg:divide-y-0 lg:divide-x divide-neutral-200">
-                        <div className="p-6 sm:p-7">
-                          <div className="size-11" />
-                          <div className="mt-4 h-14" />
-                          <div className="mt-4 h-8" />
-                          <div className="mt-6 pt-5 space-y-2.5 text-xs"><div className="h-24" /></div>
-                          <div className="mt-5 h-6" />
+                      {FEATURED_ROLES.map((role) => (
+                        <div
+                          key={role.tabLabel}
+                          className="col-start-1 row-start-1 rounded-2xl border border-neutral-200"
+                        >
+                          {/* Card Tab Header */}
+                          <div className="flex h-11 items-center gap-x-2 border-b border-neutral-200 px-4">
+                            <span className="size-2 shrink-0" />
+                            <span className="font-semibold text-xs sm:text-sm tracking-tight">{role.company}</span>
+                            <span className="text-sm">·</span>
+                            <span className="truncate text-xs sm:text-sm tracking-tight">{role.role} ({role.location})</span>
+                            <span className="ml-auto text-[11px] font-medium">{role.tabLabel}</span>
+                          </div>
+
+                          {/* Card Content Grid */}
+                          <div className="grid grid-rows-[auto_auto] lg:grid-cols-[320px_1fr] lg:grid-rows-[auto_1fr] divide-y lg:divide-y-0 lg:divide-x divide-neutral-200">
+                            {/* Left Column */}
+                            <div className="flex flex-col p-6 sm:p-7">
+                              <div className="flex items-center justify-between">
+                                <div className="size-11" />
+                                <div className="h-6 w-20" />
+                              </div>
+                              <div className="mt-4">
+                                <h2 className="text-lg font-semibold tracking-tight leading-snug">{role.role}</h2>
+                                <p className="mt-1 text-sm font-medium">{role.company} · {role.location}</p>
+                              </div>
+                              <div className="mt-4 flex flex-wrap gap-2">
+                                <div className="h-8 w-28" />
+                                <div className="h-8 w-24" />
+                              </div>
+                              <div className="mt-6 border-t border-neutral-100 pt-5 space-y-2.5 text-xs">
+                                <div className="flex items-center justify-between"><span>Rentang Gaji</span><span>{role.salary}</span></div>
+                                <div className="flex items-center justify-between"><span>Sumber Data</span><span>{role.source}</span></div>
+                                <div className="flex items-center justify-between"><span>Umur Domain</span><span>{role.domainAge}</span></div>
+                                <div className="flex items-center justify-between"><span>Fit Match AI</span><span>{role.fitScore}% Cocok</span></div>
+                              </div>
+                              <div className="mt-5 flex flex-wrap gap-1.5">
+                                {role.tags.map((t) => (
+                                  <span key={t} className="px-2 py-0.5 text-[11px]">{t}</span>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Right Column */}
+                            <div className="flex flex-col p-6 sm:p-7">
+                              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-100 pb-4">
+                                <div className="text-xs font-semibold uppercase tracking-wider">Hasil Audit Sentinel & Evaluasi Kecocokan</div>
+                                <span className="text-xs">{role.upcomingReview}</span>
+                              </div>
+                              <div className="mt-4">
+                                <p className="text-sm leading-relaxed">{role.description}</p>
+                              </div>
+                              <div className="mt-6">
+                                <div className="text-xs font-semibold uppercase tracking-wider mb-3">Protokol Validasi Sentinel</div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                  {role.pipeline.map((item) => (
+                                    <div key={item.step} className="p-3 text-xs">
+                                      <div className="font-semibold">{item.title}</div>
+                                      <p className="mt-1 pl-7">{item.desc}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="mt-6 border-t border-neutral-100 pt-5">
+                                <div className="text-xs font-semibold uppercase tracking-wider mb-2.5">Jejak Audit Terakhir</div>
+                                <div className="space-y-2 text-xs">
+                                  {role.activities.map((act, i) => (
+                                    <div key={i} className="flex items-center justify-between gap-2">
+                                      <span>{act.action}</span>
+                                      <span>{act.time}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <div className="p-6 sm:p-7">
-                          <div className="h-5" />
-                          <div className="mt-4 text-sm leading-relaxed"><p className="opacity-0">{cards[0]?.description}</p></div>
-                          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3"><div className="h-28" /></div>
-                          <div className="mt-6 pt-5"><div className="h-20" /></div>
-                        </div>
-                      </div>
+                      ))}
                     </div>
 
                     {cards.map((role, slotIndex) => {
@@ -649,39 +704,19 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                       );
                     })}
                   </div>
-
-                  {/* Bottom Category Filter Controls */}
-                  <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-                    <span className="text-xs font-medium text-neutral-400 mr-2 hidden sm:inline">
-                      Pilih Kategori:
-                    </span>
-                    {FEATURED_ROLES.map((item) => {
-                      const isActive = cards[0]?.tabLabel === item.tabLabel;
-                      return (
-                        <button
-                          key={item.tabLabel}
-                          type="button"
-                          onClick={() => bringRoleToFront(item.tabLabel)}
-                          className={cn(
-                            "cursor-pointer rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all active:scale-[0.97]",
-                            isActive
-                              ? "chrome-btn chrome-btn-brand !h-auto !py-1.5 !px-3.5"
-                              : "chrome-btn chrome-btn-text chrome-btn-ghost !h-auto !py-1.5 !px-3.5"
-                          )}
-                        >
-                          {item.tabLabel}
-                        </button>
-                      );
-                    })}
-                  </div>
                 </div>
+              </div>
+
+              {/* Full-width Interactive 3D Globe Feature Section */}
+              <div className="w-full px-4 sm:px-6 lg:px-8 mt-12 sm:mt-16">
+                <Featured_05 />
               </div>
             </div>
 
             {/* ============================================================ */}
             {/* OUTER VERTEX GRID FRAME (Starting below Hero Section)        */}
             {/* ============================================================ */}
-            <div className="container relative z-10 mx-auto">
+            <div className="container relative z-10 mx-auto mt-10 sm:mt-14 lg:mt-16">
               <div className="border-x border-neutral-200">
                 <div className="mx-1 border-x border-neutral-200 sm:mx-1.5 lg:mx-2 bg-white">
                   {/* ============================================================ */}
