@@ -48,16 +48,19 @@ const STEP_META = [
     title: "Latar belakangmu",
     subtitle: "Biar kami tahu titik awalmu dan menyusun materi yang pas.",
     icon: <GraduationCap className="size-5" />,
+    hero: "/onboarding/hero-learn.jpg",
   },
   {
     title: "Apa yang mau kamu kuasai?",
     subtitle: "Pilih 1–3 bidang. Ini menentukan rekomendasi kursus dan loker.",
     icon: <Compass className="size-5" />,
+    hero: "/onboarding/hero-code.jpg",
   },
   {
     title: "Tujuan & komitmen",
     subtitle: "Terakhir, supaya rekomendasi loker dan jadwal belajar realistis.",
     icon: <Target className="size-5" />,
+    hero: "/onboarding/hero-team.jpg",
   },
 ] as const;
 
@@ -148,6 +151,7 @@ export function OnboardingFlow({
       ))}
 
       <OnboardingStepCard
+        heroImageSrc={meta.hero}
         icon={meta.icon}
         title={meta.title}
         subtitle={step === 0 ? `Halo ${nama}, ${meta.subtitle}` : meta.subtitle}

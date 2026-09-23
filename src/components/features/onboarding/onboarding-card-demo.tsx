@@ -40,7 +40,7 @@ export default function OnboardingCardDemo() {
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-white p-4">
       <OnboardingCard
-        heroImageSrc="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1000&q=70"
+        heroImageSrc="/onboarding/hero-learn.jpg"
         title="Selamat datang di Careevo"
         subtitle="Ini perjalanan pertamamu di sini."
         displayName={displayName}

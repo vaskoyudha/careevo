@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
  */
 
 export interface OnboardingStepCardProps {
+  heroImageSrc?: string;
   icon?: React.ReactNode;
   title: string;
   subtitle: string;
@@ -42,7 +43,7 @@ const itemVariants = {
 };
 
 export const OnboardingStepCard = React.forwardRef<HTMLDivElement, OnboardingStepCardProps>(
-  ({ icon, title, subtitle, step, totalSteps, children, footer, className }, ref) => {
+  ({ heroImageSrc, icon, title, subtitle, step, totalSteps, children, footer, className }, ref) => {
     return (
       <AnimatePresence mode="wait">
         <motion.div
@@ -56,6 +57,17 @@ export const OnboardingStepCard = React.forwardRef<HTMLDivElement, OnboardingSte
           animate="animate"
           exit="exit"
         >
+          {heroImageSrc ? (
+            <motion.img
+              key={heroImageSrc}
+              src={heroImageSrc}
+              alt=""
+              aria-hidden="true"
+              className="h-36 w-full object-cover sm:h-40"
+              variants={itemVariants}
+            />
+          ) : null}
+
           <div className="flex flex-col gap-6 p-6 sm:p-8">
             <motion.div variants={itemVariants} className="flex flex-col items-start gap-4">
               {typeof step === "number" && typeof totalSteps === "number" ? (
