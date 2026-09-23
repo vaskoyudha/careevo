@@ -32,17 +32,17 @@ export default async function OnboardingPage({
   if (profile && !isEdit) redirect(homeForRole(session.role));
 
   return (
-    <main className="flex min-h-screen w-full flex-col items-center justify-center gap-6 bg-background px-4 py-10">
-      <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-        <span className="grid size-7 place-items-center rounded-lg bg-primary text-xs font-bold text-primary-foreground">
+    <main className="flex min-h-screen w-full flex-col items-center justify-center gap-7 bg-white px-4 py-12 text-black antialiased [font-synthesis:none]">
+      <div className="flex items-center gap-2.5 text-base">
+        <span className="grid size-7 place-items-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
           C
         </span>
-        Careevo
+        <span className="font-medium">Careevo</span>
       </div>
       <OnboardingFlow nama={session.nama} initial={profile ?? undefined} />
-      <p className="max-w-md text-center text-xs text-muted-foreground">
-        Jawabanmu hanya dipakai untuk menyusun rekomendasi kursus dan loker.
-        Bisa diubah kapan saja lewat Pengaturan.
+      <p className="max-w-md text-center text-xs leading-5 text-black/40">
+        Jawabanmu hanya dipakai untuk menyusun rekomendasi kursus dan loker. Bisa
+        diubah kapan saja lewat Pengaturan.
       </p>
     </main>
   );

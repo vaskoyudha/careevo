@@ -11,11 +11,11 @@ import { cn } from "@/lib/utils";
  * Kept separate from `OnboardingCard` on purpose: `OnboardingCard` is a
  * faithful drop-in of the reference design (hero image, photo upload,
  * display-name field, Continue button). This card is the generic wrapper the
- * wizard needs (progress bar, icon header, arbitrary step content, footer).
+ * wizard needs (progress track, icon header, arbitrary step content, footer).
  *
- * It reuses the SAME visual language as the reference — `rounded-2xl border
- * bg-card shadow-lg`, staggered `motion` children — so the two look like one
- * family.
+ * Shares the same restrained visual language as `OnboardingCard` and the
+ * login/register page — hairline borders, tight type scale, no heavy shadows —
+ * so the two read as one family instead of stock shadcn defaults.
  */
 
 export interface OnboardingStepCardProps {
@@ -48,7 +48,7 @@ export const OnboardingStepCard = React.forwardRef<HTMLDivElement, OnboardingSte
         <motion.div
           ref={ref}
           className={cn(
-            "w-full max-w-xl overflow-hidden rounded-2xl border bg-card text-card-foreground shadow-lg",
+            "w-full max-w-xl overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm",
             className,
           )}
           variants={containerVariants}
@@ -57,9 +57,9 @@ export const OnboardingStepCard = React.forwardRef<HTMLDivElement, OnboardingSte
           exit="exit"
         >
           <div className="flex flex-col gap-6 p-6 sm:p-8">
-            <motion.div variants={itemVariants} className="flex flex-col items-start gap-3">
+            <motion.div variants={itemVariants} className="flex flex-col items-start gap-4">
               {typeof step === "number" && typeof totalSteps === "number" ? (
-                <div className="flex w-full items-center gap-2" aria-hidden="true">
+                <div className="flex w-full items-center gap-3" aria-hidden="true">
                   <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
                     <div
                       className="h-full rounded-full bg-primary transition-all duration-500"
@@ -72,15 +72,19 @@ export const OnboardingStepCard = React.forwardRef<HTMLDivElement, OnboardingSte
                 </div>
               ) : null}
 
-              {icon ? (
-                <span className="grid size-11 place-items-center rounded-xl bg-primary/10 text-primary">
-                  {icon}
-                </span>
-              ) : null}
+              <div className="flex items-center gap-3">
+                {icon ? (
+                  <span className="grid size-10 shrink-0 place-items-center rounded-lg border border-border bg-muted/40 text-primary">
+                    {icon}
+                  </span>
+                ) : null}
 
-              <div className="space-y-1.5">
-                <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
-                <p className="text-muted-foreground">{subtitle}</p>
+                <div className="space-y-1">
+                  <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+                    {title}
+                  </h1>
+                  <p className="text-sm text-muted-foreground">{subtitle}</p>
+                </div>
               </div>
             </motion.div>
 
