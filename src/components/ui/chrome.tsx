@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { ExploreMenu } from "./explore-menu";
 
@@ -77,6 +78,16 @@ const navItems: NavItem[] = [
 export function Chrome() {
   const pathname = usePathname();
   const onHome = pathname === "/";
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => {
+      setScrolled(window.scrollY > 24);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const resolveHref = (href: string) => {
     if (!href.startsWith("#")) return href;
@@ -97,7 +108,7 @@ export function Chrome() {
       <a href={onHome ? "#main" : "/"} className="skip-link">
         Lewati ke konten utama
       </a>
-      <div className="chrome relative">
+      <div className={`chrome relative ${scrolled ? "is-scrolled" : "is-top"}`}>
         <Link className="chrome-brand" href={onHome ? "#main" : "/"}>
           Care<span>evo</span>
         </Link>
