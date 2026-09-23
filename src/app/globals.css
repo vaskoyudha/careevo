@@ -2982,11 +2982,21 @@ body {
   animation: scroll-right 35s linear infinite;
 }
 
+@keyframes border-rotate {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.animate-border-rotate {
+  animation: border-rotate 4s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-orbit,
   .animate-counter-orbit,
   .animate-scroll-left-slow,
-  .animate-scroll-right-slow {
+  .animate-scroll-right-slow,
+  .animate-border-rotate {
     animation: none;
   }
 }

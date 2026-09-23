@@ -284,8 +284,25 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
     "umum-0": true,
   });
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const selectedRole = FEATURED_ROLES[activeTab] || FEATURED_ROLES[0];
+
+  const handleHeroSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const board = document.getElementById("board");
+    if (board) {
+      board.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
+  const handleQuickSearch = (term: string) => {
+    setSearchQuery(term);
+    const board = document.getElementById("board");
+    if (board) {
+      board.scrollIntoView({ behavior: "smooth" });
+    }
+  };
 
   const toggleFaq = (key: string) => {
     setOpenFaqIndexes((prev) => ({
@@ -321,6 +338,77 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                   <p className="mx-auto mt-5 max-w-2xl text-balance text-base text-neutral-600 sm:text-lg leading-relaxed">
                     Setiap lowongan kerja dipindai otomatis dari indikasi scam, pungutan fee seleksi, dan rekening pribadi. Dilengkapi Fit Score AI dan portofolio bukti karya nyata.
                   </p>
+
+                  {/* Search Bar with Rotating Blue Gradient Glowing Border */}
+                  <div className="mx-auto mt-7 w-full max-w-2xl">
+                    <div className="group relative">
+                      {/* Outer ambient blur glow */}
+                      <div
+                        aria-hidden="true"
+                        className="pointer-events-none absolute -inset-1 rounded-2xl bg-gradient-to-r from-blue-600/25 via-sky-400/30 to-blue-500/25 blur-lg opacity-75 transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100"
+                      />
+
+                      {/* Rotating conic blue gradient border */}
+                      <div className="relative overflow-hidden rounded-2xl p-[2px] shadow-xs">
+                        <div
+                          aria-hidden="true"
+                          className="pointer-events-none absolute -inset-[150%] animate-border-rotate"
+                          style={{
+                            background:
+                              "conic-gradient(from 0deg, transparent 0deg, transparent 200deg, rgba(56, 189, 248, 0.45) 250deg, #38bdf8 285deg, #3b82f6 320deg, #1d4ed8 345deg, #60a5fa 360deg)",
+                          }}
+                        />
+
+                        {/* Inner search bar surface */}
+                        <form
+                          onSubmit={handleHeroSearch}
+                          className="relative z-10 flex items-center gap-2 rounded-[14px] bg-white px-4 py-2 sm:py-2.5 transition-colors"
+                        >
+                          <Search className="size-5 shrink-0 text-[#2A7FB8] transition-colors group-focus-within:text-[#124E78]" />
+                          <input
+                            type="search"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Cari loker: Frontend, Node.js, Remote, Jakarta, Rp8-12 jt…"
+                            aria-label="Cari lowongan kerja cepat"
+                            className="w-full bg-transparent text-sm sm:text-base text-neutral-900 placeholder:text-neutral-400 focus:outline-none"
+                          />
+                          {searchQuery ? (
+                            <button
+                              type="button"
+                              onClick={() => setSearchQuery("")}
+                              className="text-neutral-400 hover:text-neutral-600 p-1 text-xs"
+                              aria-label="Hapus pencarian"
+                            >
+                              ✕
+                            </button>
+                          ) : null}
+                          <button
+                            type="submit"
+                            className="chrome-btn chrome-btn-brand !h-9 !px-4 !text-xs shrink-0 gap-1.5"
+                          >
+                            <span>Cari</span>
+                            <ArrowRight className="size-3.5" />
+                          </button>
+                        </form>
+                      </div>
+                    </div>
+
+                    {/* Quick Search Chips */}
+                    <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5 text-xs text-neutral-500">
+                      <span className="text-[11px] text-neutral-400">Paling dicari:</span>
+                      {["Frontend", "Node.js", "Remote", "Jakarta", "React", "Fullstack"].map((term) => (
+                        <button
+                          key={term}
+                          type="button"
+                          onClick={() => handleQuickSearch(term)}
+                          className="cursor-pointer rounded-full border border-neutral-200/80 bg-white px-2.5 py-0.5 text-[11px] font-medium text-neutral-600 shadow-2xs transition-colors hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50/50"
+                        >
+                          {term}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
                   {/* Dual Action CTAs */}
                   <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
@@ -890,7 +978,11 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
 
                 {/* The JobsBoard Card */}
                 <div className="rounded-xl border border-neutral-200 bg-white p-6 sm:p-8 shadow-xs">
-                  <JobsBoard jobs={jobs} />
+                  <JobsBoard
+                    jobs={jobs}
+                    searchQuery={searchQuery}
+                    onSearchQueryChange={setSearchQuery}
+                  />
                 </div>
               </div>
             </section>

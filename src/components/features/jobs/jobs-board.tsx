@@ -33,10 +33,20 @@ const GAJI = [
 
 type GajiId = (typeof GAJI)[number]["id"];
 
-export function JobsBoard({ jobs }: { jobs: JobFixture[] }) {
+export function JobsBoard({
+  jobs,
+  searchQuery,
+  onSearchQueryChange,
+}: {
+  jobs: JobFixture[];
+  searchQuery?: string;
+  onSearchQueryChange?: (q: string) => void;
+}) {
   const [location, setLocation] = useState<(typeof LOCATIONS)[number]>("semua");
   const [gaji, setGaji] = useState<GajiId>("semua");
-  const [kueri, setKueri] = useState("");
+  const [internalKueri, setInternalKueri] = useState("");
+  const kueri = searchQuery !== undefined ? searchQuery : internalKueri;
+  const setKueri = onSearchQueryChange ?? setInternalKueri;
   const [onlyClean, setOnlyClean] = useState(false);
   const [noFee, setNoFee] = useState(false);
 
