@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { ExploreMenu } from "./explore-menu";
 
 type NavItem = {
   href: string;
@@ -96,10 +97,13 @@ export function Chrome() {
       <a href={onHome ? "#main" : "/"} className="skip-link">
         Lewati ke konten utama
       </a>
-      <div className="chrome">
-        <Link className="chrome-brand" href={onHome ? "#main" : "/"}>
-          Care<span>evo</span>
-        </Link>
+      <div className="chrome relative">
+        <div className="flex flex-1 min-w-0 items-center gap-2 sm:gap-3">
+          <Link className="chrome-brand !flex-none" href={onHome ? "#main" : "/"}>
+            Care<span>evo</span>
+          </Link>
+          <ExploreMenu />
+        </div>
         <nav className="nav-float" aria-label="Navigasi utama">
           {navItems.map((item) => {
             const active = isActive(item.href);
