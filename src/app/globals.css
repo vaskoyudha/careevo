@@ -383,6 +383,12 @@ body {
   }
 }
 
+/* Learner chrome: navbar search only exists in full-width top mode,
+   hidden once the bar morphs into the floating pill. */
+.chrome.is-scrolled .learner-search {
+  display: none;
+}
+
 .chrome-brand {
   display: inline-flex;
   align-items: baseline;

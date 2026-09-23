@@ -99,19 +99,19 @@ export function DetailKursus({
 
   return (
     <div className="min-w-0 overflow-x-clip bg-white">
-      <div className="bg-[#1f3860]">
+      <div className="bg-[#f5f7fa]">
         <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-          <nav aria-label="Breadcrumb" className="text-sm text-white/70">
-            <Link href="/belajar" className="hover:text-white hover:underline">
+          <nav aria-label="Breadcrumb" className="text-sm text-gray-500">
+            <Link href="/belajar" className="hover:text-[#0056D2] hover:underline">
               Belajar
             </Link>
             <span aria-hidden="true"> / </span>
-            <span className="font-medium text-white">{kursus.title}</span>
+            <span className="font-medium text-gray-900">{kursus.title}</span>
           </nav>
-          <p className="mt-4 flex flex-wrap items-center gap-2 text-xs text-white/70">
+          <p className="mt-4 flex flex-wrap items-center gap-2 text-xs text-gray-500">
             <span
               aria-hidden="true"
-              className="inline-flex size-5 items-center justify-center rounded-sm bg-white text-[10px] font-bold text-[#1f3860]"
+              className="inline-flex size-5 items-center justify-center rounded-sm bg-[#0056D2] text-[10px] font-bold text-white"
             >
               {kursus.provider.charAt(0)}
             </span>
@@ -119,15 +119,15 @@ export function DetailKursus({
             <span aria-hidden="true">·</span>
             <span className="capitalize">{kursus.type}</span>
           </p>
-          <h1 id="judul-kursus" className="mt-2 max-w-3xl text-3xl font-bold tracking-tight text-white">
+          <h1 id="judul-kursus" className="mt-2 max-w-3xl text-3xl font-bold tracking-tight text-gray-900">
             {kursus.title}
           </h1>
-          <p className="mt-3 max-w-2xl leading-relaxed text-white/80">{kursus.description}</p>
+          <p className="mt-3 max-w-2xl leading-relaxed text-gray-600">{kursus.description}</p>
           <div className="mt-4 flex flex-wrap gap-1.5">
             {kursus.tags.map((tag) => (
               <span
                 key={tag}
-                className="inline-flex rounded-full bg-white/10 px-2.5 py-1 text-xs font-medium text-white"
+                className="inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-[#0056D2]"
               >
                 {tag}
               </span>
@@ -140,14 +140,14 @@ export function DetailKursus({
               ["Modul", `${modul.length} modul`],
               ...(kursus.rating !== null ? [["Rating", `★ ${kursus.rating.toFixed(2)}`] as [string, string]] : []),
             ].map(([istilah, nilai]) => (
-              <div key={istilah} className="rounded-xl border border-white/15 bg-white/10 px-3 py-2.5">
-                <dt className="text-[11px] font-medium tracking-wide text-white/60 uppercase">{istilah}</dt>
-                <dd className="mt-0.5 text-sm font-semibold text-white">{nilai}</dd>
+              <div key={istilah} className="rounded-xl border border-gray-200 bg-white px-3 py-2.5">
+                <dt className="text-[11px] font-medium tracking-wide text-gray-500 uppercase">{istilah}</dt>
+                <dd className="mt-0.5 text-sm font-semibold text-gray-900">{nilai}</dd>
               </div>
             ))}
           </dl>
           {pesan ? (
-            <p role="status" className="mt-4 max-w-2xl rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-[#1f3860]">
+            <p role="status" className="mt-4 max-w-2xl rounded-xl bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-800">
               {pesan}
             </p>
           ) : null}

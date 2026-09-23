@@ -44,6 +44,28 @@ A skill with invalid frontmatter fails silently, so `npm run skills:check` valid
 - `src/actions/*.ts` are `"use server"` server actions (`auth.ts`, `review.ts`).
 - Domain/business logic lives in `src/lib/{scoring,agents,attestation,audit,jobs,validation}`; UI in `src/components` (shadcn/ui under `src/components/ui`, feature components under `src/components/features`).
 
+## Navigation — navbar contract (do not regress)
+
+- There are exactly two navbars, both built on the same morph mechanism in
+  `src/app/globals.css` (`.chrome` sticky; `.is-top` = transparent full-width
+  bar; `.is-scrolled` = floating glass pill; flips at `scrollY > 24` with a
+  320ms transition). Any new navbar MUST reuse these classes and the same
+  scroll threshold — never invent a third navbar style.
+- `Chrome` (`src/components/ui/chrome.tsx`) = public/marketing navbar
+  (Masuk/Daftar actions). Used by `(marketing)` and `(public)` layouts.
+- `LearnerChrome` (`src/components/ui/learner-chrome.tsx`) = logged-in
+  learner navbar with the SAME structure/behavior: brand, `ExploreMenu` mega
+  dropdown, icon+label nav items (Belajar/Loker/Plus), navbar search, avatar
+  account menu. Used via `LearnerShell` (`src/components/ui/learner-shell.tsx`).
+- **Learner pages (`/belajar`, `/belajar/[slug]`) use `LearnerShell` (top bar),
+  NEVER `AppShell` (sidebar).** `AppShell` is reserved for dashboard-style
+  pages (dashboard, admin, review, audit, challenge, submission, loker detail).
+- Consequences: page tops under a transparent bar must be LIGHT (dark text
+  stays readable); the learner navbar search is visible only in `.is-top`
+  mode and hidden in pill mode (`.chrome.is-scrolled .learner-search`);
+  search submits GET to `/belajar?q=`, and `BelajarPage` feeds it back as
+  `queryAwal` (sliced to 120 chars).
+
 ## Stubs — do not assume these work
 
 Several modules intentionally throw `"... belum diimplementasikan"` and are unimplemented placeholders: `logAudit` (`src/lib/audit/logger.ts`) and `runAgent`/`toAgentRun` (`src/lib/agents/orchestrator.ts`). The audit log and agent-run persistence are not wired up; pages read from fixtures instead.
