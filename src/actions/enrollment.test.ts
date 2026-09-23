@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { daftarKursusAction, tandaiModulAction } from "./enrollment";
 import { resetCourses } from "@/lib/courses/store";
+import { decodePendaftaran } from "@/lib/courses/enrollment";
 import * as sessionModule from "@/lib/auth/session";
+import * as cacheModule from "next/cache";
 import type { SessionPayload } from "@/lib/auth/types";
 
 const { jar } = vi.hoisted(() => ({ jar: new Map<string, string>() }));
@@ -18,7 +20,7 @@ vi.mock("next/headers", () => ({
   }),
 }));
 
-vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 const sesi: SessionPayload = {
   email: "user@careevo.test",
@@ -32,7 +34,7 @@ describe("enrollment actions", () => {
   beforeEach(() => {
     resetCourses();
     jar.clear();
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
     vi.spyOn(sessionModule, "getSession").mockResolvedValue(sesi);
   });
 
@@ -41,11 +43,17 @@ describe("enrollment actions", () => {
     const res = await daftarKursusAction("crs-1");
     expect(res.ok).toBe(false);
     expect(res.error).toContain("Masuk");
+    const tandai = await tandaiModulAction("crs-1", "crs-1-m1");
+    expect(tandai.ok).toBe(false);
   });
 
   it("mendaftarkan kursus gratis dan idempoten", async () => {
     const pertama = await daftarKursusAction("crs-1");
     expect(pertama.ok).toBe(true);
+    expect(cacheModule.revalidatePath).toHaveBeenCalledWith("/belajar");
+    expect(cacheModule.revalidatePath).toHaveBeenCalledWith(
+      "/belajar/fullstack-web-development-nextjs-15-react-19",
+    );
     const kedua = await daftarKursusAction("crs-1");
     expect(kedua.ok).toBe(true);
     expect(kedua.message).toContain("sudah terdaftar");
@@ -82,5 +90,34 @@ describe("enrollment actions", () => {
     await daftarKursusAction("crs-2");
     const tandai = await tandaiModulAction("crs-2", "crs-2-m1");
     expect(tandai.ok).toBe(true);
+    expect(cacheModule.revalidatePath).toHaveBeenCalledWith(
+      "/belajar/membangun-rest-api-modern-dengan-nodejs",
+    );
+
+    const batal = await tandaiModulAction("crs-2", "crs-2-m1");
+    expect(batal.ok).toBe(true);
+  });
+
+  it("menolak id modul yang tidak dikenal", async () => {
+    await daftarKursusAction("crs-2");
+    const res = await tandaiModulAction("crs-2", "crs-2-m99");
+    expect(res.ok).toBe(false);
+    expect(res.error).toContain("tidak dikenal");
+  });
+
+  it("menolak tandai untuk kursus draft", async () => {
+    const res = await tandaiModulAction("crs-8", "crs-8-m1");
+    expect(res.ok).toBe(false);
+  });
+
+  it("menyimpan pendaftaran di cookie yang bisa dibaca kembali", async () => {
+    await daftarKursusAction("crs-1");
+    await tandaiModulAction("crs-1", "crs-1-m1");
+    const mentah = jar.get("ls_enroll");
+    expect(mentah).toBeDefined();
+    const daftar = decodePendaftaran(mentah);
+    expect(daftar).toHaveLength(1);
+    expect(daftar[0].course_id).toBe("crs-1");
+    expect(daftar[0].selesai_modul).toEqual(["crs-1-m1"]);
   });
 });

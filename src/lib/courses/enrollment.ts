@@ -5,6 +5,11 @@ import { cookies } from "next/headers";
  * Pendaftaran kursus per peramban — pola yang sama seperti `ls_users`
  * (cookie HMAC-signed, tanpa database). Prototype ini fixture-backed:
  * pendaftaran tersimpan di cookie, bukan di server.
+ *
+ * Batasan prototype yang disengaja: cookie tidak diikat ke identitas
+ * pengguna (satu peramban bersama = pendaftaran bersama), dan secret
+ * menumpang SESSION_SECRET seperti modul auth lain. Jangan pakai pola
+ * ini untuk data sensitif di luar demo.
  */
 export const ENROLL_COOKIE = "ls_enroll";
 const ENROLL_SECRET = process.env.SESSION_SECRET ?? "dev-session-secret-careevo";

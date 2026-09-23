@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { ModulKursus } from "@/lib/courses/kurikulum";
-import { hitungProgres } from "@/lib/courses/kurikulum";
+import { hitungProgres, irisModulSelesai } from "@/lib/courses/kurikulum";
 import { daftarKursusAction, tandaiModulAction } from "@/actions/enrollment";
 
 export interface KursusTerkait {
@@ -62,25 +62,33 @@ export function DetailKursus({
   terkait: KursusTerkait[];
   tugas: TugasTerkait | null;
 }) {
-  const [selesai, setSelesai] = useState<string[]>(selesaiAwal);
+  const [selesai, setSelesai] = useState<string[]>(() =>
+    irisModulSelesai(selesaiAwal, modul),
+  );
+  const [sudahDaftar, setSudahDaftar] = useState(terdaftar);
   const [pesan, setPesan] = useState<string | null>(null);
   const [butuhPlus, setButuhPlus] = useState(false);
   const [pending, startTransition] = useTransition();
-  const progres = hitungProgres(selesai.length, modul.length);
+  const [modulSibuk, setModulSibuk] = useState<string | null>(null);
+  const selesaiValid = irisModulSelesai(selesai, modul);
+  const progres = hitungProgres(selesaiValid.length, modul.length);
 
   const daftar = () =>
     startTransition(async () => {
       const hasil = await daftarKursusAction(kursus.id);
       setPesan(hasil.message ?? hasil.error ?? null);
       setButuhPlus(hasil.butuhPlus === true);
+      if (hasil.ok) setSudahDaftar(true);
     });
 
   const tandai = (modulId: string, sudah: boolean) =>
     startTransition(async () => {
+      setModulSibuk(modulId);
       setSelesai((daftar) =>
         sudah ? daftar.filter((id) => id !== modulId) : [...daftar, modulId],
       );
       const hasil = await tandaiModulAction(kursus.id, modulId);
+      setModulSibuk(null);
       if (!hasil.ok) {
         setSelesai((daftar) =>
           sudah ? [...daftar, modulId] : daftar.filter((id) => id !== modulId),
@@ -102,7 +110,10 @@ export function DetailKursus({
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <section aria-labelledby="judul-kursus" className="min-w-0">
           <p className="mb-2 flex flex-wrap items-center gap-2 text-xs text-gray-500">
-            <span className="inline-flex size-5 items-center justify-center rounded-sm bg-blue-700 text-[10px] font-bold text-white">
+            <span
+              aria-hidden="true"
+              className="inline-flex size-5 items-center justify-center rounded-sm bg-blue-700 text-[10px] font-bold text-white"
+            >
               {kursus.provider.charAt(0)}
             </span>
             {kursus.provider}
@@ -145,16 +156,23 @@ export function DetailKursus({
 
         <aside aria-label="Pendaftaran" className="lg:sticky lg:top-6 lg:self-start">
           <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-            {terdaftar ? (
+            {sudahDaftar ? (
               <>
                 <p className="text-xs font-semibold tracking-wider text-emerald-700 uppercase">
                   Terdaftar · {progres}%
                 </p>
-                <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-gray-200">
+                <div
+                  role="progressbar"
+                  aria-label={`Progres kursus ${progres} persen`}
+                  aria-valuenow={progres}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  className="mt-2 h-2.5 overflow-hidden rounded-full bg-gray-200"
+                >
                   <div className="h-full rounded-full bg-emerald-500" style={{ width: `${progres}%` }} />
                 </div>
                 <p className="mt-2 text-xs text-gray-500">
-                  {selesai.length} dari {modul.length} modul selesai
+                  {selesaiValid.length} dari {modul.length} modul selesai
                 </p>
                 <a
                   href="#kurikulum"
@@ -255,11 +273,11 @@ export function DetailKursus({
                     </a>
                   </p>
                 </div>
-                {terdaftar ? (
+                {sudahDaftar ? (
                   <button
                     type="button"
                     onClick={() => tandai(m.id, sudah)}
-                    disabled={pending}
+                    disabled={pending || modulSibuk === m.id}
                     aria-pressed={sudah}
                     className={cn(
                       "shrink-0 cursor-pointer rounded-full border px-3 py-1.5 text-xs font-semibold disabled:opacity-60",
@@ -305,7 +323,10 @@ export function DetailKursus({
                 className="rounded-2xl border border-gray-200 bg-white p-4 transition-colors hover:border-blue-300 hover:bg-blue-50/40"
               >
                 <p className="flex items-center gap-2 text-xs text-gray-500">
-                  <span className="inline-flex size-5 items-center justify-center rounded-sm bg-blue-700 text-[10px] font-bold text-white">
+                  <span
+                    aria-hidden="true"
+                    className="inline-flex size-5 items-center justify-center rounded-sm bg-blue-700 text-[10px] font-bold text-white"
+                  >
                     {item.provider.charAt(0)}
                   </span>
                   <span className="truncate">{item.provider}</span>

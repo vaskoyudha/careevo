@@ -28,9 +28,15 @@ const PORSI = [0.1, 0.25, 0.25, 0.25, 0.15];
 
 function bagiDurasi(total: number): number[] {
   const aman = Number.isFinite(total) && total > 0 ? Math.floor(total) : 60;
+  if (aman < PORSI.length * 5) {
+    // Total terlalu kecil untuk porsi minimum 5 menit/modul: bagi rata.
+    const dasar = Math.floor(aman / PORSI.length);
+    const sisa = aman - dasar * PORSI.length;
+    return PORSI.map((_, index) => dasar + (index < sisa ? 1 : 0));
+  }
   const bagian = PORSI.map((porsi) => Math.max(5, Math.round(aman * porsi)));
   const selisih = aman - bagian.reduce((a, b) => a + b, 0);
-  bagian[bagian.length - 1] += selisih;
+  bagian[bagian.length - 1] = Math.max(0, bagian[bagian.length - 1] + selisih);
   return bagian;
 }
 
@@ -88,4 +94,13 @@ export function hitungProgres(jumlahSelesai: number, jumlahTotal: number): numbe
   if (!Number.isFinite(jumlahTotal) || jumlahTotal <= 0) return 0;
   const persen = Math.round((jumlahSelesai / jumlahTotal) * 100);
   return Math.min(100, Math.max(0, persen));
+}
+
+/**
+ * Saring id modul selesai ke yang benar-benar ada di kurikulum saat ini.
+ * Mencegah progres menggelembung oleh id basi/palsu.
+ */
+export function irisModulSelesai(selesai: string[], modul: ModulKursus[]): string[] {
+  const valid = new Set(modul.map((m) => m.id));
+  return selesai.filter((id) => valid.has(id));
 }

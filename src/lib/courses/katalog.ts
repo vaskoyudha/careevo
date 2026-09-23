@@ -1,5 +1,6 @@
 import { listCourses } from "@/lib/courses/store";
 import { resources, type ResourceFixture } from "@/lib/fixtures";
+import type { CourseType } from "@/types/course";
 
 /**
  * Katalog gabungan untuk alur belajar: kursus yang dipublikasikan dari
@@ -11,6 +12,22 @@ export interface EntriKatalog extends ResourceFixture {
   slug: string;
 }
 
+/**
+ * Petakan tipe kursus ke tipe fixture yang dimengerti kartu katalog.
+ * Total (exhaustive): menambah varian CourseType memaksa pembaruan di sini.
+ */
+export function tipeKatalog(tipe: CourseType): "video" | "artikel" | "course" {
+  switch (tipe) {
+    case "video":
+      return "video";
+    case "artikel":
+      return "artikel";
+    case "course":
+    case "bootcamp":
+      return "course";
+  }
+}
+
 export async function katalogBelajar(): Promise<EntriKatalog[]> {
   const terbit = await listCourses({ status: "published" });
   const dariKursus: EntriKatalog[] = terbit.map((kursus) => ({
@@ -19,10 +36,7 @@ export async function katalogBelajar(): Promise<EntriKatalog[]> {
     title: kursus.title,
     url: kursus.url,
     provider: kursus.provider,
-    type: (kursus.type === "bootcamp" ? "course" : kursus.type) as
-      | "video"
-      | "artikel"
-      | "course",
+    type: tipeKatalog(kursus.type),
     tags: kursus.tags,
     level: kursus.level,
     is_free: kursus.is_free,

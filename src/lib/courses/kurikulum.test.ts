@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { modulKursus, hitungProgres } from "./kurikulum";
+import { modulKursus, hitungProgres, irisModulSelesai } from "./kurikulum";
 
 const SUMBER = {
   id: "crs-1",
@@ -43,6 +43,23 @@ describe("modulKursus", () => {
     const modul = modulKursus({ ...SUMBER, duration_min: 0 });
     const total = modul.reduce((acc, m) => acc + m.durasi_min, 0);
     expect(total).toBe(60);
+  });
+
+  it("tidak pernah menghasilkan durasi negatif dan total tetap pas", () => {
+    for (const durasi of [1, 3, 10, 24, 30]) {
+      const modul = modulKursus({ ...SUMBER, duration_min: durasi });
+      expect(modul.every((m) => m.durasi_min >= 0)).toBe(true);
+      expect(modul.reduce((acc, m) => acc + m.durasi_min, 0)).toBe(durasi);
+    }
+  });
+});
+
+describe("irisModulSelesai", () => {
+  it("membuang id yang tidak ada di kurikulum", () => {
+    const modul = modulKursus(SUMBER);
+    expect(irisModulSelesai(["crs-1-m1", "palsu", "crs-1-m9"], modul)).toEqual([
+      "crs-1-m1",
+    ]);
   });
 });
 

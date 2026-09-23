@@ -28,7 +28,8 @@ export default async function DetailKursusPage({
   if (!session) return null;
 
   const { slug } = await params;
-  const entri = await cariEntri(slug);
+  const katalog = await katalogBelajar();
+  const entri = katalog.find((item) => item.slug === slug);
   if (!entri) notFound();
 
   const kursusAsli = await getCourseById(entri.id);
@@ -46,7 +47,6 @@ export default async function DetailKursusPage({
 
   const pendaftaran = await cariPendaftaran(entri.id);
 
-  const katalog = await katalogBelajar();
   const skor = (kandidat: (typeof katalog)[number]) =>
     kandidat.tags.filter((tag) => entri.tags.includes(tag)).length;
   const terkait: KursusTerkait[] = katalog
@@ -67,6 +67,7 @@ export default async function DetailKursusPage({
   return (
     <AppShell session={session} current="/belajar">
       <DetailKursus
+        key={`${entri.id}-${(pendaftaran?.selesai_modul ?? []).join(",")}`}
         kursus={{
           id: entri.id,
           slug: entri.slug,

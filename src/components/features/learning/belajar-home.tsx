@@ -163,7 +163,10 @@ function Hero({ query, onQuery }: { query: string; onQuery: (v: string) => void 
           <form
             role="search"
             className="mt-5 flex max-w-md items-center gap-2 rounded-full border border-gray-200 bg-white p-1.5 pl-4 shadow-sm"
-            onSubmit={(e) => e.preventDefault()}
+            onSubmit={(e) => {
+              e.preventDefault();
+              document.getElementById("katalog")?.scrollIntoView({ behavior: "smooth" });
+            }}
           >
             <span aria-hidden="true" className="text-gray-400">
               ⌕
@@ -225,6 +228,7 @@ function Hero({ query, onQuery }: { query: string; onQuery: (v: string) => void 
                   key={s.title}
                   type="button"
                   aria-label={`Ke slide ${i + 1}`}
+                  aria-current={i === slide}
                   onClick={() => setSlide(i)}
                   className={cn(
                     "h-1.5 cursor-pointer rounded-full transition-all",
@@ -386,9 +390,9 @@ export function BelajarHome({
             <p className="text-xs font-semibold tracking-wider text-blue-700 uppercase">
               Lanjutkan belajar
             </p>
-            <h2 id="lanjut-belajar" className="text-base font-semibold text-gray-900">
+            <p id="lanjut-belajar" className="mt-1 text-base font-semibold text-gray-900">
               {nextTask.title}
-            </h2>
+            </p>
             <p className="max-w-xl text-sm text-gray-600">{nextTask.brief}</p>
           </div>
           <Link
@@ -418,7 +422,14 @@ export function BelajarHome({
                 <h3 className="mt-0.5 line-clamp-2 text-sm font-semibold text-gray-900">
                   {kursus.title}
                 </h3>
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-200">
+                <div
+                  role="progressbar"
+                  aria-label={`Progres ${kursus.title} ${kursus.progres} persen`}
+                  aria-valuenow={kursus.progres}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  className="mt-3 h-2 overflow-hidden rounded-full bg-gray-200"
+                >
                   <div
                     className="h-full rounded-full bg-blue-600"
                     style={{ width: `${kursus.progres}%` }}
@@ -439,12 +450,11 @@ export function BelajarHome({
           <h2 id="baru-populer" className="text-2xl font-medium tracking-tight text-gray-900">
             Baru dan populer
           </h2>
-          <div className="flex gap-2" role="tablist" aria-label="Filter populer">
+          <div className="flex gap-2" aria-label="Filter populer">
             {POPULAR_TABS.map((t, i) => (
               <button
                 key={t.label}
-                role="tab"
-                aria-selected={popularTab === i}
+                aria-pressed={popularTab === i}
                 onClick={() => setPopularTab(i)}
                 className={cn(
                   "cursor-pointer rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
@@ -667,6 +677,11 @@ export function BelajarHome({
             <p className="text-xs font-semibold text-gray-500">Progres</p>
             <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-gray-200">
               <div
+                role="progressbar"
+                aria-label={`Progres modul ${Math.round((completedCount / Math.max(resources.length, 1)) * 100)} persen`}
+                aria-valuenow={Math.round((completedCount / Math.max(resources.length, 1)) * 100)}
+                aria-valuemin={0}
+                aria-valuemax={100}
                 className="h-full rounded-full bg-blue-600"
                 style={{ width: `${Math.round((completedCount / Math.max(resources.length, 1)) * 100)}%` }}
               />
@@ -713,6 +728,7 @@ export function BelajarHome({
                 key={t.name}
                 type="button"
                 aria-label={`Ke cerita ${i + 1}`}
+                aria-current={i === story}
                 onClick={() => setStory(i)}
                 className={cn(
                   "h-1.5 cursor-pointer rounded-full transition-all",
@@ -760,12 +776,14 @@ export function BelajarHome({
         <div className="divide-y divide-gray-200 rounded-2xl border border-gray-200 bg-white">
           {FAQS.map((f, i) => {
             const open = openFaq === i;
+            const panelId = `faq-panel-${i}`;
             return (
               <div key={f.q}>
                 <button
                   type="button"
                   onClick={() => setOpenFaq(open ? null : i)}
                   aria-expanded={open}
+                  aria-controls={panelId}
                   className="flex w-full cursor-pointer items-center justify-between gap-4 px-5 py-4 text-left"
                 >
                   <span className="text-sm font-semibold text-gray-900">{f.q}</span>
@@ -774,7 +792,7 @@ export function BelajarHome({
                   </span>
                 </button>
                 {open ? (
-                  <p className="px-5 pb-5 text-sm leading-relaxed text-gray-600">{f.a}</p>
+                  <p id={panelId} className="px-5 pb-5 text-sm leading-relaxed text-gray-600">{f.a}</p>
                 ) : null}
               </div>
             );

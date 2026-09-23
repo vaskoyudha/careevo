@@ -4,9 +4,11 @@ import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth/session";
 import { getCourseById } from "@/lib/courses/store";
 import { resources } from "@/lib/fixtures";
+import { modulKursus } from "@/lib/courses/kurikulum";
 import {
   cariPendaftaran,
   daftarKursus,
+  listPendaftaran,
   tandaiModul,
 } from "@/lib/courses/enrollment";
 
@@ -43,11 +45,33 @@ async function selesaikanKursus(courseId: string) {
       id: kursus.id,
       slug: kursus.slug,
       berbayar: !kursus.is_free,
+      modulValid: new Set(
+        modulKursus({
+          id: kursus.id,
+          title: kursus.title,
+          tags: kursus.tags,
+          duration_min: kursus.duration_min,
+          url: kursus.url,
+        }).map((modul) => modul.id),
+      ),
     };
   }
   const resource = resources.find((item) => item.id === courseId);
   if (!resource) return null;
-  return { id: resource.id, slug: resource.id, berbayar: !resource.is_free };
+  return {
+    id: resource.id,
+    slug: resource.id,
+    berbayar: !resource.is_free,
+    modulValid: new Set(
+      modulKursus({
+        id: resource.id,
+        title: resource.title,
+        tags: resource.tags,
+        duration_min: resource.duration_min,
+        url: resource.url,
+      }).map((modul) => modul.id),
+    ),
+  };
 }
 
 export async function daftarKursusAction(courseId: string): Promise<PendaftaranActionState> {
@@ -72,6 +96,11 @@ export async function daftarKursusAction(courseId: string): Promise<PendaftaranA
     return { ok: true, message: "Kamu sudah terdaftar di kursus ini." };
   }
 
+  const semua = await listPendaftaran();
+  if (semua.length >= 50) {
+    return { ok: false, error: "Batas 50 pendaftaran tercapai di peramban ini." };
+  }
+
   await daftarKursus(target.id, target.slug);
   safeRevalidate("/belajar");
   safeRevalidate(`/belajar/${target.slug}`);
@@ -93,6 +122,9 @@ export async function tandaiModulAction(
   const entri = await cariPendaftaran(target.id);
   if (!entri) {
     return { ok: false, error: "Daftar dulu sebelum menandai modul." };
+  }
+  if (!target.modulValid.has(modulId)) {
+    return { ok: false, error: "Modul tidak dikenal untuk kursus ini." };
   }
 
   await tandaiModul(target.id, modulId);

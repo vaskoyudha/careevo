@@ -3,7 +3,7 @@ import { getSession } from "@/lib/auth/session";
 import { AppShell } from "@/components/ui/app-shell";
 import { BelajarHome, type KursusTerdaftar } from "@/components/features/learning/belajar-home";
 import { katalogBelajar } from "@/lib/courses/katalog";
-import { modulKursus, hitungProgres } from "@/lib/courses/kurikulum";
+import { modulKursus, hitungProgres, irisModulSelesai } from "@/lib/courses/kurikulum";
 import { listPendaftaran } from "@/lib/courses/enrollment";
 import { tasks } from "@/lib/fixtures";
 
@@ -28,14 +28,15 @@ export default async function BelajarPage() {
       duration_min: kursus.duration_min,
       url: kursus.url,
     });
+    const selesai = irisModulSelesai(entri.selesai_modul, modul);
     return [
       {
         id: kursus.id,
         slug: kursus.slug,
         title: kursus.title,
         provider: kursus.provider,
-        progres: hitungProgres(entri.selesai_modul.length, modul.length),
-        selesai: entri.selesai_modul.length,
+        progres: hitungProgres(selesai.length, modul.length),
+        selesai: selesai.length,
         total: modul.length,
       },
     ];
