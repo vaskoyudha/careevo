@@ -344,34 +344,30 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
 
   return (
     <div className="relative min-h-screen bg-white text-neutral-900 selection:bg-neutral-200 overflow-x-hidden">
-      {/* Full-width Extended Header Image (Outer Viewport Width, 80% Opacity, Bottom White Fade) */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[600px] sm:h-[700px] md:h-[800px] w-full overflow-hidden select-none">
+      {/* Full-width Extended Header Image (100% Opacity, In Front of Container Lines, Bottom White Fade) */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[640px] sm:h-[720px] md:h-[820px] w-full overflow-hidden select-none">
         <Image
           src="/images/hero-loker-header.jpg"
           alt="Careevo header visual"
           fill
           priority
-          className="object-cover object-top opacity-80"
+          className="object-cover object-top opacity-100"
         />
         {/* Soft center backlight to keep headline text crystal clear */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_75%_65%_at_50%_35%,rgba(255,255,255,0.78)_0%,rgba(255,255,255,0.3)_55%,transparent_85%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_75%_65%_at_50%_35%,rgba(255,255,255,0.72)_0%,rgba(255,255,255,0.2)_55%,transparent_85%)]" />
         {/* White fading on the bottom of the image */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/20 to-white" />
-        <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-white via-white/95 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/10 to-white" />
+        <div className="absolute inset-x-0 bottom-0 h-72 bg-gradient-to-t from-white via-white/95 to-transparent" />
       </div>
 
-      {/* Outer Vertex Grid Frame */}
-      <div className="container relative z-10 mx-auto">
-        <div className="border-x border-neutral-200/80">
-          <div className="mx-1 border-x border-neutral-200/80 sm:mx-1.5 lg:mx-2">
-            {/* ============================================================ */}
-            {/* 1. HERO SECTION (SEC 0)                                       */}
-            {/* ============================================================ */}
-            <div className="relative z-20 w-full pt-16 sm:pt-20 md:pt-24 lg:pt-28">
-              <div className="px-6 sm:px-8 lg:px-12">
-                <div className="mx-auto max-w-4xl text-center">
-                  {/* Main Headline */}
-                  <h1 className="text-balance font-semibold text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-neutral-950 tracking-tight leading-[1.12]">
+      {/* ============================================================ */}
+      {/* 1. HERO SECTION (SEC 0) - Outside grid lines to remove vertical lines */}
+      {/* ============================================================ */}
+      <div className="relative z-10 w-full pt-16 sm:pt-20 md:pt-24 lg:pt-28">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-4xl text-center">
+            {/* Main Headline */}
+            <h1 className="text-balance font-semibold text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-neutral-950 tracking-tight leading-[1.12]">
                     Kurasi lowongan kerja resmi yang diaudit Sentinel, tanpa biaya
                   </h1>
 
@@ -436,24 +432,45 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                   onMouseLeave={() => setIsPaused(false)}
                 >
                   <div className="relative">
+                    {/* Natural height anchor to establish container height responsively */}
+                    <div
+                      className="invisible pointer-events-none select-none opacity-0"
+                      aria-hidden="true"
+                    >
+                      <div className="h-11" />
+                      <div className="grid grid-rows-[auto_auto] lg:grid-cols-[320px_1fr] lg:grid-rows-[auto_1fr] divide-y lg:divide-y-0 lg:divide-x divide-neutral-200">
+                        <div className="p-6 sm:p-7">
+                          <div className="size-11" />
+                          <div className="mt-4 h-14" />
+                          <div className="mt-4 h-8" />
+                          <div className="mt-6 pt-5 space-y-2.5 text-xs"><div className="h-24" /></div>
+                          <div className="mt-5 h-6" />
+                        </div>
+                        <div className="p-6 sm:p-7">
+                          <div className="h-5" />
+                          <div className="mt-4 text-sm leading-relaxed"><p className="opacity-0">{cards[0]?.description}</p></div>
+                          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3"><div className="h-28" /></div>
+                          <div className="mt-6 pt-5"><div className="h-20" /></div>
+                        </div>
+                      </div>
+                    </div>
+
                     {cards.map((role, slotIndex) => {
-                      const isFront = slotIndex === 0;
-                      const topOffset = isFront ? 0 : -slotIndex * 32;
+                      const topOffset = -slotIndex * 32;
                       const scale = 1 - slotIndex * 0.05;
                       const zIndex = 4 - slotIndex;
 
                       return (
                         <article
                           key={role.tabLabel}
-                          className={cn(
-                            "overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-xl transition-all duration-500 ease-out",
-                            isFront ? "relative" : "absolute inset-x-0"
-                          )}
+                          className="absolute inset-x-0 top-0 overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-xl"
                           style={{
                             transformOrigin: "center top",
-                            transform: isFront ? "none" : `scale(${scale})`,
+                            transform: `scale(${scale})`,
                             top: `${topOffset}px`,
                             zIndex,
+                            transition:
+                              "transform 600ms cubic-bezier(0.16, 1, 0.3, 1), top 600ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 500ms ease",
                           }}
                         >
                           {/* Card Tab Header */}
@@ -461,7 +478,7 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                             onClick={() => bringToFront(slotIndex)}
                             className={cn(
                               "flex h-11 items-center gap-x-2 border-b border-neutral-200 px-4 transition-colors select-none",
-                              isFront
+                              slotIndex === 0
                                 ? "bg-neutral-50/90"
                                 : "bg-neutral-100/90 hover:bg-neutral-200/70 cursor-pointer"
                             )}
@@ -658,9 +675,15 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
             </div>
 
             {/* ============================================================ */}
-            {/* 2. DASHED SECTION DIVIDER                                    */}
+            {/* OUTER VERTEX GRID FRAME (Starting below Hero Section)        */}
             {/* ============================================================ */}
-            <div className="relative h-10 border-y border-dashed border-neutral-200 bg-[size:10px_10px] [background-image:repeating-linear-gradient(315deg,rgba(0,0,0,0.035)_0_1px,transparent_0_50%)] md:h-12" />
+            <div className="container relative z-10 mx-auto">
+              <div className="border-x border-neutral-200">
+                <div className="mx-1 border-x border-neutral-200 sm:mx-1.5 lg:mx-2 bg-white">
+                  {/* ============================================================ */}
+                  {/* 2. DASHED SECTION DIVIDER                                    */}
+                  {/* ============================================================ */}
+                  <div className="relative h-10 border-y border-dashed border-neutral-200 bg-[size:10px_10px] [background-image:repeating-linear-gradient(315deg,rgba(0,0,0,0.035)_0_1px,transparent_0_50%)] md:h-12" />
 
             {/* ============================================================ */}
             {/* 3. LOGO CLOUD / TRUSTED SOURCES (SEC 2)                      */}
