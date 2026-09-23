@@ -3001,7 +3001,7 @@ body {
   }
 }
 
-/* ===== UIverse curvy-earwig-22 Search Bar (Blue Edition) ===== */
+/* ===== UIverse curvy-earwig-22 Search Bar (Option A: Light Mode Blue Edition) ===== */
 .uiverse-search-wrapper {
   position: relative;
   display: flex;
@@ -3016,215 +3016,198 @@ body {
   justify-content: center;
   position: relative;
   width: 100%;
-  max-width: 480px;
+  max-width: 520px;
+  padding: 2.5px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #f1f5f9;
+  border: 1px solid rgba(203, 213, 225, 0.8);
+  box-shadow: 0 4px 20px -2px rgba(37, 99, 235, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.03);
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.uiverse-poda:hover,
+.uiverse-poda:focus-within {
+  border-color: rgba(56, 189, 248, 0.6);
+  box-shadow: 0 6px 25px -2px rgba(56, 189, 248, 0.22), 0 0 16px rgba(56, 189, 248, 0.15);
 }
 
 .uiverse-white,
 .uiverse-border,
 .uiverse-darkBorderBg,
 .uiverse-glow {
-  max-height: 70px;
-  max-width: 494px;
-  height: 100%;
-  width: 100%;
   position: absolute;
-  overflow: hidden;
-  z-index: 1;
-  border-radius: 14px;
-  filter: blur(3px);
   pointer-events: none;
 }
 
 .uiverse-glow {
-  filter: blur(28px);
-  opacity: 0.6;
-  max-height: 110px;
-  max-width: 530px;
+  inset: -15px;
+  filter: blur(24px);
+  opacity: 0.55;
+  background: radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.35), transparent 70%);
+  transition: opacity 0.3s ease;
+  z-index: 0;
 }
 
-.uiverse-glow::before {
-  content: "";
-  z-index: -2;
-  text-align: center;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) rotate(60deg);
-  position: absolute;
-  width: 999px;
-  height: 999px;
-  background-repeat: no-repeat;
-  background-position: 0 0;
-  background-image: conic-gradient(
-    #000,
-    #1d4ed8 5%,
-    #000 38%,
-    #000 50%,
-    #38bdf8 60%,
-    #000 87%
-  );
-  animation: uiverse-rotate 6s linear infinite;
-  transition: all 2s;
+.uiverse-poda:hover .uiverse-glow,
+.uiverse-poda:focus-within .uiverse-glow {
+  opacity: 0.85;
 }
 
 .uiverse-darkBorderBg {
-  max-height: 65px;
-  max-width: 490px;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 16px;
+  z-index: 1;
 }
 
 .uiverse-darkBorderBg::before {
   content: "";
-  z-index: -2;
-  text-align: center;
+  position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%) rotate(82deg);
-  position: absolute;
-  width: 800px;
-  height: 800px;
-  background-repeat: no-repeat;
-  background-position: 0 0;
+  width: 900px;
+  height: 900px;
+  transform: translate(-50%, -50%) rotate(0deg);
   background-image: conic-gradient(
-    rgba(0, 0, 0, 0),
-    #1e3a8a,
-    rgba(0, 0, 0, 0) 10%,
-    rgba(0, 0, 0, 0) 50%,
-    #0284c7,
-    rgba(0, 0, 0, 0) 60%
+    from 0deg,
+    transparent 0deg,
+    transparent 180deg,
+    rgba(56, 189, 248, 0.25) 230deg,
+    #38bdf8 275deg,
+    #2563eb 315deg,
+    #1d4ed8 340deg,
+    #60a5fa 355deg,
+    transparent 360deg
   );
-  animation: uiverse-rotate 6s linear infinite;
-  transition: all 2s;
+  animation: uiverse-rotate 4s linear infinite;
 }
 
 .uiverse-white {
-  max-height: 63px;
-  max-width: 486px;
-  border-radius: 12px;
-  filter: blur(2px);
+  inset: 0;
+  overflow: hidden;
+  border-radius: 16px;
+  filter: blur(1.5px);
+  z-index: 1;
 }
 
 .uiverse-white::before {
   content: "";
-  z-index: -2;
-  text-align: center;
+  position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%) rotate(83deg);
-  position: absolute;
-  width: 800px;
-  height: 800px;
-  background-repeat: no-repeat;
-  background-position: 0 0;
-  filter: brightness(1.4);
+  width: 900px;
+  height: 900px;
+  transform: translate(-50%, -50%) rotate(0deg);
   background-image: conic-gradient(
-    rgba(0, 0, 0, 0) 0%,
-    #60a5fa,
-    rgba(0, 0, 0, 0) 8%,
-    rgba(0, 0, 0, 0) 50%,
-    #93c5fd,
-    rgba(0, 0, 0, 0) 58%
+    from 0deg,
+    transparent 0deg,
+    transparent 200deg,
+    rgba(147, 197, 253, 0.4) 250deg,
+    #93c5fd 290deg,
+    #38bdf8 330deg,
+    transparent 360deg
   );
-  animation: uiverse-rotate 6s linear infinite;
-  transition: all 2s;
+  animation: uiverse-rotate 4s linear infinite;
 }
 
 .uiverse-border {
-  max-height: 59px;
-  max-width: 482px;
-  border-radius: 12px;
-  filter: blur(0.5px);
+  inset: 0;
+  overflow: hidden;
+  border-radius: 16px;
+  z-index: 1;
 }
 
 .uiverse-border::before {
   content: "";
-  z-index: -2;
-  text-align: center;
+  position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%) rotate(70deg);
-  position: absolute;
-  width: 800px;
-  height: 800px;
-  filter: brightness(1.3);
-  background-repeat: no-repeat;
-  background-position: 0 0;
+  width: 900px;
+  height: 900px;
+  transform: translate(-50%, -50%) rotate(0deg);
   background-image: conic-gradient(
-    #090d16,
-    #2563eb 5%,
-    #090d16 14%,
-    #090d16 50%,
-    #38bdf8 60%,
-    #090d16 64%
+    from 0deg,
+    transparent 0deg,
+    transparent 190deg,
+    rgba(37, 99, 235, 0.2) 240deg,
+    #38bdf8 285deg,
+    #1d4ed8 335deg,
+    transparent 360deg
   );
-  animation: uiverse-rotate 6s 0.1s linear infinite;
-  transition: all 2s;
+  animation: uiverse-rotate 4s 0.05s linear infinite;
 }
 
 .uiverse-main {
   position: relative;
   z-index: 2;
+  display: flex;
+  align-items: center;
   width: 100%;
-  max-width: 478px;
+  height: 52px;
+  border-radius: 13.5px;
+  background-color: #ffffff;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.8), 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .uiverse-input {
-  background-color: #060913;
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  background: transparent;
+  border: none;
   width: 100%;
-  height: 56px;
-  border-radius: 12px;
-  color: #ffffff;
-  padding-left: 56px;
-  padding-right: 56px;
+  height: 100%;
+  border-radius: 13.5px;
+  color: #0f172a;
+  padding-left: 50px;
+  padding-right: 54px;
   font-size: 15px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  font-weight: 450;
 }
 
 .uiverse-input::placeholder {
   color: #94a3b8;
   font-size: 14px;
+  font-weight: 400;
 }
 
 .uiverse-input:focus {
   outline: none;
-  border-color: rgba(56, 189, 248, 0.6);
-  box-shadow: 0 0 20px rgba(56, 189, 248, 0.25);
+}
+
+.uiverse-input-mask {
+  pointer-events: none;
+  width: 60px;
+  height: 20px;
+  position: absolute;
+  background: linear-gradient(90deg, transparent, #ffffff);
+  top: 16px;
+  left: 65px;
 }
 
 .uiverse-main:focus-within > .uiverse-input-mask {
   display: none;
 }
 
-.uiverse-input-mask {
-  pointer-events: none;
-  width: 100px;
-  height: 20px;
-  position: absolute;
-  background: linear-gradient(90deg, transparent, #060913);
-  top: 18px;
-  left: 70px;
-}
-
 .uiverse-blue-mask {
   pointer-events: none;
   width: 36px;
-  height: 22px;
+  height: 20px;
   position: absolute;
   background: #38bdf8;
   top: 10px;
   left: 8px;
-  filter: blur(20px);
-  opacity: 0.85;
+  filter: blur(16px);
+  opacity: 0.35;
   transition: opacity 1.5s ease;
 }
 
 .uiverse-main:hover > .uiverse-blue-mask,
 .uiverse-main:focus-within > .uiverse-blue-mask {
-  opacity: 0.2;
+  opacity: 0.15;
 }
 
 .uiverse-search-icon {
   position: absolute;
-  left: 18px;
+  left: 16px;
   top: 50%;
   transform: translateY(-50%);
   pointer-events: none;
@@ -3236,7 +3219,7 @@ body {
 .uiverse-filter-icon {
   position: absolute;
   top: 50%;
-  right: 8px;
+  right: 6px;
   transform: translateY(-50%);
   display: flex;
   align-items: center;
@@ -3244,17 +3227,20 @@ body {
   z-index: 3;
   height: 40px;
   width: 40px;
-  border-radius: 10px;
-  background: linear-gradient(180deg, #1e293b, #0f172a, #1e3a8a);
-  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-radius: 11px;
+  background: linear-gradient(180deg, #f0f9ff, #e0f2fe);
+  border: 1px solid #bae6fd;
+  color: #0284c7;
   cursor: pointer;
-  transition: transform 0.15s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.15s ease, border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.1);
 }
 
 .uiverse-filter-icon:hover {
-  border-color: rgba(56, 189, 248, 0.7);
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
-  transform: translateY(-50%) scale(1.05);
+  background: linear-gradient(180deg, #e0f2fe, #bae6fd);
+  border-color: #7dd3fc;
+  box-shadow: 0 2px 8px rgba(56, 189, 248, 0.25);
+  transform: translateY(-50%) scale(1.04);
 }
 
 .uiverse-filter-icon:active {
@@ -3262,38 +3248,7 @@ body {
 }
 
 .uiverse-filterBorder {
-  height: 42px;
-  width: 42px;
-  position: absolute;
-  overflow: hidden;
-  top: 50%;
-  right: 7px;
-  transform: translateY(-50%);
-  border-radius: 10px;
-  pointer-events: none;
-}
-
-.uiverse-filterBorder::before {
-  content: "";
-  text-align: center;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) rotate(90deg);
-  position: absolute;
-  width: 600px;
-  height: 600px;
-  background-repeat: no-repeat;
-  background-position: 0 0;
-  filter: brightness(1.35);
-  background-image: conic-gradient(
-    rgba(0, 0, 0, 0),
-    #3b82f6,
-    rgba(0, 0, 0, 0) 50%,
-    rgba(0, 0, 0, 0) 50%,
-    #38bdf8,
-    rgba(0, 0, 0, 0) 100%
-  );
-  animation: uiverse-rotate 4s linear infinite;
+  display: none;
 }
 
 @keyframes uiverse-rotate {
@@ -3306,11 +3261,10 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .uiverse-glow::before,
+  .uiverse-glow,
   .uiverse-darkBorderBg::before,
   .uiverse-white::before,
-  .uiverse-border::before,
-  .uiverse-filterBorder::before {
+  .uiverse-border::before {
     animation: none;
   }
 }
