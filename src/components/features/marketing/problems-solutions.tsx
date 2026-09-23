@@ -8,20 +8,17 @@ import { Reveal } from "./primitives";
 
 interface ProblemItem {
   id: string;
-  stepNum: string;
   problemTitle: string;
   problemDescription: string;
   solutionShort: string;
   solutionTitle: string;
   solutionDescription: string;
-  badge: string;
   image: string;
 }
 
 const PROBLEMS: ProblemItem[] = [
   {
     id: "verifier",
-    stepNum: "01",
     problemTitle: "Banjir Portofolio AI yang Seragam",
     problemDescription:
       "Kode makin mudah disalin dalam hitungan detik. Rekruter dibanjiri repo GitHub identik dan mulai meragukan keaslian kode di CV pelamar.",
@@ -29,13 +26,11 @@ const PROBLEMS: ProblemItem[] = [
     solutionTitle: "Bukti Alur Kerja Kriptografis (HMAC-SHA256)",
     solutionDescription:
       "Alur pengerjaan dan komitmen belajarmu terekam otomatis dan ditandatangani secara kriptografis. Rekruter cukup membuka satu tautan publik untuk memverifikasi keaslian karya tanpa biometrik.",
-    badge: "Verifier Agent",
     image:
       "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1200&q=80",
   },
   {
     id: "socrates",
-    stepNum: "02",
     problemTitle: "Tutorial Hell & Gagap Interview Teknis",
     problemDescription:
       "Banyak kandidat lancar meniru modul terpandu, namun buntu saat interviewer menanyakan trade-off arsitektur dan penanganan edge-case.",
@@ -43,13 +38,11 @@ const PROBLEMS: ProblemItem[] = [
     solutionTitle: "Sparring Logika & Arsitektur dengan Socrates AI",
     solutionDescription:
       "Socrates tidak memberi jawaban instan. Socrates bertindak layaknya Principal Engineer yang menguji alasan di balik setiap keputusan kodemu dan melatih artikulasi teknismu.",
-    badge: "Socrates AI",
     image:
       "https://images.unsplash.com/photo-1531482615713-2afd69097998?w=1200&q=80",
   },
   {
     id: "sentinel",
-    stepNum: "03",
     problemTitle: "Loker Bodong & Modus Pungutan Biaya",
     problemDescription:
       "Pencari kerja kerap tertipu lowongan kerja fiktif, ghost jobs, atau oknum yang meminta biaya seragam dan tes lewat transfer rekening pribadi.",
@@ -57,13 +50,11 @@ const PROBLEMS: ProblemItem[] = [
     solutionTitle: "Audit Loker Otonom & Penyaringan Ketat",
     solutionDescription:
       "Sentinel memindai usia domain perusahaan, nomor rekening transfer, dan pola pungutan biaya pada setiap lowongan. Loker mencurigakan langsung dikarantina sebelum sempat kamu lamar.",
-    badge: "Sentinel Agent",
     image:
       "https://images.unsplash.com/photo-1563986768609-322da13575f3?w=1200&q=80",
   },
   {
     id: "navigator",
-    stepNum: "04",
     problemTitle: "Melamar Buta Tanpa Tahu Celah Skill",
     problemDescription:
       "Mengirim puluhan lamaran tanpa feedback yang jelas mengapa ditolak atau materi apa yang harus dipelajari untuk memenuhi ekspektasi industri.",
@@ -71,7 +62,6 @@ const PROBLEMS: ProblemItem[] = [
     solutionTitle: "Pemetaan Skill Gap & Tantangan Terarah",
     solutionDescription:
       "Navigator membandingkan kualifikasimu dengan kebutuhan loker valid, mendeteksi kriteria yang belum terpenuhi, dan menyusun tantangan latihan terarah untuk menutup celah tersebut.",
-    badge: "Navigator AI",
     image:
       "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1200&q=80",
   },
@@ -169,22 +159,6 @@ export function MarketingProblemsSolutions() {
                       : "border-transparent opacity-80 hover:opacity-100",
                   )}
                 >
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-mono text-gray-400">
-                      Tantangan {item.stepNum}
-                    </span>
-                    <span
-                      className={cn(
-                        "rounded-full px-2.5 py-0.5 text-xs font-medium",
-                        isActive
-                          ? "bg-blue-50 text-[#388AF3]"
-                          : "bg-gray-100 text-gray-600",
-                      )}
-                    >
-                      {item.badge}
-                    </span>
-                  </div>
-
                   <h3 className="text-2xl font-medium text-gray-900 mb-2">
                     {item.problemTitle}
                   </h3>
@@ -194,9 +168,9 @@ export function MarketingProblemsSolutions() {
                   </p>
 
                   <div className="border-t border-gray-100 pt-3">
-                    <span className="text-xs font-medium text-[#388AF3] block mb-1">
-                      Solusi Careevo:
-                    </span>
+                    <p className="text-xs font-medium text-[#388AF3] uppercase tracking-wider mb-1">
+                      Solusi Careevo
+                    </p>
                     <p className="text-sm text-gray-700 leading-relaxed">
                       {item.solutionShort}
                     </p>
@@ -227,15 +201,7 @@ export function MarketingProblemsSolutions() {
               </div>
 
               {/* Text Caption Matching Features & Use-Cases */}
-              <div className="p-5">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-[#388AF3] uppercase tracking-wider">
-                    Solusi: {current.badge}
-                  </span>
-                  <span className="text-xs font-mono text-gray-400">
-                    {current.stepNum} / 04
-                  </span>
-                </div>
+              <div className="p-5 sm:p-6">
                 <h3 className="text-2xl font-medium text-gray-900 mb-2">
                   {current.solutionTitle}
                 </h3>
