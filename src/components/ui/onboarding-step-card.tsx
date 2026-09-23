@@ -20,7 +20,6 @@ import { cn } from "@/lib/utils";
 
 export interface OnboardingStepCardProps {
   heroImageSrc?: string;
-  icon?: React.ReactNode;
   title: string;
   subtitle: string;
   step?: number;
@@ -43,13 +42,13 @@ const itemVariants = {
 };
 
 export const OnboardingStepCard = React.forwardRef<HTMLDivElement, OnboardingStepCardProps>(
-  ({ heroImageSrc, icon, title, subtitle, step, totalSteps, children, footer, className }, ref) => {
+  ({ heroImageSrc, title, subtitle, step, totalSteps, children, footer, className }, ref) => {
     return (
       <AnimatePresence mode="wait">
         <motion.div
           ref={ref}
           className={cn(
-            "w-full max-w-xl overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm",
+            "w-full max-w-xl overflow-hidden rounded-[12px] border border-black/10 bg-white text-black shadow-sm",
             className,
           )}
           variants={containerVariants}
@@ -72,31 +71,23 @@ export const OnboardingStepCard = React.forwardRef<HTMLDivElement, OnboardingSte
             <motion.div variants={itemVariants} className="flex flex-col items-start gap-4">
               {typeof step === "number" && typeof totalSteps === "number" ? (
                 <div className="flex w-full items-center gap-3" aria-hidden="true">
-                  <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
+                  <div className="h-1 flex-1 overflow-hidden rounded-full bg-black/10">
                     <div
-                      className="h-full rounded-full bg-primary transition-all duration-500"
+                      className="h-full rounded-full bg-black transition-all duration-500"
                       style={{ width: `${(step / totalSteps) * 100}%` }}
                     />
                   </div>
-                  <span className="text-xs font-medium text-muted-foreground tabular-nums">
+                  <span className="text-xs font-medium text-black/40 tabular-nums">
                     {step}/{totalSteps}
                   </span>
                 </div>
               ) : null}
 
-              <div className="flex items-center gap-3">
-                {icon ? (
-                  <span className="grid size-10 shrink-0 place-items-center rounded-lg border border-border bg-muted/40 text-primary">
-                    {icon}
-                  </span>
-                ) : null}
-
-                <div className="space-y-1">
-                  <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-                    {title}
-                  </h1>
-                  <p className="text-sm text-muted-foreground">{subtitle}</p>
-                </div>
+              <div className="space-y-1">
+                <h1 className="text-xl font-semibold tracking-tight text-black sm:text-2xl">
+                  {title}
+                </h1>
+                <p className="text-sm text-black/50">{subtitle}</p>
               </div>
             </motion.div>
 

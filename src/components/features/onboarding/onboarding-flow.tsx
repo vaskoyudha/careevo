@@ -6,10 +6,6 @@ import { motion } from "motion/react";
 import {
   BriefcaseBusiness,
   Check,
-  Compass,
-  GraduationCap,
-  Sparkles,
-  Target,
 } from "lucide-react";
 import { completeOnboardingAction } from "@/actions/onboarding";
 import type { OnboardingFormState } from "@/lib/onboarding/types-form";
@@ -31,7 +27,6 @@ import {
 } from "@/lib/onboarding/types";
 import { cn } from "@/lib/utils";
 import { OnboardingStepCard } from "@/components/ui/onboarding-step-card";
-import { Button } from "@/components/ui/button";
 
 /**
  * Three-step personalization wizard.
@@ -47,19 +42,16 @@ const STEP_META = [
   {
     title: "Latar belakangmu",
     subtitle: "Biar kami tahu titik awalmu dan menyusun materi yang pas.",
-    icon: <GraduationCap className="size-5" />,
     hero: "/onboarding/hero-learn.jpg",
   },
   {
     title: "Apa yang mau kamu kuasai?",
     subtitle: "Pilih 1–3 bidang. Ini menentukan rekomendasi kursus dan loker.",
-    icon: <Compass className="size-5" />,
     hero: "/onboarding/hero-code.jpg",
   },
   {
     title: "Tujuan & komitmen",
     subtitle: "Terakhir, supaya rekomendasi loker dan jadwal belajar realistis.",
-    icon: <Target className="size-5" />,
     hero: "/onboarding/hero-team.jpg",
   },
 ] as const;
@@ -152,7 +144,6 @@ export function OnboardingFlow({
 
       <OnboardingStepCard
         heroImageSrc={meta.hero}
-        icon={meta.icon}
         title={meta.title}
         subtitle={step === 0 ? `Halo ${nama}, ${meta.subtitle}` : meta.subtitle}
         step={step + 1}
@@ -160,37 +151,32 @@ export function OnboardingFlow({
         footer={
           <>
             {step > 0 ? (
-              <Button
+              <button
                 type="button"
-                variant="ghost"
-                size="lg"
                 onClick={() => setStep((s) => s - 1)}
                 disabled={pending}
+                className="flex h-12 items-center justify-center rounded-[10px] px-4 text-base font-medium text-black/70 transition-colors hover:bg-black/[0.04] disabled:opacity-50"
               >
                 Kembali
-              </Button>
+              </button>
             ) : null}
-            <Button
+            <button
               type="submit"
-              size="lg"
-              className="ms-auto"
               disabled={!stepValid || pending}
+              className="ms-auto flex h-12 items-center justify-center rounded-[10px] border border-black/40 bg-black px-7 text-base font-medium text-white transition-colors hover:bg-black/85 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {step < STEP_META.length - 1 ? (
-                <>
-                  Lanjut
-                  <Sparkles className="size-4" />
-                </>
+                "Lanjut"
               ) : (
                 <>{pending ? "Menyimpan..." : "Mulai belajar"}</>
               )}
-            </Button>
+            </button>
           </>
         }
       >
         {state.message ? (
           <p
-            className="rounded-lg border border-destructive/35 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            className="rounded-[8px] border border-[#e4572e]/35 bg-[#e4572e]/10 px-3 py-2 text-sm text-[#e4572e]"
             role="alert"
           >
             {state.message}
@@ -219,7 +205,7 @@ function FieldLabel({
   className?: string;
 }) {
   return (
-    <p className={cn("text-sm font-medium text-foreground/80", className)}>{children}</p>
+    <p className={cn("text-sm font-medium text-black/70", className)}>{children}</p>
   );
 }
 
@@ -247,14 +233,14 @@ function OptionGrid<T extends string>({
             onClick={() => onSelect(option)}
             aria-pressed={active}
             className={cn(
-              "flex items-center justify-between rounded-lg border px-3.5 py-2.5 text-left text-sm transition-colors",
+              "flex items-center justify-between rounded-[8px] border px-3.5 py-2.5 text-left text-sm transition-colors",
               active
-                ? "border-primary bg-primary/5 text-foreground ring-1 ring-primary/30"
-                : "border-input bg-background text-foreground/80 hover:border-primary/40 hover:bg-accent/40",
+                ? "border-black bg-black/[0.04] font-medium text-black"
+                : "border-black/15 bg-white text-black/70 hover:border-black/40 hover:text-black",
             )}
           >
             <span>{labels[option]}</span>
-            {active ? <Check className="size-4 text-primary" /> : null}
+            {active ? <Check className="size-4 text-black" /> : null}
           </button>
         );
       })}
@@ -305,7 +291,7 @@ function StepInterests({
     <div className="grid gap-3">
       <div className="flex items-center justify-between">
         <FieldLabel>Bidang yang diminati</FieldLabel>
-        <span className="text-xs text-muted-foreground tabular-nums">
+        <span className="text-xs text-black/40 tabular-nums">
           {draft.interests.length}/{MAX_INTERESTS} dipilih
         </span>
       </div>
@@ -320,19 +306,19 @@ function StepInterests({
               onClick={() => toggle(interest)}
               aria-pressed={active}
               className={cn(
-                "flex items-center justify-between rounded-lg border px-3.5 py-2.5 text-left text-sm transition-colors",
+                "flex items-center justify-between rounded-[8px] border px-3.5 py-2.5 text-left text-sm transition-colors",
                 active
-                  ? "border-primary bg-primary/5 text-foreground ring-1 ring-primary/30"
-                  : "border-input bg-background text-foreground/80 hover:border-primary/40 hover:bg-accent/40",
+                  ? "border-black bg-black/[0.04] font-medium text-black"
+                  : "border-black/15 bg-white text-black/70 hover:border-black/40 hover:text-black",
               )}
             >
               <span>{LABELS.interest[interest]}</span>
-              {active ? <Check className="size-4 text-primary" /> : null}
+              {active ? <Check className="size-4 text-black" /> : null}
             </motion.button>
           );
         })}
       </div>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-black/40">
         Rekomendasi kursus &amp; loker akan difokuskan ke pilihanmu.
       </p>
     </div>
@@ -372,8 +358,8 @@ function StepGoals({
                 className={cn(
                   "rounded-full border px-4 py-2 text-sm transition-colors",
                   active
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-input bg-background text-foreground/80 hover:border-primary/40",
+                    ? "border-black bg-black text-white"
+                    : "border-black/15 bg-white text-black/70 hover:border-black/40 hover:text-black",
                 )}
               >
                 {hours} jam
@@ -385,7 +371,7 @@ function StepGoals({
 
       <div className="grid gap-3">
         <FieldLabel className="flex items-center gap-2">
-          <BriefcaseBusiness className="size-4 text-muted-foreground" />
+          <BriefcaseBusiness className="size-4 text-black/40" />
           Preferensi kerja
         </FieldLabel>
         <OptionGrid

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { getProfile } from "@/lib/onboarding/store";
 import { homeForRole } from "@/lib/auth/roles";
+import { CareevoLogo } from "@/components/ui/careevo-logo";
 import { OnboardingFlow } from "@/components/features/onboarding/onboarding-flow";
 
 export const metadata: Metadata = {
@@ -33,12 +34,7 @@ export default async function OnboardingPage({
 
   return (
     <main className="flex min-h-screen w-full flex-col items-center justify-center gap-7 bg-white px-4 py-12 text-black antialiased [font-synthesis:none]">
-      <div className="flex items-center gap-2.5 text-base">
-        <span className="grid size-7 place-items-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
-          C
-        </span>
-        <span className="font-medium">Careevo</span>
-      </div>
+      <CareevoLogo />
       <OnboardingFlow nama={session.nama} initial={profile ?? undefined} />
       <p className="max-w-md text-center text-xs leading-5 text-black/40">
         Jawabanmu hanya dipakai untuk menyusun rekomendasi kursus dan loker. Bisa
