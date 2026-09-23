@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { auditLoker, labelSinyal } from "@/lib/agents/sentinel";
-import { FEE_RULES, ID_ATURAN_FEE } from "@/lib/agents/rules/fee-rules";
+import { FEE_RULES } from "@/lib/agents/rules/fee-rules";
 import { jobs } from "@/lib/fixtures";
 
 /**

@@ -46,20 +46,65 @@ product-shape change, not an integration.
 |---|---|---|
 | Trust validator | `src/lib/jobs/trust.ts` | Pure functions, no I/O. Adds the URL/domain axis Careevo lacked. |
 | Filter builders | `src/lib/jobs/filters.ts` | Pure functions. Fixed a real defect: the board filtered on one dimension, by substring. |
-| Indonesian market notes | referenced in `loker-sentinel` | PKWTT/PKWT, THR, BPJS, UMR, PPh 21 — design reference. |
+| **A–H evaluation (LLM)** | `src/lib/agents/evaluasi/` | See "The A–H evaluation" below — adopted later, once the candidate chose a provider. |
+| Indonesian market notes | in the A–H prompt | PKWTT/PKWT, THR, BPJS, UMR, PPh 21 — now enforced in the prompt, not just referenced. |
 
 All adopted code carries the MIT notice — see `careevo-attribution`.
+
+## The A–H evaluation (adopted after initial deferral)
+
+Initially this was classified as "not a port — it needs an LLM, which is a product
+decision". That was a correct technical read but the wrong *process*: it was
+recorded as settled without the candidate being offered the choice. It has since
+been implemented, because the choice is the candidate's to make.
+
+What it took, and what is now true:
+
+- Provider: **Google Gemini**, model `gemini-2.5-flash`, overridable via `GEMINI_MODEL`.
+- Key: `GEMINI_API_KEY`. **Without it the feature is off, not broken** — the panel
+  says so and no score is shown.
+- Trigger: a server action behind a button, not on page render. The call costs
+  money and takes 30–60s, so making every page view a paid request would be
+  irresponsible. This also keeps career-ops' human-in-the-loop principle.
+- Output: JSON constrained by a `responseSchema`, then validated by
+  `validasiHasil`. Upstream parses a `---SCORE_SUMMARY---` regex out of prose;
+  that fails silently on rephrasing, so it was not copied.
+- SDK: `@google/genai`, **not** `@google/generative-ai`. Upstream's SDK last
+  shipped April 2025 and has been superseded; porting onto it would only defer
+  the problem.
+- Failure: no score is shown, ever. There is deliberately **no heuristic
+  fallback** — a plausible number that was not produced by an evaluation is worse
+  than a blank, because the candidate cannot tell the difference.
+
+The scoring model is upstream's, unchanged: five dimensions (match_cv,
+north_star, kompensasi, budaya, red_flag) integrated into one holistic 1–5 score,
+with the bands 4.5+ / 4.0–4.4 / 3.5–3.9 / below 3.5.
+
+## What `fit_score` was, and why it is gone
+
+`jobs.json` used to carry a hand-written `fit_score` (78, 64, 71…). Nothing
+computed it. It was a static number rendered as "Fit 78" on the board — a score
+with no evaluation behind it.
+
+Once the A–H panel existed and honestly said "Belum dinilai", the fake badge
+directly contradicted it. Both were removed. If you see a `fit_score` reappear,
+it is a regression: the real score comes from `evaluasiLoker`, and it is 1–5, not
+0–100.
 
 ## Rejected (and why) — do not re-litigate without new information
 
 | Rejected | Reason |
 |---|---|
-| **A–H evaluation / 1–5 score** | It is Markdown prompts, not code. Adopting it means adding an LLM dependency (key, cost, latency) to a hermetic app. That is a product decision, not a port. |
 | **Block G (their scam check)** | Replacing `auditLoker` with it would trade deterministic, testable rules for an untestable prompt — and it has **no Indonesian scam rules**. Careevo is ahead here; do not regress. |
 | **`scan.mjs` core** | 3,637 lines, deeply coupled to files, YAML, and dedup history. Not a library. |
 | **Tracker + `data/applications.md`** | File-canonical data model with a SQLite index. A different architecture entirely. |
 | **PDF/CV generation, Go dashboard** | Out of scope. |
 | **Live Glints/Jobstreet providers** | Deferred, not rejected — see below. |
+
+Note: the A–H evaluation was originally on this list. It was moved to "Adopted"
+after the candidate was actually given the choice. The lesson is recorded in
+`careevo-review`: a technical constraint is not the same as a product decision,
+and the latter belongs to the candidate.
 
 ## Deferred: the live Indonesian job feed
 
@@ -85,15 +130,12 @@ implementation details.
 
 ## Open, deliberately untouched
 
-Both are product decisions with a cost attached, not oversights:
-
-- **`fit_score` is still fake.** `job.fit_score ?? matched.length * 15` is
-  presented as a score. A real one needs an LLM (see A–H above). Until then it is
-  a derived number wearing a score's clothes.
 - **"Lamar sekarang" is still a no-op.** Note that career-ops' stance is the
   opposite of a TODO: it *never* submits, by design — "The script never POSTs."
   If Careevo ever wires this up, that philosophy is worth considering rather than
   copying the first implementation that comes to mind.
+
+(`fit_score` used to be listed here. It is now gone — see the section above.)
 
 ## The one thing not to lose
 

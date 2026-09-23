@@ -7,15 +7,13 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
-import { profile } from "@/lib/fixtures";
+import { EvaluasiPanel } from "@/components/features/jobs/evaluasi-panel";
 import { ambilLokerById } from "@/lib/jobs/cache";
 import { labelSinyal } from "@/lib/agents/sentinel";
 
 export const metadata: Metadata = {
   title: "Detail Loker",
 };
-
-const SKILLS = ["HTML", "CSS", "JavaScript", "React", "TypeScript", "Git"];
 
 const TRACKER = ["applied", "reviewed", "interview", "outcome"] as const;
 
@@ -32,9 +30,6 @@ export default async function LokerDetailPage({
   // listing 404s instead of rendering an apply flow for it.
   const job = await ambilLokerById(id);
   if (!job) notFound();
-
-  const matched = job.tags.filter((tag) => SKILLS.includes(tag));
-  const fitScore = job.fit_score ?? matched.length * 15;
 
   return (
     <AppShell session={session} current="/loker">
@@ -112,20 +107,14 @@ export default async function LokerDetailPage({
             <div className="card-head">
               <div>
                 <h2 className="card-title" id="fit-title">
-                  Fit score
+                  Kecocokan A–H
                 </h2>
-                <p className="card-sub">Kecocokan skill kamu vs lowongan, dengan alasan terbuka</p>
+                <p className="card-sub">
+                  Penilaian AI terhadap profilmu: kecocokan CV, target, kompensasi, budaya, red flag
+                </p>
               </div>
-              <span className="score-hero">
-                <b>{fitScore}</b>
-                <span>/100</span>
-              </span>
             </div>
-            <ProgressBar value={fitScore} max={100} tone={fitScore >= 70 ? "ok" : "warn"} label="Fit score" />
-            <p className="caption muted" style={{ marginTop: "0.75rem" }}>
-              Cocok pada {matched.length} tag: {matched.join(", ") || "belum ada"}. Skor skill kamu{" "}
-              {profile.score_total} memperkuat kecocokan.
-            </p>
+            <EvaluasiPanel jobId={job.id} />
           </section>
 
           <section className="card" aria-labelledby="tracker-title">

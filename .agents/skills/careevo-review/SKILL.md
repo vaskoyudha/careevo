@@ -95,7 +95,20 @@ adding a predicate.
 Anything adapted from another project needs the notice in the file header. See
 the `careevo-attribution` skill. This is a licence condition, not politeness.
 
-## 9. Do not add dead code
+## 9. A technical constraint is not a product decision
+
+Recorded because it actually happened: the A–H evaluation was deferred with the
+reasoning "it needs an LLM, which is a product decision, not a port". The
+technical read was correct. The process was not — the decision was recorded as
+settled and the candidate was never offered the choice, so they had to ask twice
+before it was built.
+
+When something is out of scope because of a **cost, key, or product trade-off**,
+say so and ask. Do not classify it as "rejected" on their behalf. The line to
+hold is: if the blocker is technical (cannot be done), decide it. If the blocker
+is a preference (should it be done), ask.
+
+## 10. Do not add dead code
 
 `src/lib/jobs/{ingestor,cache}.ts` sat unused for the project's life. If you
 export something, wire it to a real call site in the same change, or do not add
@@ -107,7 +120,7 @@ grep -rn "mySymbol" src --include='*.ts' --include='*.tsx' | grep -v 'export fun
 
 An empty result means it is dead.
 
-## 10. Shell gotchas that have already bitten
+## 11. Shell gotchas that have already bitten
 
 - **Backticks in a `-m` message are command substitution.** `git commit -m "...\`flags\`..."` silently deletes the word. Use `-F file` or single quotes.
 - **`grep -c` counts lines, not occurrences.** For "how many badges on the page", use `grep -o … | wc -l`.

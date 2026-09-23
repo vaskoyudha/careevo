@@ -22,6 +22,7 @@ Deps use npm (`package-lock.json`); `node_modules` is not checked in — run `np
 `.agents/skills/` holds Agent Skills (`SKILL.md`, [agentskills.io](https://agentskills.io/specification)) that encode this repo's non-obvious knowledge. Read the relevant one before working in its area:
 
 - **`loker-sentinel`** — the job-board audit: verdict policy, the `flags` vs `fee_flags` contract, why verdicts are derived not stored. Read before touching `src/lib/jobs/` or the loker pages.
+- **`loker-evaluasi`** — the A–H LLM evaluation: scoring model, why output is schema-constrained, the failure policy, key handling. Read before touching `src/lib/agents/evaluasi/` or the evaluation panel.
 - **`careevo-review`** — self-review checklist built from real defects that shipped here. Read before committing.
 - **`careevo-attribution`** — MIT notice requirements for code ported from career-ops. Read before adding adapted code.
 - **`career-ops-port`** — what was adopted from career-ops, what was rejected and why. Read before proposing further integration.

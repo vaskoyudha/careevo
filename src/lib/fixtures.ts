@@ -24,7 +24,6 @@ export interface JobSeed {
   level: Level;
   tags: string[];
   salary_range: string | null;
-  fit_score: number | null;
   posted_at: string;
   description: string;
   domain_age_days?: number;

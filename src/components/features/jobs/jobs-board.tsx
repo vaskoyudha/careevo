@@ -142,7 +142,6 @@ export function JobsBoard({ jobs }: { jobs: JobFixture[] }) {
               {job.title}
             </a>
             <span className="row-aside">
-              {job.fit_score !== null ? <span className="mono muted">Fit {job.fit_score}</span> : null}
               <StatusBadge status={job.sentinel_status} />
             </span>
             <span className="row-meta">
