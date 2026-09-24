@@ -43,7 +43,7 @@ function revalidateKurikulum(courseId: string): void {
  *
  * Blok berbentuk bersarang (butir → segmen → penanda), jadi memetakannya ke
  * field datar jauh lebih rapuh daripada mengirim satu nilai JSON — pola yang
- * sama dipakai `soal` pada materi kuis.
+ * sama dipakai `soal` pada kuis (`actions/kuis.ts`).
  *
  * JSON yang cacat **diteruskan apa adanya**, bukan dilempar: dengan begitu
  * skema yang melaporkannya sebagai `fieldErrors.blok`, bukan exception yang

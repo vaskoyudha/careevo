@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   ChevronRight,
   BookOpen,
+  ListChecks,
   UserRound,
 } from "lucide-react";
 
@@ -46,6 +47,7 @@ const STAFF_GROUPS: SidebarNavGroup[] = [
     heading: "Admin",
     items: [
       { href: "/admin/courses", title: "Kelola Kursus", icon: BookOpen },
+      { href: "/admin/kuis", title: "Kelola Kuis", icon: ListChecks },
     ],
   },
   {

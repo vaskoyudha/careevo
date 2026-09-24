@@ -32,17 +32,6 @@ function isiModul(judul: string) {
   return { judul, ringkasan: `Ringkasan untuk ${judul} yang cukup panjang.`, durasi_min: 30 };
 }
 
-function soalContoh() {
-  return [
-    {
-      id: "s1",
-      pertanyaan: "Apa itu closure?",
-      pilihan: ["Fungsi", "Variabel", "Kelas"],
-      jawaban_benar: 0,
-    },
-  ];
-}
-
 /**
  * Materi video ringkas untuk mengisi sebuah modul.
  *
@@ -181,16 +170,16 @@ describe("materi", () => {
   it("menyimpan payload sesuai tipe", async () => {
     const modul = await createModul(COURSE_ID, isiModul("A"));
     const materi = await createMateri(COURSE_ID, modul!.id, {
-      tipe: "kuis",
-      judul: "Kuis akhir",
-      soal: soalContoh(),
-      nilai_lulus: 70,
+      tipe: "pdf",
+      judul: "Materi Latihan",
+      path: "/uploads/courses/crs-1/mod-1/latihan.pdf",
+      ukuran_bytes: 2048,
     });
 
-    expect(materi?.tipe).toBe("kuis");
-    if (materi?.tipe === "kuis") {
-      expect(materi.soal).toHaveLength(1);
-      expect(materi.nilai_lulus).toBe(70);
+    expect(materi?.tipe).toBe("pdf");
+    if (materi?.tipe === "pdf") {
+      expect(materi.path).toBe("/uploads/courses/crs-1/mod-1/latihan.pdf");
+      expect(materi.ukuran_bytes).toBe(2048);
     }
   });
 

@@ -56,9 +56,23 @@ export function namaBerkasTersanitasi(namaAsli: string, ekstensi: string): strin
   return `${base}-${sufiks}${ekstensi}`;
 }
 
-/** Ekstensi yang diizinkan untuk sebuah MIME, atau `null` bila tidak diizinkan. */
+/**
+ * Ekstensi yang diizinkan untuk sebuah MIME, atau `null` bila tidak diizinkan.
+ *
+ * `Object.hasOwn` wajib ada di sini, bukan sekadar kehati-hatian. `EKSTENSI_PER_MIME`
+ * adalah objek literal, jadi ia mewarisi `Object.prototype`; lookup bracket polos
+ * (`EKSTENSI_PER_MIME[kunci]`) akan MENGEMBALIKAN FUNGSI untuk kunci seperti
+ * `constructor` atau mengembalikan objek untuk `__proto__`. Pemeriksaan
+ * `if (!ekstensi)` tidak menangkapnya karena keduanya truthy, sehingga
+ * Content-Type "constructor" lolos daftar putih dan nilainya terinterpolasi ke
+ * nama berkas sebagai teks tanpa ekstensi — daftar putih MIME buyar total.
+ *
+ * Parameter MIME dipotong lebih dulu: `image/png; charset=utf-8` adalah bentuk
+ * HTTP yang sah, dan tanpa pemotongan ini ia ditolak hanya karena ekor parameter.
+ */
 export function ekstensiUntukMime(mime: string): string | null {
-  return EKSTENSI_PER_MIME[mime.toLowerCase()] ?? null;
+  const kunci = mime.split(";")[0].trim().toLowerCase();
+  return Object.hasOwn(EKSTENSI_PER_MIME, kunci) ? EKSTENSI_PER_MIME[kunci] : null;
 }
 
 /** Ukuran dalam satuan yang enak dibaca untuk pesan galat. */
@@ -88,6 +102,21 @@ export async function POST(request: Request): Promise<Response> {
   }
   if (!isStaffRole(sesi.role)) {
     return galat(403, "Hanya verifikator atau admin yang boleh mengunggah berkas.");
+  }
+
+  // Tolak berdasarkan Content-Length SEBELUM `formData()` dipanggil. Batas 8 MB
+  // di bawah tidak menolong di sini: `formData()` sudah membaca habis dan
+  // menampung seluruh body di memori, jadi berkas berukuran ratusan MB sempat
+  // dialokasikan sebelum `berkas.size` bisa diperiksa. Beberapa permintaan
+  // paralel cukup untuk menghabiskan heap. `bodySizeLimit` di next.config.ts
+  // TIDAK menutup celah ini — opsi itu hanya berlaku untuk Server Action, bukan
+  // route handler. Toleransi 64 KB memberi ruang untuk boundary dan header part.
+  const panjangKonten = Number(request.headers.get("content-length") ?? "0");
+  if (Number.isFinite(panjangKonten) && panjangKonten > MAKS_UKURAN_BYTE + 64 * 1024) {
+    return galat(
+      413,
+      `Ukuran unggahan (${formatUkuran(panjangKonten)}) melebihi batas maksimum ${formatUkuran(MAKS_UKURAN_BYTE)}.`,
+    );
   }
 
   let form: FormData;
