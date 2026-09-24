@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronRight, Search, Star, ArrowRight, Rocket, TrendingUp, Binoculars } from "lucide-react";
@@ -319,38 +319,6 @@ function CourseraCourseCard({ resource }: { resource: EntriSumber }) {
   );
 }
 
-function CarouselRow({ children, label }: { children: React.ReactNode; label: string }) {
-  const scroller = useRef<HTMLDivElement>(null);
-  const scroll = (dir: -1 | 1) =>
-    scroller.current?.scrollBy({ left: dir * 320, behavior: "smooth" });
-
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        aria-label={`${label} sebelumnya`}
-        onClick={() => scroll(-1)}
-        className="absolute -left-4 top-1/2 z-10 hidden size-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-gray-300 bg-white text-gray-700 shadow-md transition-colors hover:bg-gray-50 active:scale-95 sm:flex"
-      >
-        ‹
-      </button>
-      <button
-        type="button"
-        aria-label={`${label} berikutnya`}
-        onClick={() => scroll(1)}
-        className="absolute -right-4 top-1/2 z-10 hidden size-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-gray-300 bg-white text-gray-700 shadow-md transition-colors hover:bg-gray-50 active:scale-95 sm:flex"
-      >
-        ›
-      </button>
-      <div
-        ref={scroller}
-        className="flex gap-4 overflow-x-auto pb-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
 
 const HERO_BENTO_SLIDES = [
   {
@@ -577,16 +545,6 @@ function PartnersBar() {
   );
 }
 
-const POPULAR_TABS = [
-  { label: "Paling populer", filter: (r: ResourceFixture) => r.completed },
-  { label: "Rilis baru", filter: (r: ResourceFixture) => !r.completed },
-  {
-    label: "Kursus AI & data",
-    filter: (r: ResourceFixture) =>
-      r.tags.some((t) => /algoritma|interview|api|testing|ai|data|python/i.test(t)),
-  },
-] as const;
-
 const ROLE_TABS = [
   "AI Engineer",
   "Software Developer",
@@ -661,10 +619,131 @@ interface CompactCardItem {
   org: string;
   orgLogo: string;
   type: string;
-  rating: string;
+  rating?: string;
   thumbnail: string;
   href: string;
 }
+
+const NEW_AND_POPULAR_COLUMNS: {
+  category: string;
+  categoryHref: string;
+  items: CompactCardItem[];
+}[] = [
+  {
+    category: "Most popular",
+    categoryHref: "#katalog",
+    items: [
+      {
+        title: "Google Data Analytics",
+        org: "Google",
+        orgLogo:
+          "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+        type: "Professional Certificate",
+        rating: "4.8",
+        thumbnail:
+          "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/60/097644c12e4aeba0c3420de571cac1/GCC-Coursera-thumbnail-DA-foundations-tony-cert-level.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50&crop=focalpoint&fp-y=0.48",
+        href: "/belajar/crs-4",
+      },
+      {
+        title: "IBM Data Analyst",
+        org: "IBM",
+        orgLogo:
+          "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/7iLJYdbTLExBFAgVoHe2Pc/1735062f2f3a6df1dca8cfd9f1815098/ibm-logo.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+        type: "Professional Certificate",
+        rating: "4.6",
+        thumbnail:
+          "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/6a/48f4bf23504f7a93b4a2ebfc6d6ea2/Data-Analyst.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50",
+        href: "/belajar/crs-2",
+      },
+      {
+        title: "Google AI",
+        org: "Google",
+        orgLogo:
+          "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+        type: "Professional Certificate",
+        rating: "4.8",
+        thumbnail:
+          "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://coursera-course-photos.s3.amazonaws.com/64/1dd26fb7e24637b91b119764d08e01/GCC-Coursera-thumbnail-DA-foundations-tony.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50&crop=faces",
+        href: "/belajar/r1",
+      },
+    ],
+  },
+  {
+    category: "Hot new releases",
+    categoryHref: "#katalog",
+    items: [
+      {
+        title: "The Complete Claude Code & Claude Cowork Masterclass",
+        org: "Dr. Ryan Ahmed",
+        orgLogo:
+          "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/8e/7ca56107974898be41dca49b5aff74/Digital_360x360.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+        type: "Specialization",
+        thumbnail:
+          "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/26/26ea676ea74cf09e0540737ab855b8/Coursera_Specialization_600x600.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=64&fit=clip&q=50",
+        href: "/belajar/r3",
+      },
+      {
+        title: "AWS Security Engineer Advanced",
+        org: "Amazon Web Services",
+        orgLogo:
+          "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/a4/7cd68a658840ddbb95c38cdd0bbc8e/aws-logo-icon-PNG-Transparent-Background.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+        type: "Professional Certificate",
+        thumbnail:
+          "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/de/1d3ba587274f8cb6694947d8f76fef/AWS_logo_square_1200x1200.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=64&fit=clip&q=50",
+        href: "/belajar/r7",
+      },
+      {
+        title: "Microsoft Data Analysis with SQL, Excel & Power BI",
+        org: "Microsoft",
+        orgLogo:
+          "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/cc/61dbdf2c1c475d82d3b8bf8eee1bda/MSFT-stacked-logo_FINAL.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+        type: "Specialization",
+        rating: "4.6",
+        thumbnail:
+          "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/8c/625f6802494c73be844b9e745d4d4d/Microsoft-Data-Analysis-with-SQL-Excel-Power-BI.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=64&fit=clip&q=50",
+        href: "/belajar/r12",
+      },
+    ],
+  },
+  {
+    category: "Trending AI courses",
+    categoryHref: "#katalog",
+    items: [
+      {
+        title: "AWS Generative AI Developer Advanced",
+        org: "Amazon Web Services",
+        orgLogo:
+          "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/a4/7cd68a658840ddbb95c38cdd0bbc8e/aws-logo-icon-PNG-Transparent-Background.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+        type: "Professional Certificate",
+        thumbnail:
+          "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/e4/71610c146f478c82f76469455e1080/AWS_logo_square_1200x1200.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=64&fit=clip&q=50",
+        href: "/belajar/r9",
+      },
+      {
+        title: "Machine Learning",
+        org: "Multiple educators",
+        orgLogo:
+          "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/b4/5cb90bb92f420b99bf323a0356f451/Icon.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+        type: "Specialization",
+        rating: "4.9",
+        thumbnail:
+          "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/3a/9d2a7af297483a845340bcfbac6f1e/MLS.course-banners-01_Course-Logo-.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=64&fit=clip&q=50",
+        href: "/belajar/r2",
+      },
+      {
+        title: "Google AI Essentials",
+        org: "Google",
+        orgLogo:
+          "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+        type: "Specialization",
+        rating: "4.8",
+        thumbnail:
+          "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/07/eced232a07415eb3d77c788ae5754e/AIE.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50&crop=focalpoint&fp-y=0.48",
+        href: "/belajar/r1",
+      },
+    ],
+  },
+];
 
 const TRENDING_COLUMNS: {
   category: string;
@@ -898,7 +977,6 @@ export function BelajarHome({
   queryAwal?: string;
 }) {
   const [query, setQuery] = useState(queryAwal);
-  const [popularTab, setPopularTab] = useState(0);
   const [role, setRole] = useState<(typeof ROLE_TABS)[number]>("Software Developer");
   const [goal, setGoal] = useState<string>("Start my career");
   const [openFaq, setOpenFaq] = useState<number | null>(0);
@@ -913,12 +991,6 @@ export function BelajarHome({
       [r.title, r.provider, ...r.tags].join(" ").toLowerCase().includes(q)
     );
   }, [resources, query]);
-
-  const popular = useMemo(
-    () => resources.filter(POPULAR_TABS[popularTab].filter),
-    [resources, popularTab]
-  );
-  const popularList = (popular.length > 0 ? popular : resources).slice(0, 8);
 
   const roleList = useMemo(() => {
     const keyword: Record<string, RegExp> = {
@@ -1025,43 +1097,80 @@ export function BelajarHome({
         </section>
       ) : null}
 
+      {/* New and popular — Coursera 3-Column Compact Collections */}
       <section aria-labelledby="baru-populer" className="bg-white py-12">
         <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <h2 id="baru-populer" className="text-2xl font-bold tracking-tight text-[#1f1f1f] sm:text-3xl">
-                Baru dan populer
-              </h2>
-              <p className="mt-1.5 text-sm text-gray-600">
-                Pilihan kursus teratas minggu ini dari universitas dan mitra industri Careevo.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-2" aria-label="Filter populer">
-              {POPULAR_TABS.map((t, idx) => (
-                <button
-                  key={t.label}
-                  type="button"
-                  aria-pressed={popularTab === idx}
-                  onClick={() => setPopularTab(idx)}
-                  className={cn(
-                    "cursor-pointer rounded-full px-4 py-2 text-xs font-semibold transition-colors active:scale-95 sm:text-sm",
-                    popularTab === idx
-                      ? "bg-[#0056D2] text-white shadow-xs"
-                      : "border border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50"
-                  )}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
+          <div className="mb-6">
+            <h2 id="baru-populer" className="text-2xl font-bold tracking-tight text-[#1f1f1f] sm:text-3xl">
+              New and popular
+            </h2>
           </div>
 
-          <CarouselRow label="Katalog populer">
-            {popularList.map((r) => (
-              <CourseraCourseCard key={r.id} resource={r} />
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {NEW_AND_POPULAR_COLUMNS.map((col) => (
+              <div key={col.category} className="flex flex-col rounded-2xl bg-[#E3EEFF] p-5">
+                <Link
+                  href={col.categoryHref}
+                  className="group mb-4 inline-flex items-center text-base font-bold text-[#111827] hover:text-[#0056D2]"
+                >
+                  <span>{col.category}</span>
+                  <span className="ml-1.5 transition-transform group-hover:translate-x-1">→</span>
+                </Link>
+
+                <div className="flex flex-col gap-3">
+                  {col.items.map((item) => (
+                    <Link
+                      key={item.title}
+                      href={item.href}
+                      className="group flex items-center gap-3.5 rounded-xl border border-transparent bg-white p-3 shadow-2xs transition-all duration-200 hover:border-gray-200 hover:shadow-xs active:scale-[0.98]"
+                    >
+                      <div className="relative size-16 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                        <Image
+                          src={item.thumbnail}
+                          alt={item.title}
+                          fill
+                          sizes="64px"
+                          className="object-cover"
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <div className="relative size-3.5 shrink-0 overflow-hidden">
+                            <Image
+                              src={item.orgLogo}
+                              alt={item.org}
+                              fill
+                              sizes="14px"
+                              className="object-contain"
+                            />
+                          </div>
+                          <span className="truncate text-xs font-normal text-[#4B5563]">
+                            {item.org}
+                          </span>
+                        </div>
+                        <h4
+                          className="mt-0.5 line-clamp-2 text-xs sm:text-sm font-bold text-[#111827] leading-snug group-hover:text-[#0056D2]"
+                          title={item.title}
+                        >
+                          {item.title}
+                        </h4>
+                        <div className="mt-1 flex items-center gap-1 text-xs text-[#4B5563]">
+                          <span>{item.type}</span>
+                          {item.rating && (
+                            <>
+                              <span className="text-gray-400">·</span>
+                              <Star className="size-3 fill-amber-500 text-amber-500 shrink-0 inline-block" />
+                              <span className="font-semibold text-gray-900">{item.rating}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
             ))}
-          </CarouselRow>
+          </div>
         </div>
       </section>
 
