@@ -24,6 +24,7 @@ import type { KebijakanCourse } from "@/types/course";
  * Bentuknya sengaja minimal — hanya field yang benar-benar dihitung panel.
  */
 export interface KejadianSesi {
+  at: string;
   jenis: KJenisKejadian;
   jenis_klasifikasi: "kejadian" | "celah";
   visibilitas: "visible" | "hidden" | null;
@@ -101,6 +102,7 @@ function ringkas(daftar: KejadianSesi[]): { kejadian: number; celah: number } {
  */
 function kejadianDariRun(run: {
   kejadian: ReadonlyArray<{
+    at: string;
     jenis: KJenisKejadian;
     jenis_klasifikasi?: "kejadian" | "celah";
     visibilitas: "visible" | "hidden" | null;
@@ -108,6 +110,7 @@ function kejadianDariRun(run: {
   }>;
 }): KejadianSesi[] {
   return run.kejadian.map((k) => ({
+    at: k.at,
     jenis: k.jenis,
     visibilitas: k.visibilitas,
     jenis_klasifikasi: k.jenis_klasifikasi ?? klasifikasiKejadian(k.jenis, k.visibilitas),
