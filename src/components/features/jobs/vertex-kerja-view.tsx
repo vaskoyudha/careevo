@@ -347,8 +347,8 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
           <div className="absolute inset-0 z-0 bg-[size:12px_12px] [background-image:repeating-linear-gradient(315deg,rgba(0,0,0,0.04)_0_1px,transparent_0_50%)] [mask-image:radial-gradient(ellipse_85%_80%_at_50%_40%,black_40%,transparent_92%)]" />
           <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_85%_75%_at_50%_35%,rgba(255,255,255,0.85)_0%,rgba(255,255,255,0.35)_55%,transparent_85%)]" />
 
-          {/* Layer 2: Wallpaper Background (Precise full width fit, moved down further, zero zoom) */}
-          <div className="relative z-10 top-10 sm:top-14 md:top-20 h-[760px] sm:h-[860px] md:h-[960px] w-full overflow-hidden">
+          {/* Layer 2: Wallpaper Background (Full original sky restored, flush to top edge, no top crop) */}
+          <div className="absolute inset-x-0 top-0 z-10 h-[850px] sm:h-[950px] md:h-[1050px] w-full overflow-hidden">
             <Image
               src="/images/hero-loker-header.png"
               alt="Careevo header visual"
@@ -358,7 +358,7 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
               className="object-cover object-top opacity-100"
             />
             {/* Gentle white fading on the bottom edge to blend into page body */}
-            <div className="absolute inset-x-0 bottom-0 h-44 sm:h-60 bg-gradient-to-t from-white via-white/80 to-transparent" />
+            <div className="absolute inset-x-0 bottom-0 h-44 sm:h-64 bg-gradient-to-t from-white via-white/80 to-transparent" />
           </div>
         </div>
 
