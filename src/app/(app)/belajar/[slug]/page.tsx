@@ -7,6 +7,7 @@ import { cariEntri, katalogBelajar } from "@/lib/courses/katalog";
 import { modulUntukSumber } from "@/lib/courses/modul-resolver";
 import { cariPendaftaran } from "@/lib/courses/enrollment";
 import { getCourseById } from "@/lib/courses/store";
+import { kebijakanDefault } from "@/lib/courses/kebijakan";
 import { tasks } from "@/lib/fixtures";
 
 export async function generateMetadata({
@@ -89,6 +90,10 @@ export default async function DetailKursusPage({
         selesaiAwal={pendaftaran?.selesai_modul ?? []}
         terkait={terkait}
         tugas={tugas ? { id: tugas.id, title: tugas.title, brief: tugas.brief } : null}
+        // Kebijakan tersimpan dibaca apa adanya; kursus yang belum pernah
+        // disunting kebijakannya jatuh ke default aman (`aturan_pengawasan:
+        // "wajib"`) supaya gerbang tidak diam-diam terbuka.
+        kebijakan={kursusAsli?.kebijakan ?? kebijakanDefault()}
       />
     </LearnerShell>
   );

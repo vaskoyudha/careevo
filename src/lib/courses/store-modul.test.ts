@@ -82,6 +82,27 @@ describe("createModul", () => {
     const b = await createModul(COURSE_ID, isiModul("B"));
     expect(a?.id).not.toBe(b?.id);
   });
+
+  it("memberi checkpoint default saat modul dibuat", async () => {
+    // Course baru harus aman secara default: tanpa checkpoint tersimpan,
+    // learner tidak punya batas pengerjaan sama sekali. Nilai defaultnya harus
+    // sama persis dengan `CHECKPOINT_DEFAULT` di `learning/akses.ts`.
+    const modul = await createModul(COURSE_ID, isiModul("Default"));
+
+    expect(modul?.checkpoint?.mode).toBe("materi");
+    expect(modul?.checkpoint?.batas_waktu_menit).toBe(30);
+  });
+
+  it("menghormati checkpoint yang dikirim saat modul dibuat", async () => {
+    const modul = await createModul(COURSE_ID, {
+      ...isiModul("Pilihan"),
+      checkpoint: { mode: "proyek", batas_waktu_menit: 90, ref: "mat-1" },
+    });
+
+    expect(modul?.checkpoint?.mode).toBe("proyek");
+    expect(modul?.checkpoint?.batas_waktu_menit).toBe(90);
+    expect(modul?.checkpoint?.ref).toBe("mat-1");
+  });
 });
 
 describe("updateModul", () => {
@@ -92,6 +113,34 @@ describe("updateModul", () => {
     expect(hasil?.judul).toBe("Diubah");
     expect(hasil?.ringkasan).toBe(dibuat?.ringkasan);
     expect(hasil?.durasi_min).toBe(dibuat?.durasi_min);
+  });
+
+  it("menyimpan checkpoint pilihan admin", async () => {
+    const dibuat = await createModul(COURSE_ID, isiModul("Checkpoint"));
+
+    const hasil = await updateModul(COURSE_ID, dibuat!.id, {
+      checkpoint: { mode: "kuis", batas_waktu_menit: 15, ref: "mat-9" },
+    });
+
+    expect(hasil?.checkpoint?.mode).toBe("kuis");
+    expect(hasil?.checkpoint?.batas_waktu_menit).toBe(15);
+    expect(hasil?.checkpoint?.ref).toBe("mat-9");
+
+    // Bertahan di penyimpanan, bukan hanya di nilai balik.
+    const dibaca = await getModul(COURSE_ID, dibuat!.id);
+    expect(dibaca?.checkpoint?.mode).toBe("kuis");
+  });
+
+  it("tidak menghapus checkpoint saat field lain diubah", async () => {
+    const dibuat = await createModul(COURSE_ID, isiModul("Bertahan"));
+    await updateModul(COURSE_ID, dibuat!.id, {
+      checkpoint: { mode: "kuis", batas_waktu_menit: 15 },
+    });
+
+    const hasil = await updateModul(COURSE_ID, dibuat!.id, { judul: "Judul Baru" });
+
+    expect(hasil?.checkpoint?.mode).toBe("kuis");
+    expect(hasil?.checkpoint?.batas_waktu_menit).toBe(15);
   });
 
   it("mengembalikan null untuk modul yang tidak ada", async () => {

@@ -42,8 +42,9 @@ export function MarketingFooter() {
                 </Link>
                 <p className="text-base text-gray-500 lg:pr-10">
                   Jembatan terverifikasi dari course ke pekerjaan pertama.
-                  Proses belajar terekam, hasil ditandatangani, loker diaudit,
-                  tanpa biometrik.
+                  Proses belajar terekam, hasil ditandatangani, loker diaudit.
+                  Kamera dirancang aktif di dalam sesi terverifikasi yang kamu
+                  setujui, dan belum berjalan di aplikasi ini — tanpa deteksi identitas.
                 </p>
               </div>
             </div>

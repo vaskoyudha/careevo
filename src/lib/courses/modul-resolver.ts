@@ -40,6 +40,9 @@ function dariTersimpan(modul: Modul[], urlKursus: string, bank: Kuis[]): ModulKu
       // dihapus) otomatis gugur lewat `kuisUntukModul`, jadi UI tidak pernah
       // menerima referensi yang tidak bisa dirender.
       kuis: kuisUntukModul(m, bank),
+      // Checkpoint juga harus ikut: kalau tidak, gerbang learner akan memakai
+      // default dan mengabaikan aturan pengerjaan yang dipilih admin.
+      checkpoint: m.checkpoint,
     }));
 }
 

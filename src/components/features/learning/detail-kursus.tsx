@@ -5,11 +5,20 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { ModulKursus } from "@/lib/courses/kurikulum";
 import { hitungProgres, irisModulSelesai } from "@/lib/courses/kurikulum";
+import { checkpointEfektif, checkpointTerverifikasi, wajibSesiTerverifikasi } from "@/lib/learning/akses";
 import { daftarKursusAction, tandaiModulAction } from "@/actions/enrollment";
+import { selesaikanMateriAction } from "@/actions/learning";
 import { MateriView } from "./materi-view";
 import { HalamanView } from "./halaman-view";
+import {
+  CourseSessionGate,
+  CourseSessionIndicator,
+  CourseSessionProvider,
+  useCourseSession,
+} from "./course-session";
+import { KejadianPanel } from "./kejadian-panel";
 import { KuisView } from "./kuis-view";
-import type { TipeMateri } from "@/types/course";
+import type { KebijakanCourse, TipeMateri } from "@/types/course";
 
 const LABEL_TIPE: Record<TipeMateri, string> = {
   video: "Video",
@@ -56,7 +65,52 @@ function rupiah(nilai: number) {
   }).format(nilai);
 }
 
+/**
+ * Bungkus ruang belajar dengan provider sesi.
+ *
+ * `kebijakan` diteruskan dari server: provider memakainya untuk memutuskan akses
+ * kegiatan (`putuskanAkses`). Nilai datang lewat prop, bukan dibaca di klien,
+ * supaya mesin keputusan klien dan server memakai kebijakan yang sama.
+ */
 export function DetailKursus({
+  kursus,
+  modul,
+  terdaftar,
+  selesaiAwal,
+  terkait,
+  tugas,
+  kebijakan,
+}: {
+  kursus: DetailKursusData;
+  modul: ModulKursus[];
+  terdaftar: boolean;
+  selesaiAwal: string[];
+  terkait: KursusTerkait[];
+  tugas: TugasTerkait | null;
+  kebijakan: KebijakanCourse;
+}) {
+  return (
+    <CourseSessionProvider courseId={kursus.id} kebijakan={kebijakan}>
+      <RuangBelajar
+        kursus={kursus}
+        modul={modul}
+        terdaftar={terdaftar}
+        selesaiAwal={selesaiAwal}
+        terkait={terkait}
+        tugas={tugas}
+      />
+    </CourseSessionProvider>
+  );
+}
+
+/**
+ * Isi ruang belajar: kurikulum, panel pendaftaran, dan bagian terkait.
+ *
+ * Dipisah dari `DetailKursus` karena butuh `useCourseSession()`: provider harus
+ * berada di atas komponen yang membaca konteksnya, jadi pembacaannya harus
+ * berada di anak provider, bukan di komponen yang merender provider.
+ */
+function RuangBelajar({
   kursus,
   modul,
   terdaftar,
@@ -85,6 +139,36 @@ export function DetailKursus({
    */
   const [modulTerbuka, setModulTerbuka] = useState<string | null>(null);
   /**
+   * Keputusan akses kegiatan "materi" (lampiran), dihitung **saat render**.
+   *
+   * Sengaja tidak disimpan di state: keputusannya bergantung pada bukti sesi
+   * yang bisa berubah kapan saja (sesi dimulai/diakhiri). Menyalinnya ke state
+   * berarti gerbang bisa tertinggal menutup lampiran yang sudah sah dan
+   * sebaliknya — dan menyinkronkannya lewat effect malah menambah render
+   * berantai. `boleh` sendiri dimemo oleh provider.
+   */
+  const { boleh, kebijakan, bukti } = useCourseSession();
+  const keputusanLampiran = boleh("materi");
+  /**
+   * Apakah course ini mewajibkan penyelesaian lewat sesi terverifikasi.
+   *
+   * Hanya sifat **kebijakan**, bukan ketersediaan bukti saat ini: `bukti` sengaja
+   * tidak dibaca di sini. Kalau klien memilih jalur berdasarkan ada/tidaknya
+   * bukti, jalur terverifikasi justru hanya terpilih saat bukti **tidak** ada —
+   * peserta yang sudah memulai sesi dibelokkan ke penandaan informal (gerbang
+   * server dilewati), dan peserta tanpa bukti dikirim ke action terverifikasi
+   * dengan bukti kosong yang selalu ditolaknya, sehingga modulnya mustahil
+   * diselesaikan. Karena itu klien tidak menyaring sama sekali: ia hanya
+   * *merutekan* ke action yang memverifikasi, dan server yang memutuskan —
+   * dengan bukti, permintaan berhasil; tanpa bukti, server menjawab
+   * `PESAN_POLICY.wajib` sebagai pesan gerbang yang jelas.
+   *
+   * Dipakai bersama `selesaikanMateriAction` supaya definisi "wajib" hanya ada
+   * satu; di sini ia dipasangkan dengan `checkpointEfektif(modul).mode` untuk
+   * memilih jalur per modul.
+   */
+  const wajibSesiMateri = wajibSesiTerverifikasi(kebijakan);
+  /**
    * Halaman yang sedang dibaca di dalam modul yang terbuka.
    *
    * Disimpan sebagai state, bukan diturunkan dari URL: pager halaman berada di
@@ -104,18 +188,68 @@ export function DetailKursus({
       if (hasil.ok) setSudahDaftar(true);
     });
 
-  const tandai = (modulId: string, sudah: boolean) =>
+  /**
+   * Tandai/batalkan satu modul selesai.
+   *
+   * Dua jalur sengaja, dipilih **saat klik** (bukan disimpan di state, supaya
+   * perubahan sesi tidak membuat state basi memilih jalur yang salah):
+   *
+   * - Moderasi `wajib` + checkpoint `materi` → `selesaikanMateriAction`, satu-
+   *   satunya jalur yang memverifikasi bukti sesi di server. Klien **tidak**
+   *   memeriksa ada/tidaknya bukti sebelum memilih jalur: kalau ia menyaring,
+   *   peserta yang belum memenuhi syarat justru lolos lewat jalur informal
+   *   (gerbang Task 7 jadi hiasan) dan peserta yang sudah memenuhi syarat
+   *   ditolak. Hasilnya ditentukan server: bukti sah → modul selesai; tanpa
+   *   bukti → server menolak dengan pesan gerbangnya sendiri (`PESAN_POLICY.wajib`)
+   *   dan modul tetap belum selesai. Di jalur ini tidak ada penulisan
+   *   optimistis — hanya `hasil.ok` yang menambah centang.
+   * - Sisanya — checkpoint `kuis`/`proyek`, kursus `opsional`, atau pembatalan
+   *   (`sudah === true`) → jalur informal `tandaiModulAction`, supaya modul
+   *   kuis tetap tersimpan sebagai progres informal dan kursus non-verifikasi
+   *   tidak berubah perilakunya. Pembatalan tidak punya jalur terverifikasi:
+   *   action itu hanya menandai selesai, jadi mengoreksi tanda harus tetap
+   *   mungkin lewat jalur informal.
+   *
+   * Jadi jalur informal hanya untuk `opsional`, checkpoint `kuis`/`proyek`, dan
+   * pembatalan; setiap penyelesaian `materi` di course `wajib` diperiksa server.
+   */
+  const tandai = (modul: ModulKursus, sudah: boolean) =>
     startTransition(async () => {
-      setModulSibuk(modulId);
-      setSelesai((daftar) =>
-        sudah ? daftar.filter((id) => id !== modulId) : [...daftar, modulId],
-      );
-      const hasil = await tandaiModulAction(kursus.id, modulId);
-      setModulSibuk(null);
-      if (!hasil.ok) {
+      // Kedua suku murni soal kebijakan/checkpoint; tidak ada pemeriksaan bukti
+      // di klien. Konsekuensinya jalur informal hanya untuk `opsional`,
+      // checkpoint non-`materi`, dan pembatalan — persis kontrak di atas.
+      const wajibTerverifikasi = wajibSesiMateri && checkpointTerverifikasi(checkpointEfektif(modul));
+      // Modul yang belum tuntas tidak bisa "dibatalkan" lewat jalur
+      // terverifikasi: action itu hanya menandai selesai. Pembatalan tetap
+      // informal supaya peserta masih bisa mengoreksi tandanya.
+      if (!wajibTerverifikasi || sudah) {
+        setModulSibuk(modul.id);
         setSelesai((daftar) =>
-          sudah ? [...daftar, modulId] : daftar.filter((id) => id !== modulId),
+          sudah ? daftar.filter((id) => id !== modul.id) : [...daftar, modul.id],
         );
+        const hasil = await tandaiModulAction(kursus.id, modul.id);
+        setModulSibuk(null);
+        if (!hasil.ok) {
+          setSelesai((daftar) =>
+            sudah ? [...daftar, modul.id] : daftar.filter((id) => id !== modul.id),
+          );
+          setPesan(hasil.error ?? null);
+        }
+        return;
+      }
+
+      // Jalur terverifikasi: bukti sesi dari provider diteruskan apa adanya.
+      // Bukti kosong bukan alasan mengganti jalur — server yang menolak, dan
+      // pesannya dipakai apa adanya; klien bukan penjaga otoritatif.
+      const hasil = await selesaikanMateriAction({
+        courseId: kursus.id,
+        modulId: modul.id,
+        bukti: bukti ?? "",
+      });
+      if (hasil.ok) {
+        setSelesai((daftar) => [...daftar, modul.id]);
+        setPesan(null);
+      } else {
         setPesan(hasil.error ?? null);
       }
     });
@@ -188,6 +322,16 @@ export function DetailKursus({
               {jumlahHalaman > 0 ? ` · ${jumlahHalaman} halaman` : ""}
               {terdaftar ? "" : " · daftar untuk menyimpan progres"}
             </p>
+            <div className="mb-4">
+              <CourseSessionIndicator />
+              {/* Panel kejadian tepat di bawah indikator: indikator menjawab
+                  "sesi saya berjalan?", panel menjawab "apa yang tercatat?".
+                  Panel menyembunyikan dirinya sendiri saat tidak relevan
+                  (`status !== "aktif"` dan tanpa celah). */}
+              <div className="mt-3">
+                <KejadianPanel />
+              </div>
+            </div>
             <ol className="space-y-3">
               {modul.map((m, index) => {
                 const sudah = selesai.includes(m.id);
@@ -237,7 +381,14 @@ export function DetailKursus({
                           {punyaIsi ? (
                             <button
                               type="button"
-                              onClick={() => setModulTerbuka(terbuka ? null : m.id)}
+                              onClick={() => {
+                                // Modul selalu boleh dibuka: halaman berformatnya
+                                // bebas dibaca. Yang digerbang hanya lampiran,
+                                // dan itu diputuskan `keputusanLampiran` di
+                                // bagian render — supaya sesi yang baru dimulai
+                                // langsung membuka lampiran tanpa state basi.
+                                setModulTerbuka(terbuka ? null : m.id);
+                              }}
                               aria-expanded={terbuka}
                               className="cursor-pointer font-medium text-[#0056D2] hover:underline"
                             >
@@ -258,7 +409,7 @@ export function DetailKursus({
                       {sudahDaftar ? (
                         <button
                           type="button"
-                          onClick={() => tandai(m.id, sudah)}
+                          onClick={() => tandai(m, sudah)}
                           disabled={pending || modulSibuk === m.id}
                           aria-pressed={sudah}
                           className={cn(
@@ -299,17 +450,21 @@ export function DetailKursus({
                             <p className="text-[11px] font-semibold tracking-wider text-gray-500 uppercase">
                               Lampiran
                             </p>
-                            {daftarMateri.map((materi) => (
-                              <div key={materi.id}>
-                                <p className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-gray-700">
-                                  <span className="inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-[#0056D2] uppercase">
-                                    {LABEL_TIPE[materi.tipe]}
-                                  </span>
-                                  {materi.judul}
-                                </p>
-                                <MateriView materi={materi} />
-                              </div>
-                            ))}
+                            {keputusanLampiran.tipe === "bebas" ? (
+                              daftarMateri.map((materi) => (
+                                <div key={materi.id}>
+                                  <p className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-gray-700">
+                                    <span className="inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-[#0056D2] uppercase">
+                                      {LABEL_TIPE[materi.tipe]}
+                                    </span>
+                                    {materi.judul}
+                                  </p>
+                                  <MateriView materi={materi} />
+                                </div>
+                              ))
+                            ) : (
+                              <CourseSessionGate pesan={keputusanLampiran.pesan} />
+                            )}
                           </div>
                         ) : null}
                       </div>

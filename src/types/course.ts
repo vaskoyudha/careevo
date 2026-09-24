@@ -23,6 +23,14 @@ export interface Course {
   cover_image?: string;
   /** Kurikulum tersimpan. Kosong/absen = pakai modul turunan `modulKursus()`. */
   modul?: Modul[];
+  /**
+   * Kebijakan asesmen tersimpan. Absen = default aman (`kebijakanDefault()`).
+   *
+   * Kursus lama yang belum pernah disunting kebijakannya tidak membawa field
+   * ini; pembaca wajib jatuh ke `kebijakanDefault()` agar gerbang sesi tidak
+   * diam-diam terbuka.
+   */
+  kebijakan?: KebijakanCourse;
   created_at: string;
   updated_at: string;
 }
@@ -136,6 +144,8 @@ export interface Modul {
    * `kuisUntukModul()` mengabaikan id yang tidak ketemu.
    */
   kuis?: string[];
+  /** Aturan pengerjaan modul ini. Absen = kebijakan default kursus. */
+  checkpoint?: CheckpointMateri;
   created_at: string;
   updated_at: string;
 }
@@ -235,7 +245,21 @@ export type CreateCourseInput = {
   cover_image?: string;
 };
 
-export type UpdateCourseInput = Partial<CreateCourseInput>;
+/**
+ * Perubahan kebijakan asesmen yang dikirim pemanggil.
+ *
+ * Hanya dua aturan yang boleh diubah manusia: `versi` dan
+ * `aturan_pengawasan_sejak` adalah konsekuensi penyimpanan, bukan pilihan —
+ * menerimanya dari klien akan membiarkan pemanggil memalsukan versi bukti.
+ */
+export type CourseKebijakanInput = Partial<
+  Pick<KebijakanCourse, "aturan_bantuan" | "aturan_pengawasan">
+>;
+
+export type UpdateCourseInput = Partial<CreateCourseInput> & {
+  /** Bila ada, store menaikkan `versi` dan menstempel waktu berlaku aturan. */
+  kebijakan?: CourseKebijakanInput;
+};
 
 export interface CreateModulInput {
   judul: string;
@@ -251,6 +275,11 @@ export interface CreateModulInput {
    * `undefined`/`0` berarti modul dibuat tanpa halaman.
    */
   jumlah_halaman?: number;
+  /**
+   * Aturan pengerjaan modul. Kosong = store memakai default aman
+   * (`{ mode: "materi", batas_waktu_menit: 30 }`).
+   */
+  checkpoint?: CheckpointMateri;
 }
 
 /**
@@ -263,6 +292,46 @@ export interface CreateModulInput {
  * modul tidak boleh diam-diam menambah halaman.
  */
 export type UpdateModulInput = Partial<Omit<CreateModulInput, "jumlah_halaman">>;
+
+/**
+ * Aturan bantuan: siapa yang boleh membantu sewaktu asesmen.
+ *
+ * Tiga tingkat (bukan boolean "boleh AI/tidak") karena kebijakan nyata bukan
+ * biner: banyak course membolehkan tutor manusia dan koreksi AI Careevo, tapi
+ * melarang AI eksternal. `bertutor` adalah titik tengah itu.
+ */
+export type AturanBantuan = "bebas" | "bertutor" | "tanpa_ai";
+
+/**
+ * Aturan pengawasan: apakah hasil hanya sah bila dikerjakan di sesi
+ * terverifikasi.
+ *
+ * `wajib`/`opsional` (bukan daftar kontrol kamera) supaya kebijakan yang
+ * tersimpan stabil saat detail teknis sesi berubah — detail kamera hidup di
+ * mesin akses, bukan di data course.
+ */
+export type AturanPengawasan = "wajib" | "opsional";
+
+export interface KebijakanCourse {
+  aturan_bantuan: AturanBantuan;
+  aturan_pengawasan: AturanPengawasan;
+  /** Naik setiap kali ahli menyimpan perubahan kebijakan. */
+  versi: number;
+  aturan_pengawasan_sejak: string;
+}
+
+export type ModeCheckpoint = "materi" | "kuis" | "proyek";
+
+export interface CheckpointMateri {
+  /** Batas waktu mengerjakan/menyelesaikan, dalam menit. */
+  batas_waktu_menit: number;
+  /**
+   * Materi = cek pemahaman; kuis/proyek menautkan lampiran yang sudah ada.
+   * `ref` adalah id materi `kuis` di modul yang sama, atau id tugas (challenge).
+   */
+  mode: ModeCheckpoint;
+  ref?: string;
+}
 
 /**
  * Blok saat dikirim pemanggil.

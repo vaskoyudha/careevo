@@ -20,6 +20,7 @@ import type {
 } from "@/types/course";
 import { muatCourses, muatKuis, simpanCourses, simpanKuis } from "./storage";
 import { judulHalamanOtomatis, normalisasiHalamanLama } from "./halaman";
+import { kebijakanDefault } from "./kebijakan";
 import { promosiKuisLama } from "./kuis";
 
 export const INITIAL_COURSES: Course[] = [
@@ -439,6 +440,21 @@ export async function updateCourse(
     price: input.price !== undefined ? Number(input.price) : current.price,
     status: input.status ?? current.status,
     cover_image: input.cover_image !== undefined ? input.cover_image : current.cover_image,
+    // Kebijakan asesmen versi-nya naik setiap kali disimpan: bukti sesi memuat
+    // `policyVersion`, jadi peserta yang mulai di bawah aturan lama tidak
+    // otomatis tunduk pada aturan baru tanpa sesi baru. Menyunting kursus
+    // tanpa menyentuh kebijakan tidak boleh menaikkan versi — itu akan
+    // memaksa sesi ulang untuk perubahan yang tidak relevan.
+    ...(input.kebijakan
+      ? {
+          kebijakan: {
+            ...(current.kebijakan ?? kebijakanDefault()),
+            ...input.kebijakan,
+            versi: (current.kebijakan?.versi ?? 0) + 1,
+            aturan_pengawasan_sejak: new Date().toISOString(),
+          },
+        }
+      : {}),
     updated_at: now,
   };
 
@@ -525,6 +541,10 @@ export async function createModul(courseId: string, input: CreateModulInput): Pr
     // Halaman awal dibuat sekaligus di sini — satu penulisan untuk modul
     // beserta halamannya, bukan satu penulisan per halaman.
     halaman: halamanAwal(courseId, modulId, input.jumlah_halaman ?? 0, now),
+    // Checkpoint default = cek pemahaman materi. Modul baru jadi aman secara
+    // default tanpa memaksa admin mengisi apa pun; tanpa ini modul baru tidak
+    // punya batas pengerjaan sama sekali.
+    checkpoint: input.checkpoint ?? { mode: "materi", batas_waktu_menit: 30 },
     // Modul baru belum memasang kuis apa pun; pemasangannya lewat panel Kuis.
     kuis: [],
     created_at: now,
@@ -561,6 +581,10 @@ export async function updateModul(
     judul: input.judul !== undefined ? input.judul.trim() : lama.judul,
     ringkasan: input.ringkasan !== undefined ? input.ringkasan.trim() : lama.ringkasan,
     durasi_min: input.durasi_min !== undefined ? Number(input.durasi_min) : lama.durasi_min,
+    // Checkpoint hanya diganti bila pemanggil benar-benar mengirimkannya;
+    // menyunting judul tidak boleh diam-diam mengembalikan aturan pengerjaan
+    // ke default.
+    ...(input.checkpoint ? { checkpoint: input.checkpoint } : {}),
     updated_at: now,
   };
 
