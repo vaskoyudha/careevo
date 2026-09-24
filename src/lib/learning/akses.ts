@@ -78,14 +78,25 @@ export function kategoriDiblokir(kategori: string, kebijakan: KebijakanCourse): 
   return (KATEGORI_TUTOR_BLOKIR as readonly string[]).includes(kategori);
 }
 
-export type KJenisKejadian =
-  | "pindah_tab"
-  | "fokus_hilang"
-  | "kamera_mulai"
-  | "kamera_berhenti"
-  | "kamera_gagal"
-  | "sesi_dimulai"
-  | "sesi_diakhiri";
+/**
+ * Daftar tunggal jenis kejadian integritas yang sah.
+ *
+ * Dijadikan nilai runtime, bukan hanya tipe, karena tipe hilang saat kompilasi:
+ * server action menerima `jenis` dari klien lewat wire, jadi ia perlu daftar
+ * yang bisa diperiksa saat berjalan. `KJenisKejadian` diturunkan dari daftar
+ * ini supaya keduanya tidak bisa menyimpang satu sama lain.
+ */
+export const JENIS_KEJADIAN_SAH = [
+  "pindah_tab",
+  "fokus_hilang",
+  "kamera_mulai",
+  "kamera_berhenti",
+  "kamera_gagal",
+  "sesi_dimulai",
+  "sesi_diakhiri",
+] as const;
+
+export type KJenisKejadian = (typeof JENIS_KEJADIAN_SAH)[number];
 
 export type JenisKejadian = "kejadian" | "celah";
 
