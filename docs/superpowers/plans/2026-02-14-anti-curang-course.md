@@ -66,7 +66,7 @@
 - Consumes: nothing.
 - Produces: `AturanBantuan`, `AturanPengawasan`, `KebijakanCourse`, `CheckpointMateri` types; `kebijakanDefault(): KebijakanCourse`; `LABEL_ATURAN_BANTUAN: Record<AturanBantuan,string>`; `LABEL_ATURAN_PENGAWASAN: Record<AturanPengawasan,string>`; `PESAN_POLICY: Record<AturanPengawasan,string>`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/lib/courses/kebijakan.test.ts`:
 
@@ -103,12 +103,12 @@ describe("labels", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/lib/courses/kebijakan.test.ts`
 Expected: FAIL — "Cannot find module './kebijakan'".
 
-- [ ] **Step 3: Add types to `src/types/course.ts`**
+- [x] **Step 3: Add types to `src/types/course.ts`**
 
 Append after the `UpdateModulInput` block:
 
@@ -145,7 +145,7 @@ Then add to `Modul` (after `halaman?`):
   checkpoint?: CheckpointMateri;
 ```
 
-- [ ] **Step 4: Create `src/lib/courses/kebijakan.ts`**
+- [x] **Step 4: Create `src/lib/courses/kebijakan.ts`**
 
 ```ts
 import type { AturanBantuan, AturanPengawasan, KebijakanCourse } from "@/types/course";
@@ -196,7 +196,7 @@ export const MODE_CHECKPOINT_LABEL: Record<"materi" | "kuis" | "proyek", string>
 };
 ```
 
-- [ ] **Step 5: Validate checkpoint in `src/lib/validation/modul.ts`**
+- [x] **Step 5: Validate checkpoint in `src/lib/validation/modul.ts`**
 
 Add a checkpoint schema and include it in the module schema (read the file first; the module schema currently has `judul`, `ringkasan`, `durasi_min`, and optionally `jumlah_halaman`):
 
@@ -214,12 +214,12 @@ const checkpointSchema = z.object({
 
 Then add `checkpoint: checkpointSchema.optional()` to the modul schema object. Keep the field out of `jumlah_halaman` handling.
 
-- [ ] **Step 6: Run tests**
+- [x] **Step 6: Run tests**
 
 Run: `npx vitest run src/lib/courses/kebijakan.test.ts src/lib/validation/modul.test.ts`
 Expected: PASS both.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/types/course.ts src/lib/courses/kebijakan.ts src/lib/courses/kebijakan.test.ts src/lib/validation/modul.ts
@@ -238,7 +238,7 @@ git commit -m "feat(learning): kebijakan course + checkpoint materi (pure types)
 - Consumes: `AturanBantuan`, `AturanPengawasan`, `CheckpointMateri` (Task 1).
 - Produces: `KonteksAkses`; `KeputusanAkses` = `{ tipe: "bebas" } | { tipe: "perlu_sesi"; pesan: string } | { tipe: "ditolak"; pesan: string }`; `checkpointEfektif(modul): CheckpointMateri` (satu argumen — kebijakan tidak dibutuhkan untuk memutuskan checkpoint); `putuskanAkses(konteks): KeputusanAkses`; `KATEGORI_TUTOR_BLOKIR: string[]`; `kategoriDiblokir(kategori, kebijakan): boolean`; `KJenisKejadian`; `klasifikasiKejadian(jenis, visibilitas): "kejadian" | "celah"`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/lib/learning/akses.test.ts`:
 
@@ -307,12 +307,12 @@ describe("klasifikasiKejadian", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/lib/learning/akses.test.ts`
 Expected: FAIL — "Cannot find module './akses'".
 
-- [ ] **Step 3: Create `src/lib/learning/akses.ts`**
+- [x] **Step 3: Create `src/lib/learning/akses.ts`**
 
 ```ts
 import { PESAN_POLICY } from "@/lib/courses/kebijakan";
@@ -405,12 +405,12 @@ export function klasifikasiKejadian(jenis: KJenisKejadian, visibilitas: "visible
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `npx vitest run src/lib/learning/akses.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/learning/akses.ts src/lib/learning/akses.test.ts
@@ -429,7 +429,7 @@ git commit -m "feat(learning): mesin keputusan akses kegiatan + klasifikasi keja
 - Consumes: `KebijakanCourse` (Task 1).
 - Produces: `SessionRun`, `KejadianIntegritas`; `tempatSesi(): string`; `buatBuktiSesi(input): string`; `verifikasiBuktiSesi(token, harapan): BuktiSesi | null`; `mulaiRun(input): Promise<SessionRun>`; `ambilRun(id): Promise<SessionRun | null>`; `catatKejadian(input): Promise<SessionRun | null>`; `akhiriRun(id, alasan): Promise<SessionRun | null>`; `buktikanSesi({courseId, owner, policyVersion, token}): Promise<SessionRun | null>`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/lib/learning/session.test.ts`:
 
@@ -510,12 +510,12 @@ describe("buktikanSesi", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/lib/learning/session.test.ts`
 Expected: FAIL — "Cannot find module './session'".
 
-- [ ] **Step 3: Create `src/lib/learning/session.ts`**
+- [x] **Step 3: Create `src/lib/learning/session.ts`**
 
 ```ts
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
@@ -752,7 +752,7 @@ async function cariRunAktif(input: { courseId: string; owner: string }): Promise
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `npx vitest run src/lib/learning/session.test.ts`
 Expected: PASS. If `buktikanSesi` fails because `cariRunAktif` returns `null`, replace the awkward line in `buktikanSesi` with the straightforward version:
@@ -765,7 +765,7 @@ Expected: PASS. If `buktikanSesi` fails because `cariRunAktif` returns `null`, r
   return run;
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/learning/session.ts src/lib/learning/session.test.ts
@@ -785,7 +785,7 @@ git commit -m "feat(learning): store sesi server-only + bukti sesi bertanda tang
 - Consumes: `CheckpointMateri`, `kebijakanDefault` (Task 1).
 - Produces: `createModul` returns a module whose `checkpoint.mode === "materi"`; `updateModul` persists a supplied checkpoint; catalog entries expose `checkpoint`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `src/lib/courses/store-modul.test.ts` (inside the existing describe block for module creation, or as a new block in the same file):
 
@@ -822,12 +822,12 @@ it("menyimpan checkpoint pilihan admin", async () => {
 
 Match the existing import style at the top of that test file (`resetCourses`, `createCourse`, `createModul`, `updateModul` from `./store`); add missing imports if the file does not already import them. Ensure the test file sets `CAREEVO_DATA_DIR` before importing the store (the other store tests already do).
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/lib/courses/store-modul.test.ts -t checkpoint`
 Expected: FAIL — `checkpoint` is `undefined`.
 
-- [ ] **Step 3: Update `createModul` in `src/lib/courses/store.ts`**
+- [x] **Step 3: Update `createModul` in `src/lib/courses/store.ts`**
 
 Add the import at the top:
 
@@ -845,7 +845,7 @@ Then inside the `modul` object literal in `createModul`, after `halaman:`:
 
 Note: `createModul` must not fail when `kebijakanDefault` is unused — only import it if you also use it below for the course policy. If it is unused after this change, do **not** add the import (lint fails on unused imports).
 
-- [ ] **Step 4: Update `updateModul` in `src/lib/courses/store.ts`**
+- [x] **Step 4: Update `updateModul` in `src/lib/courses/store.ts`**
 
 In the object spread that applies `input`, add:
 
@@ -853,7 +853,7 @@ In the object spread that applies `input`, add:
     ...(input.checkpoint ? { checkpoint: input.checkpoint } : {}),
 ```
 
-- [ ] **Step 5: Update `CreateModulInput` / `UpdateModulInput` in `src/types/course.ts`**
+- [x] **Step 5: Update `CreateModulInput` / `UpdateModulInput` in `src/types/course.ts`**
 
 Add to `CreateModulInput`:
 
@@ -863,16 +863,16 @@ Add to `CreateModulInput`:
 
 `UpdateModulInput` is `Partial<Omit<CreateModulInput, "jumlah_halaman">>`, so it inherits `checkpoint` automatically — verify with `npm run typecheck`.
 
-- [ ] **Step 6: Carry `checkpoint` through `src/lib/courses/katalog.ts`**
+- [x] **Step 6: Carry `checkpoint` through `src/lib/courses/katalog.ts`**
 
 Find the mapping that builds `ModulKursus` entries from stored modules (or via `modulUntukSumber`). Add `checkpoint: m.checkpoint` to the mapped object. Then add `checkpoint?: CheckpointMateri` to the `ModulKursus` interface in `src/lib/courses/kurikulum.ts` (that file is pure and may import types from `@/types/course`).
 
-- [ ] **Step 7: Run tests**
+- [x] **Step 7: Run tests**
 
 Run: `npx vitest run src/lib/courses` then `npm run typecheck`
 Expected: PASS, no type errors.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/lib/courses/store.ts src/lib/courses/katalog.ts src/lib/courses/kurikulum.ts src/types/course.ts src/lib/courses/store-modul.test.ts
@@ -891,7 +891,7 @@ git commit -m "feat(courses): persist checkpoint modul dan bawa ke katalog learn
 - Consumes: `mulaiRun`, `catatKejadian`, `akhiriRun`, `buktiBaru` (Task 3); `putuskanAkses` (Task 2); `getCourseById` (existing); `getSession` (existing).
 - Produces: `SesiActionState = { ok: boolean; error?: string; runId?: string; bukti?: string; run?: SessionRun }`; `mulaiSesiAction(courseId)`; `catatKejadianAction(input)`; `selesaikanMateriAction(input)`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/actions/learning.test.ts`:
 
@@ -969,12 +969,12 @@ describe("catatKejadianAction", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/actions/learning.test.ts`
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Create `src/actions/learning.ts`**
+- [x] **Step 3: Create `src/actions/learning.ts`**
 
 ```ts
 "use server";
@@ -1142,12 +1142,12 @@ export async function akhiriSesiAction(runId: string, alasan = "peserta_akhiri")
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `npx vitest run src/actions/learning.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/actions/learning.ts src/actions/learning.test.ts
@@ -1167,7 +1167,7 @@ git commit -m "feat(learning): server actions sesi, kejadian, dan gerbang penyel
 - Consumes: `mulaiSesiAction`, `catatKejadianAction`, `akhiriSesiAction` (Task 5); `putuskanAkses` (Task 2).
 - Produces: `CourseSessionProvider`, `useCourseSession()`, `CourseSessionGate`, `CourseSessionIndicator`, `SessionKonteks`.
 
-- [ ] **Step 1: Create `src/components/features/learning/course-session.tsx`**
+- [x] **Step 1: Create `src/components/features/learning/course-session.tsx`**
 
 Write the file with this exact public surface:
 
@@ -1328,7 +1328,7 @@ export function CourseSessionIndicator() {
 }
 ```
 
-- [ ] **Step 2: Wire the provider into `detail-kursus.tsx`**
+- [x] **Step 2: Wire the provider into `detail-kursus.tsx`**
 
 Wrap the top-level returned JSX in `<CourseSessionProvider courseId={kursus.id} kebijakan={kebijakan}>` and accept a new `kebijakan` prop (added to the component's prop types). Render `<CourseSessionIndicator />` directly under the curriculum heading. Replace the "Buka materi" button handler so that:
 
@@ -1343,7 +1343,7 @@ setModulTerbuka(terbuka ? null : m.id);
 
 and render `<CourseSessionGate pesan={pesanSesi} />` in place of the module body when `pesanSesi` is set for that module. Keep `HalamanView` (free reading) always available — only the gated attachments sit behind the session.
 
-- [ ] **Step 3: Pass policy from `page.tsx`**
+- [x] **Step 3: Pass policy from `page.tsx`**
 
 In `src/app/(app)/belajar/[slug]/page.tsx`, import `kebijakanDefault` from `@/lib/courses/kebijakan`, then pass:
 
@@ -1351,12 +1351,12 @@ In `src/app/(app)/belajar/[slug]/page.tsx`, import `kebijakanDefault` from `@/li
 kebijakan={kursusAsli?.kebijakan ?? kebijakanDefault()}
 ```
 
-- [ ] **Step 4: Verify in the browser**
+- [x] **Step 4: Verify in the browser**
 
 Run: `npm run dev`, then open `/belajar/fullstack-web-development-nextjs-15-react-19` as a logged-in, enrolled learner.
 Expected: indicator absent initially; opening a quiz attachment shows the session gate; starting a session shows the active indicator; switching tabs while active adds a recorded event (check `.data/sessions/*.json`).
 
-- [ ] **Step 5: Run checks and commit**
+- [x] **Step 5: Run checks and commit**
 
 Run: `npm run check`
 Expected: PASS.
@@ -1379,7 +1379,7 @@ git commit -m "feat(learning): provider sesi, indikator, dan gerbang pengerjaan 
 - Consumes: `kebijakanDefault`, `LABEL_ATURAN_BANTUAN`, `LABEL_ATURAN_PENGAWASAN`, `MODE_CHECKPOINT_LABEL` (Task 1).
 - Produces: `updateCourse(id, { kebijakan })` persists policy and bumps `versi`.
 
-- [ ] **Step 1: Extend `updateCourse`**
+- [x] **Step 1: Extend `updateCourse`**
 
 In `src/lib/courses/store.ts`, inside `updateCourse`, when `input.kebijakan` is present set:
 
@@ -1394,20 +1394,20 @@ In `src/lib/courses/store.ts`, inside `updateCourse`, when `input.kebijakan` is 
 
 Add `kebijakan?: CourseKebijakanInput` to `UpdateCourseInput` in `src/types/course.ts` (a `Partial<Pick<KebijakanCourse, "aturan_bantuan" | "aturan_pengawasan">>`).
 
-- [ ] **Step 2: Add the policy form to `kursus-detail.tsx`**
+- [x] **Step 2: Add the policy form to `kursus-detail.tsx`**
 
 Below the existing tabs, add a "Kebijakan asesmen" section with two `<select>` controls (aturan bantuan, aturan pengawasan) and a Save button that calls `updateCourseAction` with `kebijakan` fields plus `id`. Show the current `versi` as read-only text ("Versi kebijakan: N — naik otomatis saat disimpan").
 
-- [ ] **Step 3: Add the checkpoint editor to `modul-editor.tsx`**
+- [x] **Step 3: Add the checkpoint editor to `modul-editor.tsx`**
 
 Per module row, add a collapsed "Checkpoint" panel with mode select and `batas_waktu_menit` number input, saved through `updateModulAction`. When mode is `kuis`, list the module's `kuis` materials as `ref` options; when `proyek`, allow a free-text task id.
 
-- [ ] **Step 4: Verify manually**
+- [x] **Step 4: Verify manually**
 
 Run: `npm run dev`, sign in as `admin@careevo.test` / `careevo`, open `/admin/courses/<id>`, change `aturan_bantuan` to `tanpa_ai`, save, then reload `/belajar/<slug>`.
 Expected: `versi` increments; the learner page reflects the new rule, and opening an attachment with a stale proof requires a fresh session.
 
-- [ ] **Step 5: Run checks and commit**
+- [x] **Step 5: Run checks and commit**
 
 Run: `npm run check` then `npm run build`
 Expected: PASS both.
@@ -1429,23 +1429,23 @@ git commit -m "feat(admin): editor kebijakan asesmen dan checkpoint modul"
 - Consumes: `useCourseSession` (Task 6).
 - Produces: `KejadianPanel`, and a "Laporkan gangguan" action that calls `catatKejadianAction` with `jenis: "kamera_gagal"`.
 
-- [ ] **Step 1: Create `kejadian-panel.tsx`**
+- [x] **Step 1: Create `kejadian-panel.tsx`**
 
 Render:
 - Count of `kejadian` vs `celah` for the active run (fetched from the last `catatKejadianAction` response stored in provider state, or from a new read-only server action `ambilKejadianAction(runId)`).
 - A plain-language explainer: *"Pindah tab dan kamera terputus dicatat untuk konteks. Kejadian ini tidak otomatis menggagalkan penilaian dan tidak mengurangi reputasimu."*
 - Cameras-controls: a "Laporkan gangguan" button, a "Coba nyalakan ulang kamera" stub that re-requests `getUserMedia` and records `kamera_mulai`/`kamera_gagal`, and a link to `/pengaturan`.
 
-- [ ] **Step 2: Mount the panel in the learning room**
+- [x] **Step 2: Mount the panel in the learning room**
 
 Show it only while `status === "aktif"` (or when there is at least one `celah`), directly under the indicator.
 
-- [ ] **Step 3: Verify manually**
+- [x] **Step 3: Verify manually**
 
 Run: `npm run dev`, start a session, switch tabs twice, then open the panel.
 Expected: two `pindah_tab` entries; wording does not accuse; "Laporkan gangguan" appends a `celah` entry.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/components/features/learning/kejadian-panel.tsx src/components/features/learning/detail-kursus.tsx
@@ -1464,16 +1464,16 @@ git commit -m "feat(learning): panel kejadian integritas dengan pelaporan ganggu
 - Consumes: nothing.
 - Produces: copy that states camera/event recording happens in verified sessions, what is and is not recorded, and how to object.
 
-- [ ] **Step 1: Update the consent copy**
+- [x] **Step 1: Update the consent copy**
 
 Replace "Nir-biometrik: tanpa webcam, tanpa rekam ketukan…" with copy stating: kamera aktif hanya selama sesi terverifikasi yang kamu setujui; pencatatan terbatas pada kejadian sesi (pindah tab, status kamera, koneksi); tidak ada rekaman tuts, tidak ada geolokasi, tidak ada deteksi identitas; bukti hanya dilihat peserta dan staf berwenang; ada jalur keberatan via pengaturan.
 
-- [ ] **Step 2: Sweep conflicting claims**
+- [x] **Step 2: Sweep conflicting claims**
 
 Run: `rg -n "nir-biometrik|tanpa webcam|tanpa kamera" src docs`
 Expected: no remaining claim that contradicts the new behavior. Update each hit.
 
-- [ ] **Step 3: Run checks and commit**
+- [x] **Step 3: Run checks and commit**
 
 Run: `npm run check`
 Expected: PASS.
@@ -1495,7 +1495,7 @@ git commit -m "docs(learning): selaraskan copy privasi dengan sesi terverifikasi
 - Consumes: nothing at runtime; scans source text.
 - Produces: regression test preventing answer-key leaks and missing gates.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/lib/learning/security.test.ts`:
 
@@ -1537,12 +1537,12 @@ describe("keamanan jalur ujian", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails/passes meaningfully**
+- [x] **Step 2: Run test to verify it fails/passes meaningfully**
 
 Run: `npx vitest run src/lib/learning/security.test.ts`
 Expected: PASS (these guard code written in earlier tasks). If the first assertion fails, remove the leak before continuing.
 
-- [ ] **Step 3: Extend `scripts/smoke.mjs`**
+- [x] **Step 3: Extend `scripts/smoke.mjs`**
 
 Append to the `routes` array:
 
@@ -1551,12 +1551,12 @@ Append to the `routes` array:
   "/ujian/demo",
 ```
 
-- [ ] **Step 4: Run the full gate**
+- [x] **Step 4: Run the full gate**
 
 Run: `npm run check` then `npm run build`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/learning/security.test.ts scripts/smoke.mjs
