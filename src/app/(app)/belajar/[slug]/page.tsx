@@ -45,7 +45,7 @@ export default async function DetailKursusPage({
     url: entri.url,
   });
 
-  const pendaftaran = await cariPendaftaran(entri.id);
+  const pendaftaran = await cariPendaftaran(entri.id, session.email);
 
   const skor = (kandidat: (typeof katalog)[number]) =>
     kandidat.tags.filter((tag) => entri.tags.includes(tag)).length;

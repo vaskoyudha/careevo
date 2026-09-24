@@ -27,6 +27,7 @@ const routes = [
   "/onboarding/demo",
   "/belajar/fullstack-web-development-nextjs-15-react-19",
   "/belajar/r1",
+  "/belajar/jalur",
   // Route staf tanpa sesi akan dijawab redirect ke /masuk, dan redirect
   // dihitung lulus di bawah. Yang dicari di sini bukan isinya, melainkan
   // bahwa halamannya benar-benar bisa dimuat — 500 akibat impor yang salah
