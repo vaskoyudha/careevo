@@ -127,6 +127,8 @@ export interface Modul {
    * satu renderer dan satu jalur penyuntingan, bukan dua cara menulis prosa.
    */
   halaman?: Halaman[];
+  /** Aturan pengerjaan modul ini. Absen = kebijakan default kursus. */
+  checkpoint?: CheckpointMateri;
   created_at: string;
   updated_at: string;
 }
@@ -218,6 +220,46 @@ export interface CreateModulInput {
  * modul tidak boleh diam-diam menambah halaman.
  */
 export type UpdateModulInput = Partial<Omit<CreateModulInput, "jumlah_halaman">>;
+
+/**
+ * Aturan bantuan: siapa yang boleh membantu sewaktu asesmen.
+ *
+ * Tiga tingkat (bukan boolean "boleh AI/tidak") karena kebijakan nyata bukan
+ * biner: banyak course membolehkan tutor manusia dan koreksi AI Careevo, tapi
+ * melarang AI eksternal. `bertutor` adalah titik tengah itu.
+ */
+export type AturanBantuan = "bebas" | "bertutor" | "tanpa_ai";
+
+/**
+ * Aturan pengawasan: apakah hasil hanya sah bila dikerjakan di sesi
+ * terverifikasi.
+ *
+ * `wajib`/`opsional` (bukan daftar kontrol kamera) supaya kebijakan yang
+ * tersimpan stabil saat detail teknis sesi berubah — detail kamera hidup di
+ * mesin akses, bukan di data course.
+ */
+export type AturanPengawasan = "wajib" | "opsional";
+
+export interface KebijakanCourse {
+  aturan_bantuan: AturanBantuan;
+  aturan_pengawasan: AturanPengawasan;
+  /** Naik setiap kali ahli menyimpan perubahan kebijakan. */
+  versi: number;
+  aturan_pengawasan_sejak: string;
+}
+
+export type ModeCheckpoint = "materi" | "kuis" | "proyek";
+
+export interface CheckpointMateri {
+  /** Batas waktu mengerjakan/menyelesaikan, dalam menit. */
+  batas_waktu_menit: number;
+  /**
+   * Materi = cek pemahaman; kuis/proyek menautkan lampiran yang sudah ada.
+   * `ref` adalah id materi `kuis` di modul yang sama, atau id tugas (challenge).
+   */
+  mode: ModeCheckpoint;
+  ref?: string;
+}
 
 /**
  * Blok saat dikirim pemanggil.
