@@ -23,6 +23,18 @@ interface ExploreCourse {
 
 const TRENDING_COURSES: ExploreCourse[] = [
   {
+    title: "The Complete Claude Code & Claude Cowork Masterclass Specialization",
+    provider: "Dr. Ryan Ahmed",
+    providerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/8e/7ca56107974898be41dca49b5aff74/Digital_360x360.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+    type: "Specialization",
+    rating: 4.9,
+    reviews: "2.3K",
+    thumbnail: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://s3.amazonaws.com/coursera-course-photos/65/569c735d49495b9d332616f1a942eb/1.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=640&h=360&fit=crop&q=50",
+    statusBadge: "Hot new release",
+    href: "/specializations/complete-claude-code-claude-cowork-masterclass",
+    category: "Computer Science",
+  },
+  {
     title: "Google Project Management",
     provider: "Google",
     providerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
@@ -31,7 +43,7 @@ const TRENDING_COURSES: ExploreCourse[] = [
     reviews: "120K",
     thumbnail: "https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=640&q=80",
     statusBadge: "Trending right now",
-    href: "/belajar/crs-2",
+    href: "/professional-certificates/google-project-management",
     category: "Business",
   },
   {
@@ -43,7 +55,7 @@ const TRENDING_COURSES: ExploreCourse[] = [
     reviews: "140K",
     thumbnail: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/60/097644c12e4aeba0c3420de571cac1/GCC-Coursera-thumbnail-DA-foundations-tony-cert-level.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50&crop=focalpoint&fp-y=0.48",
     statusBadge: "Trending right now",
-    href: "/belajar/crs-4",
+    href: "/professional-certificates/google-data-analytics",
     category: "Data Science",
   },
   {
@@ -55,7 +67,7 @@ const TRENDING_COURSES: ExploreCourse[] = [
     reviews: "180K",
     thumbnail: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=640&q=80",
     statusBadge: "Trending right now",
-    href: "/belajar/r7",
+    href: "/professional-certificates/google-it-support",
     category: "Information Technology",
   },
   {
@@ -67,7 +79,7 @@ const TRENDING_COURSES: ExploreCourse[] = [
     reviews: "95K",
     thumbnail: "https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?auto=format&fit=crop&w=640&q=80",
     statusBadge: "Trending right now",
-    href: "/belajar/r8",
+    href: "/professional-certificates/google-ux-design",
     category: "Computer Science",
   },
   {
@@ -79,7 +91,7 @@ const TRENDING_COURSES: ExploreCourse[] = [
     reviews: "45K",
     thumbnail: "https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=640&q=80",
     statusBadge: "Trending right now",
-    href: "/belajar/r7",
+    href: "/professional-certificates/google-cybersecurity",
     category: "Information Technology",
   },
   {
@@ -91,7 +103,7 @@ const TRENDING_COURSES: ExploreCourse[] = [
     reviews: "75K",
     thumbnail: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=640&q=80",
     statusBadge: "Trending right now",
-    href: "/belajar/crs-2",
+    href: "/professional-certificates/google-digital-marketing-ecommerce",
     category: "Business",
   },
   {
@@ -103,7 +115,7 @@ const TRENDING_COURSES: ExploreCourse[] = [
     reviews: "52K",
     thumbnail: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=640&q=80",
     statusBadge: "Trending right now",
-    href: "/belajar/crs-4",
+    href: "/professional-certificates/google-it-automation",
     category: "Information Technology",
   },
   {
@@ -115,8 +127,44 @@ const TRENDING_COURSES: ExploreCourse[] = [
     reviews: "60K",
     thumbnail: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/07/eced232a07415eb3d77c788ae5754e/AIE.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50&crop=focalpoint&fp-y=0.48",
     statusBadge: "Top AI program",
-    href: "/belajar/r1",
+    href: "/specializations/ai-essentials-google",
     category: "Computer Science",
+  },
+  {
+    title: "IBM Data Analyst",
+    provider: "IBM",
+    providerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/bb/f5ced241374d08852372f5c71b6980/IBM_logo_blue_100x100.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+    type: "Professional Certificate",
+    rating: 4.7,
+    reviews: "82K",
+    thumbnail: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/23/f74c5a9a9c4110b78909194abbdc7a/BC-5768_VisMerch-Phase-3-Assets_ProCerts_IBM_DataAnalyst.png?auto=format%2Ccompress&dpr=1&w=320&h=180&fit=crop&q=50",
+    statusBadge: "Popular",
+    href: "/professional-certificates/ibm-data-analyst",
+    category: "Data Science",
+  },
+  {
+    title: "Machine Learning",
+    provider: "DeepLearning.AI & Stanford",
+    providerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/9a/c0a6b0143811e7a3ec515d9da6396e/DeepLearning-AI-Logo_Square.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+    type: "Specialization",
+    rating: 4.9,
+    reviews: "39K",
+    thumbnail: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://s3.amazonaws.com/coursera-course-photos/6a/48f4bf23504f7a93b4a2ebfc6d6fb3/MLS_Thumbnail_v2.png?auto=format%2Ccompress&dpr=1&w=320&h=180&fit=crop&q=50",
+    statusBadge: "Top Rated",
+    href: "/specializations/machine-learning-introduction",
+    category: "Data Science",
+  },
+  {
+    title: "IBM Data Science",
+    provider: "IBM",
+    providerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/bb/f5ced241374d08852372f5c71b6980/IBM_logo_blue_100x100.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+    type: "Professional Certificate",
+    rating: 4.6,
+    reviews: "115K",
+    thumbnail: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/60/097644c12e4aeba0c3420de571cac1/GCC-Coursera-thumbnail-DA-foundations-tony-cert-level.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50&crop=focalpoint&fp-y=0.48",
+    statusBadge: "Professional Certificate",
+    href: "/professional-certificates/ibm-data-science",
+    category: "Data Science",
   },
 ];
 
