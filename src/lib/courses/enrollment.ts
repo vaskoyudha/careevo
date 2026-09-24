@@ -1,15 +1,13 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
+import { normalizeOwner } from "@/lib/auth/types";
 
 /**
  * Pendaftaran kursus per peramban — pola yang sama seperti `ls_users`
- * (cookie HMAC-signed, tanpa database). Prototype ini fixture-backed:
- * pendaftaran tersimpan di cookie, bukan di server.
- *
- * Batasan prototype yang disengaja: cookie tidak diikat ke identitas
- * pengguna (satu peramban bersama = pendaftaran bersama), dan secret
- * menumpang SESSION_SECRET seperti modul auth lain. Jangan pakai pola
- * ini untuk data sensitif di luar demo.
+ * (cookie HMAC-signed, tanpa database). Setiap entri modern membawa owner
+ * akun sehingga dua akun di peramban yang sama tidak berbagi progres.
+ * Entri lama tanpa owner tetap dapat didekode, tetapi tidak diekspos ke
+ * pembacaan yang membutuhkan owner.
  */
 export const ENROLL_COOKIE = "ls_enroll";
 const ENROLL_SECRET = process.env.SESSION_SECRET ?? "dev-session-secret-careevo";
@@ -19,6 +17,7 @@ const MAX_ENROLL = 50;
 export interface Pendaftaran {
   course_id: string;
   slug: string;
+  owner?: string;
   enrolled_at: string;
   selesai_modul: string[];
 }
@@ -40,6 +39,8 @@ function isPendaftaran(value: unknown): value is Pendaftaran {
   return (
     typeof kandidat.course_id === "string" &&
     typeof kandidat.slug === "string" &&
+    (kandidat.owner === undefined ||
+      (typeof kandidat.owner === "string" && kandidat.owner.length > 0)) &&
     typeof kandidat.enrolled_at === "string" &&
     Array.isArray(kandidat.selesai_modul) &&
     kandidat.selesai_modul.every((item) => typeof item === "string")
@@ -83,22 +84,43 @@ async function tulis(daftar: Pendaftaran[]): Promise<void> {
   });
 }
 
-export async function listPendaftaran(): Promise<Pendaftaran[]> {
+function milikPemilik(item: Pendaftaran, owner: string): boolean {
+  return (
+    item.owner !== undefined && normalizeOwner(item.owner) === normalizeOwner(owner)
+  );
+}
+
+export async function pendaftaranPenuh(): Promise<Pendaftaran[]> {
   return baca();
 }
 
-export async function cariPendaftaran(courseId: string): Promise<Pendaftaran | undefined> {
+export async function listPendaftaran(owner: string): Promise<Pendaftaran[]> {
   const daftar = await baca();
-  return daftar.find((item) => item.course_id === courseId);
+  return daftar.filter((item) => milikPemilik(item, owner));
 }
 
-/** Daftarkan kursus; idempoten (mendaftar dua kali tetap satu entri). */
-export async function daftarKursus(courseId: string, slug: string): Promise<Pendaftaran[]> {
+export async function cariPendaftaran(
+  courseId: string,
+  owner: string,
+): Promise<Pendaftaran | undefined> {
   const daftar = await baca();
-  if (!daftar.some((item) => item.course_id === courseId)) {
+  return daftar.find(
+    (item) => item.course_id === courseId && milikPemilik(item, owner),
+  );
+}
+
+/** Daftarkan kursus; idempoten per owner (mendaftar dua kali tetap satu entri). */
+export async function daftarKursus(
+  courseId: string,
+  slug: string,
+  owner: string,
+): Promise<Pendaftaran[]> {
+  const daftar = await baca();
+  if (!daftar.some((item) => item.course_id === courseId && milikPemilik(item, owner))) {
     daftar.push({
       course_id: courseId,
       slug,
+      owner: normalizeOwner(owner),
       enrolled_at: new Date().toISOString(),
       selesai_modul: [],
     });
@@ -111,9 +133,12 @@ export async function daftarKursus(courseId: string, slug: string): Promise<Pend
 export async function tandaiModul(
   courseId: string,
   modulId: string,
+  owner: string,
 ): Promise<Pendaftaran | null> {
   const daftar = await baca();
-  const entri = daftar.find((item) => item.course_id === courseId);
+  const entri = daftar.find(
+    (item) => item.course_id === courseId && milikPemilik(item, owner),
+  );
   if (!entri) return null;
   entri.selesai_modul = entri.selesai_modul.includes(modulId)
     ? entri.selesai_modul.filter((id) => id !== modulId)

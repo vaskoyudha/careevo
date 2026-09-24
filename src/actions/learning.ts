@@ -67,7 +67,7 @@ export async function mulaiSesiAction(courseId: string): Promise<SesiActionState
   if (!kursus) return { ok: false, error: "Kursus tidak ditemukan." };
   if (kursus.status !== "published") return { ok: false, error: "Kursus belum dipublikasikan." };
 
-  const pendaftaran = await cariPendaftaran(courseId);
+  const pendaftaran = await cariPendaftaran(courseId, session.email);
   if (!pendaftaran) return { ok: false, error: "Daftar kursus ini dulu sebelum memulai sesi." };
 
   const kebijakan = kebijakanKursus(kursus);
@@ -213,7 +213,7 @@ export async function selesaikanMateriAction(input: {
   // melihat "siap" padahal progresnya tidak tersimpan. Pendaftaran sengaja
   // tidak diadakan di sini (itu tindakan berbayar/aksi lain); cukup ditolak
   // dengan pesan yang memandu, dan **sebelum** ada penulisan.
-  const pendaftaran = await cariPendaftaran(kursus.id);
+  const pendaftaran = await cariPendaftaran(kursus.id, session.email);
   if (!pendaftaran) {
     return { ok: false, error: "Daftar kursus ini dulu sebelum menyelesaikan materi." };
   }
@@ -225,7 +225,7 @@ export async function selesaikanMateriAction(input: {
   // hanya boleh **menambah** penyelesaian, tidak pernah membatalkannya —
   // pembatalan tetap milik jalur informal `tandaiModulAction`.
   if (!(pendaftaran.selesai_modul ?? []).includes(input.modulId)) {
-    await tandaiModul(kursus.id, input.modulId);
+    await tandaiModul(kursus.id, input.modulId, session.email);
   }
 
   // Revalidasi disamakan dengan `tandaiModulAction` (`/belajar` dan halaman

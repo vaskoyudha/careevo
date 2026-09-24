@@ -21,6 +21,27 @@ const base: OnboardingProfile = {
   version: 2,
 };
 
+function equalScoreCourse(id: string, title: string): EntriKatalog {
+  return {
+    id,
+    slug: id,
+    title,
+    url: `https://example.test/${id}`,
+    provider: "Test Provider",
+    type: "course",
+    tags: ["React"],
+    level: "dasar",
+    is_free: true,
+    duration_min: 60,
+    completed: false,
+  };
+}
+
+const equalCatalog = [
+  equalScoreCourse("id-z", "Zulu Course"),
+  equalScoreCourse("id-a", "Alpha Course"),
+];
+
 describe("skorKursus", () => {
   it("scores 0 for a course whose track is outside the learner's interests", () => {
     const kursus: EntriKatalog = {
@@ -112,6 +133,29 @@ describe("rekomendasi*", () => {
     const scores = hasil.map((e) => skorKursus(e, base));
     const sorted = [...scores].sort((a, b) => b - a);
     expect(scores).toEqual(sorted);
+  });
+
+  it("preserves catalog order when course scores are equal", () => {
+    // Given: equal-score courses whose title order is the reverse of catalog order.
+    const katalog = equalCatalog;
+
+    // When: the catalog is ranked with a one-course limit.
+    const ids = rekomendasiKursus(katalog, base, 1).map((entry) => entry.id);
+
+    // Then: the first catalog entry wins instead of the first title.
+    expect(ids).toEqual(["id-z"]);
+  });
+
+  it("returns the same equal-score course order across calls", () => {
+    // Given: the same equal-score catalog and profile.
+    const katalog = equalCatalog;
+
+    // When: the catalog is ranked twice.
+    const first = rekomendasiKursus(katalog, base, 2).map((entry) => entry.id);
+    const second = rekomendasiKursus(katalog, base, 2).map((entry) => entry.id);
+
+    // Then: both runs preserve the same stable order.
+    expect(second).toEqual(first);
   });
 
   it("surfaces web-dev jobs for a web-dev learner", () => {

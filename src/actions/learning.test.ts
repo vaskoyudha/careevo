@@ -85,7 +85,7 @@ beforeEach(() => {
 
 describe("mulaiSesiAction", () => {
   it("creates a session and returns a proof token", async () => {
-    await daftarKursus("crs-1", "crs-1");
+    await daftarKursus("crs-1", "crs-1", sesi.email);
     const hasil = await mulaiSesiAction("crs-1");
     expect(hasil.ok).toBe(true);
     expect(hasil.bukti).toBeTruthy();
@@ -125,7 +125,7 @@ describe("selesaikanMateriAction", () => {
   });
 
   it("rejects a module whose checkpoint is not `materi`", async () => {
-    await daftarKursus("crs-3", "crs-3");
+    await daftarKursus("crs-3", "crs-3", sesi.email);
     // Modul tersimpan dengan checkpoint kuis: menyelesaikannya lewat penandaan
     // materi harus ditolak, sebab kelulusannya hanya sah dari kuis.
     const modulKuis = await createModul("crs-3", {
@@ -148,7 +148,7 @@ describe("selesaikanMateriAction", () => {
   });
 
   it("accepts a valid proof for a required-proctoring course", async () => {
-    await daftarKursus("crs-2", "crs-2");
+    await daftarKursus("crs-2", "crs-2", sesi.email);
     const mulai = await mulaiSesiAction("crs-2");
     const hasil = await selesaikanMateriAction({
       courseId: "crs-2",
@@ -173,7 +173,7 @@ describe("selesaikanMateriAction", () => {
  */
 describe("selesaikanMateriAction — penyimpanan progres terverifikasi", () => {
   it("menyimpan modul selesai di kursus wajib yang terverifikasi", async () => {
-    await daftarKursus("crs-2", "crs-2");
+    await daftarKursus("crs-2", "crs-2", sesi.email);
     const mulai = await mulaiSesiAction("crs-2");
 
     const hasil = await selesaikanMateriAction({
@@ -198,7 +198,7 @@ describe("selesaikanMateriAction — penyimpanan progres terverifikasi", () => {
     // selesai justru **menghapus** tandanya. Peserta yang mengeklik dua kali
     // (atau menyelesaikan ulang modul yang sudah pernah tuntas) akan melihat
     // centangnya hilang; itu regresi yang dikunci test ini.
-    await daftarKursus("crs-2", "crs-2");
+    await daftarKursus("crs-2", "crs-2", sesi.email);
     const mulai = await mulaiSesiAction("crs-2");
     const argumen = { courseId: "crs-2", modulId: "crs-2-m1", bukti: mulai.bukti ?? "" };
 
@@ -213,7 +213,7 @@ describe("selesaikanMateriAction — penyimpanan progres terverifikasi", () => {
   });
 
   it("tidak menulis apa pun saat bukti sesi hilang", async () => {
-    await daftarKursus("crs-2", "crs-2");
+    await daftarKursus("crs-2", "crs-2", sesi.email);
 
     const hasil = await selesaikanMateriAction({ courseId: "crs-2", modulId: "crs-2-m1", bukti: "" });
 
@@ -223,7 +223,7 @@ describe("selesaikanMateriAction — penyimpanan progres terverifikasi", () => {
   });
 
   it("tidak menulis apa pun saat bukti sesi tidak sah", async () => {
-    await daftarKursus("crs-2", "crs-2");
+    await daftarKursus("crs-2", "crs-2", sesi.email);
 
     const hasil = await selesaikanMateriAction({
       courseId: "crs-2",
@@ -237,7 +237,7 @@ describe("selesaikanMateriAction — penyimpanan progres terverifikasi", () => {
   });
 
   it("tidak menulis saat modul checkpoint kuis/proyek", async () => {
-    await daftarKursus("crs-3", "crs-3");
+    await daftarKursus("crs-3", "crs-3", sesi.email);
     const modulKuis = await createModul("crs-3", {
       judul: "Kuis Keamanan Lanjutan",
       ringkasan: "Kuis tersimpan untuk uji gerbang checkpoint.",
@@ -260,7 +260,7 @@ describe("selesaikanMateriAction — penyimpanan progres terverifikasi", () => {
   });
 
   it("tidak menulis saat pemanggil belum masuk", async () => {
-    await daftarKursus("crs-2", "crs-2");
+    await daftarKursus("crs-2", "crs-2", sesi.email);
     const mulai = await mulaiSesiAction("crs-2");
     // Sesi dicabut setelah bukti sah didapat: bukti yang sah pun tidak boleh
     // dihormati tanpa identitas pemanggil.
@@ -296,7 +296,7 @@ describe("selesaikanMateriAction — penyimpanan progres terverifikasi", () => {
     // `materi`. Dulu jalur terverifikasi satu-satunya yang menerima — tetapi
     // tidak menyimpan apa pun, jadi tidak ada modul kursus bawaan yang bisa
     // tuntas. Sekarang penyelesaiannya harus bertahan di cookie `ls_enroll`.
-    await daftarKursus("crs-1", "crs-1");
+    await daftarKursus("crs-1", "crs-1", sesi.email);
     const mulai = await mulaiSesiAction("crs-1");
     expect(mulai.ok).toBe(true);
 
@@ -316,7 +316,7 @@ describe("selesaikanMateriAction — penyimpanan progres terverifikasi", () => {
 
 describe("catatKejadianAction", () => {
   it("records an event for an active run", async () => {
-    await daftarKursus("crs-3", "crs-3");
+    await daftarKursus("crs-3", "crs-3", sesi.email);
     const mulai = await mulaiSesiAction("crs-3");
     const hasil = await catatKejadianAction({ runId: mulai.runId ?? "", jenis: "pindah_tab", visibilitas: "hidden" });
     expect(hasil.ok).toBe(true);
@@ -350,7 +350,7 @@ describe("catatKejadianAction", () => {
   });
 
   it("menolak jenis kejadian di luar daftar sah", async () => {
-    await daftarKursus("crs-3", "crs-3");
+    await daftarKursus("crs-3", "crs-3", sesi.email);
     const mulai = await mulaiSesiAction("crs-3");
     const hasil = await catatKejadianAction({
       runId: mulai.runId ?? "",
@@ -364,7 +364,7 @@ describe("catatKejadianAction", () => {
   });
 
   it("menolak visibilitas di luar visible/hidden/null", async () => {
-    await daftarKursus("crs-3", "crs-3");
+    await daftarKursus("crs-3", "crs-3", sesi.email);
     const mulai = await mulaiSesiAction("crs-3");
     const hasil = await catatKejadianAction({
       runId: mulai.runId ?? "",
@@ -378,7 +378,7 @@ describe("catatKejadianAction", () => {
 
 describe("akhiriSesiAction", () => {
   it("menutup sesi yang aktif", async () => {
-    await daftarKursus("crs-1", "crs-1");
+    await daftarKursus("crs-1", "crs-1", sesi.email);
     const mulai = await mulaiSesiAction("crs-1");
     const hasil = await akhiriSesiAction(mulai.runId ?? "");
     expect(hasil.ok).toBe(true);
