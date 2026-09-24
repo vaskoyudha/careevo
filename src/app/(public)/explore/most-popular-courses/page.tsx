@@ -194,10 +194,10 @@ export default function MostPopularCoursesPage() {
           <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-12 lg:gap-12">
             {/* Left Content */}
             <div className="lg:col-span-7">
-              <h1 className="text-3xl font-extrabold tracking-tight sm:text-5xl lg:text-[44px] leading-[1.12]">
+              <h1 className="!text-white text-white text-3xl font-extrabold tracking-tight sm:text-5xl lg:text-[44px] leading-[1.12]">
                 Most popular courses and skills
               </h1>
-              <p className="mt-4 text-base sm:text-lg text-white/95 leading-relaxed max-w-2xl font-normal">
+              <p className="mt-4 text-base sm:text-lg !text-white text-white/95 leading-relaxed max-w-2xl font-normal">
                 Explore our top courses and skills, loved by learners and developed by leading experts.
               </p>
               <div className="mt-7">
