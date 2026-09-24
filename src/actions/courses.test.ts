@@ -113,6 +113,89 @@ describe("Course Server Actions", () => {
     expect(updated?.status).toBe("draft");
   });
 
+  it("menyimpan kebijakan asesmen dan menaikkan versinya", async () => {
+    vi.spyOn(sessionModule, "getSession").mockResolvedValue(adminSession);
+
+    const courses = await listCourses();
+    const target = courses[0];
+
+    const formData = new FormData();
+    formData.append("id", target.id);
+    formData.append("kebijakan_aturan_bantuan", "tanpa_ai");
+    formData.append("kebijakan_aturan_pengawasan", "wajib");
+
+    const res = await updateCourseAction({ ok: false }, formData);
+    expect(res.ok).toBe(true);
+
+    const updated = await getCourseById(target.id);
+    expect(updated?.kebijakan?.aturan_bantuan).toBe("tanpa_ai");
+    expect(updated?.kebijakan?.versi).toBe(1);
+    // Form kebijakan tidak menyentuh harga: kursus gratis tidak boleh
+    // diam-diam berubah menjadi berbayar.
+    expect(updated?.is_free).toBe(target.is_free);
+    expect(updated?.price).toBe(target.price);
+  });
+
+  it("memakai default pengawasan bila form tidak mengirimnya", async () => {
+    vi.spyOn(sessionModule, "getSession").mockResolvedValue(adminSession);
+
+    const courses = await listCourses();
+    const target = courses[0];
+
+    const formData = new FormData();
+    formData.append("id", target.id);
+    formData.append("kebijakan_aturan_bantuan", "tanpa_ai");
+
+    const res = await updateCourseAction({ ok: false }, formData);
+    expect(res.ok).toBe(true);
+
+    const updated = await getCourseById(target.id);
+    expect(updated?.kebijakan?.aturan_pengawasan).toBe("wajib");
+  });
+
+  it("menolak nilai kebijakan yang tidak sah", async () => {
+    vi.spyOn(sessionModule, "getSession").mockResolvedValue(adminSession);
+
+    const courses = await listCourses();
+    const target = courses[0];
+
+    const formData = new FormData();
+    formData.append("id", target.id);
+    formData.append("kebijakan_aturan_bantuan", "bebas_sekali"); // bukan nilai sah
+
+    const res = await updateCourseAction({ ok: false }, formData);
+    expect(res.ok).toBe(false);
+    expect(res.fieldErrors?.kebijakan_aturan_bantuan).toBeDefined();
+
+    // Tidak ada yang tersimpan saat validasi gagal.
+    const updated = await getCourseById(target.id);
+    expect(updated?.kebijakan).toBeUndefined();
+  });
+
+  it("menolak penyimpanan kebijakan oleh non-staff", async () => {
+    vi.spyOn(sessionModule, "getSession").mockResolvedValue({
+      email: "user@careevo.test",
+      nama: "Normal User",
+      username: "normal",
+      role: "user",
+      iat: Math.floor(Date.now() / 1000),
+    });
+
+    const courses = await listCourses();
+    const target = courses[0];
+
+    const formData = new FormData();
+    formData.append("id", target.id);
+    formData.append("kebijakan_aturan_bantuan", "tanpa_ai");
+
+    const res = await updateCourseAction({ ok: false }, formData);
+    expect(res.ok).toBe(false);
+    expect(res.error).toContain("Akses ditolak");
+
+    const updated = await getCourseById(target.id);
+    expect(updated?.kebijakan).toBeUndefined();
+  });
+
   it("deletes a course via deleteCourseAction", async () => {
     vi.spyOn(sessionModule, "getSession").mockResolvedValue(adminSession);
 

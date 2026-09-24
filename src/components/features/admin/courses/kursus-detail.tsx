@@ -9,7 +9,12 @@ import { UnggahBerkas } from "./unggah-berkas";
 import { useActionState } from "react";
 import { updateCourseAction, type CourseActionState } from "@/actions/courses";
 import { cn } from "@/lib/utils";
-import type { Course } from "@/types/course";
+import {
+  LABEL_ATURAN_BANTUAN,
+  LABEL_ATURAN_PENGAWASAN,
+  kebijakanDefault,
+} from "@/lib/courses/kebijakan";
+import type { AturanBantuan, AturanPengawasan, Course } from "@/types/course";
 
 /**
  * Halaman detail kursus: identitas kursus, sampul, dan kurikulum (modul +
@@ -82,6 +87,13 @@ export function KursusDetail({ course }: { course: Course }) {
           )}
         </div>
       </div>
+
+      {/*
+        Kebijakan asesmen selalu terlihat, bukan di dalam salah satu tab:
+        aturan inilah yang menentukan apakah bukti sesi sah, dan menyembunyikannya
+        di tab membuat admin menyimpan kursus tanpa sadar aturannya masih default.
+      */}
+      <KebijakanAsesmen course={course} />
     </div>
   );
 }
@@ -200,5 +212,107 @@ function IdentitasKursus({ course }: { course: Course }) {
         {pending ? "Menyimpan…" : "Simpan identitas"}
       </button>
     </form>
+  );
+}
+
+const ATURAN_BANTUAN_OPSI: AturanBantuan[] = ["bebas", "bertutor", "tanpa_ai"];
+const ATURAN_PENGAWASAN_OPSI: AturanPengawasan[] = ["wajib", "opsional"];
+
+/**
+ * Formulir kebijakan asesmen sebuah kursus.
+ *
+ * Aturan bantuan/pengawasan disimpan lewat `updateCourseAction` yang sama
+ * dengan identitas; yang membedakan hanya nama field (`kebijakan_aturan_*`).
+ * `versi` ditampilkan sebagai teks dan tidak bisa disunting: ia konsekuensi
+ * penyimpanan — bukti sesi memuat nomor versi, sehingga menaikkannya secara
+ * manual akan membuat bukti lama tampak masih sah padahal aturannya berubah.
+ */
+function KebijakanAsesmen({ course }: { course: Course }) {
+  const [state, formAction, pending] = useActionState<CourseActionState, FormData>(
+    updateCourseAction,
+    KOSONG,
+  );
+  const kebijakan = course.kebijakan ?? kebijakanDefault();
+
+  return (
+    <div className="card">
+      <div className="card-head">
+        <div>
+          <h2 className="card-title">Kebijakan asesmen</h2>
+          <p className="card-sub">
+            Aturan ini menentukan apakah hasil belajar sah dan bantuan apa yang boleh dipakai.
+          </p>
+        </div>
+      </div>
+
+      <form action={formAction} className="space-y-4 pt-4">
+        <input type="hidden" name="id" value={course.id} />
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="aturan-bantuan">Aturan bantuan</Label>
+            <select
+              id="aturan-bantuan"
+              name="kebijakan_aturan_bantuan"
+              defaultValue={kebijakan.aturan_bantuan}
+              className="h-9 w-full rounded-lg border border-input bg-transparent px-3 text-sm"
+            >
+              {ATURAN_BANTUAN_OPSI.map((nilai) => (
+                <option key={nilai} value={nilai}>
+                  {LABEL_ATURAN_BANTUAN[nilai]}
+                </option>
+              ))}
+            </select>
+            {state.fieldErrors?.kebijakan_aturan_bantuan ? (
+              <p className="field-error">{state.fieldErrors.kebijakan_aturan_bantuan}</p>
+            ) : null}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="aturan-pengawasan">Aturan pengawasan</Label>
+            <select
+              id="aturan-pengawasan"
+              name="kebijakan_aturan_pengawasan"
+              defaultValue={kebijakan.aturan_pengawasan}
+              className="h-9 w-full rounded-lg border border-input bg-transparent px-3 text-sm"
+            >
+              {ATURAN_PENGAWASAN_OPSI.map((nilai) => (
+                <option key={nilai} value={nilai}>
+                  {LABEL_ATURAN_PENGAWASAN[nilai]}
+                </option>
+              ))}
+            </select>
+            {state.fieldErrors?.kebijakan_aturan_pengawasan ? (
+              <p className="field-error">{state.fieldErrors.kebijakan_aturan_pengawasan}</p>
+            ) : null}
+          </div>
+        </div>
+
+        <p className="text-sm text-gray-600">
+          Versi kebijakan: <span className="font-semibold">{kebijakan.versi}</span> — naik otomatis
+          saat disimpan.
+        </p>
+
+        {state.message ?? state.error ? (
+          <p
+            role="alert"
+            className={cn(
+              "rounded-lg px-3 py-2 text-sm",
+              state.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700",
+            )}
+          >
+            {state.message ?? state.error}
+          </p>
+        ) : null}
+
+        <button
+          type="submit"
+          disabled={pending}
+          className="cursor-pointer rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-700 disabled:opacity-60"
+        >
+          {pending ? "Menyimpan…" : "Simpan kebijakan"}
+        </button>
+      </form>
+    </div>
   );
 }

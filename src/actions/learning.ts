@@ -21,6 +21,7 @@ import {
   type SessionRun,
 } from "@/lib/learning/session";
 import { kebijakanDefault } from "@/lib/courses/kebijakan";
+import type { Course, KebijakanCourse } from "@/types/course";
 
 export interface SesiActionState {
   ok: boolean;
@@ -41,15 +42,12 @@ function segarkan(path: string) {
 /**
  * Kebijakan efektif sebuah kursus.
  *
- * Sementara ini selalu default: tipe `Course` belum menyimpan kebijakan
- * per-kursus (`KebijakanCourse` baru ada di level tipe, field-nya menyusul di
- * Task 7). Menaruh pembacaan di satu tempat membuat Task 7 cukup mengganti isi
- * fungsi ini tanpa menyentuh setiap action.
+ * Kursus yang belum pernah disunting kebijakannya tidak membawa field ini,
+ * jadi `kebijakanDefault()` (pengawasan `wajib`) tetap berlaku — bukan
+ * "tanpa kebijakan", supaya gerbang sesi tidak diam-diam terbuka.
  */
-function kebijakanKursus(): ReturnType<typeof kebijakanDefault> {
-  // TODO(Task 7): baca kebijakan tersimpan per-kursus; sampai itu ada, default
-  // aman (`aturan_pengawasan: "wajib"`) berlaku untuk semua kursus.
-  return kebijakanDefault();
+function kebijakanKursus(kursus: Course): KebijakanCourse {
+  return kursus.kebijakan ?? kebijakanDefault();
 }
 
 /**
@@ -70,7 +68,7 @@ export async function mulaiSesiAction(courseId: string): Promise<SesiActionState
   const pendaftaran = await cariPendaftaran(courseId);
   if (!pendaftaran) return { ok: false, error: "Daftar kursus ini dulu sebelum memulai sesi." };
 
-  const kebijakan = kebijakanKursus();
+  const kebijakan = kebijakanKursus(kursus);
   const run = await mulaiRun({
     courseId,
     owner: session.email,
@@ -164,7 +162,7 @@ export async function selesaikanMateriAction(input: {
     };
   }
 
-  const kebijakan = kebijakanKursus();
+  const kebijakan = kebijakanKursus(kursus);
   const bukti = input.bukti
     ? await buktikanSesi({
         courseId: input.courseId,
