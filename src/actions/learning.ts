@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth/session";
 import { getCourseById } from "@/lib/courses/store";
-import { cariPendaftaran } from "@/lib/courses/enrollment";
+import { cariPendaftaran, tandaiModul } from "@/lib/courses/enrollment";
 import { modulUntukSumber } from "@/lib/courses/modul-resolver";
 import {
   JENIS_KEJADIAN_SAH,
@@ -32,7 +32,8 @@ export interface SesiActionState {
   run?: SessionRun;
 }
 
-function segarkan(path: string) {
+/** Nama lokal sengaja sama dengan helper `safeRevalidate` di `actions/enrollment.ts`. */
+function safeRevalidate(path: string) {
   try {
     revalidatePath(path);
   } catch {
@@ -192,7 +193,47 @@ export async function selesaikanMateriAction(input: {
   if (keputusan.tipe === "perlu_sesi") return { ok: false, error: keputusan.pesan };
   if (keputusan.tipe === "ditolak") return { ok: false, error: keputusan.pesan };
 
-  segarkan(`/belajar/${kursus.slug}`);
+  // Mulai dari sini keputusannya `bebas`: sesi terverifikasi sah, atau kursus
+  // `opsional` yang memang tidak menuntutnya. Baru di titik ini penyimpanan
+  // boleh terjadi — semua gerbang di atas (sesi, kursus, modul, checkpoint,
+  // bukti) sudah lolos lebih dulu, jadi tidak ada jalur penolakan yang menulis.
+  //
+  // Sebelum ini action hanya me-revalidasi dan mengembalikan `ok: true`, jadi
+  // centang "terverifikasi" hidup di state klien saja dan hilang saat halaman
+  // dimuat ulang — persis kegagalan "tampak terverifikasi tetapi tidak" yang
+  // dilarang. Gejalanya diperparah oleh gerbang kebijakan di
+  // `tandaiModulAction`: jalur informal menolak penyelesaian `materi` di kursus
+  // `wajib`, sedangkan kursus seed memakai `kebijakanDefault()` (`wajib`).
+  // Tanpa penulisan di sini, tidak ada satu pun jalur penyelesaian yang bekerja
+  // untuk kursus bawaan.
+  //
+  // Gerbang pendaftaran: keikutsertaan tetap wajib, bukan karena jalur ini
+  // kurang aman, melainkan karena tanpa entri `ls_enroll` namanya tidak ada
+  // yang bisa ditulisi — `tandaiModul()` mengembalikan `null` dan peserta akan
+  // melihat "siap" padahal progresnya tidak tersimpan. Pendaftaran sengaja
+  // tidak diadakan di sini (itu tindakan berbayar/aksi lain); cukup ditolak
+  // dengan pesan yang memandu, dan **sebelum** ada penulisan.
+  const pendaftaran = await cariPendaftaran(kursus.id);
+  if (!pendaftaran) {
+    return { ok: false, error: "Daftar kursus ini dulu sebelum menyelesaikan materi." };
+  }
+
+  // `tandaiModul()` adalah **toggle**: memanggilnya untuk id yang sudah tercatat
+  // justru menghapus tandanya. Peserta yang mengeklik dua kali, atau
+  // menyelesaikan ulang modul yang sudah tuntas, akan kehilangan centangnya.
+  // Karena itu id yang sudah ada tidak dipanggil ulang; jalur terverifikasi
+  // hanya boleh **menambah** penyelesaian, tidak pernah membatalkannya —
+  // pembatalan tetap milik jalur informal `tandaiModulAction`.
+  if (!(pendaftaran.selesai_modul ?? []).includes(input.modulId)) {
+    await tandaiModul(kursus.id, input.modulId);
+  }
+
+  // Revalidasi disamakan dengan `tandaiModulAction` (`/belajar` dan halaman
+  // kursus): keduanya menulis progres yang sama, jadi keduanya harus menyegarkan
+  // permukaan yang sama. Halaman `/belajar` ikut karena daftar progres di sana
+  // membaca cookie pendaftaran yang baru saja berubah.
+  safeRevalidate("/belajar");
+  safeRevalidate(`/belajar/${kursus.slug}`);
   return { ok: true, runId: bukti?.id };
 }
 
