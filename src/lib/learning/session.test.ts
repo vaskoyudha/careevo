@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -25,6 +26,32 @@ describe("bukti sesi", () => {
   it("rejects a tampered proof", () => {
     const token = mod.buktiBaru({ courseId: "crs-1", owner: "a@b.test", policyVersion: 1 });
     expect(mod.verifikasiBuktiSesi(`${token}x`, { courseId: "crs-1", owner: "a@b.test", policyVersion: 1 })).toBeNull();
+  });
+
+  // Kalau pemisah bocor ke dalam kolom, penyandian tanda tangan dan pembacaan
+  // kolom jadi tidak sepakat: penyerang bisa menyelipkan kolom ekstra sehingga
+  // `policyVersion` yang dibandingkan bukan yang ditandatangani.
+  it("refuses to mint a proof whose owner smuggles the separator", () => {
+    expect(() =>
+      mod.buktiBaru({ courseId: "crs-1", owner: `a@b.test\u00019`, policyVersion: 1 }),
+    ).toThrow();
+  });
+
+  it("refuses to mint a proof whose courseId smuggles the separator", () => {
+    expect(() => mod.buktiBaru({ courseId: "crs-1\u00011", owner: "a@b.test", policyVersion: 1 })).toThrow();
+  });
+
+  it("does not validate a payload carrying extra separator-delimited fields", () => {
+    // Payload dengan kolom ekstra yang ditandatangani utuh: penanda tangan hanya
+    // mengautentikasi string gabungan, jadi tanpa pemeriksaan jumlah kolom
+    // destructuring akan membaca `versi` = 9 dari kolom ketiga, padahal versi
+    // yang sebenarnya dimaksud adalah 1 di kolom keempat.
+    const terpalsu = ["crs-1", "a@b.test\u00019", "1"].join("\u0001");
+    const signature = createHmac("sha256", process.env.SESSION_SECRET ?? "dev-session-secret-careevo")
+      .update(terpalsu)
+      .digest("base64url");
+    const token = `${Buffer.from(terpalsu, "utf8").toString("base64url")}.${signature}`;
+    expect(mod.verifikasiBuktiSesi(token, { courseId: "crs-1", owner: "a@b.test", policyVersion: 9 })).toBeNull();
   });
 });
 
@@ -70,5 +97,13 @@ describe("buktikanSesi", () => {
     const token = mod.buktiBaru({ courseId: "crs-10", owner: "e@f.test", policyVersion: 1 });
     await mod.akhiriRun(run.id, "peserta_akhiri");
     expect(await mod.buktikanSesi({ courseId: "crs-10", owner: "e@f.test", policyVersion: 1, token })).toBeNull();
+  });
+
+  it("refuses a proof minted with the separator inside the owner", async () => {
+    // Eksploitasi: owner peserta lain + kolom ekstra membuat `policyVersion`
+    // yang dibandingkan (9) berbeda dari yang ditandatangani (1), sehingga sesi
+    // korban yang berjalan di bawah kebijakan lama ikut terpakai.
+    await mod.mulaiRun({ courseId: "crs-target", owner: "victim@x.test", policyVersion: 1 });
+    expect(() => mod.buktiBaru({ courseId: "crs-target", owner: "victim@x.test\u00019", policyVersion: 1 })).toThrow();
   });
 });
