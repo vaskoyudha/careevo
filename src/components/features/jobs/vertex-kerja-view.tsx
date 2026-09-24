@@ -338,9 +338,9 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
   return (
     <div className="relative min-h-screen bg-white text-neutral-900 selection:bg-neutral-200 overflow-x-hidden">
       {/* ============================================================ */}
-      {/* 1. HERO SECTION (SEC 0) - Outside grid lines to remove vertical lines */}
+      {/* 1. HERO SECTION (SEC 0) - Blended with transparent navbar at top, floating on scroll */}
       {/* ============================================================ */}
-      <div className="relative z-10 w-full pt-16 sm:pt-20 md:pt-24 lg:pt-28 pb-24 sm:pb-28 lg:pb-32 overflow-hidden">
+      <div className="relative z-10 w-full -mt-[60px] pt-28 sm:pt-32 md:pt-36 lg:pt-40 pb-24 sm:pb-28 lg:pb-32 overflow-hidden">
         {/* Background Layers: Striped Radial White BEHIND Wallpaper Background (Full Height) */}
         <div className="pointer-events-none absolute inset-0 z-0 h-full w-full overflow-hidden select-none">
           {/* Layer 1: Striped Radial White Background (Behind the Wallpaper) */}
