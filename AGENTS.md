@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Careevo — Next.js prototype ("Learn. Verify. Earn."): a learning-to-job bridge with HMAC attestations, append-only audit, and a Socrates review agent. **This is a fixture-backed prototype: there is no database and no network backend.** All app data comes from `src/fixtures/*.json` via `src/lib/fixtures.ts`.
+Careevo — Next.js prototype ("Learn. Verify. Earn."): a learning-to-job bridge with HMAC attestations, append-only audit, and a Socrates review agent. **This is a fixture-backed prototype: there is no database and no network backend.** Catalog/job data comes from `src/fixtures/*.json` via `src/lib/fixtures.ts`; the only other persistence is HMAC-signed cookies plus a small file-based store (see below).
 
 ## Commands
 
@@ -32,17 +32,21 @@ A skill with invalid frontmatter fails silently, so `npm run skills:check` valid
 ## Testing quirks
 
 - Vitest `include` is `src/**/*.test.ts` only. `.test.tsx` files are **not** picked up.
-- Test environment is `node` (no jsdom) — tests cover pure logic only (`src/lib/scoring`, `src/lib/attestation`, plus a trivial `src/app/smoke.test.ts`).
+- Test environment is `node` (no jsdom) — tests cover pure logic only (`src/lib/scoring`, `src/lib/attestation`, `src/lib/resume`, plus a trivial `src/app/smoke.test.ts`).
+- The file-based resume store's test points `CAREERS_DATA_DIR` at a temp dir **before** importing the module, so it never touches the repo's real `.data/`.
 - `@/` alias maps to `src/` in both `tsconfig.json` and `vitest.config.mts`; keep them in sync.
 
 ## Architecture
 
-- App Router with route groups in `src/app/`: `(marketing)` = `/`, `(public)` = masuk/daftar/loker/`p/[username]`/`verify/[token]`, `(app)` = dashboard/belajar/loker/[id]/pengaturan/submission/[id], `(focus)` = challenge/[id], `(verifikator)` = review/review/[id]/audit.
+- App Router with route groups in `src/app/`: `(marketing)` = `/`, `(public)` = masuk/daftar/loker/`p/[username]`/`verify/[token]` (plus `p/[username]/berkas/[slot]` for public CV/portfolio PDFs), `(app)` = dashboard/belajar/loker/[id]/pengaturan/submission/[id], `(focus)` = challenge/[id], `(verifikator)` = review/review/[id]/audit.
 - **Auth gating lives in the group layouts**, not middleware (there is no `middleware.ts`): `(app)` and `(focus)` redirect to `/masuk` when `getSession()` is null; `(verifikator)` additionally requires `isStaffRole`. Individual pages re-check `getSession()` and `return null` if absent.
 - Auth is **cookie-only**: HMAC-signed session cookie `ls_session` (`src/lib/auth/session.ts`) and registered users in an HMAC-signed `ls_users` cookie capped at 20 (`src/lib/auth/user-store.ts`). Passwords are salted SHA-256, not bcrypt.
 - Env: `SESSION_SECRET` and `ATTESTATION_SECRET` are optional — both fall back to dev defaults, so the app runs with no `.env`. `.env*` is gitignored.
-- `src/actions/*.ts` are `"use server"` server actions (`auth.ts`, `review.ts`).
-- Domain/business logic lives in `src/lib/{scoring,agents,attestation,audit,jobs,validation}`; UI in `src/components` (shadcn/ui under `src/components/ui`, feature components under `src/components/features`).
+- `src/actions/*.ts` are `"use server"` server actions (`auth.ts`, `review.ts`, `courses.ts`, `enrollment.ts`, `evaluasi.ts`, `onboarding.ts`, `profile.ts`, `resume.ts`).
+- Domain/business logic lives in `src/lib/{scoring,agents,attestation,audit,jobs,validation,profile,resume,onboarding,courses}`; UI in `src/components` (shadcn/ui under `src/components/ui`, feature components under `src/components/features`).
+- **Two persistence patterns, deliberately different:**
+  - **Signed cookies** (`src/lib/auth`, `src/lib/onboarding`, `src/lib/profile`) — small, tamper-evident JSON; `next/headers` is mocked in tests. The editable public profile (`src/lib/profile`) fits here because it is only a name, a bio and two downscaled images.
+  - **File-based store** (`src/lib/resume`) — the LinkedIn-style resume (work/projects/education/skills/certifications, about + contact, and uploaded CV/portfolio PDFs). Unbounded in size, so it is written under `.data/` (gitignored) as JSON + files, **not** a cookie: a payload that big would silently exceed the ~4KB cookie limit and lose data with no error. Owner dirs are keyed by `sha256(email)` so a username can never traverse the tree; file names are `path.basename`-checked. Writes to `process.cwd()` fail on a read-only serverless FS — set `CAREERS_DATA_DIR` to a writable path there. Uploaded files are served publicly via `GET /p/[username]/berkas/[slot]` (product decision: a candidate shares their CV), and validated server-side (MIME + `%PDF-` magic bytes + 5MB cap) in `validasiBerkas`.
 
 ## Navigation — navbar contract (do not regress)
 

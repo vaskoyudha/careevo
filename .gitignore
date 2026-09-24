@@ -40,5 +40,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# runtime data (file-based resume store: structured JSON + uploaded CV/portfolio)
+/.data/
+
 # playwright mcp tooling artifacts
 /.playwright-mcp/
