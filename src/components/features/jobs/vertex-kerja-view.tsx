@@ -1270,50 +1270,52 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                   </div>
 
                   {/* Pro Plan */}
-                  <div className="relative flex flex-col justify-between rounded-xl border-2 border-neutral-900 bg-white p-6 sm:p-8 shadow-sm">
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-neutral-900 px-3 py-0.5 text-[10px] font-semibold text-white uppercase tracking-wider">
+                  <div className="relative rounded-xl p-[2px] bg-gradient-to-br from-blue-600 via-blue-500 to-sky-400 shadow-md">
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-blue-700 via-blue-600 to-blue-500 px-3 py-0.5 text-[10px] font-semibold text-white uppercase tracking-wider shadow-sm">
                       Paling Populer
                     </span>
-                    <div>
-                      <div className="text-xs font-semibold text-neutral-900 uppercase tracking-wider">
-                        Careevo Plus
-                      </div>
-                      <div className="mt-3 flex items-baseline gap-1">
-                        <span className="text-4xl font-bold tracking-tight text-neutral-950">
-                          {billingCycle === "monthly" ? "Rp 99.000" : "Rp 79.000"}
-                        </span>
-                        <span className="text-xs text-neutral-500">/ bulan</span>
-                      </div>
-                      <p className="mt-3 text-xs text-neutral-600 leading-relaxed">
-                        Pendampingan intensif Socrates AI, evaluasi Fit Score mendalam, penutup skill gap otomatis, dan simulasi interview teknis.
-                      </p>
+                    <div className="flex h-full flex-col justify-between rounded-[10px] bg-white p-6 sm:p-8">
+                      <div>
+                        <div className="text-xs font-semibold text-blue-700 uppercase tracking-wider">
+                          Careevo Plus
+                        </div>
+                        <div className="mt-3 flex items-baseline gap-1">
+                          <span className="text-4xl font-bold tracking-tight text-neutral-950">
+                            {billingCycle === "monthly" ? "Rp 99.000" : "Rp 79.000"}
+                          </span>
+                          <span className="text-xs text-neutral-500">/ bulan</span>
+                        </div>
+                        <p className="mt-3 text-xs text-neutral-600 leading-relaxed">
+                          Pendampingan intensif Socrates AI, evaluasi Fit Score mendalam, penutup skill gap otomatis, dan simulasi interview teknis.
+                        </p>
 
-                      <ul className="mt-6 space-y-2.5 text-xs text-neutral-700">
-                        <li className="flex items-center gap-2">
-                          <Check className="size-4 text-emerald-600 shrink-0" />
-                          <span>Semua fitur Pencari Kerja</span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <Check className="size-4 text-emerald-600 shrink-0" />
-                          <span>Bimbingan Sokratik AI interaktif</span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <Check className="size-4 text-emerald-600 shrink-0" />
-                          <span>AI Fit Score terperinci per lowongan</span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <Check className="size-4 text-emerald-600 shrink-0" />
-                          <span>Tanda tangan bukti karya HMAC</span>
-                        </li>
-                      </ul>
+                        <ul className="mt-6 space-y-2.5 text-xs text-neutral-700">
+                          <li className="flex items-center gap-2">
+                            <Check className="size-4 text-emerald-600 shrink-0" />
+                            <span>Semua fitur Pencari Kerja</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="size-4 text-emerald-600 shrink-0" />
+                            <span>Bimbingan Sokratik AI interaktif</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="size-4 text-emerald-600 shrink-0" />
+                            <span>AI Fit Score terperinci per lowongan</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="size-4 text-emerald-600 shrink-0" />
+                            <span>Tanda tangan bukti karya HMAC</span>
+                          </li>
+                        </ul>
+                      </div>
+
+                      <Link
+                        href="/careevo-plus"
+                        className="chrome-btn chrome-btn-brand mt-8 !w-full !h-10 !text-xs font-semibold shadow-sm"
+                      >
+                        Tingkatkan ke Plus
+                      </Link>
                     </div>
-
-                    <Link
-                      href="/careevo-plus"
-                      className="chrome-btn chrome-btn-brand mt-8 !w-full !h-10 !text-xs"
-                    >
-                      Tingkatkan ke Plus
-                    </Link>
                   </div>
 
                   {/* Enterprise / Mitra Rekruter */}

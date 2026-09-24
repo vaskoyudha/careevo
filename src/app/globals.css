@@ -1622,15 +1622,19 @@ body {
   font-size: 13.5px;
   font-weight: 600;
   border-radius: var(--radius);
-  border: 1px solid #93c5fd;
-  background: linear-gradient(to bottom right, #3b82f6, #60a5fa, #bfdbfe);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #3b82f6 100%);
   color: #ffffff;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 8px -2px rgba(37, 99, 235, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition: all 200ms ease;
 }
 
 .chrome-btn-brand:hover {
   color: #ffffff;
-  border-color: #93c5fd;
+  border-color: rgba(255, 255, 255, 0.45);
+  background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 50%, #2563eb 100%);
+  box-shadow: 0 4px 14px -2px rgba(29, 78, 216, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  transform: translateY(-1px);
 }
 
 .chrome-btn-white {
@@ -1654,16 +1658,19 @@ body {
 }
 
 .grad-btn {
-  border: 1px solid #93c5fd;
-  background: linear-gradient(to bottom right, #3b82f6, #60a5fa, #bfdbfe);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #3b82f6 100%);
   color: #ffffff;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 8px -2px rgba(37, 99, 235, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition: all 200ms ease;
 }
 
 .grad-btn:hover {
   color: #ffffff;
-  border-color: #60a5fa;
-  background: linear-gradient(to bottom right, #2563eb, #3b82f6, #93c5fd);
+  border-color: rgba(255, 255, 255, 0.45);
+  background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 50%, #2563eb 100%);
+  box-shadow: 0 4px 14px -2px rgba(29, 78, 216, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  transform: translateY(-1px);
 }
 
 .field {
