@@ -45,4 +45,11 @@ next-env.d.ts
 
 # agent run artifacts
 /.omo/
+/.omc/
+
+# runtime data store (kursus & kurikulum tersimpan)
+/data/
+
+# berkas unggahan runtime (cover kursus, PDF materi)
+/public/uploads/
 
