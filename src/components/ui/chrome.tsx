@@ -79,6 +79,7 @@ export function Chrome() {
   const pathname = usePathname();
   const onHome = pathname === "/";
   const [scrolled, setScrolled] = useState(false);
+  const isDarkHero = (pathname === "/loker" || pathname === "/kerja") && !scrolled;
 
   useEffect(() => {
     const onScroll = () => {
@@ -108,12 +109,16 @@ export function Chrome() {
       <a href={onHome ? "#main" : "/"} className="skip-link">
         Lewati ke konten utama
       </a>
-      <div className={`chrome relative ${scrolled ? "is-scrolled" : "is-top"}`}>
+      <div
+        className={`chrome relative ${scrolled ? "is-scrolled" : "is-top"} ${
+          isDarkHero ? "is-dark-hero" : ""
+        }`}
+      >
         <Link className="chrome-brand" href={onHome ? "#main" : "/"}>
           Care<span>evo</span>
         </Link>
         <nav className="nav-float" aria-label="Navigasi utama">
-          <ExploreMenu />
+          <ExploreMenu isDarkBg={isDarkHero} />
           {navItems.map((item) => {
             const active = isActive(item.href);
             return (

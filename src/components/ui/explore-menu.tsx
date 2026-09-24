@@ -79,7 +79,7 @@ function CompassIcon({ className }: { className?: string }) {
   );
 }
 
-export function ExploreMenu() {
+export function ExploreMenu({ isDarkBg = false }: { isDarkBg?: boolean }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -173,10 +173,12 @@ export function ExploreMenu() {
         className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13.5px] font-medium transition-all duration-200 cursor-pointer ${
           isOpen
             ? "border border-blue-500/80 bg-white text-black shadow-xs"
-            : "border border-transparent text-black hover:bg-white/85 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]"
+            : isDarkBg
+              ? "border border-transparent text-white/90 hover:text-white hover:bg-white/15"
+              : "border border-transparent text-black hover:bg-white/85 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]"
         }`}
       >
-        <CompassIcon className="size-[15px] shrink-0 text-black" />
+        <CompassIcon className={`size-[15px] shrink-0 ${isOpen ? "text-black" : isDarkBg ? "text-white" : "text-black"}`} />
         <span>Explore</span>
         <svg
           width="12"
@@ -188,7 +190,7 @@ export function ExploreMenu() {
           strokeLinecap="round"
           strokeLinejoin="round"
           className={`shrink-0 transition-transform duration-200 ${
-            isOpen ? "rotate-180 text-blue-600" : "text-black/60"
+            isOpen ? "rotate-180 text-blue-600" : isDarkBg ? "text-white/80" : "text-black/60"
           }`}
           aria-hidden="true"
         >
