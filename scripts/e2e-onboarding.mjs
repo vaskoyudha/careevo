@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// E2E: verify the onboarding gate using signed cookies minted with the same
-// dev secret the app uses. Exercises: session-only -> /onboarding redirect;
-// session+profile -> dashboard 200; onboarding page -> 307 back to dashboard.
+// E2E: verify the onboarding gate and personalized learner route using signed
+// cookies minted with the same dev secret the app uses. Exercises: session-only
+// -> /onboarding redirect; session+profile -> learner route states.
 // Usage: node scripts/e2e-onboarding.mjs [baseUrl]
 
 import { createHmac } from "node:crypto";
@@ -42,39 +42,147 @@ const profile = {
 const otherSession = { ...session, email: "someone-else@careevo.test", username: "else" };
 
 let failed = 0;
-async function check(label, path, cookie, expect) {
+async function checkRoute({
+  label,
+  path,
+  cookie = "",
+  status,
+  location,
+  required = [],
+  forbidden = [],
+}) {
   const res = await fetch(base + path, {
     redirect: "manual",
     headers: cookie ? { cookie } : {},
   });
-  const ok = expect(res);
+  const body = await res.text();
+  const actualLocation = res.headers.get("location") ?? "";
+  const problems = [];
+  if (res.status !== status) problems.push(`status ${res.status}`);
+  if (location !== undefined && actualLocation !== location) {
+    problems.push(`location ${actualLocation || "(none)"}`);
+  }
+  for (const marker of required) {
+    if (!body.includes(marker)) problems.push(`missing ${marker}`);
+  }
+  for (const marker of forbidden) {
+    if (body.includes(marker)) problems.push(`unexpected ${marker}`);
+  }
+  const ok = problems.length === 0;
   if (!ok) failed++;
-  const loc = res.headers.get("location") ?? "";
-  console.log(`${ok ? "OK " : "ERR"} ${res.status} ${path}${loc ? ` -> ${loc}` : ""}  [${label}]`);
+  console.log(
+    `${ok ? "OK " : "ERR"} ${res.status} ${path}${actualLocation ? ` -> ${actualLocation}` : ""}  [${label}]${ok ? "" : ` (${problems.join("; ")})`}`,
+  );
 }
 
 const sessionCookie = `ls_session=${encode(session)}`;
 const profileCookie = `ls_profile=${encode(profile)}`;
+const ownedEnrollment = {
+  course_id: "crs-1",
+  slug: "fullstack-web-development-nextjs-15-react-19",
+  owner: session.email,
+  enrolled_at: "2026-09-02T08:00:00.000Z",
+  selesai_modul: ["crs-1-m1", "crs-1-m2"],
+};
+const legacyEnrollment = {
+  course_id: "crs-1",
+  slug: "fullstack-web-development-nextjs-15-react-19",
+  enrolled_at: "2026-09-02T08:00:00.000Z",
+  selesai_modul: ["crs-1-m1", "crs-1-m2"],
+};
+const ownedEnrollmentCookie = `ls_enroll=${encode([ownedEnrollment])}`;
+const legacyEnrollmentCookie = `ls_enroll=${encode([legacyEnrollment])}`;
 
 console.log("— without session —");
-await check("no-session", "/dashboard", "", (r) => r.status === 307);
-await check("no-session", "/onboarding", "", (r) => r.status === 307);
+await checkRoute({ label: "no-session", path: "/dashboard", status: 307 });
+await checkRoute({ label: "no-session", path: "/onboarding", status: 307 });
+await checkRoute({
+  label: "jalur redirects to login",
+  path: "/belajar/jalur",
+  status: 307,
+  location: "/masuk",
+});
 
 console.log("\n— session, NO profile —");
-await check("gate", "/dashboard", sessionCookie, (r) => r.status === 307 && (r.headers.get("location") ?? "").includes("/onboarding"));
-await check("gate", "/belajar", sessionCookie, (r) => r.status === 307);
-await check("onboarding open", "/onboarding", sessionCookie, (r) => r.status === 200);
+await checkRoute({
+  label: "jalur redirects to onboarding",
+  path: "/belajar/jalur",
+  cookie: sessionCookie,
+  status: 307,
+  location: "/onboarding",
+});
+await checkRoute({
+  label: "dashboard gate",
+  path: "/dashboard",
+  cookie: sessionCookie,
+  status: 307,
+  location: "/onboarding",
+});
+await checkRoute({
+  label: "belajar gate",
+  path: "/belajar",
+  cookie: sessionCookie,
+  status: 307,
+  location: "/onboarding",
+});
+await checkRoute({ label: "onboarding open", path: "/onboarding", cookie: sessionCookie, status: 200 });
 
 console.log("\n— session + profile —");
-await check("dashboard ok", "/dashboard", `${sessionCookie}; ${profileCookie}`, (r) => r.status === 200);
-await check("onboarding bounce", "/onboarding", `${sessionCookie}; ${profileCookie}`, (r) => r.status === 307 && (r.headers.get("location") ?? "").includes("/dashboard"));
-await check("edit mode stays", "/onboarding?edit=1", `${sessionCookie}; ${profileCookie}`, (r) => r.status === 200);
-await check("demo public", "/onboarding/demo", "", (r) => r.status === 200);
+const learnerCookie = `${sessionCookie}; ${profileCookie}`;
+await checkRoute({ label: "dashboard ok", path: "/dashboard", cookie: learnerCookie, status: 200 });
+await checkRoute({
+  label: "onboarding bounce",
+  path: "/onboarding",
+  cookie: learnerCookie,
+  status: 307,
+  location: "/dashboard",
+});
+await checkRoute({ label: "edit mode stays", path: "/onboarding?edit=1", cookie: learnerCookie, status: 200 });
+await checkRoute({ label: "demo public", path: "/onboarding/demo", status: 200 });
+await checkRoute({
+  label: "recommendation path",
+  path: "/belajar/jalur",
+  cookie: learnerCookie,
+  status: 200,
+  required: ['data-path-source="recommendation"', "Mulai kursus"],
+  forbidden: ['data-path-source="active-enrollment"'],
+});
+await checkRoute({
+  label: "owned enrollment path",
+  path: "/belajar/jalur",
+  cookie: `${learnerCookie}; ${ownedEnrollmentCookie}`,
+  status: 200,
+  required: [
+    'data-path-source="active-enrollment"',
+    'data-module-status="current"',
+    "Lanjutkan belajar",
+  ],
+  forbidden: ['data-path-source="recommendation"'],
+});
+await checkRoute({
+  label: "legacy enrollment remains recommendation",
+  path: "/belajar/jalur",
+  cookie: `${learnerCookie}; ${legacyEnrollmentCookie}`,
+  status: 200,
+  required: ['data-path-source="recommendation"', "Mulai kursus"],
+  forbidden: ['data-path-source="active-enrollment"'],
+});
 
 console.log("\n— profile owned by a different account (same browser) —");
 const otherSessionCookie = `ls_session=${encode(otherSession)}`;
-await check("not inherited", "/dashboard", `${otherSessionCookie}; ${profileCookie}`, (r) => r.status === 307 && (r.headers.get("location") ?? "").includes("/onboarding"));
-await check("onboarding open", "/onboarding", `${otherSessionCookie}; ${profileCookie}`, (r) => r.status === 200);
+await checkRoute({
+  label: "not inherited",
+  path: "/dashboard",
+  cookie: `${otherSessionCookie}; ${profileCookie}`,
+  status: 307,
+  location: "/onboarding",
+});
+await checkRoute({
+  label: "onboarding open",
+  path: "/onboarding",
+  cookie: `${otherSessionCookie}; ${profileCookie}`,
+  status: 200,
+});
 
 console.log(`\n${failed === 0 ? "PASS" : "FAIL"} — ${failed} failing check(s).`);
 process.exit(failed === 0 ? 0 : 1);

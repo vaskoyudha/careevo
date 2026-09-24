@@ -25,6 +25,7 @@ const routes = [
   "/onboarding/demo",
   "/belajar/fullstack-web-development-nextjs-15-react-19",
   "/belajar/r1",
+  "/belajar/jalur",
 ];
 
 let failed = 0;
