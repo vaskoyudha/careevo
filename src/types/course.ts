@@ -20,9 +20,158 @@ export interface Course {
   status: CourseStatus;
   enrolled_count: number;
   rating: number;
+  cover_image?: string;
+  /** Kurikulum tersimpan. Kosong/absen = pakai modul turunan `modulKursus()`. */
+  modul?: Modul[];
   created_at: string;
   updated_at: string;
 }
+
+/**
+ * Modul pembelajaran milik sebuah kursus.
+ *
+ * Berbeda dari `ModulKursus` di `lib/courses/kurikulum.ts` yang *diturunkan*
+ * dari metadata kursus, `Modul` di sini adalah entitas yang benar-benar
+ * disimpan. Kursus yang belum pernah diedit kurikulumnya tetap memakai modul
+ * turunan lewat `modulUntuk()`.
+ */
+/**
+ * Gaya konten berformat untuk isi halaman.
+ *
+ * Bentuk blok (bukan string markdown, dan bukan HTML) dipilih supaya renderer
+ * hanya memetakan struktur ke elemen React: tidak ada HTML mentah yang perlu
+ * disanitasi, sehingga lubang XSS tersimpan tetap tertutup. Repo ini tidak
+ * punya sanitizer — lihat alasan yang sama di `materi-view.tsx`.
+ */
+export type TipeBlok = "paragraf" | "heading" | "daftar" | "kutipan" | "gambar";
+
+/**
+ * Ukuran huruf relatif terhadap skala tema, bukan px bebas.
+ *
+ * Nilai terbatas (union) supaya `blok-editor` bisa menyediakan pilihan yang
+ * pasti dan renderer bisa memetakan ke kelas tema — memberi admin px bebas
+ * akan menghasilkan tipografi yang tidak konsisten antar halaman.
+ */
+export type UkuranBlok = "kecil" | "normal" | "besar" | "lead";
+
+/** Potongan teks sebaris beserta penanda formatnya. */
+export interface SegmenTeks {
+  teks: string;
+  tebal?: boolean;
+  miring?: boolean;
+  /**
+   * `#slug-section` untuk backlink, atau http/https untuk tautan luar.
+   * Dua bentuk ini dibedakan dan divalidasi di `validation/blok.ts`.
+   */
+  tautan?: string;
+}
+
+export interface BlokHalaman {
+  id: string;
+  tipe: TipeBlok;
+  /**
+   * Level heading 1–3; hanya dipakai `tipe: "heading"`.
+   *
+   * 1 = judul section, 2 = sub-section, 3 = sub-sub. Heading level 1–3 inilah
+   * yang menjadi jangkar daftar isi sekaligus sasaran backlink.
+   */
+  level?: 1 | 2 | 3;
+  ukuran?: UkuranBlok;
+  /** Isi sebaris — dipakai `paragraf`, `heading`, dan `kutipan`. */
+  segmen?: SegmenTeks[];
+  /** Butir daftar; tiap butir satu baris berformat. Dipakai `tipe: "daftar"`. */
+  butir?: SegmenTeks[][];
+  /** Path `/uploads/...` hasil route unggah; hanya untuk `tipe: "gambar"`. */
+  src?: string;
+  alt?: string;
+}
+
+/**
+ * Halaman berformat milik sebuah modul.
+ *
+ * Bersarang di dalam `Modul` dengan alasan sama seperti `materi`: menghapus
+ * modul otomatis menghapus halamannya, tanpa referensi yatim yang perlu
+ * dibersihkan terpisah.
+ */
+export interface Halaman {
+  id: string;
+  modul_id: string;
+  course_id: string;
+  judul: string;
+  /** 1-based dan eksplisit — sama seperti `Modul.urutan`. */
+  urutan: number;
+  blok: BlokHalaman[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Modul {
+  id: string;
+  course_id: string;
+  judul: string;
+  ringkasan: string;
+  /** 1-based dan eksplisit — urutan tidak boleh bergantung pada posisi array. */
+  urutan: number;
+  durasi_min: number;
+  /**
+   * Materi dimiliki modul ini. Disimpan bersarang (bukan koleksi terpisah)
+   * supaya menghapus modul otomatis menghapus materinya dan tidak ada
+   * referensi yatim yang perlu dibersihkan.
+   */
+  materi?: Materi[];
+  /**
+   * Halaman berformat modul ini — inilah bagian yang "ditulis" admin.
+   *
+   * Halaman dan materi hidup berdampingan: halaman untuk prosa, materi untuk
+   * lampiran (video/PDF/kuis). Memisahkan keduanya membuat masing-masing punya
+   * satu renderer dan satu jalur penyuntingan, bukan dua cara menulis prosa.
+   */
+  halaman?: Halaman[];
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * `teks` sengaja tidak ada di sini.
+ *
+ * Prosa kini ditulis sebagai halaman berformat. Membiarkan dua cara menulis
+ * prosa akan membuat admin ragu harus memakai yang mana dan setiap perubahan
+ * tipografi harus dikerjakan dua kali. Materi `teks` yang sudah tersimpan
+ * dimigrasikan menjadi halaman saat dibaca — lihat `normalisasiHalamanLama()`.
+ */
+export type TipeMateri = "video" | "pdf" | "kuis";
+
+export interface SoalKuis {
+  id: string;
+  pertanyaan: string;
+  /** Minimal 2 pilihan. */
+  pilihan: string[];
+  /** Indeks ke `pilihan`. */
+  jawaban_benar: number;
+}
+
+/** Field yang dimiliki semua tipe materi. */
+interface MateriDasar {
+  id: string;
+  modul_id: string;
+  course_id: string;
+  judul: string;
+  urutan: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Materi pembelajaran — discriminated union per `tipe`.
+ *
+ * Union (bukan satu antarmuka dengan banyak field opsional) dipilih supaya
+ * `switch (m.tipe)` bersifat exhaustive: menambah tipe baru memaksa setiap
+ * cabang render dan formulir diperbarui.
+ */
+export type Materi =
+  | (MateriDasar & { tipe: "video"; url: string; durasi_min: number })
+  | (MateriDasar & { tipe: "pdf"; path: string; ukuran_bytes: number })
+  | (MateriDasar & { tipe: "kuis"; soal: SoalKuis[]; nilai_lulus: number });
 
 export type CreateCourseInput = {
   title: string;
@@ -38,9 +187,70 @@ export type CreateCourseInput = {
   is_free?: boolean;
   price?: number;
   status?: CourseStatus;
+  cover_image?: string;
 };
 
 export type UpdateCourseInput = Partial<CreateCourseInput>;
+
+export interface CreateModulInput {
+  judul: string;
+  ringkasan: string;
+  /** Bila kosong, store menaruhnya di urutan terakhir. */
+  urutan?: number;
+  durasi_min: number;
+  /**
+   * Berapa halaman kosong yang dibuat sekaligus bersama modul ini.
+   *
+   * Ini kontrol "tentukan jumlah halaman saat membuat modul". Halaman tetap
+   * bisa ditambah/dihapus setelahnya; nilai ini hanya menentukan titik awal.
+   * `undefined`/`0` berarti modul dibuat tanpa halaman.
+   */
+  jumlah_halaman?: number;
+}
+
+/**
+ * Perubahan modul.
+ *
+ * `jumlah_halaman` sengaja **tidak** ikut: menambah halaman saat menyunting
+ * modul berarti menyisipkan halaman kosong ke dalam daftar yang mungkin sudah
+ * ditulis, dan tidak jelas harus ditaruh di posisi mana. Menambah halaman
+ * dikerjakan lewat tombol "Tambah halaman" di editor halaman; mengubah judul
+ * modul tidak boleh diam-diam menambah halaman.
+ */
+export type UpdateModulInput = Partial<Omit<CreateModulInput, "jumlah_halaman">>;
+
+/**
+ * Blok saat dikirim pemanggil.
+ *
+ * `id` boleh kosong: store yang memberinya lewat `idBaru("blk")`, sama seperti
+ * id modul/materi. Menerima id dari klien untuk blok baru akan membuat klien
+ * bisa menumbuk id blok lain, dan mengubah id blok yang sudah ada berarti
+ * memutus kaitan jangkar backlink.
+ */
+export type BlokInput = Omit<BlokHalaman, "id"> & { id?: string };
+
+export interface CreateHalamanInput {
+  judul: string;
+  blok?: BlokInput[];
+  /** Bila kosong, store menaruhnya di urutan terakhir. */
+  urutan?: number;
+}
+
+export type UpdateHalamanInput = CreateHalamanInput;
+
+/**
+ * Input materi: tipe beserta payload-nya.
+ *
+ * `Materi` yang tersimpan menambahkan `id`, `modul_id`, `course_id`, `urutan`,
+ * dan timestamp yang diisi store — bukan oleh pemanggil.
+ */
+export type CreateMateriInput =
+  | { tipe: "video"; judul: string; url: string; durasi_min: number }
+  | { tipe: "pdf"; judul: string; path: string; ukuran_bytes: number }
+  | { tipe: "kuis"; judul: string; soal: SoalKuis[]; nilai_lulus: number };
+
+/** Ubah materi sekaligus tipe-nya: payload selalu diganti utuh. */
+export type UpdateMateriInput = CreateMateriInput;
 
 export interface CourseStats {
   total: number;

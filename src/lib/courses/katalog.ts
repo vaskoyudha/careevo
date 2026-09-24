@@ -42,6 +42,9 @@ export async function katalogBelajar(): Promise<EntriKatalog[]> {
     is_free: kursus.is_free,
     duration_min: kursus.duration_min,
     completed: false,
+    // Diteruskan supaya kartu katalog memakai sampul unggahan admin, bukan
+    // thumbnail bawaan yang dipilih lewat hash id.
+    cover_image: kursus.cover_image,
   }));
 
   const idTerpakai = new Set(dariKursus.map((entri) => entri.id));

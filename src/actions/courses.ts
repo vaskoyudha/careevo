@@ -1,8 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { getSession } from "@/lib/auth/session";
-import { isStaffRole } from "@/lib/auth/roles";
 import {
   createCourse,
   updateCourse,
@@ -10,12 +7,16 @@ import {
   getCourseById,
 } from "@/lib/courses/store";
 import {
+  PESAN_AKSES_DITOLAK,
+  extractFieldErrors,
+  gateStaff,
+  safeRevalidate,
+} from "@/lib/actions-common";
+import {
   courseSchema,
   updateCourseSchema,
   type CourseFormData,
 } from "@/lib/validation/course";
-
-import type { z } from "zod";
 
 export interface CourseActionState {
   ok: boolean;
@@ -25,35 +26,13 @@ export interface CourseActionState {
   courseId?: string;
 }
 
-function extractFieldErrors(error: z.ZodError): Record<string, string> {
-  const result: Record<string, string> = {};
-  for (const issue of error.issues) {
-    const key = issue.path[0];
-    if (typeof key === "string" && !result[key]) {
-      result[key] = issue.message;
-    }
-  }
-  return result;
-}
-
-function safeRevalidate(path: string) {
-  try {
-    revalidatePath(path);
-  } catch {
-    // Silently ignore when called outside Next.js request lifecycle (e.g. unit tests)
-  }
-}
-
 export async function createCourseAction(
   _prev: CourseActionState,
   formData: FormData,
 ): Promise<CourseActionState> {
-  const session = await getSession();
-  if (!session || !isStaffRole(session.role)) {
-    return {
-      ok: false,
-      error: "Akses ditolak. Tindakan ini membutuhkan akun dengan hak akses verifikator atau admin.",
-    };
+  const session = await gateStaff();
+  if (!session) {
+    return { ok: false, error: PESAN_AKSES_DITOLAK };
   }
 
   const isFreeRaw = formData.get("is_free");
@@ -110,12 +89,9 @@ export async function updateCourseAction(
   _prev: CourseActionState,
   formData: FormData,
 ): Promise<CourseActionState> {
-  const session = await getSession();
-  if (!session || !isStaffRole(session.role)) {
-    return {
-      ok: false,
-      error: "Akses ditolak. Tindakan ini membutuhkan akun dengan hak akses verifikator atau admin.",
-    };
+  const session = await gateStaff();
+  if (!session) {
+    return { ok: false, error: PESAN_AKSES_DITOLAK };
   }
 
   const id = String(formData.get("id") ?? "");
@@ -186,12 +162,9 @@ export async function deleteCourseAction(
   _prev: CourseActionState,
   formData: FormData,
 ): Promise<CourseActionState> {
-  const session = await getSession();
-  if (!session || !isStaffRole(session.role)) {
-    return {
-      ok: false,
-      error: "Akses ditolak. Tindakan ini membutuhkan akun dengan hak akses verifikator atau admin.",
-    };
+  const session = await gateStaff();
+  if (!session) {
+    return { ok: false, error: PESAN_AKSES_DITOLAK };
   }
 
   const id = String(formData.get("id") ?? "");

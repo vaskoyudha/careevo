@@ -41,9 +41,6 @@ export function CurvySearchBar({
               aria-label="Cari lowongan kerja"
               className="uiverse-input"
             />
-            <div id="input-mask" className="uiverse-input-mask" />
-            {/* Blue glow mask replacing pink-mask */}
-            <div id="pink-mask" className="uiverse-blue-mask" />
             <div className="uiverse-filterBorder" />
 
             {/* Submit / Filter button on right */}
