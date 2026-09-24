@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { skemaUrlHttp } from "./url";
 
 export const TRACKS = ["web-dev", "data", "game-dev", "cyber-sec"] as const;
 export const LEVELS = ["dasar", "menengah", "lanjut"] as const;
@@ -52,10 +53,14 @@ export const courseSchema = z.object({
       ),
     ])
     .default([]),
-  url: z
+  // Skema http/https, bukan `z.url()`, yang menerima `javascript:` lalu
+  // dirender ke `<a href>` — lihat `./url.ts`.
+  url: skemaUrlHttp,
+  cover_image: z
     .string()
     .trim()
-    .min(1, "URL tidak boleh kosong"),
+    .max(500, "Path gambar cover maksimal 500 karakter")
+    .optional(),
   duration_min: z.coerce
     .number()
     .int("Durasi harus bilangan bulat")

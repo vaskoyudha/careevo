@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth/session";
 import { getCourseById } from "@/lib/courses/store";
 import { resources } from "@/lib/fixtures";
-import { modulKursus } from "@/lib/courses/kurikulum";
+import { modulUntukSumber } from "@/lib/courses/modul-resolver";
 import {
   cariPendaftaran,
   daftarKursus,
@@ -41,36 +41,37 @@ async function selesaikanKursus(courseId: string) {
   const kursus = await getCourseById(courseId);
   if (kursus) {
     if (kursus.status !== "published") return { takTersedia: true as const };
+    // Modul dari resolver tunggal: kursus yang kurikulumnya sudah diedit
+    // memakai modul tersimpan, sisanya jatuh ke turunan (id lama) sehingga
+    // progres di cookie `ls_enroll` tetap dikenali.
+    const modul = await modulUntukSumber({
+      id: kursus.id,
+      title: kursus.title,
+      tags: kursus.tags,
+      duration_min: kursus.duration_min,
+      url: kursus.url,
+    });
     return {
       id: kursus.id,
       slug: kursus.slug,
       berbayar: !kursus.is_free,
-      modulValid: new Set(
-        modulKursus({
-          id: kursus.id,
-          title: kursus.title,
-          tags: kursus.tags,
-          duration_min: kursus.duration_min,
-          url: kursus.url,
-        }).map((modul) => modul.id),
-      ),
+      modulValid: new Set(modul.map((item) => item.id)),
     };
   }
   const resource = resources.find((item) => item.id === courseId);
   if (!resource) return null;
+  const modul = await modulUntukSumber({
+    id: resource.id,
+    title: resource.title,
+    tags: resource.tags,
+    duration_min: resource.duration_min,
+    url: resource.url,
+  });
   return {
     id: resource.id,
     slug: resource.id,
     berbayar: !resource.is_free,
-    modulValid: new Set(
-      modulKursus({
-        id: resource.id,
-        title: resource.title,
-        tags: resource.tags,
-        duration_min: resource.duration_min,
-        url: resource.url,
-      }).map((modul) => modul.id),
-    ),
+    modulValid: new Set(modul.map((item) => item.id)),
   };
 }
 
