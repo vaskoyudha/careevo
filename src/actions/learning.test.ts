@@ -35,6 +35,10 @@ const { mulaiSesiAction, catatKejadianAction, selesaikanMateriAction, akhiriSesi
 );
 const { daftarKursus } = await import("@/lib/courses/enrollment");
 const { createModul, resetCourses } = await import("@/lib/courses/store");
+// `mulaiRun` dipakai untuk menyiapkan sesi milik pengguna **lain**: kepemilikan
+// hanya bisa diuji dengan run nyata yang ownernya bukan pemanggil, sebab run
+// tak dikenal berhenti di cabang "tidak ditemukan" sebelum owner dibandingkan.
+const { ambilRun, mulaiRun } = await import("@/lib/learning/session");
 
 afterAll(() => rmSync(DIR, { recursive: true, force: true }));
 
@@ -71,7 +75,10 @@ describe("selesaikanMateriAction", () => {
     expect(hasil.error).toContain("sesi");
   });
 
-  it("rejects a course the caller is not enrolled in", async () => {
+  it("menolak bukti sesi yang tidak sah", async () => {
+    // Yang dibuktikan di sini adalah verifikasi bukti, bukan pendaftaran:
+    // `selesaikanMateriAction` tidak punya gerbang enrolment sendiri — bukti
+    // sesi yang ditandatangani server sudah cukup sebagai gerbangnya.
     const mulai = await mulaiSesiAction("crs-2");
     // Belum terdaftar: sesi pun tidak bisa dibuat, jadi tidak ada bukti sah.
     expect(mulai.ok).toBe(false);
@@ -133,6 +140,51 @@ describe("catatKejadianAction", () => {
     const hasil = await catatKejadianAction({ runId: "sesi-palsu", jenis: "pindah_tab", visibilitas: "hidden" });
     expect(hasil.ok).toBe(false);
   });
+
+  it("menolak kejadian pada sesi milik pengguna lain", async () => {
+    // Sesi nyata milik orang lain: tanpa pemeriksaan `run.owner`, kejadian
+    // pemanggil akan masuk ke catatan integritas peserta lain.
+    const asing = await mulaiRun({
+      courseId: "crs-1",
+      owner: "orang-lain@careevo.test",
+      policyVersion: 1,
+    });
+    const hasil = await catatKejadianAction({
+      runId: asing.id,
+      jenis: "pindah_tab",
+      visibilitas: "hidden",
+    });
+    expect(hasil.ok).toBe(false);
+    // Bukti bahwa tidak ada yang tercatat: sesi asing tetap bersih.
+    const sesudah = await ambilRun(asing.id);
+    expect(sesudah?.kejadian.length).toBe(0);
+  });
+
+  it("menolak jenis kejadian di luar daftar sah", async () => {
+    await daftarKursus("crs-3", "crs-3");
+    const mulai = await mulaiSesiAction("crs-3");
+    const hasil = await catatKejadianAction({
+      runId: mulai.runId ?? "",
+      // Klien bisa mengirim string apa pun; yang belum dikenal harus ditolak
+      // di server, bukan dianggap kejadian biasa.
+      jenis: "kamera_berhenti_palsu" as never,
+      visibilitas: "hidden",
+    });
+    expect(hasil.ok).toBe(false);
+    expect(hasil.error).toContain("Jenis kejadian");
+  });
+
+  it("menolak visibilitas di luar visible/hidden/null", async () => {
+    await daftarKursus("crs-3", "crs-3");
+    const mulai = await mulaiSesiAction("crs-3");
+    const hasil = await catatKejadianAction({
+      runId: mulai.runId ?? "",
+      jenis: "pindah_tab",
+      visibilitas: "diam-diam" as never,
+    });
+    expect(hasil.ok).toBe(false);
+    expect(hasil.error).toContain("Jenis kejadian");
+  });
 });
 
 describe("akhiriSesiAction", () => {
@@ -147,5 +199,20 @@ describe("akhiriSesiAction", () => {
   it("menolak sesi yang bukan milik pemanggil", async () => {
     const hasil = await akhiriSesiAction("sesi-palsu");
     expect(hasil.ok).toBe(false);
+  });
+
+  it("menolak mengakhiri sesi milik pengguna lain", async () => {
+    // Sesi nyata milik orang lain: tanpa pemeriksaan `run.owner`, pemanggil
+    // bisa menutup sesi peserta lain dan merusak bukti pengerjaannya.
+    const asing = await mulaiRun({
+      courseId: "crs-1",
+      owner: "orang-lain@careevo.test",
+      policyVersion: 1,
+    });
+    const hasil = await akhiriSesiAction(asing.id);
+    expect(hasil.ok).toBe(false);
+    // Sesi asing harus tetap aktif: penolakan bukan sekadar balasan `ok: false`.
+    const sesudah = await ambilRun(asing.id);
+    expect(sesudah?.status).toBe("aktif");
   });
 });

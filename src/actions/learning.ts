@@ -5,7 +5,12 @@ import { getSession } from "@/lib/auth/session";
 import { getCourseById } from "@/lib/courses/store";
 import { cariPendaftaran } from "@/lib/courses/enrollment";
 import { modulUntukSumber } from "@/lib/courses/modul-resolver";
-import { checkpointEfektif, putuskanAkses, type KJenisKejadian } from "@/lib/learning/akses";
+import {
+  JENIS_KEJADIAN_SAH,
+  checkpointEfektif,
+  putuskanAkses,
+  type KJenisKejadian,
+} from "@/lib/learning/akses";
 import {
   akhiriRun,
   ambilRun,
@@ -96,10 +101,25 @@ export async function catatKejadianAction(input: {
     return { ok: false, error: "Sesi belajar tidak ditemukan untuk akun ini." };
   }
 
+  // `jenis` datang dari klien sebagai JSON mentah, jadi tipenya belum tentu
+  // benar saat berjalan. Tanpa pemeriksaan ini, string apa pun masuk ke catatan
+  // integritas dan `klasifikasiKejadian` diam-diam memperlakukannya sebagai
+  // "kejadian" biasa — bukti jadi tampak lengkap padahal isinya di luar skema.
+  if (!(JENIS_KEJADIAN_SAH as readonly string[]).includes(input.jenis)) {
+    return { ok: false, error: "Jenis kejadian tidak dikenal." };
+  }
+  // `visibilitas` menumpang validasi yang sama: nilai asing akan lolos ke
+  // klasifikasi kejadian/celah dan mengubah arti catatan.
+  if (input.visibilitas !== null && input.visibilitas !== "visible" && input.visibilitas !== "hidden") {
+    return { ok: false, error: "Jenis kejadian tidak dikenal." };
+  }
+
   const diperbarui = await catatKejadian({
     runId: input.runId,
-    jenis: input.jenis,
+    // Pemakaian cast di sini aman karena daftar sah sudah diperiksa di atas.
+    jenis: input.jenis as KJenisKejadian,
     visibilitas: input.visibilitas,
+    // `detail` dipotong di `catatKejadian` (session.ts), tidak diulang di sini.
     detail: input.detail,
   });
   if (!diperbarui) return { ok: false, error: "Sesi sudah berakhir; kejadian tidak dicatat." };
