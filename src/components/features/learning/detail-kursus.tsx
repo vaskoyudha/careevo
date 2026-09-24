@@ -8,7 +8,13 @@ import { hitungProgres, irisModulSelesai } from "@/lib/courses/kurikulum";
 import { daftarKursusAction, tandaiModulAction } from "@/actions/enrollment";
 import { MateriView } from "./materi-view";
 import { HalamanView } from "./halaman-view";
-import type { TipeMateri } from "@/types/course";
+import {
+  CourseSessionGate,
+  CourseSessionIndicator,
+  CourseSessionProvider,
+  useCourseSession,
+} from "./course-session";
+import type { KebijakanCourse, TipeMateri } from "@/types/course";
 
 const LABEL_TIPE: Record<TipeMateri, string> = {
   video: "Video",
@@ -56,7 +62,52 @@ function rupiah(nilai: number) {
   }).format(nilai);
 }
 
+/**
+ * Bungkus ruang belajar dengan provider sesi.
+ *
+ * `kebijakan` diteruskan dari server: provider memakainya untuk memutuskan akses
+ * kegiatan (`putuskanAkses`). Nilai datang lewat prop, bukan dibaca di klien,
+ * supaya mesin keputusan klien dan server memakai kebijakan yang sama.
+ */
 export function DetailKursus({
+  kursus,
+  modul,
+  terdaftar,
+  selesaiAwal,
+  terkait,
+  tugas,
+  kebijakan,
+}: {
+  kursus: DetailKursusData;
+  modul: ModulKursus[];
+  terdaftar: boolean;
+  selesaiAwal: string[];
+  terkait: KursusTerkait[];
+  tugas: TugasTerkait | null;
+  kebijakan: KebijakanCourse;
+}) {
+  return (
+    <CourseSessionProvider courseId={kursus.id} kebijakan={kebijakan}>
+      <RuangBelajar
+        kursus={kursus}
+        modul={modul}
+        terdaftar={terdaftar}
+        selesaiAwal={selesaiAwal}
+        terkait={terkait}
+        tugas={tugas}
+      />
+    </CourseSessionProvider>
+  );
+}
+
+/**
+ * Isi ruang belajar: kurikulum, panel pendaftaran, dan bagian terkait.
+ *
+ * Dipisah dari `DetailKursus` karena butuh `useCourseSession()`: provider harus
+ * berada di atas komponen yang membaca konteksnya, jadi pembacaannya harus
+ * berada di anak provider, bukan di komponen yang merender provider.
+ */
+function RuangBelajar({
   kursus,
   modul,
   terdaftar,
@@ -84,6 +135,17 @@ export function DetailKursus({
    * materi; modul turunan tetap menampilkan tautan eksternal seperti dulu.
    */
   const [modulTerbuka, setModulTerbuka] = useState<string | null>(null);
+  /**
+   * Keputusan akses kegiatan "materi" (lampiran), dihitung **saat render**.
+   *
+   * Sengaja tidak disimpan di state: keputusannya bergantung pada bukti sesi
+   * yang bisa berubah kapan saja (sesi dimulai/diakhiri). Menyalinnya ke state
+   * berarti gerbang bisa tertinggal menutup lampiran yang sudah sah dan
+   * sebaliknya — dan menyinkronkannya lewat effect malah menambah render
+   * berantai. `boleh` sendiri dimemo oleh provider.
+   */
+  const { boleh } = useCourseSession();
+  const keputusanLampiran = boleh("materi");
   /**
    * Halaman yang sedang dibaca di dalam modul yang terbuka.
    *
@@ -188,6 +250,9 @@ export function DetailKursus({
               {jumlahHalaman > 0 ? ` · ${jumlahHalaman} halaman` : ""}
               {terdaftar ? "" : " · daftar untuk menyimpan progres"}
             </p>
+            <div className="mb-4">
+              <CourseSessionIndicator />
+            </div>
             <ol className="space-y-3">
               {modul.map((m, index) => {
                 const sudah = selesai.includes(m.id);
@@ -234,7 +299,14 @@ export function DetailKursus({
                           {punyaIsi ? (
                             <button
                               type="button"
-                              onClick={() => setModulTerbuka(terbuka ? null : m.id)}
+                              onClick={() => {
+                                // Modul selalu boleh dibuka: halaman berformatnya
+                                // bebas dibaca. Yang digerbang hanya lampiran,
+                                // dan itu diputuskan `keputusanLampiran` di
+                                // bagian render — supaya sesi yang baru dimulai
+                                // langsung membuka lampiran tanpa state basi.
+                                setModulTerbuka(terbuka ? null : m.id);
+                              }}
                               aria-expanded={terbuka}
                               className="cursor-pointer font-medium text-[#0056D2] hover:underline"
                             >
@@ -285,17 +357,21 @@ export function DetailKursus({
                             <p className="text-[11px] font-semibold tracking-wider text-gray-500 uppercase">
                               Lampiran
                             </p>
-                            {daftarMateri.map((materi) => (
-                              <div key={materi.id}>
-                                <p className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-gray-700">
-                                  <span className="inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-[#0056D2] uppercase">
-                                    {LABEL_TIPE[materi.tipe]}
-                                  </span>
-                                  {materi.judul}
-                                </p>
-                                <MateriView materi={materi} />
-                              </div>
-                            ))}
+                            {keputusanLampiran.tipe === "bebas" ? (
+                              daftarMateri.map((materi) => (
+                                <div key={materi.id}>
+                                  <p className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-gray-700">
+                                    <span className="inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-[#0056D2] uppercase">
+                                      {LABEL_TIPE[materi.tipe]}
+                                    </span>
+                                    {materi.judul}
+                                  </p>
+                                  <MateriView materi={materi} />
+                                </div>
+                              ))
+                            ) : (
+                              <CourseSessionGate pesan={keputusanLampiran.pesan} />
+                            )}
                           </div>
                         ) : null}
                       </div>
