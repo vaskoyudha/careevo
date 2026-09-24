@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useMemo } from "react";
+import Link from "next/link";
 import type { Course, CourseStats, CourseStatus, CourseType } from "@/types/course";
 import type { Level, Track } from "@/types/domain";
 import {
@@ -33,6 +34,7 @@ import {
   Layers,
   Sparkles,
   RotateCcw,
+  ListTree,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -565,6 +567,14 @@ export function CourseManager({
 
                     <td className="px-4 py-3.5 text-right">
                       <div className="flex items-center justify-end gap-1">
+                        <Link
+                          href={`/admin/courses/${course.id}`}
+                          title="Kelola modul & materi"
+                          className="inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-[#0056D2] hover:bg-black/5 dark:hover:bg-white/5"
+                        >
+                          <ListTree className="h-4 w-4" />
+                          Kurikulum
+                        </Link>
                         <a
                           href={course.url}
                           target="_blank"

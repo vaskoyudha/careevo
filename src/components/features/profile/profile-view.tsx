@@ -13,11 +13,13 @@ import {
   Users,
 } from "lucide-react";
 import { EditProfileDialog } from "@/components/features/profile/edit-profile-dialog";
+import { ResumeEditor } from "@/components/features/profile/resume-editor";
 import { ResetOnboardingButton } from "@/components/features/settings/reset-onboarding-button";
 import { LandingBtnLink } from "@/components/ui/landing-btn";
 import { LABELS, type OnboardingProfile } from "@/lib/onboarding/types";
 import type { EditableProfile } from "@/lib/profile/types";
 import { joinName } from "@/lib/profile/types";
+import type { Resume } from "@/lib/resume/types";
 import type { EntriKatalog } from "@/lib/courses/katalog";
 import type { JobFixture } from "@/lib/fixtures";
 import type { SessionPayload } from "@/lib/auth/types";
@@ -63,22 +65,25 @@ export function ProfileView({
   session,
   profile,
   editable,
+  resume,
   kursus,
   loker,
 }: {
   session: SessionPayload;
   profile: OnboardingProfile | null;
   editable: EditableProfile | null;
+  resume: Resume;
   kursus: EntriKatalog[];
   loker: JobFixture[];
 }) {
   const displayName = editable
     ? joinName(editable.firstName, editable.lastName) || session.nama
     : session.nama;
-  const username = editable?.username || session.username;
+  const username = resume.username || editable?.username || session.username;
   const avatar = editable?.avatarUrl || "";
   const cover = editable?.coverUrl || DEFAULT_COVER;
   const initials = displayName.charAt(0).toUpperCase();
+  const lokasi = resume.kontak.lokasi || "Indonesia";
 
   const minat = profile
     ? profile.interests.map((i) => LABELS.interest[i]).join(" · ")
@@ -105,10 +110,11 @@ export function ProfileView({
               />
             </div>
 
-            <div className="relative flex flex-col gap-4 px-5 pb-6 sm:px-7">
-              <div className="relative z-10 -mt-12 flex flex-wrap items-end justify-between gap-4">
+            <div className="px-5 pt-4 pb-6 sm:px-7">
+              {/* Avatar overlaps the cover; name/meta/action sit beside it, below the cover. */}
+              <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex items-end gap-4">
-                  <div className="relative size-24 shrink-0 overflow-hidden rounded-full border-4 border-white bg-gradient-to-br from-blue-500 to-blue-300 shadow-sm">
+                  <div className="relative z-10 -mt-16 size-24 shrink-0 overflow-hidden rounded-full border-4 border-white bg-gradient-to-br from-blue-500 to-blue-300 shadow-md">
                     {avatar ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={avatar} alt={displayName} className="h-full w-full object-cover" />
@@ -118,12 +124,12 @@ export function ProfileView({
                       </span>
                     )}
                   </div>
-                  <div className="min-w-0 pb-1">
+                  <div className="min-w-0 pb-2 pt-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h1 className="text-2xl font-medium -tracking-[0.6px] text-gray-900">
+                      <h1 className="text-2xl font-semibold -tracking-[0.6px] text-gray-900">
                         {displayName}
                       </h1>
-                      <span className="inline-flex items-center gap-1 rounded-full border border-blue-200/80 bg-blue-500/10 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-blue-600 uppercase">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-blue-700 uppercase">
                         <BadgeCheck className="size-3.5" strokeWidth={2} aria-hidden="true" />
                         {ROLE_LABEL[session.role]}
                       </span>
@@ -132,7 +138,7 @@ export function ProfileView({
                       <span>@{username}</span>
                       <span className="inline-flex items-center gap-1">
                         <MapPin className="size-3.5" strokeWidth={1.75} aria-hidden="true" />
-                        Indonesia
+                        {lokasi}
                       </span>
                       {editable?.website ? (
                         <a
@@ -156,16 +162,16 @@ export function ProfileView({
                   trigger={
                     <button
                       type="button"
-                      className="grad-btn inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-base font-medium transition duration-300 ease-in-out"
+                      className="grad-btn mt-1 inline-flex h-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-base font-medium shadow-sm transition duration-300 ease-in-out hover:-translate-y-0.5"
                     >
-                      <Pencil className="size-4" strokeWidth={2} aria-hidden="true" />
+                      <Pencil className="size-4" strokeWidth={2.25} aria-hidden="true" />
                       Edit profile
                     </button>
                   }
                 />
               </div>
 
-              <p className="max-w-2xl text-sm leading-relaxed text-gray-600">
+              <p className="mt-4 max-w-2xl text-sm leading-relaxed text-gray-600">
                 {editable?.bio ||
                   "Belum ada bio. Tekan Edit profile untuk menambahkan perkenalan singkat, website, dan foto profilmu."}
               </p>
@@ -262,6 +268,21 @@ export function ProfileView({
               </div>
             </div>
           )}
+        </div>
+      </section>
+
+      {/* LinkedIn-style resume sections, editable by the owner */}
+      <section>
+        <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+          <div className="mb-5">
+            <h2 className="text-2xl font-medium -tracking-[0.6px] text-gray-900">
+              Profil profesional
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Riwayat kerja, proyek, pendidikan, skill, dan berkas CV. Tampil di halaman publikmu.
+            </p>
+          </div>
+          <ResumeEditor resume={resume} username={username} />
         </div>
       </section>
 
