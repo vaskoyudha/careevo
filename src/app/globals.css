@@ -425,7 +425,7 @@ body {
   align-items: center;
   gap: 0.4rem;
   padding: 0.5rem 0.85rem;
-  border-radius: var(--radius-pill);
+  border-radius: 8px;
   font-size: 13.5px;
   font-weight: 500;
   color: #000;
@@ -462,12 +462,68 @@ body {
 }
 
 .nav-item.is-active {
-  background: linear-gradient(180deg, #ffffff, rgba(236, 243, 247, 0.85));
-  color: #000;
-  box-shadow:
-    0 2px 8px -2px rgba(10, 61, 98, 0.22),
-    inset 0 1px 0 rgba(255, 255, 255, 1),
-    0 0 0 1px rgba(191, 230, 239, 0.6);
+  color: var(--ocean-deep);
+  font-weight: 600;
+}
+
+.nav-item.is-active svg {
+  color: inherit;
+}
+
+/* Chrome on dark/blue hero (e.g. /loker when at top) */
+.chrome.is-dark-hero .chrome-brand {
+  color: #ffffff;
+}
+
+.chrome.is-dark-hero .chrome-brand span {
+  color: #38bdf8;
+}
+
+.chrome.is-dark-hero .nav-item {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.chrome.is-dark-hero .nav-item svg {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.chrome.is-dark-hero .nav-item:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+
+.chrome.is-dark-hero .nav-item:hover svg {
+  color: #ffffff;
+}
+
+.nav-item.is-active:hover {
+  background: transparent;
+  box-shadow: none;
+}
+
+.chrome.is-dark-hero .nav-item.is-active:hover {
+  background: transparent;
+  box-shadow: none;
+}
+
+.chrome.is-dark-hero .nav-item.is-active {
+  color: #ffffff;
+}
+
+.chrome.is-dark-hero .nav-item.is-active svg {
+  color: inherit;
+}
+
+.chrome.is-dark-hero .chrome-btn-ghost {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(8px);
+}
+
+.chrome.is-dark-hero .chrome-btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.24);
+  color: #ffffff;
 }
 
 .chrome-actions {
@@ -3333,9 +3389,9 @@ body {
 }
 
 .uiverse-input::placeholder {
-  color: #94a3b8;
-  font-size: 14px;
-  font-weight: 400;
+  color: #64748b;
+  font-size: 14.5px;
+  font-weight: 450;
 }
 
 .uiverse-input:focus {
@@ -3343,30 +3399,11 @@ body {
 }
 
 .uiverse-input-mask {
-  pointer-events: none;
-  width: 60px;
-  height: 20px;
-  position: absolute;
-  background: linear-gradient(90deg, transparent, #ffffff);
-  top: 16px;
-  left: 65px;
-}
-
-.uiverse-main:focus-within > .uiverse-input-mask {
   display: none;
 }
 
 .uiverse-blue-mask {
-  pointer-events: none;
-  width: 36px;
-  height: 20px;
-  position: absolute;
-  background: #38bdf8;
-  top: 10px;
-  left: 8px;
-  filter: blur(16px);
-  opacity: 0.35;
-  transition: opacity 1.5s ease;
+  display: none;
 }
 
 .uiverse-main:hover > .uiverse-blue-mask,
