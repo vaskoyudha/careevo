@@ -347,17 +347,20 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
           <div className="absolute inset-0 z-0 bg-[size:12px_12px] [background-image:repeating-linear-gradient(315deg,rgba(0,0,0,0.04)_0_1px,transparent_0_50%)] [mask-image:radial-gradient(ellipse_85%_80%_at_50%_40%,black_40%,transparent_92%)]" />
           <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_85%_75%_at_50%_35%,rgba(255,255,255,0.85)_0%,rgba(255,255,255,0.35)_55%,transparent_85%)]" />
 
-          {/* Layer 2: Wallpaper Background (Full Height, shifted upward with 15% top crop) */}
-          <div className="relative z-10 -top-6 sm:-top-12 md:-top-16 h-[calc(100%+1.5rem)] sm:h-[calc(100%+3rem)] md:h-[calc(100%+4rem)] w-full overflow-hidden">
-            <Image
-              src="/images/hero-loker-header.png"
-              alt="Careevo header visual"
-              fill
-              priority
-              className="object-cover object-top opacity-100"
-            />
+          {/* Layer 2: Wallpaper Background (Cropped sky, pushed upward so rolling hills frame search & cards) */}
+          <div className="relative z-10 -top-10 sm:-top-16 md:-top-24 h-[1050px] sm:h-[1200px] md:h-[1350px] w-full overflow-hidden">
+            <div className="relative size-full scale-125 -translate-y-12 sm:-translate-y-20 md:-translate-y-28 origin-bottom">
+              <Image
+                src="/images/hero-loker-header.png"
+                alt="Careevo header visual"
+                fill
+                priority
+                unoptimized
+                className="object-cover object-center opacity-100"
+              />
+            </div>
             {/* Gentle white fading on the bottom edge to blend into page body */}
-            <div className="absolute inset-x-0 bottom-0 h-32 sm:h-44 bg-gradient-to-t from-white via-white/70 to-transparent" />
+            <div className="absolute inset-x-0 bottom-0 h-44 sm:h-64 bg-gradient-to-t from-white via-white/80 to-transparent" />
           </div>
         </div>
 

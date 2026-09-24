@@ -1579,32 +1579,35 @@ export function BelajarHome({
         </div>
       </section>
 
-      {/* AI for the work you do— and the career you want (Coursera Banner) */}
+      {/* AI for the work you do— and the career you want (Coursera Split Banner) */}
       <section aria-labelledby="ai-banner-heading" className="bg-white py-12">
         <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
           <div
-            className="relative overflow-hidden rounded-3xl p-6 sm:p-9 lg:p-11 shadow-lg"
+            className="relative overflow-hidden rounded-3xl p-6 sm:p-8 lg:p-9 shadow-xl"
             style={{
               background:
-                "linear-gradient(86deg, rgb(0, 96, 235) 3.56%, rgb(135, 184, 255) 40.71%, rgb(126, 216, 116) 96.44%)",
+                "linear-gradient(90deg, #0056D2 0%, #0070F3 25%, #00A6B4 60%, #68CF7A 100%)",
             }}
           >
-            {/* Top Row: Title + Filter Tabs */}
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-              <div className="max-w-xl">
-                <h2
-                  id="ai-banner-heading"
-                  className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-white leading-tight"
-                >
-                  AI for the work you do— and the career you want
-                </h2>
-                <p className="mt-2.5 text-sm sm:text-base text-white/95 leading-relaxed">
-                  Choose your field. Learn the workflows, judgment and tools reshaping it.
-                </p>
-                <div className="mt-5">
+            <div className="flex flex-col gap-8 lg:flex-row lg:items-stretch lg:gap-8">
+              {/* Left Column: Heading, Subtitle, CTA Button */}
+              <div className="flex flex-col justify-between lg:w-[260px] xl:w-[280px] shrink-0">
+                <div>
+                  <h2
+                    id="ai-banner-heading"
+                    className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white leading-[1.18]"
+                  >
+                    AI for the work you do— and the career you want
+                  </h2>
+                  <p className="mt-3 text-sm text-white/95 leading-relaxed">
+                    Choose your field. Learn the workflows, judgment and tools reshaping it.
+                  </p>
+                </div>
+
+                <div className="mt-6 lg:mt-auto pt-2">
                   <Link
                     href="/explore/most-popular-courses"
-                    className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-xs sm:text-sm font-bold text-[#0056D2] shadow-sm transition-all hover:bg-blue-50 active:scale-95"
+                    className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-bold text-[#0056D2] shadow-xs transition-colors hover:bg-blue-50 active:scale-95"
                   >
                     <span>Explore programs</span>
                     <span>→</span>
@@ -1612,82 +1615,89 @@ export function BelajarHome({
                 </div>
               </div>
 
-              {/* Tabs */}
-              <div className="flex flex-wrap gap-2 lg:max-w-md lg:justify-end">
-                {ROLE_TABS.map((r) => (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => setRole(r)}
-                    aria-pressed={role === r}
-                    className={cn(
-                      "cursor-pointer rounded-full px-4 py-2 text-xs sm:text-sm font-semibold transition-all active:scale-95 shadow-2xs",
-                      role === r
-                        ? "bg-[#1f1f1f] text-white shadow-sm"
-                        : "bg-white text-gray-800 hover:bg-gray-100"
-                    )}
-                  >
-                    {r}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* 4 Cards Grid */}
-            <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {(AI_BANNER_DATA[role] ?? AI_BANNER_DATA["AI Engineer"]).map((card) => (
-                <Link
-                  key={card.title}
-                  href={card.href}
-                  className="group flex flex-col justify-between overflow-hidden rounded-2xl bg-white p-3.5 shadow-md transition-all duration-200 hover:-translate-y-1 hover:shadow-xl active:scale-[0.98]"
-                >
-                  <div>
-                    <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-gray-100">
-                      <Image
-                        src={card.thumbnail}
-                        alt={card.title}
-                        fill
-                        sizes="(max-width: 640px) 100vw, 25vw"
-                        className="object-cover transition-transform duration-300 group-hover:scale-105"
-                        unoptimized
-                      />
-                    </div>
-
-                    <div className="mt-3 flex items-center gap-1.5">
-                      <div className="relative size-4 shrink-0 overflow-hidden">
-                        <Image
-                          src={card.partnerLogo}
-                          alt={card.partner}
-                          fill
-                          sizes="16px"
-                          className="object-contain"
-                          unoptimized
-                        />
-                      </div>
-                      <span className="truncate text-xs font-normal text-[#4B5563]">
-                        {card.partner}
-                      </span>
-                    </div>
-
-                    <h3
-                      className="mt-1 line-clamp-2 text-xs sm:text-sm font-bold text-[#111827] leading-snug group-hover:text-[#0056D2] transition-colors"
-                      title={card.title}
+              {/* Right Column: Single Row Tabs + 4 Cards Grid directly underneath */}
+              <div className="flex flex-1 flex-col min-w-0">
+                {/* Tabs — single horizontal row, aligned with cards */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-1.5 scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex-nowrap">
+                  {ROLE_TABS.map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setRole(r)}
+                      aria-pressed={role === r}
+                      className={cn(
+                        "cursor-pointer shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all active:scale-95 shadow-2xs whitespace-nowrap",
+                        role === r
+                          ? "bg-[#1E1E1E] text-white shadow-sm"
+                          : "bg-white text-[#1E1E1E] hover:bg-gray-100"
+                      )}
                     >
-                      {card.title}
-                    </h3>
-                  </div>
+                      {r}
+                    </button>
+                  ))}
+                </div>
 
-                  <div className="mt-3 border-t border-gray-100 pt-2.5">
-                    <div className="flex items-center gap-1 text-xs text-[#4B5563]">
-                      <Star className="size-3 fill-amber-500 text-amber-500 shrink-0 inline-block" />
-                      <span className="font-semibold text-gray-900">{card.rating}</span>
-                      <span>({card.reviews})</span>
-                      <span className="text-gray-300">·</span>
-                      <span className="truncate">{card.type}</span>
-                    </div>
-                  </div>
-                </Link>
-              ))}
+                {/* 4 Cards Grid directly underneath the tabs */}
+                <div className="mt-4 grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4 flex-1">
+                  {(AI_BANNER_DATA[role] ?? AI_BANNER_DATA["AI Engineer"]).map((card) => (
+                    <Link
+                      key={card.title}
+                      href={card.href}
+                      className="group flex flex-col justify-between overflow-hidden rounded-2xl bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg active:scale-[0.98]"
+                    >
+                      <div>
+                        {/* Inset thumbnail with 16:9 aspect ratio */}
+                        <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl bg-gray-100">
+                          <Image
+                            src={card.thumbnail}
+                            alt={card.title}
+                            fill
+                            sizes="(max-width: 640px) 100vw, 20vw"
+                            className="object-cover transition-transform duration-300 group-hover:scale-105"
+                            unoptimized
+                          />
+                        </div>
+
+                        {/* Partner Logo + Name */}
+                        <div className="mt-2.5 flex items-center gap-1.5">
+                          <div className="relative size-4 shrink-0 overflow-hidden">
+                            <Image
+                              src={card.partnerLogo}
+                              alt={card.partner}
+                              fill
+                              sizes="16px"
+                              className="object-contain"
+                              unoptimized
+                            />
+                          </div>
+                          <span className="truncate text-xs font-medium text-gray-700">
+                            {card.partner}
+                          </span>
+                        </div>
+
+                        {/* Course Title */}
+                        <h3
+                          className="mt-1 line-clamp-2 text-xs sm:text-[13px] font-bold text-[#111111] leading-snug group-hover:text-[#0056D2] transition-colors min-h-[34px]"
+                          title={card.title}
+                        >
+                          {card.title}
+                        </h3>
+                      </div>
+
+                      {/* Divider & Rating Metadata */}
+                      <div className="mt-2.5 border-t border-gray-100 pt-2">
+                        <div className="flex items-center gap-1 text-[11px] text-gray-700">
+                          <span className="text-gray-900 font-bold">★</span>
+                          <span className="font-semibold text-gray-900">{card.rating}</span>
+                          <span>({card.reviews})</span>
+                          <span className="text-gray-400">·</span>
+                          <span className="truncate text-gray-600">{card.type}</span>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
