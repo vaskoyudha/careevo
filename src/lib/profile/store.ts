@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
+import { normalizeOwner } from "@/lib/auth/types";
 import {
   isEditableProfile,
   PROFILE_VERSION,
@@ -51,10 +52,7 @@ function decode(raw: string | undefined): EditableProfile | null {
   }
 }
 
-/** Normalize an account identifier (email) for storage/comparison. */
-export function normalizeOwner(owner: string): string {
-  return owner.trim().toLowerCase();
-}
+export { normalizeOwner };
 
 /**
  * Read the signed profile cookie, or null when absent/invalid.

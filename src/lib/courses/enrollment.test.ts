@@ -14,9 +14,35 @@ const CONTOH: Pendaftaran[] = [
   },
 ];
 
+const OWNED: Pendaftaran = {
+  course_id: "crs-2",
+  slug: "membangun-rest-api-modern-dengan-nodejs",
+  owner: "raka@careevo.test",
+  enrolled_at: "2026-09-02T08:00:00.000Z",
+  selesai_modul: [],
+};
+
 describe("enrollment codec", () => {
   it("encode lalu decode menghasilkan ulang daftar yang sama", () => {
     expect(decodePendaftaran(encodePendaftaran(CONTOH))).toEqual(CONTOH);
+  });
+
+  it("decodePendaftaran mempertahankan entri lama tanpa owner", () => {
+    expect(decodePendaftaran(encodePendaftaran(CONTOH))).toEqual(CONTOH);
+  });
+
+  it("decodePendaftaran mempertahankan entri owner yang sudah dinormalisasi", () => {
+    expect(decodePendaftaran(encodePendaftaran([...CONTOH, OWNED]))).toEqual([
+      ...CONTOH,
+      OWNED,
+    ]);
+  });
+
+  it("decodePendaftaran membuang owner dengan tipe atau nilai kosong", () => {
+    const invalidType = { ...CONTOH[0] };
+    Object.defineProperty(invalidType, "owner", { value: 42, enumerable: true });
+    const invalidEmpty = { ...CONTOH[0], owner: "" };
+    expect(decodePendaftaran(encodePendaftaran([invalidType, invalidEmpty]))).toEqual([]);
   });
 
   it("menolak cookie tanpa tanda tangan yang valid", () => {

@@ -24,7 +24,7 @@ export default async function BelajarPage({
   const queryAwal = typeof q === "string" ? q.slice(0, 120) : "";
 
   const katalog = await katalogBelajar();
-  const pendaftaran = await listPendaftaran();
+  const pendaftaran = await listPendaftaran(session.email);
 
   // Loop `for...of` yang ber-`await`, bukan `.flatMap()`: resolver modul kini
   // async sehingga tidak bisa dipanggil dari callback sinkron.
