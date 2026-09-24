@@ -347,8 +347,8 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
           <div className="absolute inset-0 z-0 bg-[size:12px_12px] [background-image:repeating-linear-gradient(315deg,rgba(0,0,0,0.04)_0_1px,transparent_0_50%)] [mask-image:radial-gradient(ellipse_85%_80%_at_50%_40%,black_40%,transparent_92%)]" />
           <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_85%_75%_at_50%_35%,rgba(255,255,255,0.85)_0%,rgba(255,255,255,0.35)_55%,transparent_85%)]" />
 
-          {/* Layer 2: Wallpaper Background (Full Height Showing Complete Artwork from Sky to Terrain) */}
-          <div className="relative z-10 h-full w-full overflow-hidden">
+          {/* Layer 2: Wallpaper Background (Full Height, shifted upward with 15% top crop) */}
+          <div className="relative z-10 -top-6 sm:-top-12 md:-top-16 h-[calc(100%+1.5rem)] sm:h-[calc(100%+3rem)] md:h-[calc(100%+4rem)] w-full overflow-hidden">
             <Image
               src="/images/hero-loker-header.png"
               alt="Careevo header visual"

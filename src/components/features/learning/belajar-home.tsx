@@ -1,9 +1,30 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronRight, Search, Star, ArrowRight, Rocket, TrendingUp, Binoculars } from "lucide-react";
+import {
+  ChevronRight,
+  Search,
+  Star,
+  ArrowRight,
+  Rocket,
+  TrendingUp,
+  Binoculars,
+  Award,
+  Mountain,
+  GraduationCap,
+  Briefcase,
+  Sparkles,
+  Code2,
+  Laptop,
+  HeartPulse,
+  Globe,
+  Users,
+  Palette,
+  FlaskConical,
+  Calculator,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ResourceFixture, TaskFixture } from "@/lib/fixtures";
 
@@ -514,31 +535,159 @@ function HeroSection({
   );
 }
 
-function PartnersBar() {
+function PartnersAndCategories({ onSelectCategory }: { onSelectCategory?: (name: string) => void }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollRight = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: 300, behavior: "smooth" });
+    }
+  };
+
+  const navCards = [
+    {
+      title: "Launch a new career",
+      icon: Award,
+      href: "/explore/most-popular-courses",
+    },
+    {
+      title: "Try Careevo for Business",
+      icon: Mountain,
+      href: "mailto:bisnis@careevo.id",
+    },
+    {
+      title: "Earn a degree",
+      icon: GraduationCap,
+      href: "#gelar",
+    },
+  ];
+
+  const categoryRow1 = [
+    { name: "Business", icon: Briefcase },
+    { name: "Artificial Intelligence", icon: Sparkles },
+    { name: "Data Science", icon: TrendingUp },
+    { name: "Computer Science", icon: Code2 },
+    { name: "Information Technology", icon: Laptop },
+    { name: "Personal Development", icon: Rocket },
+    { name: "Healthcare", icon: HeartPulse },
+    { name: "Language Learning", icon: Globe },
+  ];
+
+  const categoryRow2 = [
+    { name: "Social Sciences", icon: Users },
+    { name: "Arts and Humanities", icon: Palette },
+    { name: "Physical Science and Engineering", icon: FlaskConical },
+    { name: "Math and Logic", icon: Calculator },
+  ];
+
   return (
-    <section aria-labelledby="mitra-heading" className="border-y border-gray-200 bg-[#f5f7fa] py-8">
+    <section aria-labelledby="mitra-heading" className="border-b border-gray-200 bg-white py-12">
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-        <h2 id="mitra-heading" className="mb-5 text-center text-sm font-semibold tracking-wide text-gray-600 uppercase">
-          Belajar dari 350+ universitas dan perusahaan terkemuka dunia
-        </h2>
-        <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 lg:gap-8">
-          {PARTNERS.map((partner) => (
+        {/* Section 1: Partner Logos */}
+        <div className="mb-10">
+          <h2
+            id="mitra-heading"
+            className="mb-5 text-xl sm:text-2xl font-bold tracking-tight text-gray-900"
+          >
+            Learn from 350+ leading universities and companies
+          </h2>
+
+          <div className="relative flex items-center gap-3">
             <div
-              key={partner.name}
-              className="flex items-center gap-2.5 rounded-lg border border-gray-200 bg-white px-3.5 py-2 shadow-2xs transition-colors hover:border-gray-300"
+              ref={scrollRef}
+              className="flex flex-1 items-center gap-3 overflow-x-auto pb-2 pt-1 scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             >
-              <div className="relative size-5 shrink-0">
-                <Image
-                  src={partner.logo}
-                  alt={partner.name}
-                  fill
-                  sizes="20px"
-                  className="object-contain"
-                />
-              </div>
-              <span className="text-xs font-semibold text-gray-800">{partner.name}</span>
+              {PARTNERS.map((partner) => (
+                <div
+                  key={partner.name}
+                  className="flex shrink-0 items-center gap-2.5 rounded-full border border-gray-300/90 bg-white px-4 py-2.5 shadow-2xs transition-all hover:border-gray-400 hover:shadow-xs"
+                >
+                  <div className="relative size-5 shrink-0">
+                    <Image
+                      src={partner.logo}
+                      alt={partner.name}
+                      fill
+                      sizes="20px"
+                      className="object-contain"
+                      unoptimized
+                    />
+                  </div>
+                  <span className="text-xs sm:text-sm font-semibold text-gray-800">{partner.name}</span>
+                </div>
+              ))}
             </div>
-          ))}
+
+            <button
+              type="button"
+              aria-label="Scroll mitra berikutnya"
+              onClick={scrollRight}
+              className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-gray-300 bg-white text-gray-700 shadow-2xs transition-all hover:bg-gray-50 active:scale-95"
+            >
+              <ChevronRight className="size-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Section 2: Navigation Action Cards */}
+        <div className="mb-12 grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-3">
+          {navCards.map((c) => {
+            const Icon = c.icon;
+            return (
+              <Link
+                key={c.title}
+                href={c.href}
+                className="group flex items-center justify-between rounded-2xl bg-[#F0F4F8] p-6 sm:p-7 shadow-2xs transition-all duration-200 hover:bg-[#E6EEF5] hover:shadow-xs active:scale-[0.99]"
+              >
+                <span className="max-w-[190px] text-lg sm:text-xl font-bold leading-snug text-[#1f1f1f] group-hover:text-[#0056D2] transition-colors">
+                  {c.title}
+                </span>
+                <div className="relative flex size-14 sm:size-16 shrink-0 rotate-6 items-center justify-center rounded-2xl bg-[#E9E4F5] shadow-2xs transition-transform duration-200 group-hover:rotate-12">
+                  <Icon className="size-7 sm:size-8 stroke-[1.75] text-[#0056D2] -rotate-6" />
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Section 3: Category Chips */}
+        <div>
+          <h2 className="mb-4 text-xl sm:text-2xl font-bold tracking-tight text-gray-900">
+            Explore categories
+          </h2>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center gap-2.5">
+              {categoryRow1.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.name}
+                    type="button"
+                    onClick={() => onSelectCategory?.(item.name)}
+                    className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-gray-200/90 bg-[#EDF2F7] px-4 py-2 text-xs sm:text-sm font-semibold text-[#1f1f1f] shadow-2xs transition-colors hover:border-gray-300 hover:bg-[#E2E8F0] active:scale-95"
+                  >
+                    <Icon className="size-4 text-gray-700" />
+                    <span>{item.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex flex-wrap items-center gap-2.5">
+              {categoryRow2.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.name}
+                    type="button"
+                    onClick={() => onSelectCategory?.(item.name)}
+                    className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-gray-200/90 bg-[#EDF2F7] px-4 py-2 text-xs sm:text-sm font-semibold text-[#1f1f1f] shadow-2xs transition-colors hover:border-gray-300 hover:bg-[#E2E8F0] active:scale-95"
+                  >
+                    <Icon className="size-4 text-gray-700" />
+                    <span>{item.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -549,8 +698,276 @@ const ROLE_TABS = [
   "AI Engineer",
   "Software Developer",
   "Data Analyst",
-  "QA & Security Engineer",
+  "Project Manager",
+  "Business Leader",
+  "Digital Marketer",
 ] as const;
+
+interface AiBannerCard {
+  title: string;
+  partner: string;
+  partnerLogo: string;
+  thumbnail: string;
+  rating: string;
+  reviews: string;
+  type: string;
+  href: string;
+}
+
+const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
+  "AI Engineer": [
+    {
+      title: "IBM Generative AI Engineering",
+      partner: "IBM",
+      partnerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/bb/f5ced2bdd4437aa79f00eb1bf7fbf0/IBM-Logo-Blk---Square.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+      thumbnail: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/fc/56cf025e474d27970ae7caabe04a2e/200859-Logo-image.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50",
+      rating: "4.7",
+      reviews: "101K",
+      type: "Professional Certificate",
+      href: "/belajar/crs-2",
+    },
+    {
+      title: "AI Agents and Agentic AI with Python & Generative AI",
+      partner: "Vanderbilt University",
+      partnerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/89/63fef0315140268d5c0f66eee8e85e/VU_360x360.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+      thumbnail: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://coursera-course-photos.s3.amazonaws.com/87/f53a62e6c84b5c9be99db814e19f00/juleswhite_3d_colorful_volumeric_organic_rounded_vibrant_highly_ed068faa-2a26-4d84-94b6-5cbfb2614a39.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50",
+      rating: "4.6",
+      reviews: "479",
+      type: "Course",
+      href: "/belajar/crs-1",
+    },
+    {
+      title: "Deep Learning",
+      partner: "DeepLearning.AI",
+      partnerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/b4/5cb90bb92f420b99bf323a0356f451/Icon.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+      thumbnail: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/0f/7b5e2c1622426e830b6b833156bc2b/BC-5768_VisMerch-Phase-3-Assets_Youtube_DeepLearning.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50",
+      rating: "4.8",
+      reviews: "147K",
+      type: "Specialization",
+      href: "/belajar/crs-3",
+    },
+    {
+      title: "Machine Learning",
+      partner: "Multiple educators",
+      partnerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/b4/5cb90bb92f420b99bf323a0356f451/Icon.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+      thumbnail: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/3a/9d2a7af297483a845340bcfbac6f1e/MLS.course-banners-01_Course-Logo-.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50",
+      rating: "4.9",
+      reviews: "39K",
+      type: "Specialization",
+      href: "/belajar/r1",
+    },
+  ],
+  "Software Developer": [
+    {
+      title: "Fullstack Web Development: Next.js 15 & React 19",
+      partner: "Meta",
+      partnerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+      thumbnail: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=640&q=80",
+      rating: "4.9",
+      reviews: "52K",
+      type: "Professional Certificate",
+      href: "/belajar/r8",
+    },
+    {
+      title: "Python for Everybody",
+      partner: "University of Michigan",
+      partnerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/7sWcR45W6I4bvFrJfCmb5d/2dff9bbefe50a9fcbcf89b2e5ee7032e/umich.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+      thumbnail: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=640&q=80",
+      rating: "4.8",
+      reviews: "67K",
+      type: "Specialization",
+      href: "/belajar/crs-4",
+    },
+    {
+      title: "JavaScript Modern: Async & Full-Stack Architecture",
+      partner: "Careevo Academy",
+      partnerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/11pJTA8yOZPwVRMKnSKPRz/340cf59915e8ce0d3b993d39959972d6/eded33b5eb1694336861de4bfda6d36bf72b7780.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+      thumbnail: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=640&q=80",
+      rating: "4.9",
+      reviews: "48K",
+      type: "Specialization",
+      href: "/belajar/crs-1",
+    },
+    {
+      title: "Membangun REST API Modern dengan Node.js",
+      partner: "IBM",
+      partnerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/bb/f5ced2bdd4437aa79f00eb1bf7fbf0/IBM-Logo-Blk---Square.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+      thumbnail: "https://images.unsplash.com/photo-1504639725590-34d0984388bd?auto=format&fit=crop&w=640&q=80",
+      rating: "4.8",
+      reviews: "41K",
+      type: "Course",
+      href: "/belajar/r2",
+    },
+  ],
+  "Data Analyst": [
+    {
+      title: "Google Data Analytics",
+      partner: "Google",
+      partnerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+      thumbnail: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/60/097644c12e4aeba0c3420de571cac1/GCC-Coursera-thumbnail-DA-foundations-tony-cert-level.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50&crop=focalpoint&fp-y=0.48",
+      rating: "4.8",
+      reviews: "140K",
+      type: "Professional Certificate",
+      href: "/belajar/crs-4",
+    },
+    {
+      title: "IBM Data Analyst",
+      partner: "IBM",
+      partnerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/bb/f5ced2bdd4437aa79f00eb1bf7fbf0/IBM-Logo-Blk---Square.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+      thumbnail: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/23/f74c5a9a9c4110b78909194abbdc7a/BC-5768_VisMerch-Phase-3-Assets_ProCerts_IBM_DataAnalyst.png?auto=format%2Ccompress&dpr=1&w=320&h=180&fit=crop&q=50",
+      rating: "4.6",
+      reviews: "85K",
+      type: "Professional Certificate",
+      href: "/belajar/crs-2",
+    },
+    {
+      title: "Microsoft Data Analysis with SQL, Excel & Power BI",
+      partner: "Microsoft",
+      partnerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/11pJTA8yOZPwVRMKnSKPRz/340cf59915e8ce0d3b993d39959972d6/eded33b5eb1694336861de4bfda6d36bf72b7780.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+      thumbnail: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/cf/9c0c8b66804a80b15cf7208ff9553f/Hero_1200x600_v1.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50",
+      rating: "4.6",
+      reviews: "38K",
+      type: "Specialization",
+      href: "/belajar/crs-1",
+    },
+    {
+      title: "Data Visualization with Tableau & Python",
+      partner: "UC Davis",
+      partnerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+      thumbnail: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=640&q=80",
+      rating: "4.8",
+      reviews: "29K",
+      type: "Specialization",
+      href: "/belajar/crs-3",
+    },
+  ],
+  "Project Manager": [
+    {
+      title: "Google Project Management",
+      partner: "Google",
+      partnerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+      thumbnail: "https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=640&q=80",
+      rating: "4.8",
+      reviews: "120K",
+      type: "Professional Certificate",
+      href: "/belajar/crs-2",
+    },
+    {
+      title: "IBM Project Management Professional",
+      partner: "IBM",
+      partnerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/bb/f5ced2bdd4437aa79f00eb1bf7fbf0/IBM-Logo-Blk---Square.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+      thumbnail: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=640&q=80",
+      rating: "4.8",
+      reviews: "34K",
+      type: "Professional Certificate",
+      href: "/belajar/r7",
+    },
+    {
+      title: "Agile with Atlassian Jira",
+      partner: "Atlassian",
+      partnerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+      thumbnail: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=640&q=80",
+      rating: "4.7",
+      reviews: "45K",
+      type: "Course",
+      href: "/belajar/r8",
+    },
+    {
+      title: "Engineering Project Management",
+      partner: "Rice University",
+      partnerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/89/63fef0315140268d5c0f66eee8e85e/VU_360x360.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+      thumbnail: "https://images.unsplash.com/photo-1507537297725-24a1c029d3ca?auto=format&fit=crop&w=640&q=80",
+      rating: "4.7",
+      reviews: "18K",
+      type: "Specialization",
+      href: "/belajar/crs-1",
+    },
+  ],
+  "Business Leader": [
+    {
+      title: "AI for Everyone",
+      partner: "DeepLearning.AI",
+      partnerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/b4/5cb90bb92f420b99bf323a0356f451/Icon.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+      thumbnail: "https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=640&q=80",
+      rating: "4.8",
+      reviews: "89K",
+      type: "Course",
+      href: "/belajar/crs-3",
+    },
+    {
+      title: "Digital Transformation & Strategic AI Leadership",
+      partner: "University of Virginia",
+      partnerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+      thumbnail: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=640&q=80",
+      rating: "4.7",
+      reviews: "22K",
+      type: "Specialization",
+      href: "/belajar/r1",
+    },
+    {
+      title: "Leading People and Teams",
+      partner: "University of Michigan",
+      partnerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/7sWcR45W6I4bvFrJfCmb5d/2dff9bbefe50a9fcbcf89b2e5ee7032e/umich.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+      thumbnail: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=640&q=80",
+      rating: "4.8",
+      reviews: "31K",
+      type: "Specialization",
+      href: "/belajar/crs-2",
+    },
+    {
+      title: "Business Analytics Specialization",
+      partner: "Wharton School",
+      partnerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/3Y7rH8FUwg4eai7LK5j9u3/880203b6e241e81112bf48f252ca8e72/Penn-badge.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+      thumbnail: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=640&q=80",
+      rating: "4.7",
+      reviews: "40K",
+      type: "Specialization",
+      href: "/belajar/crs-4",
+    },
+  ],
+  "Digital Marketer": [
+    {
+      title: "Google Digital Marketing & E-commerce",
+      partner: "Google",
+      partnerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+      thumbnail: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=640&q=80",
+      rating: "4.8",
+      reviews: "75K",
+      type: "Professional Certificate",
+      href: "/belajar/crs-2",
+    },
+    {
+      title: "Meta Social Media Marketing",
+      partner: "Meta",
+      partnerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+      thumbnail: "https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=640&q=80",
+      rating: "4.9",
+      reviews: "60K",
+      type: "Professional Certificate",
+      href: "/belajar/crs-1",
+    },
+    {
+      title: "Marketing Analytics Foundation",
+      partner: "Meta",
+      partnerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+      thumbnail: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=640&q=80",
+      rating: "4.8",
+      reviews: "25K",
+      type: "Specialization",
+      href: "/belajar/r7",
+    },
+    {
+      title: "Search Engine Optimization (SEO) Specialization",
+      partner: "UC Davis",
+      partnerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+      thumbnail: "https://images.unsplash.com/photo-1571786256017-aee7a0c009b6?auto=format&fit=crop&w=640&q=80",
+      rating: "4.6",
+      reviews: "19K",
+      type: "Specialization",
+      href: "/belajar/r8",
+    },
+  ],
+};
 
 const CAREER_PROGRAMS = [
   {
@@ -631,7 +1048,7 @@ const NEW_AND_POPULAR_COLUMNS: {
 }[] = [
   {
     category: "Most popular",
-    categoryHref: "#katalog",
+    categoryHref: "/explore/most-popular-courses",
     items: [
       {
         title: "Google Data Analytics",
@@ -652,7 +1069,7 @@ const NEW_AND_POPULAR_COLUMNS: {
         type: "Professional Certificate",
         rating: "4.6",
         thumbnail:
-          "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/6a/48f4bf23504f7a93b4a2ebfc6d6ea2/Data-Analyst.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50",
+          "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/23/f74c5a9a9c4110b78909194abbdc7a/BC-5768_VisMerch-Phase-3-Assets_ProCerts_IBM_DataAnalyst.png?auto=format%2Ccompress&dpr=1&w=320&h=180&fit=crop&q=50",
         href: "/belajar/crs-2",
       },
       {
@@ -977,7 +1394,7 @@ export function BelajarHome({
   queryAwal?: string;
 }) {
   const [query, setQuery] = useState(queryAwal);
-  const [role, setRole] = useState<(typeof ROLE_TABS)[number]>("Software Developer");
+  const [role, setRole] = useState<(typeof ROLE_TABS)[number]>("AI Engineer");
   const [goal, setGoal] = useState<string>("Start my career");
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [story, setStory] = useState(0);
@@ -991,20 +1408,6 @@ export function BelajarHome({
       [r.title, r.provider, ...r.tags].join(" ").toLowerCase().includes(q)
     );
   }, [resources, query]);
-
-  const roleList = useMemo(() => {
-    const keyword: Record<string, RegExp> = {
-      "AI Engineer": /algoritma|interview|api|prompt|machine/i,
-      "Software Developer": /html|css|react|javascript|typescript|node|fullstack/i,
-      "Data Analyst": /data|analisis|visualisasi|python|pandas/i,
-      "QA & Security Engineer": /testing|vitest|playwright|aksesibilitas|security|owasp/i,
-    };
-    const rx = keyword[role];
-    const hit = resources.filter((r) =>
-      [r.title, ...r.tags].join(" ").match(rx)
-    );
-    return (hit.length > 0 ? hit : resources).slice(0, 6);
-  }, [resources, role]);
 
   return (
     <div className="min-w-0 overflow-x-clip bg-white text-gray-900">
@@ -1035,7 +1438,7 @@ export function BelajarHome({
 
       <HeroSection query={query} onQuery={setQuery} />
 
-      <PartnersBar />
+      <PartnersAndCategories onSelectCategory={(cat) => setQuery(cat)} />
 
       {terdaftar.length > 0 ? (
         <section aria-labelledby="pembelajaran-saya" className="border-b border-gray-200 bg-white py-12">
@@ -1131,6 +1534,7 @@ export function BelajarHome({
                           fill
                           sizes="64px"
                           className="object-cover"
+                          unoptimized
                         />
                       </div>
                       <div className="min-w-0 flex-1">
@@ -1142,6 +1546,7 @@ export function BelajarHome({
                               fill
                               sizes="14px"
                               className="object-contain"
+                              unoptimized
                             />
                           </div>
                           <span className="truncate text-xs font-normal text-[#4B5563]">
@@ -1174,40 +1579,116 @@ export function BelajarHome({
         </div>
       </section>
 
-      <section aria-labelledby="ai-untuk-kerja" className="bg-[#f5f7fa] py-14">
+      {/* AI for the work you do— and the career you want (Coursera Banner) */}
+      <section aria-labelledby="ai-banner-heading" className="bg-white py-12">
         <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="max-w-3xl">
-            <h2 id="ai-untuk-kerja" className="text-2xl font-bold tracking-tight text-[#1f1f1f] sm:text-3xl">
-              AI untuk pekerjaanmu — dan karier yang kamu tuju
-            </h2>
-            <p className="mt-2 text-base text-gray-600">
-              Pilih bidangmu. Pelajari alur kerja, penilaian kritis, dan tools mutakhir yang merevolusi industri saat ini.
-            </p>
-          </div>
+          <div
+            className="relative overflow-hidden rounded-3xl p-6 sm:p-9 lg:p-11 shadow-lg"
+            style={{
+              background:
+                "linear-gradient(86deg, rgb(0, 96, 235) 3.56%, rgb(135, 184, 255) 40.71%, rgb(126, 216, 116) 96.44%)",
+            }}
+          >
+            {/* Top Row: Title + Filter Tabs */}
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+              <div className="max-w-xl">
+                <h2
+                  id="ai-banner-heading"
+                  className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-white leading-tight"
+                >
+                  AI for the work you do— and the career you want
+                </h2>
+                <p className="mt-2.5 text-sm sm:text-base text-white/95 leading-relaxed">
+                  Choose your field. Learn the workflows, judgment and tools reshaping it.
+                </p>
+                <div className="mt-5">
+                  <Link
+                    href="/explore/most-popular-courses"
+                    className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-xs sm:text-sm font-bold text-[#0056D2] shadow-sm transition-all hover:bg-blue-50 active:scale-95"
+                  >
+                    <span>Explore programs</span>
+                    <span>→</span>
+                  </Link>
+                </div>
+              </div>
 
-          <div className="mt-6 flex flex-wrap gap-2">
-            {ROLE_TABS.map((r) => (
-              <button
-                key={r}
-                type="button"
-                onClick={() => setRole(r)}
-                aria-pressed={role === r}
-                className={cn(
-                  "cursor-pointer rounded-full px-4 py-2 text-xs font-semibold transition-colors active:scale-95 sm:text-sm",
-                  role === r
-                    ? "bg-[#0056D2] text-white shadow-xs"
-                    : "border border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50"
-                )}
-              >
-                {r}
-              </button>
-            ))}
-          </div>
+              {/* Tabs */}
+              <div className="flex flex-wrap gap-2 lg:max-w-md lg:justify-end">
+                {ROLE_TABS.map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setRole(r)}
+                    aria-pressed={role === r}
+                    className={cn(
+                      "cursor-pointer rounded-full px-4 py-2 text-xs sm:text-sm font-semibold transition-all active:scale-95 shadow-2xs",
+                      role === r
+                        ? "bg-[#1f1f1f] text-white shadow-sm"
+                        : "bg-white text-gray-800 hover:bg-gray-100"
+                    )}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-          <div className="mt-8 flex gap-4 overflow-x-auto pb-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {roleList.map((r) => (
-              <CourseraCourseCard key={r.id} resource={r} />
-            ))}
+            {/* 4 Cards Grid */}
+            <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {(AI_BANNER_DATA[role] ?? AI_BANNER_DATA["AI Engineer"]).map((card) => (
+                <Link
+                  key={card.title}
+                  href={card.href}
+                  className="group flex flex-col justify-between overflow-hidden rounded-2xl bg-white p-3.5 shadow-md transition-all duration-200 hover:-translate-y-1 hover:shadow-xl active:scale-[0.98]"
+                >
+                  <div>
+                    <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-gray-100">
+                      <Image
+                        src={card.thumbnail}
+                        alt={card.title}
+                        fill
+                        sizes="(max-width: 640px) 100vw, 25vw"
+                        className="object-cover transition-transform duration-300 group-hover:scale-105"
+                        unoptimized
+                      />
+                    </div>
+
+                    <div className="mt-3 flex items-center gap-1.5">
+                      <div className="relative size-4 shrink-0 overflow-hidden">
+                        <Image
+                          src={card.partnerLogo}
+                          alt={card.partner}
+                          fill
+                          sizes="16px"
+                          className="object-contain"
+                          unoptimized
+                        />
+                      </div>
+                      <span className="truncate text-xs font-normal text-[#4B5563]">
+                        {card.partner}
+                      </span>
+                    </div>
+
+                    <h3
+                      className="mt-1 line-clamp-2 text-xs sm:text-sm font-bold text-[#111827] leading-snug group-hover:text-[#0056D2] transition-colors"
+                      title={card.title}
+                    >
+                      {card.title}
+                    </h3>
+                  </div>
+
+                  <div className="mt-3 border-t border-gray-100 pt-2.5">
+                    <div className="flex items-center gap-1 text-xs text-[#4B5563]">
+                      <Star className="size-3 fill-amber-500 text-amber-500 shrink-0 inline-block" />
+                      <span className="font-semibold text-gray-900">{card.rating}</span>
+                      <span>({card.reviews})</span>
+                      <span className="text-gray-300">·</span>
+                      <span className="truncate">{card.type}</span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
       </section>
