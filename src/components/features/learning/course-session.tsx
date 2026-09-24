@@ -2,11 +2,33 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { mulaiSesiAction, catatKejadianAction, akhiriSesiAction } from "@/actions/learning";
-import { putuskanAkses, type JenisKegiatan, type KeputusanAkses } from "@/lib/learning/akses";
+import {
+  klasifikasiKejadian,
+  putuskanAkses,
+  type JenisKegiatan,
+  type KJenisKejadian,
+  type KeputusanAkses,
+} from "@/lib/learning/akses";
 // `kebijakan.ts` murni dan aman untuk bundel klien (hanya `import type`), jadi
 // label bisa dirender apa adanya alih-alih menampilkan slug enum ke peserta.
 import { LABEL_ATURAN_BANTUAN } from "@/lib/courses/kebijakan";
 import type { KebijakanCourse } from "@/types/course";
+
+/**
+ * Satu kejadian integritas seperti yang dikirim server.
+ *
+ * Didefinisikan lokal, bukan diimpor dari `lib/learning/session`, karena modul
+ * itu **server-only** (`node:fs/promises`): `import type` memang hilang saat
+ * kompilasi, tapi menaruh bentuk data klien di modul server mengundang impor
+ * nilai berikutnya, dan satu impor nilai saja langsung menjatuhkan bundel klien.
+ * Bentuknya sengaja minimal — hanya field yang benar-benar dihitung panel.
+ */
+export interface KejadianSesi {
+  jenis: KJenisKejadian;
+  jenis_klasifikasi: "kejadian" | "celah";
+  visibilitas: "visible" | "hidden" | null;
+  detail?: string;
+}
 
 /**
  * Konteks sesi terverifikasi sisi klien.
@@ -29,9 +51,68 @@ export interface SessionKonteks {
   runId: string | null;
   status: "idle" | "menyiapkan" | "aktif" | "diakhiri" | "gagal";
   error: string | null;
+  /**
+   * Kejadian integritas run yang sedang berjalan.
+   *
+   * Provider ini satu-satunya tempat yang melihat balasan server
+   * (`catatKejadianAction` mengembalikan `run` lengkap), jadi daftar kejadian
+   * disimpan di sini supaya panel bisa menghitung tanpa endpoint baca terpisah.
+   * Klien tidak pernah membaca dari disk; ia hanya menampilkan apa yang barusan
+   * dikonfirmasi server.
+   */
+  kejadian: KejadianSesi[];
+  /** Ringkasan turunan: jumlah `kejadian` vs `celah` pada run aktif. */
+  ringkasanKejadian: { kejadian: number; celah: number };
   mulai: () => Promise<boolean>;
   akhiri: () => Promise<void>;
   boleh: (jenis: JenisKegiatan) => KeputusanAkses;
+  /**
+   * Catat satu kejadian integritas **atas permintaan peserta** (mis. laporan
+   * gangguan) dan sinkronkan daftar kejadian begitu server menjawab.
+   *
+   * Berbeda dari pencatatan latar belakang, pemanggil butuh tahu apakah
+   * server menerimanya, jadi fungsi ini mengembalikan `SesiActionState`.
+   */
+  laporKejadian: (
+    jenis: KJenisKejadian,
+    visibilitas: "visible" | "hidden" | null,
+    detail?: string,
+  ) => Promise<boolean>;
+}
+
+/** Jumlah kejadian per klasifikasi; dipakai panel untuk menampilkan hitungan. */
+function ringkas(daftar: KejadianSesi[]): { kejadian: number; celah: number } {
+  let kejadian = 0;
+  let celah = 0;
+  for (const k of daftar) {
+    if (k.jenis_klasifikasi === "celah") celah += 1;
+    else kejadian += 1;
+  }
+  return { kejadian, celah };
+}
+
+/**
+ * Ubah `run` dari balasan server menjadi daftar kejadian minim.
+ *
+ * Server sudah menentukan `jenis_klasifikasi` lewat `klasifikasiKejadian`, tapi
+ * nilainya dihitung ulang di sini sebagai jaring pengaman: bila bentuk balasan
+ * berubah atau field hilang, klasifikasi tetap konsisten dengan jenisnya alih-alih
+ * membuat panel menghitung nol celah secara diam-diam.
+ */
+function kejadianDariRun(run: {
+  kejadian: ReadonlyArray<{
+    jenis: KJenisKejadian;
+    jenis_klasifikasi?: "kejadian" | "celah";
+    visibilitas: "visible" | "hidden" | null;
+    detail?: string;
+  }>;
+}): KejadianSesi[] {
+  return run.kejadian.map((k) => ({
+    jenis: k.jenis,
+    visibilitas: k.visibilitas,
+    jenis_klasifikasi: k.jenis_klasifikasi ?? klasifikasiKejadian(k.jenis, k.visibilitas),
+    ...(k.detail ? { detail: k.detail } : {}),
+  }));
 }
 
 export const SessionContext = createContext<SessionKonteks | null>(null);
@@ -55,6 +136,7 @@ export function CourseSessionProvider({
   const [bukti, setBukti] = useState<string | null>(null);
   const [runId, setRunId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [kejadian, setKejadian] = useState<KejadianSesi[]>([]);
   /**
    * Cermin `runId` yang bisa dibaca sinkron.
    *
@@ -72,8 +154,15 @@ export function CourseSessionProvider({
     ) => {
       const id = runRef.current;
       if (!id) return;
-      // Fire-and-forget: kejadian tidak boleh memblokir UI peserta.
-      void catatKejadianAction({ runId: id, jenis, visibilitas }).catch(() => undefined);
+      // Fire-and-forget: kejadian tidak boleh memblokir UI peserta. Daftar
+      // kejadian tetap disinkronkan: satu-satunya tempat peserta bisa melihat
+      // apa yang sudah tercatat, dan itu harus mencerminkan server, bukan
+      // tebakan klien.
+      void catatKejadianAction({ runId: id, jenis, visibilitas })
+        .then((hasil) => {
+          if (hasil.ok && hasil.run) setKejadian(kejadianDariRun(hasil.run));
+        })
+        .catch(() => undefined);
     },
     [],
   );
@@ -90,6 +179,10 @@ export function CourseSessionProvider({
     runRef.current = hasil.runId;
     setRunId(hasil.runId);
     setBukti(hasil.bukti);
+    // Sesi baru selalu dimulai dengan kejadian `sesi_dimulai` di server; ambil
+    // dari balasan supaya panel tidak mulai dari daftar kosong (dan tidak
+    // menghitung nol celah padahal server punya catatan lain).
+    setKejadian(hasil.run ? kejadianDariRun(hasil.run) : []);
     setStatus("aktif");
     return true;
   }, [courseId]);
@@ -101,8 +194,36 @@ export function CourseSessionProvider({
     runRef.current = null;
     setRunId(null);
     setBukti(null);
+    setKejadian([]);
     setStatus("diakhiri");
   }, []);
+
+  /**
+   * Pelaporan sadar-peserta: menunggu balasan server.
+   *
+   * Kalau run sudah berakhir, server menolak dan UI harus tahu — melaporkan
+   * "terkirim" padahal tidak akan membuat peserta kehilangan kejadian yang ia
+   * kira sudah tercatat.
+   */
+  const laporKejadian = useCallback(
+    async (
+      jenis: KJenisKejadian,
+      visibilitas: "visible" | "hidden" | null,
+      detail?: string,
+    ): Promise<boolean> => {
+      const id = runRef.current;
+      if (!id) return false;
+      try {
+        const hasil = await catatKejadianAction({ runId: id, jenis, visibilitas, detail });
+        if (!hasil.ok || !hasil.run) return false;
+        setKejadian(kejadianDariRun(hasil.run));
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     if (status !== "aktif") return;
@@ -131,7 +252,20 @@ export function CourseSessionProvider({
 
   return (
     <SessionContext.Provider
-      value={{ courseId, kebijakan, bukti, runId, status, error, mulai, akhiri, boleh }}
+      value={{
+        courseId,
+        kebijakan,
+        bukti,
+        runId,
+        status,
+        error,
+        kejadian,
+        ringkasanKejadian: ringkas(kejadian),
+        mulai,
+        akhiri,
+        boleh,
+        laporKejadian,
+      }}
     >
       {children}
     </SessionContext.Provider>

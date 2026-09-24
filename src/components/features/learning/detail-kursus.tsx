@@ -14,6 +14,7 @@ import {
   CourseSessionProvider,
   useCourseSession,
 } from "./course-session";
+import { KejadianPanel } from "./kejadian-panel";
 import type { KebijakanCourse, TipeMateri } from "@/types/course";
 
 const LABEL_TIPE: Record<TipeMateri, string> = {
@@ -252,6 +253,13 @@ function RuangBelajar({
             </p>
             <div className="mb-4">
               <CourseSessionIndicator />
+              {/* Panel kejadian tepat di bawah indikator: indikator menjawab
+                  "sesi saya berjalan?", panel menjawab "apa yang tercatat?".
+                  Panel menyembunyikan dirinya sendiri saat tidak relevan
+                  (`status !== "aktif"` dan tanpa celah). */}
+              <div className="mt-3">
+                <KejadianPanel />
+              </div>
             </div>
             <ol className="space-y-3">
               {modul.map((m, index) => {
