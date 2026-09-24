@@ -19,7 +19,9 @@ export default async function PengaturanPage() {
         title="Profil dan privasi"
         lead="Atur jadwal, kelola persetujuan, dan hapus timeline kapan saja. Kontrol penuh di tangan kamu."
       />
-      <SettingsForm nama={session.nama} email={session.email} username={session.username} />
+      <div className="grid-app">
+        <SettingsForm nama={session.nama} email={session.email} username={session.username} />
+      </div>
     </AppShell>
   );
 }

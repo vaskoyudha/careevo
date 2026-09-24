@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, useTransition, type ReactNode } from "react";
-import { ChevronDown, LogOut, Search, Settings } from "lucide-react";
+import { ChevronDown, LogOut, Search, Settings, UserRound } from "lucide-react";
 import { logoutAction } from "@/actions/auth";
 import { ExploreMenu } from "./explore-menu";
 import {
@@ -131,6 +131,15 @@ function AccountMenu({ session }: { session: SessionPayload }) {
             className="flex w-full cursor-pointer items-center gap-2 text-[13px]"
           >
             Dashboard
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link
+            href="/profil"
+            className="flex w-full cursor-pointer items-center gap-2 text-[13px]"
+          >
+            <UserRound className="h-4 w-4" strokeWidth={1.5} />
+            Profil
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
