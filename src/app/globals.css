@@ -425,7 +425,7 @@ body {
   align-items: center;
   gap: 0.4rem;
   padding: 0.5rem 0.85rem;
-  border-radius: var(--radius-pill);
+  border-radius: 8px;
   font-size: 13.5px;
   font-weight: 500;
   color: #000;
@@ -462,13 +462,12 @@ body {
 }
 
 .nav-item.is-active {
-  border-radius: 9px;
-  background: linear-gradient(180deg, #ffffff, rgba(236, 243, 247, 0.85));
-  color: #000;
-  box-shadow:
-    0 2px 8px -2px rgba(10, 61, 98, 0.22),
-    inset 0 1px 0 rgba(255, 255, 255, 1),
-    0 0 0 1px rgba(191, 230, 239, 0.6);
+  color: var(--ocean-deep);
+  font-weight: 600;
+}
+
+.nav-item.is-active svg {
+  color: inherit;
 }
 
 /* Chrome on dark/blue hero (e.g. /loker when at top) */
@@ -497,15 +496,22 @@ body {
   color: #ffffff;
 }
 
+.nav-item.is-active:hover {
+  background: transparent;
+  box-shadow: none;
+}
+
+.chrome.is-dark-hero .nav-item.is-active:hover {
+  background: transparent;
+  box-shadow: none;
+}
+
 .chrome.is-dark-hero .nav-item.is-active {
-  background: #ffffff;
-  color: #0f172a;
-  border-radius: 9px;
-  box-shadow: 0 2px 8px -1px rgba(0, 0, 0, 0.25), 0 1px 2px 0 rgba(0, 0, 0, 0.15);
+  color: #ffffff;
 }
 
 .chrome.is-dark-hero .nav-item.is-active svg {
-  color: #0f172a;
+  color: inherit;
 }
 
 .chrome.is-dark-hero .chrome-btn-ghost {
