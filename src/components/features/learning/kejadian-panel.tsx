@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import type { KJenisKejadian } from "@/lib/learning/akses";
 import { useCourseSession } from "./course-session";
 
 /**
@@ -18,7 +19,15 @@ import { useCourseSession } from "./course-session";
  * kejadian tidak otomatis menggagalkan penilaian dan tidak mengurangi reputasi.
  */
 
-const LABEL_JENIS: Record<string, string> = {
+/**
+ * Label peserta untuk tiap jenis kejadian.
+ *
+ * `Record<KJenisKejadian, string>` (bukan `Record<string, string>`) supaya
+ * menambah jenis baru di `JENIS_KEJADIAN_SAH` langsung memunculkan error
+ * kompilasi di sini — jenis tanpa label membuat daftar menampilkan slug ke
+ * peserta, yang justru mengaburkan apa yang dicatat.
+ */
+const LABEL_JENIS: Record<KJenisKejadian, string> = {
   pindah_tab: "Pindah tab",
   fokus_hilang: "Jendela kehilangan fokus",
   kamera_mulai: "Kamera aktif (menurut laporanmu)",
@@ -49,8 +58,14 @@ export function KejadianPanel() {
   const [pesan, setPesan] = useState<string | null>(null);
   const [mengirim, setMengirim] = useState(false);
 
-  // Sesi berjalan, atau sesi sudah berakhir tetapi ada celah yang tetap perlu
-  // dijelaskan ke peserta.
+  /**
+   * Tampil selama sesi aktif, atau saat masih ada celah tercatat.
+   *
+   * Hari ini `akhiri` mengosongkan daftar kejadian, jadi cabang kedua praktis
+   * tidak pernah aktif; ia tetap ada supaya panel tidak bergantung pada
+   * pembersihan itu — kalau kelak kejadian dipertahankan setelah sesi ditutup,
+   * celah yang masih ada tetap dijelaskan alih-alih menghilang diam-diam.
+   */
   const bolehTampil = status === "aktif" || ringkasanKejadian.celah > 0;
   if (!bolehTampil) return null;
 
@@ -166,10 +181,13 @@ export function KejadianPanel() {
                       : "size-1.5 rounded-full bg-gray-400"
                   }
                 />
-                <span className="font-medium text-gray-800">{LABEL_JENIS[k.jenis] ?? k.jenis}</span>
+                <span className="font-medium text-gray-800">{LABEL_JENIS[k.jenis]}</span>
                 <span className="text-gray-400">
                   {k.jenis_klasifikasi === "celah" ? "celah pengawasan" : "kejadian"}
                 </span>
+                <time dateTime={k.at} className="ml-auto text-gray-400">
+                  {waktu(k.at)}
+                </time>
               </li>
             ))}
           </ul>
