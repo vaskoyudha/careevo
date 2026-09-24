@@ -135,10 +135,16 @@ export function rekomendasiKursus(
   profile: OnboardingProfile,
   limit = 4,
 ): EntriKatalog[] {
+  const catalogIndex = new Map(katalog.map((entry, index) => [entry.id, index]));
+
   return katalog
     .map((entry) => ({ entry, score: skorKursus(entry, profile) }))
     .filter((row) => row.score > 0)
-    .sort((a, b) => b.score - a.score || a.entry.title.localeCompare(b.entry.title))
+    .sort((a, b) => {
+      const aIndex = catalogIndex.get(a.entry.id) ?? Number.MAX_SAFE_INTEGER;
+      const bIndex = catalogIndex.get(b.entry.id) ?? Number.MAX_SAFE_INTEGER;
+      return b.score - a.score || aIndex - bIndex || a.entry.id.localeCompare(b.entry.id);
+    })
     .slice(0, limit)
     .map((row) => row.entry);
 }
