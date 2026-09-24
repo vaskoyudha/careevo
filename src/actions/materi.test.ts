@@ -50,19 +50,10 @@ const videoPayload = {
   durasi_min: "12",
 };
 
-const soalValid = [
-  {
-    id: "soal-1",
-    pertanyaan: "Apa kegunaan useState?",
-    pilihan: ["Menyimpan state lokal", "Mengambil data HTTP"],
-    jawaban_benar: 0,
-  },
-];
-
-const kuisPayload = {
-  judul: "Kuis Dasar Hooks",
-  soal: JSON.stringify(soalValid),
-  nilai_lulus: "70",
+const pdfPayload = {
+  judul: "Materi Latihan",
+  path: "/uploads/courses/crs-1/mod-1/latihan.pdf",
+  ukuran_bytes: "2048",
 };
 
 /** Buat modul induk lebih dulu — materi selalu menempel pada modul. */
@@ -118,22 +109,22 @@ describe("Materi Server Actions", () => {
     expect(tersimpan[0].id).toBe(res.materi!.id);
   });
 
-  it("membuat materi kuis dan menyimpan soalnya utuh", async () => {
+  it("membuat materi pdf dan menyimpan payload-nya utuh", async () => {
     vi.spyOn(sessionModule, "getSession").mockResolvedValue(adminSession);
     const modulId = await siapkanModul();
 
     const res = await createMateriAction(
       { ok: false },
-      formMateri("kuis", kuisPayload, { modul_id: modulId }),
+      formMateri("pdf", pdfPayload, { modul_id: modulId }),
     );
 
     expect(res.ok).toBe(true);
-    if (res.materi?.tipe === "kuis") {
-      expect(res.materi.soal).toHaveLength(1);
-      expect(res.materi.soal[0].jawaban_benar).toBe(0);
-      expect(res.materi.nilai_lulus).toBe(70);
+    if (res.materi?.tipe === "pdf") {
+      expect(res.materi.path).toBe("/uploads/courses/crs-1/mod-1/latihan.pdf");
+      // Angka dari form dikonversi skema, jadi yang tersimpan harus number.
+      expect(res.materi.ukuran_bytes).toBe(2048);
     } else {
-      throw new Error("materi kuis tidak kembali dalam bentuk yang benar");
+      throw new Error("materi pdf tidak kembali dalam bentuk yang benar");
     }
   });
 
@@ -155,21 +146,20 @@ describe("Materi Server Actions", () => {
     expect(await listMateri(COURSE_ID, modulId)).toHaveLength(0);
   });
 
-  it("mengembalikan fieldErrors saat soal kuis cacat", async () => {
+  it("mengembalikan fieldErrors saat tipe kuis dikirim lewat jalur materi", async () => {
     vi.spyOn(sessionModule, "getSession").mockResolvedValue(adminSession);
     const modulId = await siapkanModul();
 
+    // Kuis kini entitas di bank soal (`actions/kuis.ts`), bukan varian materi.
+    // Gerbang ini yang mencegah admin membuat asesmen lewat jalur lampiran.
     const res = await createMateriAction(
       { ok: false },
-      formMateri(
-        "kuis",
-        { ...kuisPayload, soal: "{bukan json" },
-        { modul_id: modulId },
-      ),
+      formMateri("kuis", { judul: "Kuis Dasar Hooks" }, { modul_id: modulId }),
     );
 
     expect(res.ok).toBe(false);
-    expect(res.fieldErrors?.soal).toBeDefined();
+    expect(res.fieldErrors?.tipe).toBeDefined();
+    expect(await listMateri(COURSE_ID, modulId)).toHaveLength(0);
   });
 
   it("memperbarui materi sekaligus mengganti tipenya", async () => {

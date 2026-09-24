@@ -14,8 +14,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MateriEditor } from "./materi-editor";
 import { HalamanEditor } from "./halaman-editor";
+import { KuisModulEditor } from "./kuis-modul-editor";
 import { BATAS_HALAMAN_PER_MODUL } from "@/lib/validation/halaman";
-import type { Modul } from "@/types/course";
+import type { Kuis, Modul } from "@/types/course";
 
 /**
  * Daftar modul sebuah kursus dengan tambah/ubah/hapus dan pengurutan.
@@ -33,20 +34,25 @@ const KOSONG: ModulActionState = { ok: false };
 export function ModulEditor({
   courseId,
   modul,
+  bank,
 }: {
   courseId: string;
   modul: Modul[];
+  /** Bank soal kuis, untuk panel pasang/lepas di tiap modul. */
+  bank: Kuis[];
 }) {
   const [tambahTerbuka, setTambahTerbuka] = useState(false);
   const [suntingId, setSuntingId] = useState<string | null>(null);
   const [materiId, setMateriId] = useState<string | null>(null);
   const [halamanId, setHalamanId] = useState<string | null>(null);
+  const [kuisId, setKuisId] = useState<string | null>(null);
 
   /** Hanya satu panel terbuka per modul, supaya daftar tidak menumpuk. */
-  const buka = (id: string, panel: "sunting" | "materi" | "halaman") => {
+  const buka = (id: string, panel: "sunting" | "materi" | "halaman" | "kuis") => {
     setSuntingId(panel === "sunting" && suntingId !== id ? id : null);
     setMateriId(panel === "materi" && materiId !== id ? id : null);
     setHalamanId(panel === "halaman" && halamanId !== id ? id : null);
+    setKuisId(panel === "kuis" && kuisId !== id ? id : null);
   };
 
   return (
@@ -62,6 +68,7 @@ export function ModulEditor({
           {modul.map((m, index) => {
             const jumlahMateri = (m.materi ?? []).length;
             const jumlahHalaman = (m.halaman ?? []).length;
+            const jumlahKuis = (m.kuis ?? []).length;
             return (
               <li key={m.id} className="rounded-xl border border-gray-200 bg-white">
                 <div className="flex items-start gap-3 p-3">
@@ -92,6 +99,14 @@ export function ModulEditor({
                         className="cursor-pointer font-medium text-[#0056D2] hover:underline"
                       >
                         {materiId === m.id ? "Tutup lampiran" : `Lampiran (${jumlahMateri})`}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => buka(m.id, "kuis")}
+                        aria-expanded={kuisId === m.id}
+                        className="cursor-pointer font-medium text-[#0056D2] hover:underline"
+                      >
+                        {kuisId === m.id ? "Tutup kuis" : `Kuis (${jumlahKuis})`}
                       </button>
                     </p>
                   </div>
@@ -138,6 +153,12 @@ export function ModulEditor({
                     <MateriEditor courseId={courseId} modulId={m.id} materi={m.materi ?? []} />
                   </div>
                 ) : null}
+
+                {kuisId === m.id ? (
+                  <div className="border-t border-gray-100 p-3">
+                    <KuisModulEditor courseId={courseId} modul={m} bank={bank} />
+                  </div>
+                ) : null}
               </li>
             );
           })}
@@ -156,6 +177,7 @@ export function ModulEditor({
             setSuntingId(null);
             setMateriId(null);
             setHalamanId(null);
+            setKuisId(null);
           }}
           className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
         >

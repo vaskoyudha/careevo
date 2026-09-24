@@ -1,18 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { materiSchema, updateMateriSchema, TIPE_MATERI } from "./materi";
 
-const soalValid = {
-  id: "soal-1",
-  pertanyaan: "Apa kegunaan useState?",
-  pilihan: ["Menyimpan state lokal", "Mengambil data HTTP"],
-  jawaban_benar: 0,
-};
-
 describe("materiSchema", () => {
-  it("hanya mengekspor tipe lampiran — prosa pindah ke halaman", () => {
+  it("hanya mengekspor tipe lampiran — prosa dan kuis pindah ke rumahnya sendiri", () => {
     // `teks` sengaja tidak ada: prosa kini ditulis sebagai halaman berformat.
-    // Materi `teks` lama dimigrasikan di `normalisasiHalamanLama()`.
-    expect(TIPE_MATERI).toEqual(["video", "pdf", "kuis"]);
+    // `kuis` juga tidak ada: asesmen berdiri sendiri di bank soal. Masing-masing
+    // data lamanya dimigrasikan di `normalisasiHalamanLama()` dan
+    // `promosiKuisLama()`.
+    expect(TIPE_MATERI).toEqual(["video", "pdf"]);
   });
 
   it("meloloskan varian video", () => {
@@ -87,66 +82,29 @@ describe("materiSchema", () => {
     }
   });
 
-  it("meloloskan varian kuis", () => {
+  it("menolak varian kuis — asesmen tidak boleh dibuat lewat jalur materi", () => {
+    // Gerbang inilah yang mencegah admin membuat asesmen lewat jalur lampiran.
+    // Aturan isi soal kuis (rentang kunci, jumlah pilihan, ambang lulus) kini
+    // diuji di `validation/kuis.test.ts`; di sini yang dipastikan hanyalah
+    // bahwa bentuk materi kuis versi lama tidak lagi diterima sama sekali.
     const parsed = materiSchema.safeParse({
       tipe: "kuis",
       judul: "Kuis Dasar Hooks",
-      soal: [soalValid],
-      nilai_lulus: "70",
-    });
-
-    expect(parsed.success).toBe(true);
-    if (parsed.success && parsed.data.tipe === "kuis") {
-      expect(parsed.data.nilai_lulus).toBe(70);
-    }
-  });
-
-  it("menolak jawaban_benar di luar rentang pilihan", () => {
-    const parsed = materiSchema.safeParse({
-      tipe: "kuis",
-      judul: "Kuis Dasar Hooks",
-      soal: [{ ...soalValid, jawaban_benar: 5 }],
+      soal: [
+        {
+          id: "soal-1",
+          pertanyaan: "Apa kegunaan useState?",
+          pilihan: ["Menyimpan state lokal", "Mengambil data HTTP"],
+          jawaban_benar: 0,
+        },
+      ],
       nilai_lulus: 70,
     });
 
     expect(parsed.success).toBe(false);
     if (!parsed.success) {
-      const issue = parsed.error.issues.find((i) => i.path[2] === "jawaban_benar");
-      expect(issue?.message).toContain("rentang");
-    }
-  });
-
-  it("menolak kuis dengan pilihan kurang dari 2", () => {
-    const parsed = materiSchema.safeParse({
-      tipe: "kuis",
-      judul: "Kuis Dasar Hooks",
-      soal: [{ ...soalValid, pilihan: ["Hanya satu"] }],
-      nilai_lulus: 70,
-    });
-
-    expect(parsed.success).toBe(false);
-  });
-
-  it("menolak kuis tanpa soal", () => {
-    const parsed = materiSchema.safeParse({
-      tipe: "kuis",
-      judul: "Kuis Dasar Hooks",
-      soal: [],
-      nilai_lulus: 70,
-    });
-
-    expect(parsed.success).toBe(false);
-  });
-
-  it("menolak nilai_lulus di luar 0-100", () => {
-    for (const nilai of [-1, 101]) {
-      const parsed = materiSchema.safeParse({
-        tipe: "kuis",
-        judul: "Kuis Dasar Hooks",
-        soal: [soalValid],
-        nilai_lulus: nilai,
-      });
-      expect(parsed.success, String(nilai)).toBe(false);
+      // Yang menolak adalah discriminator-nya, bukan field yang kebetulan salah.
+      expect(parsed.error.issues.some((i) => i.path[0] === "tipe")).toBe(true);
     }
   });
 
