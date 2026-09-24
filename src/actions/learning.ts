@@ -9,6 +9,7 @@ import {
   JENIS_KEJADIAN_SAH,
   checkpointEfektif,
   putuskanAkses,
+  wajibSesiTerverifikasi,
   type KJenisKejadian,
 } from "@/lib/learning/akses";
 import {
@@ -127,9 +128,10 @@ export async function catatKejadianAction(input: {
 /**
  * Selesaikan satu modul.
  *
- * Gerbang server: course wajib punya bukti sesi yang sah **dan** modulnya harus
- * memakai checkpoint `materi`. Tanpa ini, peserta bisa menyelesaikan modul kuis
- * hanya dengan memanggil action ini.
+ * Gerbang server: untuk course yang mewajibkan sesi (`wajibSesiTerverifikasi`),
+ * modul dengan checkpoint `materi` hanya bisa ditandai selesai dengan bukti sesi
+ * yang sah; course `opsional` tidak butuh bukti. Tanpa gerbang ini, peserta bisa
+ * menyelesaikan modul kuis hanya dengan memanggil action ini.
  */
 export async function selesaikanMateriAction(input: {
   courseId: string;
@@ -163,15 +165,23 @@ export async function selesaikanMateriAction(input: {
   }
 
   const kebijakan = kebijakanKursus(kursus);
-  const bukti = input.bukti
-    ? await buktikanSesi({
-        courseId: input.courseId,
-        owner: session.email,
-        policyVersion: kebijakan.versi,
-        token: input.bukti,
-      })
-    : null;
+  // Sebelum ini, biaya verifikasi bukti selalu dibayar walaupun course-nya
+  // `opsional` — padahal keputusannya pasti `bebas`. Lewati saja: hasilnya sama
+  // dan tidak ada token yang dibaca untuk course yang tidak membutuhkannya.
+  const bukti =
+    input.bukti && wajibSesiTerverifikasi(kebijakan)
+      ? await buktikanSesi({
+          courseId: input.courseId,
+          owner: session.email,
+          policyVersion: kebijakan.versi,
+          token: input.bukti,
+        })
+      : null;
 
+  // Pemanggil tidak menyaring berdasarkan ada/tidaknya bukti: keputusannya
+  // serahkan ke `putuskanAkses` di sini. `keputusan.tipe` selalu `bebas` untuk
+  // course `opsional` (lihat `wajibSesiTerverifikasi`), jadi rute klien yang
+  // mengirim permintaan ini pada course `opsional` tidak ikut ditolak.
   const keputusan = putuskanAkses({
     jenisKegiatan: "materi",
     kebijakan,
