@@ -1,35 +1,13 @@
 import { z } from "zod";
 import { skemaUrlHttp } from "./url";
 
-export const TIPE_MATERI = ["video", "pdf", "kuis"] as const;
+export const TIPE_MATERI = ["video", "pdf"] as const;
 
 const judulSchema = z
   .string()
   .trim()
   .min(3, "Judul materi minimal 3 karakter")
   .max(120, "Judul materi maksimal 120 karakter");
-
-const soalKuisSchema = z
-  .object({
-    id: z.string(),
-    pertanyaan: z
-      .string()
-      .trim()
-      .min(3, "Pertanyaan minimal 3 karakter"),
-    pilihan: z
-      .array(z.string().trim().min(1, "Pilihan tidak boleh kosong"))
-      .min(2, "Setiap soal minimal memiliki 2 pilihan"),
-    jawaban_benar: z.coerce
-      .number()
-      .int("Indeks jawaban benar harus bilangan bulat")
-      .min(0, "Indeks jawaban benar tidak boleh negatif"),
-  })
-  // `jawaban_benar` adalah indeks ke `pilihan`, jadi batas atasnya baru diketahui
-  // setelah array-nya ikut terurai — `max()` tidak bisa menyatakannya.
-  .refine((soal) => soal.jawaban_benar < soal.pilihan.length, {
-    message: "Indeks jawaban benar berada di luar rentang pilihan",
-    path: ["jawaban_benar"],
-  });
 
 /**
  * Skema materi sebagai discriminated union per `tipe`.
@@ -39,9 +17,11 @@ const soalKuisSchema = z
  * bukan meledak belakangan di store. `updateMateriSchema` sengaja identik:
  * mengganti tipe berarti mengganti payload utuh, bukan menambalnya.
  *
- * Varian `teks` sudah tidak ada: prosa kini ditulis sebagai halaman berformat
- * (`validation/halaman.ts`). Materi `teks` yang tersimpan dari versi lama
- * dipromosikan menjadi halaman saat dibaca — lihat `normalisasiHalamanLama()`.
+ * Dua varian sudah tidak ada di sini, masing-masing karena punya rumah sendiri:
+ * `teks` → halaman berformat (`validation/halaman.ts`), `kuis` → entitas di
+ * bank soal (`validation/kuis.ts`). Data lama dari kedua bentuk itu
+ * dipromosikan saat dibaca; lihat `normalisasiHalamanLama()` dan
+ * `promosiKuisLama()`.
  */
 export const materiSchema = z.discriminatedUnion("tipe", [
   z.object({
@@ -74,16 +54,6 @@ export const materiSchema = z.discriminatedUnion("tipe", [
       .number()
       .int("Ukuran berkas harus bilangan bulat")
       .min(0, "Ukuran berkas tidak boleh negatif"),
-  }),
-  z.object({
-    tipe: z.literal("kuis"),
-    judul: judulSchema,
-    soal: z.array(soalKuisSchema).min(1, "Kuis minimal memiliki 1 soal"),
-    nilai_lulus: z.coerce
-      .number()
-      .int("Nilai lulus harus bilangan bulat")
-      .min(0, "Nilai lulus tidak boleh negatif")
-      .max(100, "Nilai lulus maksimal 100"),
   }),
 ]);
 

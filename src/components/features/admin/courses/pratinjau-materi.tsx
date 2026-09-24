@@ -14,7 +14,6 @@ import type { TipeMateri, Materi } from "@/types/course";
 const LABEL: Record<TipeMateri, string> = {
   video: "Video",
   pdf: "PDF",
-  kuis: "Kuis",
 };
 
 export function PratinjauMateri({ materi }: { materi: Materi }) {

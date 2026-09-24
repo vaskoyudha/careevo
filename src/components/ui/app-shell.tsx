@@ -32,6 +32,7 @@ const PAGE_LABELS: Record<string, string> = {
   "/review": "Review",
   "/audit": "Audit",
   "/admin/courses": "Kelola Kursus",
+  "/admin/kuis": "Kelola Kuis",
 };
 
 /**

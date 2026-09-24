@@ -131,10 +131,19 @@ export interface Modul {
    * Halaman berformat modul ini — inilah bagian yang "ditulis" admin.
    *
    * Halaman dan materi hidup berdampingan: halaman untuk prosa, materi untuk
-   * lampiran (video/PDF/kuis). Memisahkan keduanya membuat masing-masing punya
+   * lampiran (video/PDF). Memisahkan keduanya membuat masing-masing punya
    * satu renderer dan satu jalur penyuntingan, bukan dua cara menulis prosa.
    */
   halaman?: Halaman[];
+  /**
+   * Id kuis dari bank soal yang dipasang di modul ini, urut sesuai tampilnya.
+   *
+   * Daftar **id**, bukan salinan `Kuis`: satu kuis yang dipakai tiga modul
+   * cukup diperbaiki sekali. Konsekuensinya id bisa yatim bila kuisnya dihapus
+   * dari bank — `deleteKuis()` membersihkan referensi itu, dan
+   * `kuisUntukModul()` mengabaikan id yang tidak ketemu.
+   */
+  kuis?: string[];
   /** Aturan pengerjaan modul ini. Absen = kebijakan default kursus. */
   checkpoint?: CheckpointMateri;
   created_at: string;
@@ -142,15 +151,26 @@ export interface Modul {
 }
 
 /**
- * `teks` sengaja tidak ada di sini.
+ * `teks` dan `kuis` sengaja tidak ada di sini.
  *
- * Prosa kini ditulis sebagai halaman berformat. Membiarkan dua cara menulis
- * prosa akan membuat admin ragu harus memakai yang mana dan setiap perubahan
- * tipografi harus dikerjakan dua kali. Materi `teks` yang sudah tersimpan
- * dimigrasikan menjadi halaman saat dibaca — lihat `normalisasiHalamanLama()`.
+ * Masing-masing punya rumah sendiri: prosa ditulis sebagai halaman berformat,
+ * asesmen sebagai entitas `Kuis`. Membiarkan materi merangkap keduanya membuat
+ * satu jenis konten punya dua cara penulisan, dan setiap perubahan tipografi
+ * maupun aturan penilaian harus dikerjakan dua kali.
+ *
+ * Data lama dimigrasikan malas saat dibaca: materi `teks` → halaman
+ * (`normalisasiHalamanLama()`), materi `kuis` → bank soal + referensi modul
+ * (`promosiKuisLama()`).
  */
-export type TipeMateri = "video" | "pdf" | "kuis";
+export type TipeMateri = "video" | "pdf";
 
+/**
+ * Satu soal pilihan ganda di dalam sebuah kuis.
+ *
+ * `jawaban_benar` menunjuk **indeks** ke `pilihan`, bukan menyalin teksnya:
+ * memperbaiki salah ketik pada pilihan tidak boleh diam-diam membatalkan kunci
+ * jawaban yang sudah benar.
+ */
 export interface SoalKuis {
   id: string;
   pertanyaan: string;
@@ -158,6 +178,29 @@ export interface SoalKuis {
   pilihan: string[];
   /** Indeks ke `pilihan`. */
   jawaban_benar: number;
+}
+
+/**
+ * Kuis — entitas asesmen yang berdiri sendiri di bank soal.
+ *
+ * Berdiri sendiri karena satu kuis sering dipakai ulang lintas modul.
+ * Menanamnya di dalam modul (seperti `materi` bertipe `kuis` dulu) berarti
+ * memperbaiki satu salah ketik harus diulang di setiap salinan, dan tidak ada
+ * cara mengetahui salinan mana yang sudah diperbaiki.
+ *
+ * Modul memakainya lewat `Modul.kuis` — daftar **id**, bukan salinan objek —
+ * sehingga perbaikan di bank langsung berlaku di semua modul yang memakainya,
+ * dan tidak ada dua sumber kebenaran untuk soal yang sama.
+ */
+export interface Kuis {
+  id: string;
+  judul: string;
+  deskripsi: string;
+  soal: SoalKuis[];
+  /** Ambang lulus, skala 0–100. */
+  nilai_lulus: number;
+  created_at: string;
+  updated_at: string;
 }
 
 /** Field yang dimiliki semua tipe materi. */
@@ -177,11 +220,13 @@ interface MateriDasar {
  * Union (bukan satu antarmuka dengan banyak field opsional) dipilih supaya
  * `switch (m.tipe)` bersifat exhaustive: menambah tipe baru memaksa setiap
  * cabang render dan formulir diperbarui.
+ *
+ * Kuis tidak ada di sini karena ia bukan lampiran melainkan asesmen — lihat
+ * `Kuis` dan `Modul.kuis`.
  */
 export type Materi =
   | (MateriDasar & { tipe: "video"; url: string; durasi_min: number })
-  | (MateriDasar & { tipe: "pdf"; path: string; ukuran_bytes: number })
-  | (MateriDasar & { tipe: "kuis"; soal: SoalKuis[]; nilai_lulus: number });
+  | (MateriDasar & { tipe: "pdf"; path: string; ukuran_bytes: number });
 
 export type CreateCourseInput = {
   title: string;
@@ -315,11 +360,34 @@ export type UpdateHalamanInput = CreateHalamanInput;
  */
 export type CreateMateriInput =
   | { tipe: "video"; judul: string; url: string; durasi_min: number }
-  | { tipe: "pdf"; judul: string; path: string; ukuran_bytes: number }
-  | { tipe: "kuis"; judul: string; soal: SoalKuis[]; nilai_lulus: number };
+  | { tipe: "pdf"; judul: string; path: string; ukuran_bytes: number };
 
 /** Ubah materi sekaligus tipe-nya: payload selalu diganti utuh. */
 export type UpdateMateriInput = CreateMateriInput;
+
+/**
+ * Input pembuatan kuis.
+ *
+ * `id`, timestamp, dan normalisasi `soal` diisi store. `nilai_lulus` opsional
+ * supaya formulir yang belum menyentuh field itu tetap menghasilkan nilai
+ * bawaan yang masuk akal, bukan 0 yang membuat setiap peserta lulus.
+ */
+export interface CreateKuisInput {
+  judul: string;
+  deskripsi?: string;
+  soal: SoalKuis[];
+  nilai_lulus?: number;
+}
+
+/**
+ * Perubahan kuis.
+ *
+ * Berbeda dari `UpdateMateriInput` yang mengganti payload utuh, di sini
+ * `Partial` dipakai karena kuis adalah entitas panjang yang disunting bagian
+ * per bagian (mis. hanya mengganti judul). Field yang tidak dikirim tidak
+ * disentuh.
+ */
+export type UpdateKuisInput = Partial<CreateKuisInput>;
 
 export interface CourseStats {
   total: number;

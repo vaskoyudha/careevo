@@ -85,7 +85,7 @@ Several modules intentionally throw `"... belum diimplementasikan"` and are unim
 Module lists come in two flavours and the distinction is load-bearing:
 
 - **Derived** — `modulKursus()` (`src/lib/courses/kurikulum.ts`) always generates exactly 5 modules with positional ids (`${courseId}-m1`…`-m5`). This is what every course and fixture resource uses until an admin edits its curriculum. Those ids are the ones stored in real users' `ls_enroll` progress cookies.
-- **Stored** — `Course.modul` holds `Modul[]`, each with its own `materi` array (`Materi` is a discriminated union over `video | teks | pdf | kuis`). Editing a course's curriculum in `/admin/courses/[id]` switches that course to stored modules with new ids; old progress is then dropped safely by `irisModulSelesai()`.
+- **Stored** — `Course.modul` holds `Modul[]`, each with its own `materi` array (`Materi` is a discriminated union over `video | pdf`), `halaman` array, and `kuis` id list. Editing a course's curriculum in `/admin/courses/[id]` switches that course to stored modules with new ids; old progress is then dropped safely by `irisModulSelesai()`.
 
 `src/lib/courses/modul-resolver.ts` is the single resolver (`modulUntuk` / `modulUntukSumber`): stored wins, otherwise derived. **Never call `modulKursus()` directly from a page or action** — divergence between the four call sites was the bug this split fixes, and `enrollment.test.ts` pins the derived ids to catch regressions.
 
@@ -93,13 +93,13 @@ That resolver must stay server-only. `kurikulum.ts` is imported by client compon
 
 Persistence and uploads, both worth knowing before debugging "my change vanished":
 
-- Courses are written to `data/courses.json` (gitignored) via write-to-temp-then-rename, cached in memory per process. `resetCourses()` in tests disables disk writes entirely, so unit tests never touch your dev data.
+- Courses are written to `data/courses.json` (gitignored) via write-to-temp-then-rename, cached in memory per process. Quizzes live in a sibling `data/kuis.json` and are written through the **same serialized write chain**, so a mutation touching both (mounting a quiz, deleting one) keeps their order. `resetCourses()` in tests disables disk writes entirely, so unit tests never touch your dev data.
 - ⚠️ That cache is **per process**. A second `next start` / script that writes the same file is invisible to an already-running server until it restarts — a newly created course can 404 on a long-running `next dev` that hydrated before it existed.
 - `POST /api/unggah` writes to `public/uploads/courses/<courseId>/<subjectId>/`. Its session gate lives *inside* the handler (route handlers sit outside the gated layouts), filename extensions come from the verified MIME rather than the submitted name, and it returns a `/uploads/...` path. In `next dev` new files are served immediately; under `next start`, `public/` is snapshotted at startup.
 
 ## Halaman berformat — prosa lives here, not in materi
 
-A module holds two independent collections: **halaman** (formatted prose, written by admins) and **materi** (attachments: video/PDF/quiz). `TipeMateri` is deliberately `video | pdf | kuis` — there is **no `teks` variant**, because prose has exactly one home now. Legacy `teks` materials in `courses.json` are promoted into pages on read by `normalisasiHalamanLama()` (`src/lib/courses/halaman.ts`); the migration is lazy, idempotent (page ids derive from material ids), and runs in `pastikanTermuat()`.
+A module holds three collections. **halaman** (formatted prose, written by admins) and **materi** (attachments: video/PDF) are *owned* by the module; **kuis** (assessment) is *referenced* from a separate bank — see the next section. `TipeMateri` is deliberately `video | pdf`: there is **no `teks` variant** (prose has one home now) and **no `kuis` variant** (assessment does). Legacy `teks` materials in `courses.json` are promoted into pages on read by `normalisasiHalamanLama()` (`src/lib/courses/halaman.ts`); the migration is lazy, idempotent (page ids derive from material ids), and runs in `pastikanTermuat()`.
 
 `Modul.halaman` is nested, like `materi`, so deleting a module takes its pages with it. `createModul` accepts `jumlah_halaman` and creates that many empty pages in **one** disk write; `updateModul` deliberately does *not* accept it, so editing a module's title can never silently add pages.
 
@@ -117,9 +117,25 @@ Anchors are **derived** from heading text (`daftarSection()` in `src/lib/courses
 
 Link shape is validated in `validation/blok.ts`: `#slug` (regex, never free text) or http/https via the shared `skemaUrlHttp`, which rejects `javascript:`.
 
+## Kuis — asesmen is a bank, not an attachment
+
+A module holds three independent collections: **halaman** (formatted prose), **materi** (attachments: video/PDF), and **kuis** (assessment). The first two are *owned* by the module; the third is **referenced**.
+
+- `Kuis` lives in its own store — `data/kuis.json`, its own `storage.ts` functions, its own `store.ts` CRUD — because one quiz is routinely reused across modules and courses. Editing it in the bank takes effect everywhere it is mounted, and there is exactly one source of truth for each question.
+- `Modul.kuis` is therefore an **array of ids**, not copies. Consequence you must handle: a reference can go stale.
+  - `deleteKuis()` clears the reference from every module that used it, in the same operation, and returns how many modules it touched. That count is **modules, not courses** — one course can hold several modules using the same quiz.
+  - `kuisUntukModul()` ignores ids missing from the bank rather than yielding an empty entry. Displaying a dangling reference would promise an assessment that cannot be taken.
+  - Deleting a *module* does not delete its quizzes — they are not owned by it.
+- `TipeMateri` is deliberately `video | pdf` — there is **no `kuis` variant**. Legacy `kuis` materials in `courses.json` are promoted into the bank by `promosiKuisLama()` (`src/lib/courses/kuis.ts`) inside `pastikanTermuat()`, in the same lazy pass as the `teks` → halaman migration. It is idempotent (quiz id derives from material id, `kuis-<material id>`) and it **never overwrites a bank entry that already has that id** — an admin who edited a migrated quiz must not lose the edit.
+- A legacy quiz whose questions are *all* unusable is **not** promoted, and its material entry is deliberately left in `materi[]` rather than deleted, so it does not vanish without a trace.
+- `kuisSchema` keeps its `.default()` values out of the shared field object, because `updateKuisSchema` is derived via `.partial()` — and `partial()` does **not** strip `.default()`. Putting the default on the shared object makes `nilai_lulus` default to 70 on every partial update, silently resetting an admin's passing score whenever they rename a quiz. Defaults belong only on the create path.
+- The passing score is client-side only: `kuis-view.tsx` grades in the browser and stores nothing. Because correct answers ship to the renderer, this is a practice tool, **not a cheat-resistant exam** — revisit that decision before using quizzes for certification.
+
 ### Module boundaries for this feature
 
-`blok.ts` and `halaman.ts` are **pure and client-safe** and must stay that way — the page renderer is a client component. `slugBagian()` in `blok.ts` intentionally duplicates slug logic rather than importing `slugify` from `store.ts`, because that import chain reaches `node:fs`. Do not "de-duplicate" them. `npm run build` is the gate that catches a violation here; `npm run check` does not.
+`blok.ts`, `halaman.ts`, and `kuis.ts` are **pure and client-safe** and must stay that way — renderers are client components. `slugBagian()` in `blok.ts` intentionally duplicates slug logic rather than importing `slugify` from `store.ts`, because that import chain reaches `node:fs`. Do not "de-duplicate" them. `npm run build` is the gate that catches a violation here; `npm run check` does not.
+
+`ModulKursus.kuis` holds **resolved `Kuis` objects**, not ids, because the learner UI cannot touch the store. Resolution happens in `modul-resolver.ts`, which reads the bank once per course and passes it to `dariTersimpan()` — not once per module.
 
 ## Conventions that differ from defaults
 
