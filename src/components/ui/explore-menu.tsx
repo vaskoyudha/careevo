@@ -170,7 +170,7 @@ export function ExploreMenu({ isDarkBg = false }: { isDarkBg?: boolean }) {
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         aria-label="Explore menu"
-        className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13.5px] font-medium transition-all duration-200 cursor-pointer ${
+        className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-[8px] px-3.5 py-1.5 text-[13.5px] font-medium transition-all duration-200 cursor-pointer ${
           isOpen
             ? "border border-blue-500/80 bg-white text-black shadow-xs"
             : isDarkBg
