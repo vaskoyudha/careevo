@@ -5,6 +5,8 @@ export const TRACKS = ["web-dev", "data", "game-dev", "cyber-sec"] as const;
 export const LEVELS = ["dasar", "menengah", "lanjut"] as const;
 export const COURSE_TYPES = ["course", "video", "artikel", "bootcamp"] as const;
 export const COURSE_STATUSES = ["published", "draft", "archived"] as const;
+export const ATURAN_BANTUAN = ["bebas", "bertutor", "tanpa_ai"] as const;
+export const ATURAN_PENGAWASAN = ["wajib", "opsional"] as const;
 
 export const courseSchema = z.object({
   title: z
@@ -78,7 +80,28 @@ export const courseSchema = z.object({
     .default("published"),
 });
 
-export const updateCourseSchema = courseSchema.partial();
+/**
+ * Aturan bantuan & pengawasan yang boleh diubah manusia.
+ *
+ * `versi` dan `aturan_pengawasan_sejak` sengaja tidak ada: keduanya dihitung
+ * store saat menyimpan, dan menerimanya dari formulir berarti admin (atau
+ * pemanggil yang memalsukan FormData) bisa menyelewengkan nomor versi yang
+ * dipakai bukti sesi.
+ */
+export const kebijakanCourseSchema = z.object({
+  aturan_bantuan: z.enum(ATURAN_BANTUAN, {
+    message: "Aturan bantuan harus salah satu dari: bebas, bertutor, tanpa_ai",
+  }),
+  aturan_pengawasan: z.enum(ATURAN_PENGAWASAN, {
+    message: "Aturan pengawasan harus salah satu dari: wajib, opsional",
+  }),
+});
+
+export const updateCourseSchema = courseSchema.partial().extend({
+  // Opsional: sebagian pemanggil hanya mengubah identitas kursus dan tidak
+  // menyinggung kebijakan. Bila ada, ia wajib lengkap kedua aturannya.
+  kebijakan: kebijakanCourseSchema.optional(),
+});
 
 export type CourseFormData = z.infer<typeof courseSchema>;
 export type UpdateCourseFormData = z.infer<typeof updateCourseSchema>;

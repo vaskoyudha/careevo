@@ -8,27 +8,7 @@ import { modulUntukSumber } from "@/lib/courses/modul-resolver";
 import { cariPendaftaran } from "@/lib/courses/enrollment";
 import { getCourseById } from "@/lib/courses/store";
 import { kebijakanDefault } from "@/lib/courses/kebijakan";
-import type { KebijakanCourse } from "@/types/course";
 import { tasks } from "@/lib/fixtures";
-
-/**
- * Baca kebijakan tersimpan sebuah course tanpa membuat `Course` bergantung pada
- * field yang belum ada.
- *
- * Task 7 menambahkan `kebijakan?` ke `Course`; sebelum itu tipe tidak punya
- * field ini. Membaca lewat bentuk struktural (`Partial`) menutup celah antara
- * kedua kondisi tanpa cast liar dan tanpa mengubah tipe domain lebih awal,
- * sehingga Task 7 hanya perlu memperbaiki satu tempat bila bentuknya berbeda.
- */
-function kebijakanTersimpan(kursus: unknown): KebijakanCourse | undefined {
-  // `unknown` + pemeriksaan bentuk: `Course` belum punya field ini hari ini,
-  // tetapi begitu Task 7 menambahkannya, nilai yang tersimpan langsung terbaca
-  // tanpa mengubah tipe domain lebih awal maupun memakai cast liar.
-  if (!kursus || typeof kursus !== "object") return undefined;
-  const kandidat = (kursus as { kebijakan?: unknown }).kebijakan;
-  if (!kandidat || typeof kandidat !== "object") return undefined;
-  return kandidat as KebijakanCourse;
-}
 
 export async function generateMetadata({
   params,
@@ -110,12 +90,10 @@ export default async function DetailKursusPage({
         selesaiAwal={pendaftaran?.selesai_modul ?? []}
         terkait={terkait}
         tugas={tugas ? { id: tugas.id, title: tugas.title, brief: tugas.brief } : null}
-        // `Course` belum menyimpan kebijakan per-kursus (field-nya menyusul di
-        // Task 7), jadi pembacaannya lewat bentuk struktural: begitu Task 7
-        // menambahkan `kebijakan?`, cabang ini langsung memakai nilai nyata tanpa
-        // perubahan lain. Sebelum itu, default aman (`aturan_pengawasan:
-        // "wajib"`) dipakai supaya gerbang tidak diam-diam terbuka.
-        kebijakan={kebijakanTersimpan(kursusAsli) ?? kebijakanDefault()}
+        // Kebijakan tersimpan dibaca apa adanya; kursus yang belum pernah
+        // disunting kebijakannya jatuh ke default aman (`aturan_pengawasan:
+        // "wajib"`) supaya gerbang tidak diam-diam terbuka.
+        kebijakan={kursusAsli?.kebijakan ?? kebijakanDefault()}
       />
     </LearnerShell>
   );

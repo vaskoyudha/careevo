@@ -17,6 +17,7 @@ import type {
 } from "@/types/course";
 import { muatCourses, simpanCourses } from "./storage";
 import { judulHalamanOtomatis, normalisasiHalamanLama } from "./halaman";
+import { kebijakanDefault } from "./kebijakan";
 
 export const INITIAL_COURSES: Course[] = [
   {
@@ -395,6 +396,21 @@ export async function updateCourse(
     price: input.price !== undefined ? Number(input.price) : current.price,
     status: input.status ?? current.status,
     cover_image: input.cover_image !== undefined ? input.cover_image : current.cover_image,
+    // Kebijakan asesmen versi-nya naik setiap kali disimpan: bukti sesi memuat
+    // `policyVersion`, jadi peserta yang mulai di bawah aturan lama tidak
+    // otomatis tunduk pada aturan baru tanpa sesi baru. Menyunting kursus
+    // tanpa menyentuh kebijakan tidak boleh menaikkan versi — itu akan
+    // memaksa sesi ulang untuk perubahan yang tidak relevan.
+    ...(input.kebijakan
+      ? {
+          kebijakan: {
+            ...(current.kebijakan ?? kebijakanDefault()),
+            ...input.kebijakan,
+            versi: (current.kebijakan?.versi ?? 0) + 1,
+            aturan_pengawasan_sejak: new Date().toISOString(),
+          },
+        }
+      : {}),
     updated_at: now,
   };
 

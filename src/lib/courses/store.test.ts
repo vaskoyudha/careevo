@@ -178,3 +178,54 @@ describe("Course Store", () => {
     );
   });
 });
+
+describe("Course Store — kebijakan asesmen", () => {
+  beforeEach(() => {
+    resetCourses();
+  });
+
+  it("menaikkan versi dan menstempel waktu saat kebijakan disimpan", async () => {
+    const target = INITIAL_COURSES[0];
+    expect(target.kebijakan).toBeUndefined();
+
+    const hasil = await updateCourse(target.id, {
+      kebijakan: { aturan_bantuan: "tanpa_ai", aturan_pengawasan: "wajib" },
+    });
+
+    // Kursus tanpa kebijakan mulai dari 0, jadi penyimpanan pertama = versi 1.
+    expect(hasil?.kebijakan?.versi).toBe(1);
+    expect(hasil?.kebijakan?.aturan_bantuan).toBe("tanpa_ai");
+    expect(hasil?.kebijakan?.aturan_pengawasan).toBe("wajib");
+    expect(hasil?.kebijakan?.aturan_pengawasan_sejak).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it("menaikkan versi lagi pada penyimpanan berikutnya", async () => {
+    const target = INITIAL_COURSES[0];
+
+    const pertama = await updateCourse(target.id, {
+      kebijakan: { aturan_bantuan: "bertutor" },
+    });
+    const kedua = await updateCourse(target.id, {
+      kebijakan: { aturan_pengawasan: "opsional" },
+    });
+
+    expect(pertama?.kebijakan?.versi).toBe(1);
+    expect(kedua?.kebijakan?.versi).toBe(2);
+    // Aturan yang tidak dikirim pada penyimpanan kedua tetap bertahan.
+    expect(kedua?.kebijakan?.aturan_bantuan).toBe("bertutor");
+    expect(kedua?.kebijakan?.aturan_pengawasan).toBe("opsional");
+  });
+
+  it("tidak mengubah kebijakan bila field-nya tidak dikirim", async () => {
+    const target = INITIAL_COURSES[0];
+    await updateCourse(target.id, {
+      kebijakan: { aturan_bantuan: "tanpa_ai", aturan_pengawasan: "wajib" },
+    });
+
+    const hasil = await updateCourse(target.id, { title: "Judul Saja Berubah" });
+
+    // Menyunting judul tidak boleh memaksa sesi ulang lewat versi baru.
+    expect(hasil?.kebijakan?.versi).toBe(1);
+    expect(hasil?.kebijakan?.aturan_bantuan).toBe("tanpa_ai");
+  });
+});

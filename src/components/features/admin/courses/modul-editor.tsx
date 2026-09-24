@@ -15,7 +15,8 @@ import { Label } from "@/components/ui/label";
 import { MateriEditor } from "./materi-editor";
 import { HalamanEditor } from "./halaman-editor";
 import { BATAS_HALAMAN_PER_MODUL } from "@/lib/validation/halaman";
-import type { Modul } from "@/types/course";
+import { MODE_CHECKPOINT_LABEL } from "@/lib/courses/kebijakan";
+import type { Modul, ModeCheckpoint } from "@/types/course";
 
 /**
  * Daftar modul sebuah kursus dengan tambah/ubah/hapus dan pengurutan.
@@ -41,12 +42,14 @@ export function ModulEditor({
   const [suntingId, setSuntingId] = useState<string | null>(null);
   const [materiId, setMateriId] = useState<string | null>(null);
   const [halamanId, setHalamanId] = useState<string | null>(null);
+  const [checkpointId, setCheckpointId] = useState<string | null>(null);
 
   /** Hanya satu panel terbuka per modul, supaya daftar tidak menumpuk. */
-  const buka = (id: string, panel: "sunting" | "materi" | "halaman") => {
+  const buka = (id: string, panel: "sunting" | "materi" | "halaman" | "checkpoint") => {
     setSuntingId(panel === "sunting" && suntingId !== id ? id : null);
     setMateriId(panel === "materi" && materiId !== id ? id : null);
     setHalamanId(panel === "halaman" && halamanId !== id ? id : null);
+    setCheckpointId(panel === "checkpoint" && checkpointId !== id ? id : null);
   };
 
   return (
@@ -93,6 +96,14 @@ export function ModulEditor({
                       >
                         {materiId === m.id ? "Tutup lampiran" : `Lampiran (${jumlahMateri})`}
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => buka(m.id, "checkpoint")}
+                        aria-expanded={checkpointId === m.id}
+                        className="cursor-pointer font-medium text-[#0056D2] hover:underline"
+                      >
+                        {checkpointId === m.id ? "Tutup checkpoint" : "Checkpoint"}
+                      </button>
                     </p>
                   </div>
 
@@ -136,6 +147,12 @@ export function ModulEditor({
                 {materiId === m.id ? (
                   <div className="border-t border-gray-100 p-3">
                     <MateriEditor courseId={courseId} modulId={m.id} materi={m.materi ?? []} />
+                  </div>
+                ) : null}
+
+                {checkpointId === m.id ? (
+                  <div className="border-t border-gray-100 p-3">
+                    <PanelCheckpoint courseId={courseId} modul={m} />
                   </div>
                 ) : null}
               </li>
@@ -371,4 +388,141 @@ function FormModul({
       </div>
     </form>
   );
+}
+
+const MODE_OPSI: ModeCheckpoint[] = ["materi", "kuis", "proyek"];
+
+/**
+ * Panel checkpoint satu modul.
+ *
+ * Aturannya: mode `materi` selesai lewat penandaan manual, sedangkan `kuis`
+ * dan `proyek` menautkan lampiran/tugas yang sudah ada lewat `ref`.
+ *
+ * `ref` sengaja bukan `<select>` wajib: saat mode `kuis`, pilihan diisi dari
+ * lampiran kuis milik modul ini, tetapi admin tetap boleh menyimpan tanpa
+ * memilih (mis. menautkan nanti) — validasi ketersediaan materi bergantung isi
+ * modul dan tidak bisa diputuskan skema.
+ */
+function PanelCheckpoint({ courseId, modul }: { courseId: string; modul: Modul }) {
+  const [state, formAction, pending] = useActionState<ModulActionState, FormData>(
+    updateModulAction,
+    KOSONG,
+  );
+  const checkpoint = modul.checkpoint;
+  const [mode, setMode] = useState<ModeCheckpoint>(checkpoint?.mode ?? "materi");
+  const opsiKuis = (modul.materi ?? []).filter((m) => m.tipe === "kuis");
+
+  return (
+    <form action={formAction} className="space-y-3" key={modul.id}>
+      <input type="hidden" name="course_id" value={courseId} />
+      <input type="hidden" name="id" value={modul.id} />
+      {/* Judul/ringkasan/durasi wajib ada di skema; dikirim apa adanya agar
+          penyimpanan checkpoint tidak diam-diam mengubah field lain. */}
+      <input type="hidden" name="judul" value={modul.judul} />
+      <input type="hidden" name="ringkasan" value={modul.ringkasan} />
+      <input type="hidden" name="durasi_min" value={modul.durasi_min} />
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor={`${modul.id}-checkpoint-mode`}>Mode checkpoint</Label>
+          <select
+            id={`${modul.id}-checkpoint-mode`}
+            name="checkpoint_mode"
+            value={mode}
+            onChange={(event) => setMode(event.target.value as ModeCheckpoint)}
+            className="h-9 w-full rounded-lg border border-input bg-transparent px-3 text-sm"
+          >
+            {MODE_OPSI.map((nilai) => (
+              <option key={nilai} value={nilai}>
+                {MODE_CHECKPOINT_LABEL[nilai]}
+              </option>
+            ))}
+          </select>
+          <p className="field-hint">
+            {mode === "materi"
+              ? "Peserta menandai modul selesai setelah membaca materinya."
+              : "Peserta menyelesaikan lewat lampiran/tugas yang ditautkan, bukan penandaan manual."}
+          </p>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor={`${modul.id}-checkpoint-batas`}>Batas waktu (menit)</Label>
+          <Input
+            id={`${modul.id}-checkpoint-batas`}
+            name="checkpoint_batas_waktu"
+            type="number"
+            min={1}
+            max={600}
+            defaultValue={checkpoint?.batas_waktu_menit ?? 30}
+          />
+          <FieldError pesan={state.fieldErrors?.checkpoint} />
+        </div>
+      </div>
+
+      {mode === "kuis" ? (
+        <div className="space-y-1.5">
+          <Label htmlFor={`${modul.id}-checkpoint-ref`}>Kuis yang ditautkan</Label>
+          {opsiKuis.length === 0 ? (
+            <p className="field-hint">
+              Modul ini belum punya lampiran kuis. Tambahkan materi bertipe kuis di panel Lampiran.
+            </p>
+          ) : (
+            <select
+              id={`${modul.id}-checkpoint-ref`}
+              name="checkpoint_ref"
+              defaultValue={checkpoint?.ref ?? ""}
+              className="h-9 w-full rounded-lg border border-input bg-transparent px-3 text-sm"
+            >
+              <option value="">— tanpa tautan —</option>
+              {opsiKuis.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.judul}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      ) : null}
+
+      {mode === "proyek" ? (
+        <div className="space-y-1.5">
+          <Label htmlFor={`${modul.id}-checkpoint-ref`}>ID tugas (challenge)</Label>
+          <Input
+            id={`${modul.id}-checkpoint-ref`}
+            name="checkpoint_ref"
+            defaultValue={checkpoint?.ref ?? ""}
+            placeholder="ch-1"
+          />
+          <p className="field-hint">
+            Id tugas dari daftar challenge. Kosongkan bila belum ada yang ditautkan.
+          </p>
+        </div>
+      ) : null}
+
+      {state.message ?? state.error ? (
+        <p
+          role="alert"
+          className={cn(
+            "rounded-lg px-3 py-2 text-sm",
+            state.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700",
+          )}
+        >
+          {state.message ?? state.error}
+        </p>
+      ) : null}
+
+      <button
+        type="submit"
+        disabled={pending}
+        className="cursor-pointer rounded-lg bg-gray-900 px-3 py-2 text-sm font-semibold text-white hover:bg-gray-700 disabled:opacity-60"
+      >
+        {pending ? "Menyimpan…" : "Simpan checkpoint"}
+      </button>
+    </form>
+  );
+}
+
+function FieldError({ pesan }: { pesan?: string }) {
+  if (!pesan) return null;
+  return <p className="field-error">{pesan}</p>;
 }

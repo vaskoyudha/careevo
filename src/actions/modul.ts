@@ -31,6 +31,30 @@ function revalidateKurikulum(courseId: string): void {
   safeRevalidate("/admin/courses", `/admin/courses/${courseId}`, "/belajar");
 }
 
+/**
+ * Rakit `checkpoint` dari field formulir, bila ada.
+ *
+ * Mengembalikan objek kosong saat `checkpoint_mode` tidak dikirim, sehingga
+ * `updateModulSchema` tidak menerima `checkpoint` yang tidak lengkap —
+ * menyebar `checkpoint: undefined` akan tetap hadir sebagai kunci dan membuat
+ * Zod menganggapnya "tidak valid" alih-alih "tidak berubah".
+ */
+function rakitCheckpoint(formData: FormData): Record<string, unknown> {
+  const mode = formData.get("checkpoint_mode");
+  if (typeof mode !== "string" || !mode) return {};
+
+  const ref = formData.get("checkpoint_ref");
+  return {
+    checkpoint: {
+      mode,
+      batas_waktu_menit: formData.get("checkpoint_batas_waktu") ?? 30,
+      // `ref` kosong berarti "tidak menautkan apa pun" — dihilangkan agar
+      // tidak tersimpan sebagai string kosong yang tampak seperti referensi.
+      ...(typeof ref === "string" && ref.trim() ? { ref: ref.trim() } : {}),
+    },
+  };
+}
+
 export async function createModulAction(
   _prev: ModulActionState,
   formData: FormData,
@@ -49,6 +73,7 @@ export async function createModulAction(
     judul: formData.get("judul") ?? "",
     ringkasan: formData.get("ringkasan") ?? "",
     durasi_min: formData.get("durasi_min") ?? 0,
+    ...rakitCheckpoint(formData),
   });
 
   // Jumlah halaman divalidasi terpisah, bukan lewat `modulSchema`: field ini
@@ -121,6 +146,9 @@ export async function updateModulAction(
     judul: formData.get("judul") ?? existing.judul,
     ringkasan: formData.get("ringkasan") ?? existing.ringkasan,
     durasi_min: formData.get("durasi_min") ?? existing.durasi_min,
+    // Checkpoint dirakit hanya bila mode-nya dikirim: form yang hanya mengubah
+    // judul tidak boleh diam-diam mengembalikan aturan pengerjaan modul.
+    ...rakitCheckpoint(formData),
   });
   if (!parsed.success) {
     return {

@@ -23,6 +23,14 @@ export interface Course {
   cover_image?: string;
   /** Kurikulum tersimpan. Kosong/absen = pakai modul turunan `modulKursus()`. */
   modul?: Modul[];
+  /**
+   * Kebijakan asesmen tersimpan. Absen = default aman (`kebijakanDefault()`).
+   *
+   * Kursus lama yang belum pernah disunting kebijakannya tidak membawa field
+   * ini; pembaca wajib jatuh ke `kebijakanDefault()` agar gerbang sesi tidak
+   * diam-diam terbuka.
+   */
+  kebijakan?: KebijakanCourse;
   created_at: string;
   updated_at: string;
 }
@@ -192,7 +200,21 @@ export type CreateCourseInput = {
   cover_image?: string;
 };
 
-export type UpdateCourseInput = Partial<CreateCourseInput>;
+/**
+ * Perubahan kebijakan asesmen yang dikirim pemanggil.
+ *
+ * Hanya dua aturan yang boleh diubah manusia: `versi` dan
+ * `aturan_pengawasan_sejak` adalah konsekuensi penyimpanan, bukan pilihan —
+ * menerimanya dari klien akan membiarkan pemanggil memalsukan versi bukti.
+ */
+export type CourseKebijakanInput = Partial<
+  Pick<KebijakanCourse, "aturan_bantuan" | "aturan_pengawasan">
+>;
+
+export type UpdateCourseInput = Partial<CreateCourseInput> & {
+  /** Bila ada, store menaikkan `versi` dan menstempel waktu berlaku aturan. */
+  kebijakan?: CourseKebijakanInput;
+};
 
 export interface CreateModulInput {
   judul: string;
