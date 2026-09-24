@@ -211,7 +211,6 @@ export function LearnerChrome({
                 href={item.href}
                 className={active ? "nav-item is-active" : "nav-item"}
                 aria-current={active ? "page" : undefined}
-                title={item.label}
               >
                 {item.icon}
                 <span className="max-lg:sr-only">{item.label}</span>
