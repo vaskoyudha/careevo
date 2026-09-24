@@ -15,7 +15,7 @@
 
 // `import type` hilang saat kompilasi, jadi ini tidak menarik runtime apa pun
 // ke bundel klien — aman dipakai di berkas yang juga diimpor komponen klien.
-import type { CheckpointMateri, Halaman, Materi } from "@/types/course";
+import type { CheckpointMateri, Halaman, Kuis, Materi } from "@/types/course";
 
 export interface ModulKursus {
   id: string;
@@ -37,6 +37,16 @@ export interface ModulKursus {
    * ditulis admin, jadi tidak ada prosa yang bisa dihalaman-kan.
    */
   halaman?: Halaman[];
+  /**
+  /**
+   * Kuis yang dipasang di modul ini — **sudah diresolusi**, bukan daftar id.
+   *
+   * `Modul.kuis` menyimpan id karena bank soal adalah sumber kebenarannya;
+   * resolusi ke objek terjadi di `modul-resolver.ts`, yang punya akses ke
+   * store. UI learner tidak boleh menyentuh store, jadi yang dibawanya adalah
+   * hasil resolusi.
+   */
+  kuis?: Kuis[];
   /**
    * Aturan pengerjaan modul. Diteruskan dari modul tersimpan supaya gerbang
    * learner tidak diam-diam jatuh ke default ketika modul punya checkpoint

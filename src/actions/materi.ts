@@ -73,32 +73,9 @@ function rakitPayload(
           fallback?.tipe === "pdf" ? fallback.ukuran_bytes : 0,
         ),
       };
-    case "kuis": {
-      const soalMentah = formData.get("soal");
-      let soal: unknown = fallback?.tipe === "kuis" ? fallback.soal : [];
-      if (typeof soalMentah === "string" && soalMentah.trim()) {
-        try {
-          // Daftar soal datang sebagai JSON dari form; bila cacat, biarkan
-          // nilainya apa adanya supaya skema yang melaporkannya sebagai
-          // fieldError `soal` — bukan exception yang menutup action.
-          soal = JSON.parse(soalMentah);
-        } catch {
-          soal = soalMentah;
-        }
-      }
-      return {
-        tipe,
-        judul,
-        soal,
-        nilai_lulus: ambil(
-          formData,
-          "nilai_lulus",
-          fallback?.tipe === "kuis" ? fallback.nilai_lulus : 0,
-        ),
-      };
-    }
     default:
       // Tipe tak dikenal: teruskan apa adanya agar discriminated union yang menolak.
+      // Kuis tidak ada di sini — ia entitas tersendiri, lihat `actions/kuis.ts`.
       return { tipe, judul };
   }
 }

@@ -14,11 +14,11 @@ import {
   LABEL_ATURAN_PENGAWASAN,
   kebijakanDefault,
 } from "@/lib/courses/kebijakan";
-import type { AturanBantuan, AturanPengawasan, Course } from "@/types/course";
+import type { AturanBantuan, AturanPengawasan, Course, Kuis } from "@/types/course";
 
 /**
  * Halaman detail kursus: identitas kursus, sampul, dan kurikulum (modul +
- * materi).
+ * materi + halaman + kuis).
  *
  * Sampul diunggah lewat route handler (di luar transaksi action), jadi alurnya:
  * unggah dapat path -> simpan path ke kursus lewat `updateCourseAction`.
@@ -28,10 +28,11 @@ const KOSONG: CourseActionState = { ok: false };
 
 type Tab = "kurikulum" | "identitas";
 
-export function KursusDetail({ course }: { course: Course }) {
+export function KursusDetail({ course, bank }: { course: Course; bank: Kuis[] }) {
   const [tab, setTab] = useState<Tab>("kurikulum");
   const modul = course.modul ?? [];
   const jumlahMateri = modul.reduce((total, m) => total + (m.materi ?? []).length, 0);
+  const jumlahKuis = modul.reduce((total, m) => total + (m.kuis ?? []).length, 0);
 
   return (
     <div className="space-y-6">
@@ -42,7 +43,7 @@ export function KursusDetail({ course }: { course: Course }) {
             <p className="card-sub">
               {course.provider} · {course.duration_min} menit ·{" "}
               {modul.length > 0
-                ? `${modul.length} modul tersimpan · ${jumlahMateri} materi`
+                ? `${modul.length} modul tersimpan · ${jumlahMateri} materi · ${jumlahKuis} kuis`
                 : "belum ada modul tersimpan (memakai 5 modul turunan)"}
             </p>
           </div>
@@ -57,7 +58,7 @@ export function KursusDetail({ course }: { course: Course }) {
         <div className="flex gap-1 border-b border-gray-200">
           {(
             [
-              ["kurikulum", "Modul & Materi"],
+              ["kurikulum", "Modul, Materi & Kuis"],
               ["identitas", "Identitas & Sampul"],
             ] as Array<[Tab, string]>
           ).map(([nilai, label]) => (
@@ -81,7 +82,7 @@ export function KursusDetail({ course }: { course: Course }) {
 
         <div className="pt-4">
           {tab === "kurikulum" ? (
-            <ModulEditor courseId={course.id} modul={modul} />
+            <ModulEditor courseId={course.id} modul={modul} bank={bank} />
           ) : (
             <IdentitasKursus course={course} />
           )}

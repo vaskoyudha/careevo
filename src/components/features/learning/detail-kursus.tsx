@@ -17,12 +17,12 @@ import {
   useCourseSession,
 } from "./course-session";
 import { KejadianPanel } from "./kejadian-panel";
+import { KuisView } from "./kuis-view";
 import type { KebijakanCourse, TipeMateri } from "@/types/course";
 
 const LABEL_TIPE: Record<TipeMateri, string> = {
   video: "Video",
   pdf: "PDF",
-  kuis: "Kuis",
 };
 
 export interface KursusTerkait {
@@ -337,7 +337,9 @@ function RuangBelajar({
                 const sudah = selesai.includes(m.id);
                 const daftarMateri = m.materi ?? [];
                 const daftarHalaman = [...(m.halaman ?? [])].sort((a, b) => a.urutan - b.urutan);
-                const punyaIsi = daftarMateri.length > 0 || daftarHalaman.length > 0;
+                const daftarKuis = m.kuis ?? [];
+                const punyaIsi =
+                  daftarMateri.length > 0 || daftarHalaman.length > 0 || daftarKuis.length > 0;
                 const terbuka = modulTerbuka === m.id;
                 // Halaman yang sedang ditampilkan di dalam modul ini. Berbeda
                 // dari `modulTerbuka`, ini berpindah tanpa menutup modul supaya
@@ -373,6 +375,7 @@ function RuangBelajar({
                               {daftarMateri.length > 0
                                 ? ` · ${daftarMateri.length} lampiran`
                                 : ""}
+                              {daftarKuis.length > 0 ? ` · ${daftarKuis.length} kuis` : ""}
                             </span>
                           ) : null}
                           {punyaIsi ? (
@@ -429,6 +432,17 @@ function RuangBelajar({
                             halaman={halamanAktif}
                             onPindahHalaman={setHalamanTerpilih}
                           />
+                        ) : null}
+
+                        {daftarKuis.length > 0 ? (
+                          <div className="space-y-3">
+                            <p className="text-[11px] font-semibold tracking-wider text-gray-500 uppercase">
+                              Kuis
+                            </p>
+                            {daftarKuis.map((kuis) => (
+                              <KuisView key={kuis.id} kuis={kuis} />
+                            ))}
+                          </div>
                         ) : null}
 
                         {daftarMateri.length > 0 ? (

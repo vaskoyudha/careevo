@@ -5,19 +5,23 @@ import type {
   CourseStats,
   CreateCourseInput,
   CreateHalamanInput,
+  CreateKuisInput,
   CreateMateriInput,
   CreateModulInput,
   Halaman,
+  Kuis,
   Materi,
   Modul,
   UpdateCourseInput,
   UpdateHalamanInput,
+  UpdateKuisInput,
   UpdateMateriInput,
   UpdateModulInput,
 } from "@/types/course";
-import { muatCourses, simpanCourses } from "./storage";
+import { muatCourses, muatKuis, simpanCourses, simpanKuis } from "./storage";
 import { judulHalamanOtomatis, normalisasiHalamanLama } from "./halaman";
 import { kebijakanDefault } from "./kebijakan";
+import { promosiKuisLama } from "./kuis";
 
 export const INITIAL_COURSES: Course[] = [
   {
@@ -208,6 +212,17 @@ export function slugify(text: string): string {
  * murni in-memory tanpa menyentuh disk.
  */
 let coursesState: Course[] = [...INITIAL_COURSES];
+
+/**
+ * Bank soal kuis.
+ *
+ * Disimpan terpisah dari `coursesState` karena kuis hidup lintas kursus: satu
+ * entri di sini bisa dirujuk modul di kursus mana pun. Kosong bukan berarti
+ * "tidak ada kuis" bagi kursus yang belum dimigrasikan — materinya yang lama
+ * masih memuat soalnya sampai `pastikanTermuat()` mempromosikannya.
+ */
+let kuisState: Kuis[] = [];
+
 let sudahHidrasi = false;
 /**
  * Dimatikan oleh `resetCourses()`. Test berjalan sepenuhnya in-memory — sama
@@ -219,19 +234,48 @@ let pakaiDisk = true;
 async function pastikanTermuat(): Promise<void> {
   if (sudahHidrasi) return;
   sudahHidrasi = true;
+
   const dariDisk = await muatCourses();
-  if (dariDisk !== null) {
-    // Materi `teks` dari versi sebelumnya dipromosikan menjadi halaman
-    // berformat sekali di sini, bukan disebar ke setiap pemanggil. Hasilnya
-    // ikut tersimpan pada penulisan berikutnya (migrasi malas).
-    coursesState = dariDisk.map(normalisasiHalamanLama);
-  }
+  if (dariDisk === null) return;
+
+  // Bank soal dibaca lebih dulu: promosi materi `kuis` di bawah butuh tahu id
+  // yang sudah ada supaya tidak menimpa kuis hasil migrasi yang sudah disunting.
+  const bankDariDisk = (await muatKuis()) ?? [];
+
+  let bank = bankDariDisk;
+  // Dua migrasi malas, satu lintasan:
+  // - materi `teks`  → halaman berformat
+  // - materi `kuis`  → bank soal + referensi `Modul.kuis`
+  // Keduanya idempoten, jadi terpanggil berulang tidak menggandakan apa pun.
+  const kursus = dariDisk.map((course) => {
+    const denganHalaman = normalisasiHalamanLama(course);
+    const hasil = promosiKuisLama(denganHalaman, bank);
+    bank = hasil.bank;
+    return hasil.course;
+  });
+
+  coursesState = kursus;
+  kuisState = bank;
 }
 
 /** Tulis cache ke disk. No-op dalam mode uji (setelah `resetCourses()`). */
 async function simpan(): Promise<void> {
   if (!pakaiDisk) return;
   await simpanCourses(coursesState);
+}
+
+/**
+ * Tulis kursus **beserta** bank soal.
+ *
+ * Dipakai mutasi yang menyentuh keduanya sekaligus — memasang atau melepas kuis
+ * mengubah `Modul.kuis` dan referensinya, dan menghapus kuis membersihkan
+ * referensi di kursus. Menulis hanya salah satunya akan meninggalkan berkas
+ * yang saling bertentangan setelah proses mati di antaranya.
+ */
+async function simpanSemua(): Promise<void> {
+  if (!pakaiDisk) return;
+  await simpanCourses(coursesState);
+  await simpanKuis(kuisState);
 }
 
 function idBaru(prefix: string): string {
@@ -453,6 +497,7 @@ export async function getCourseStats(): Promise<CourseStats> {
  */
 export function resetCourses(): void {
   coursesState = [...INITIAL_COURSES];
+  kuisState = [];
   sudahHidrasi = true;
   pakaiDisk = false;
 }
@@ -500,6 +545,8 @@ export async function createModul(courseId: string, input: CreateModulInput): Pr
     // default tanpa memaksa admin mengisi apa pun; tanpa ini modul baru tidak
     // punya batas pengerjaan sama sekali.
     checkpoint: input.checkpoint ?? { mode: "materi", batas_waktu_menit: 30 },
+    // Modul baru belum memasang kuis apa pun; pemasangannya lewat panel Kuis.
+    kuis: [],
     created_at: now,
     updated_at: now,
   };
@@ -631,13 +678,6 @@ function materiBaru(
         tipe: "pdf",
         path: input.path.trim(),
         ukuran_bytes: Number(input.ukuran_bytes) || 0,
-      };
-    case "kuis":
-      return {
-        ...dasar,
-        tipe: "kuis",
-        soal: input.soal,
-        nilai_lulus: Number(input.nilai_lulus) || 0,
       };
   }
 }
@@ -982,4 +1022,243 @@ function halamanAwal(
     created_at: now,
     updated_at: now,
   }));
+}
+
+// ---------------------------------------------------------------------------
+// Bank soal kuis
+// ---------------------------------------------------------------------------
+//
+// Kuis **tidak** bersarang di dalam modul, berbeda dari materi dan halaman.
+// Alasannya kebalikan dari alasan bersarangnya mereka: materi dan halaman
+// dimiliki satu modul, sedangkan kuis dipakai ulang lintas modul dan kursus.
+// Yang disimpan modul hanyalah daftar id (`Modul.kuis`), sehingga memperbaiki
+// satu soal langsung berlaku di semua tempat yang memakainya.
+//
+// Konsekuensi yang harus ditangani: referensi bisa jadi yatim. `deleteKuis()`
+// membersihkannya, dan `kuisUntukModul()` di `kuis.ts` mengabaikan id yang
+// tidak ketemu sebagai jaring kedua.
+
+/** Kuis terurut judulnya — bank soal dibaca sebagai katalog, bukan urutan pasang. */
+export async function listKuis(): Promise<Kuis[]> {
+  await pastikanTermuat();
+  return [...kuisState].sort((a, b) => a.judul.localeCompare(b.judul, "id"));
+}
+
+export async function getKuis(kuisId: string): Promise<Kuis | undefined> {
+  await pastikanTermuat();
+  return kuisState.find((k) => k.id === kuisId);
+}
+
+/** Bentuk `Kuis` lengkap dari input pemanggil. Id dan timestamp diisi store. */
+function kuisBaru(input: CreateKuisInput, now: string): Kuis {
+  return {
+    id: idBaru("kuis"),
+    judul: input.judul.trim(),
+    deskripsi: (input.deskripsi ?? "").trim(),
+    soal: input.soal,
+    nilai_lulus: Number(input.nilai_lulus ?? 70) || 0,
+    created_at: now,
+    updated_at: now,
+  };
+}
+
+export async function createKuis(input: CreateKuisInput): Promise<Kuis> {
+  await pastikanTermuat();
+  const now = new Date().toISOString();
+  const kuis = kuisBaru(input, now);
+  kuisState = [...kuisState, kuis];
+  await simpanSemua();
+  return kuis;
+}
+
+/**
+ * Perbarui kuis di bank.
+ *
+ * `undefined` berarti "jangan sentuh field ini", bukan "kosongkan" — sama
+ * seperti `updateHalaman` memperlakukan `blok`. Dengan begitu UI bisa mengirim
+ * hanya field yang benar-benar berubah tanpa menghapus sisanya.
+ *
+ * Perubahan **tidak** disalin ke modul mana pun: yang disimpan modul adalah id,
+ * jadi semua pemakai otomatis melihat versi terbaru. Itulah alasan kuis
+ * dipisahkan dari materi.
+ */
+export async function updateKuis(
+  kuisId: string,
+  input: UpdateKuisInput,
+): Promise<Kuis | null> {
+  await pastikanTermuat();
+  const posisi = kuisState.findIndex((k) => k.id === kuisId);
+  if (posisi === -1) return null;
+
+  const sebelumnya = kuisState[posisi];
+  const now = new Date().toISOString();
+  const diganti: Kuis = {
+    ...sebelumnya,
+    judul: input.judul !== undefined ? input.judul.trim() : sebelumnya.judul,
+    deskripsi: input.deskripsi !== undefined ? input.deskripsi.trim() : sebelumnya.deskripsi,
+    soal: input.soal !== undefined ? input.soal : sebelumnya.soal,
+    nilai_lulus:
+      input.nilai_lulus !== undefined ? Number(input.nilai_lulus) || 0 : sebelumnya.nilai_lulus,
+    updated_at: now,
+  };
+
+  kuisState = kuisState.map((k, i) => (i === posisi ? diganti : k));
+  await simpanSemua();
+  return diganti;
+}
+
+/**
+ * Hapus kuis dari bank **beserta seluruh referensinya**.
+ *
+ * Pemakaian di modul dibersihkan dalam operasi yang sama, bukan diserahkan ke
+ * pemanggil: referensi yatim akan membuat daftar pasang menampilkan entri yang
+ * tidak bisa dibuka, dan membersihkannya di sini adalah satu-satunya tempat
+ * yang tahu semua modul mana saja yang memakainya.
+ *
+ * Mengembalikan jumlah modul yang referensinya dibersihkan (0 bila kuisnya
+ * memang tidak terpasang di mana pun), atau `null` bila kuisnya tidak ada.
+ */
+export async function deleteKuis(kuisId: string): Promise<number | null> {
+  await pastikanTermuat();
+  if (!kuisState.some((k) => k.id === kuisId)) return null;
+
+  const now = new Date().toISOString();
+  // Menghitung **modul**, bukan kursus: pesan ke admin menyebut "dilepas dari N
+  // modul", dan satu kursus bisa memuat beberapa modul yang memakai kuis sama.
+  // Menghitung kursus akan melaporkan angka yang lebih kecil dari kenyataan.
+  let dibersihkan = 0;
+
+  coursesState = coursesState.map((kursus) => {
+    const daftar = kursus.modul ?? [];
+    if (!daftar.some((m) => (m.kuis ?? []).includes(kuisId))) return kursus;
+
+    const modul: Modul[] = daftar.map((m) => {
+      if (!(m.kuis ?? []).includes(kuisId)) return m;
+      dibersihkan += 1;
+      return { ...m, kuis: (m.kuis ?? []).filter((id) => id !== kuisId), updated_at: now };
+    });
+
+    return { ...kursus, modul, updated_at: now };
+  });
+
+  kuisState = kuisState.filter((k) => k.id !== kuisId);
+  await simpanSemua();
+  return dibersihkan;
+}
+
+/**
+ * Pasang kuis ke sebuah modul, di urutan terakhir.
+ *
+ * Idempoten: memasang kuis yang sudah terpasang tidak menggandakan
+ * referensinya, dan mengembalikan modul apa adanya. Tombol "pasang" yang
+ * terklik dua kali (mis. karena koneksi lambat) tidak boleh menghasilkan dua
+ * entri yang sama.
+ */
+export async function pasangKuis(
+  courseId: string,
+  modulId: string,
+  kuisId: string,
+): Promise<Modul | null> {
+  await pastikanTermuat();
+  const index = coursesState.findIndex((c) => c.id === courseId);
+  if (index === -1) return null;
+
+  const kursus = coursesState[index];
+  const ketemu = cariModul(kursus, modulId);
+  if (!ketemu) return null;
+
+  // Kuis harus ada di bank dulu: referensi ke id yang tidak ada tidak bisa
+  // ditampilkan maupun dinilai, jadi lebih baik ditolak di sini.
+  if (!kuisState.some((k) => k.id === kuisId)) return null;
+  if ((ketemu.modul.kuis ?? []).includes(kuisId)) return ketemu.modul;
+
+  const now = new Date().toISOString();
+  const diperbarui: Modul = {
+    ...ketemu.modul,
+    kuis: [...(ketemu.modul.kuis ?? []), kuisId],
+    updated_at: now,
+  };
+
+  const daftar = [...(kursus.modul ?? [])];
+  daftar[ketemu.posisi] = diperbarui;
+  coursesState[index] = { ...kursus, modul: daftar, updated_at: now };
+  await simpanSemua();
+  return diperbarui;
+}
+
+/**
+ * Lepas kuis dari sebuah modul.
+ *
+ * Hanya melepas referensinya — entri di bank tetap ada, karena kuis yang sama
+ * mungkin masih dipakai modul lain. Menghapusnya dari bank adalah tindakan
+ * terpisah yang disengaja.
+ */
+export async function lepasKuis(
+  courseId: string,
+  modulId: string,
+  kuisId: string,
+): Promise<Modul | null> {
+  await pastikanTermuat();
+  const index = coursesState.findIndex((c) => c.id === courseId);
+  if (index === -1) return null;
+
+  const kursus = coursesState[index];
+  const ketemu = cariModul(kursus, modulId);
+  if (!ketemu) return null;
+  if (!(ketemu.modul.kuis ?? []).includes(kuisId)) return ketemu.modul;
+
+  const now = new Date().toISOString();
+  const diperbarui: Modul = {
+    ...ketemu.modul,
+    kuis: (ketemu.modul.kuis ?? []).filter((id) => id !== kuisId),
+    updated_at: now,
+  };
+
+  const daftar = [...(kursus.modul ?? [])];
+  daftar[ketemu.posisi] = diperbarui;
+  coursesState[index] = { ...kursus, modul: daftar, updated_at: now };
+  await simpanSemua();
+  return diperbarui;
+}
+
+/**
+ * Pindahkan kuis yang terpasang di modul satu posisi naik/turun.
+ *
+ * Mengembalikan daftar id terbaru, atau `null` bila modul/kuisnya tidak
+ * ketemu. Sumber urutannya adalah posisi array — pelajaran yang sama dengan
+ * `geserModul`/`geserHalaman`: bertukar berdasarkan nilai yang mungkin basi
+ * justru membatalkan pertukaran.
+ */
+export async function geserKuis(
+  courseId: string,
+  modulId: string,
+  kuisId: string,
+  arah: "naik" | "turun",
+): Promise<string[] | null> {
+  await pastikanTermuat();
+  const index = coursesState.findIndex((c) => c.id === courseId);
+  if (index === -1) return null;
+
+  const kursus = coursesState[index];
+  const ketemu = cariModul(kursus, modulId);
+  if (!ketemu) return null;
+
+  const daftar = [...(ketemu.modul.kuis ?? [])];
+  const posisi = daftar.findIndex((id) => id === kuisId);
+  if (posisi === -1) return null;
+
+  const tujuan = arah === "naik" ? posisi - 1 : posisi + 1;
+  if (tujuan < 0 || tujuan >= daftar.length) {
+    // Sudah di ujung: bukan error, cukup tidak ada perubahan.
+    return daftar;
+  }
+
+  [daftar[posisi], daftar[tujuan]] = [daftar[tujuan], daftar[posisi]];
+
+  const now = new Date().toISOString();
+  const daftarModul = [...(kursus.modul ?? [])];
+  daftarModul[ketemu.posisi] = { ...ketemu.modul, kuis: daftar, updated_at: now };
+  coursesState[index] = { ...kursus, modul: daftarModul, updated_at: now };
+  await simpanSemua();
+  return daftar;
 }

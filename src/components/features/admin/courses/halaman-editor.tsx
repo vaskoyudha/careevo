@@ -221,7 +221,7 @@ function HapusHalaman({
  *
  * Blok dikirim sebagai satu field JSON — bentuknya bersarang (butir → segmen →
  * penanda), dan memetakannya ke field datar jauh lebih rapuh. Pola yang sama
- * dipakai daftar soal kuis.
+ * dipakai daftar soal pada editor kuis (`editor-soal.tsx`).
  *
  * Pada mode ubah, blok yang tidak disentuh pun ikut dikirim apa adanya. Server
  * menyimpannya kembali tanpa perubahan berarti, dan itu disengaja: mencoba
