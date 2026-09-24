@@ -6,6 +6,10 @@ export function isRole(value: unknown): value is Role {
   return typeof value === "string" && (ROLES as readonly string[]).includes(value);
 }
 
+export function normalizeOwner(owner: string): string {
+  return owner.trim().toLowerCase();
+}
+
 export interface SessionUser {
   email: string;
   nama: string;
