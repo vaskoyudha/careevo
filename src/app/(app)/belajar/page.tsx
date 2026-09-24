@@ -23,7 +23,7 @@ export default async function BelajarPage({
   const queryAwal = typeof q === "string" ? q.slice(0, 120) : "";
 
   const katalog = await katalogBelajar();
-  const pendaftaran = await listPendaftaran();
+  const pendaftaran = await listPendaftaran(session.email);
 
   const terdaftar: KursusTerdaftar[] = pendaftaran.flatMap((entri) => {
     const kursus = katalog.find((item) => item.id === entri.course_id);

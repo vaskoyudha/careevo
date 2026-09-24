@@ -8,7 +8,7 @@ import { modulKursus } from "@/lib/courses/kurikulum";
 import {
   cariPendaftaran,
   daftarKursus,
-  listPendaftaran,
+  pendaftaranPenuh,
   tandaiModul,
 } from "@/lib/courses/enrollment";
 
@@ -28,12 +28,9 @@ function safeRevalidate(path: string) {
   }
 }
 
-async function butuhMasuk(): Promise<PendaftaranActionState | null> {
+async function ambilSesiPendaftaran() {
   const session = await getSession();
-  if (!session) {
-    return { ok: false, error: "Masuk dulu untuk mendaftar kursus." };
-  }
-  return null;
+  return session ?? { ok: false, error: "Masuk dulu untuk mendaftar kursus." };
 }
 
 /** Selesaikan id/slug kursus dari store, lalu dari fixture resource. */
@@ -75,8 +72,9 @@ async function selesaikanKursus(courseId: string) {
 }
 
 export async function daftarKursusAction(courseId: string): Promise<PendaftaranActionState> {
-  const tolak = await butuhMasuk();
-  if (tolak) return tolak;
+  const auth = await ambilSesiPendaftaran();
+  if ("ok" in auth) return auth;
+  const session = auth;
 
   const target = await selesaikanKursus(courseId);
   if (!target) return { ok: false, error: "Kursus tidak ditemukan." };
@@ -91,17 +89,17 @@ export async function daftarKursusAction(courseId: string): Promise<PendaftaranA
     };
   }
 
-  const sudah = await cariPendaftaran(target.id);
+  const sudah = await cariPendaftaran(target.id, session.email);
   if (sudah) {
     return { ok: true, message: "Kamu sudah terdaftar di kursus ini." };
   }
 
-  const semua = await listPendaftaran();
+  const semua = await pendaftaranPenuh();
   if (semua.length >= 50) {
     return { ok: false, error: "Batas 50 pendaftaran tercapai di peramban ini." };
   }
 
-  await daftarKursus(target.id, target.slug);
+  await daftarKursus(target.id, target.slug, session.email);
   safeRevalidate("/belajar");
   safeRevalidate(`/belajar/${target.slug}`);
   return { ok: true, message: "Pendaftaran berhasil. Selamat belajar!" };
@@ -111,15 +109,16 @@ export async function tandaiModulAction(
   courseId: string,
   modulId: string,
 ): Promise<PendaftaranActionState> {
-  const tolak = await butuhMasuk();
-  if (tolak) return tolak;
+  const auth = await ambilSesiPendaftaran();
+  if ("ok" in auth) return auth;
+  const session = auth;
 
   const target = await selesaikanKursus(courseId);
   if (!target || "takTersedia" in target) {
     return { ok: false, error: "Kursus tidak ditemukan." };
   }
 
-  const entri = await cariPendaftaran(target.id);
+  const entri = await cariPendaftaran(target.id, session.email);
   if (!entri) {
     return { ok: false, error: "Daftar dulu sebelum menandai modul." };
   }
@@ -127,7 +126,7 @@ export async function tandaiModulAction(
     return { ok: false, error: "Modul tidak dikenal untuk kursus ini." };
   }
 
-  await tandaiModul(target.id, modulId);
+  await tandaiModul(target.id, modulId, session.email);
   safeRevalidate("/belajar");
   safeRevalidate(`/belajar/${target.slug}`);
   return { ok: true };
