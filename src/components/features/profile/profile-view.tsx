@@ -13,11 +13,13 @@ import {
   Users,
 } from "lucide-react";
 import { EditProfileDialog } from "@/components/features/profile/edit-profile-dialog";
+import { ResumeEditor } from "@/components/features/profile/resume-editor";
 import { ResetOnboardingButton } from "@/components/features/settings/reset-onboarding-button";
 import { LandingBtnLink } from "@/components/ui/landing-btn";
 import { LABELS, type OnboardingProfile } from "@/lib/onboarding/types";
 import type { EditableProfile } from "@/lib/profile/types";
 import { joinName } from "@/lib/profile/types";
+import type { Resume } from "@/lib/resume/types";
 import type { EntriKatalog } from "@/lib/courses/katalog";
 import type { JobFixture } from "@/lib/fixtures";
 import type { SessionPayload } from "@/lib/auth/types";
@@ -63,22 +65,25 @@ export function ProfileView({
   session,
   profile,
   editable,
+  resume,
   kursus,
   loker,
 }: {
   session: SessionPayload;
   profile: OnboardingProfile | null;
   editable: EditableProfile | null;
+  resume: Resume;
   kursus: EntriKatalog[];
   loker: JobFixture[];
 }) {
   const displayName = editable
     ? joinName(editable.firstName, editable.lastName) || session.nama
     : session.nama;
-  const username = editable?.username || session.username;
+  const username = resume.username || editable?.username || session.username;
   const avatar = editable?.avatarUrl || "";
   const cover = editable?.coverUrl || DEFAULT_COVER;
   const initials = displayName.charAt(0).toUpperCase();
+  const lokasi = resume.kontak.lokasi || "Indonesia";
 
   const minat = profile
     ? profile.interests.map((i) => LABELS.interest[i]).join(" · ")
@@ -133,7 +138,7 @@ export function ProfileView({
                       <span>@{username}</span>
                       <span className="inline-flex items-center gap-1">
                         <MapPin className="size-3.5" strokeWidth={1.75} aria-hidden="true" />
-                        Indonesia
+                        {lokasi}
                       </span>
                       {editable?.website ? (
                         <a
@@ -263,6 +268,21 @@ export function ProfileView({
               </div>
             </div>
           )}
+        </div>
+      </section>
+
+      {/* LinkedIn-style resume sections, editable by the owner */}
+      <section>
+        <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+          <div className="mb-5">
+            <h2 className="text-2xl font-medium -tracking-[0.6px] text-gray-900">
+              Profil profesional
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Riwayat kerja, proyek, pendidikan, skill, dan berkas CV. Tampil di halaman publikmu.
+            </p>
+          </div>
+          <ResumeEditor resume={resume} username={username} />
         </div>
       </section>
 
