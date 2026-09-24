@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, useTransition, type ReactNode } from "react";
-import { ChevronDown, LogOut, Search, Settings, UserRound } from "lucide-react";
+import { ChevronDown, LogOut, Route, Search, Settings, UserRound } from "lucide-react";
 import { logoutAction } from "@/actions/auth";
 import { ExploreMenu } from "./explore-menu";
 import {
@@ -43,6 +43,8 @@ const navItems: NavItem[] = [
       </svg>
     ),
   },
+  { href: "/belajar/jalur", label: "Jalur Belajar",
+    icon: <Route width={15} height={15} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" /> },
   {
     href: "/loker",
     label: "Loker",
@@ -189,8 +191,7 @@ export function LearnerChrome({
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const isActive = (href: string) =>
-    pathname === href || pathname.startsWith(`${href}/`);
+  const activeHref = navItems.filter((item) => pathname === item.href || pathname.startsWith(`${item.href}/`)).sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
   return (
     <>
@@ -204,7 +205,7 @@ export function LearnerChrome({
         <nav className="nav-float" aria-label="Navigasi utama">
           <ExploreMenu />
           {navItems.map((item) => {
-            const active = isActive(item.href);
+            const active = item.href === activeHref;
             return (
               <Link
                 key={item.href}
