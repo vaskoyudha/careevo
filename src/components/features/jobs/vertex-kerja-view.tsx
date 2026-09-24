@@ -16,7 +16,7 @@ import {
   Search,
   ShieldAlert,
   ShieldCheck,
-  Sparkles,
+  Target,
   Terminal,
 } from "lucide-react";
 import type { JobFixture } from "@/lib/fixtures";
@@ -24,6 +24,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { JobsBoard } from "@/components/features/jobs/jobs-board";
 import { CurvySearchBar } from "@/components/features/jobs/curvy-search-bar";
 import Featured_05 from "@/components/ui/globe-feature-section";
+import { LogoCloud } from "@/components/ui/logo-cloud-2";
 import { cn } from "@/lib/utils";
 
 interface VertexKerjaViewProps {
@@ -145,18 +146,6 @@ const FEATURED_ROLES = [
       { action: "Kandidat menerima skor evaluasi A", time: "1 hari lalu" },
     ],
   },
-];
-
-// Partner logos
-const PARTNER_LOGOS = [
-  { name: "KarirHub Kemnaker", role: "Penyedia Data Loker Resmi" },
-  { name: "Dicoding Indonesia", role: "Mitra Kurikulum & Latihan" },
-  { name: "Google Developers", role: "Standar Ekosistem Web" },
-  { name: "GitHub", role: "Audit Repositori & Bukti Kode" },
-  { name: "Vercel", role: "Infrastruktur Deployment Demo" },
-  { name: "Supabase", role: "Verifikasi Arsitektur Database" },
-  { name: "Stripe", role: "Infrastruktur Pembayaran Mitra" },
-  { name: "Hacktiv8", role: "Jaringan Komunitas Talenta" },
 ];
 
 // Testimonials data
@@ -336,28 +325,29 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
   };
 
   return (
-    <div className="relative min-h-screen bg-white text-neutral-900 selection:bg-neutral-200 overflow-x-hidden">
+    <div className="relative min-h-screen -mt-[60px] bg-white text-neutral-900 selection:bg-neutral-200 overflow-x-hidden">
       {/* ============================================================ */}
-      {/* 1. HERO SECTION (SEC 0) - Outside grid lines to remove vertical lines */}
+      {/* 1. HERO SECTION (SEC 0) - Blended with transparent navbar at top, floating on scroll */}
       {/* ============================================================ */}
-      <div className="relative z-10 w-full pt-16 sm:pt-20 md:pt-24 lg:pt-28 pb-24 sm:pb-28 lg:pb-32 overflow-hidden">
+      <div className="relative z-10 w-full pt-28 sm:pt-32 md:pt-36 lg:pt-40 pb-24 sm:pb-28 lg:pb-32 overflow-hidden">
         {/* Background Layers: Striped Radial White BEHIND Wallpaper Background (Full Height) */}
         <div className="pointer-events-none absolute inset-0 z-0 h-full w-full overflow-hidden select-none">
           {/* Layer 1: Striped Radial White Background (Behind the Wallpaper) */}
           <div className="absolute inset-0 z-0 bg-[size:12px_12px] [background-image:repeating-linear-gradient(315deg,rgba(0,0,0,0.04)_0_1px,transparent_0_50%)] [mask-image:radial-gradient(ellipse_85%_80%_at_50%_40%,black_40%,transparent_92%)]" />
           <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_85%_75%_at_50%_35%,rgba(255,255,255,0.85)_0%,rgba(255,255,255,0.35)_55%,transparent_85%)]" />
 
-          {/* Layer 2: Wallpaper Background (Full Height, shifted upward with 15% top crop) */}
-          <div className="relative z-10 -top-6 sm:-top-12 md:-top-16 h-[calc(100%+1.5rem)] sm:h-[calc(100%+3rem)] md:h-[calc(100%+4rem)] w-full overflow-hidden">
+          {/* Layer 2: Wallpaper Background (Full original sky restored, flush to top edge, no top crop) */}
+          <div className="absolute inset-x-0 top-0 z-10 h-[850px] sm:h-[950px] md:h-[1050px] w-full overflow-hidden">
             <Image
               src="/images/hero-loker-header.png"
               alt="Careevo header visual"
               fill
               priority
+              unoptimized
               className="object-cover object-top opacity-100"
             />
             {/* Gentle white fading on the bottom edge to blend into page body */}
-            <div className="absolute inset-x-0 bottom-0 h-32 sm:h-44 bg-gradient-to-t from-white via-white/70 to-transparent" />
+            <div className="absolute inset-x-0 bottom-0 h-44 sm:h-64 bg-gradient-to-t from-white via-white/80 to-transparent" />
           </div>
         </div>
 
@@ -706,72 +696,42 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                   </div>
                 </div>
               </div>
-
-              {/* Full-width Interactive 3D Globe Feature Section */}
-              <div className="w-full mt-12 sm:mt-16">
-                <Featured_05 />
-              </div>
             </div>
 
             {/* ============================================================ */}
-            {/* OUTER VERTEX GRID FRAME (Starting below Hero Section)        */}
+            {/* FULL-WIDTH FEATURE BANDS (Globe & Logo Cloud)                */}
+            {/* Separated from vertical container lines, spanning 100% width */}
+            {/* ============================================================ */}
+            <div className="relative z-10 w-full overflow-hidden">
+              {/* Top dashed divider */}
+              <div className="relative h-10 w-full border-y border-dashed border-neutral-200 bg-[size:10px_10px] [background-image:repeating-linear-gradient(315deg,rgba(0,0,0,0.035)_0_1px,transparent_0_50%)] md:h-12" />
+
+              {/* 1. Full-width Globe Feature Section */}
+              <Featured_05 className="w-full border-b border-t-0" />
+
+              {/* Middle dashed divider */}
+              <div className="relative h-10 w-full border-y border-dashed border-neutral-200 bg-[size:10px_10px] [background-image:repeating-linear-gradient(315deg,rgba(0,0,0,0.035)_0_1px,transparent_0_50%)] md:h-12" />
+
+              {/* 2. Full-width Logo Cloud Section */}
+              <section aria-label="Trusted by" className="relative w-full bg-white dark:bg-neutral-950 overflow-hidden">
+                <div className="w-full border-b border-neutral-200 bg-neutral-50/50 py-3.5 text-center">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
+                    Terhubung dengan ekosistem verifikasi dan agregator loker terpercaya
+                  </p>
+                </div>
+                <LogoCloud className="w-full border-x-0" />
+              </section>
+
+              {/* Bottom dashed divider */}
+              <div className="relative h-10 w-full border-y border-dashed border-neutral-200 bg-[size:10px_10px] [background-image:repeating-linear-gradient(315deg,rgba(0,0,0,0.035)_0_1px,transparent_0_50%)] md:h-12" />
+            </div>
+
+            {/* ============================================================ */}
+            {/* OUTER VERTEX GRID FRAME (Starting below Full-Width Sections) */}
             {/* ============================================================ */}
             <div className="container relative z-10 mx-auto mt-10 sm:mt-14 lg:mt-16">
               <div className="border-x border-neutral-200">
                 <div className="mx-1 border-x border-neutral-200 sm:mx-1.5 lg:mx-2 bg-white">
-                  {/* ============================================================ */}
-                  {/* 2. DASHED SECTION DIVIDER                                    */}
-                  {/* ============================================================ */}
-                  <div className="relative h-10 border-y border-dashed border-neutral-200 bg-[size:10px_10px] [background-image:repeating-linear-gradient(315deg,rgba(0,0,0,0.035)_0_1px,transparent_0_50%)] md:h-12" />
-
-            {/* ============================================================ */}
-            {/* 3. LOGO CLOUD / TRUSTED SOURCES (SEC 2)                      */}
-            {/* ============================================================ */}
-            <section aria-label="Trusted by" className="bg-white py-12 md:py-16">
-              <div className="px-6 sm:px-8 lg:px-12">
-                <div className="relative rounded-xl border border-neutral-200 bg-neutral-50/40 p-6 sm:p-8">
-                  {/* Crosshair markers on 4 corners */}
-                  <div className="pointer-events-none absolute size-3 -translate-x-1/2 -translate-y-1/2 top-0 left-0">
-                    <span className="absolute inset-0 m-auto block h-px w-full bg-neutral-400" />
-                    <span className="absolute inset-0 m-auto block h-full w-px bg-neutral-400" />
-                  </div>
-                  <div className="pointer-events-none absolute size-3 -translate-y-1/2 top-0 right-0 translate-x-1/2">
-                    <span className="absolute inset-0 m-auto block h-px w-full bg-neutral-400" />
-                    <span className="absolute inset-0 m-auto block h-full w-px bg-neutral-400" />
-                  </div>
-                  <div className="pointer-events-none absolute size-3 -translate-x-1/2 bottom-0 left-0 translate-y-1/2">
-                    <span className="absolute inset-0 m-auto block h-px w-full bg-neutral-400" />
-                    <span className="absolute inset-0 m-auto block h-full w-px bg-neutral-400" />
-                  </div>
-                  <div className="pointer-events-none absolute size-3 bottom-0 right-0 translate-x-1/2 translate-y-1/2">
-                    <span className="absolute inset-0 m-auto block h-px w-full bg-neutral-400" />
-                    <span className="absolute inset-0 m-auto block h-full w-px bg-neutral-400" />
-                  </div>
-
-                  <p className="text-center text-xs font-medium uppercase tracking-wider text-neutral-400">
-                    Terhubung dengan ekosistem verifikasi dan agregator loker terpercaya
-                  </p>
-
-                  <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-4">
-                    {PARTNER_LOGOS.map((partner) => (
-                      <div
-                        key={partner.name}
-                        className="flex flex-col items-center justify-center rounded-lg border border-neutral-200/80 bg-white p-3.5 text-center shadow-xs transition-all hover:border-neutral-300"
-                      >
-                        <span className="font-semibold text-sm text-neutral-900">{partner.name}</span>
-                        <span className="text-[11px] text-neutral-500 mt-0.5">{partner.role}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* ============================================================ */}
-            {/* 4. DASHED SECTION DIVIDER                                    */}
-            {/* ============================================================ */}
-            <div className="relative h-10 border-y border-dashed border-neutral-200 bg-[size:10px_10px] [background-image:repeating-linear-gradient(315deg,rgba(0,0,0,0.035)_0_1px,transparent_0_50%)] md:h-12" />
-
             {/* ============================================================ */}
             {/* 5. FEATURES / BENTO GRID (SEC 4)                             */}
             {/* ============================================================ */}
@@ -789,10 +749,10 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                 {/* Bento Grid */}
                 <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
                   {/* Bento Card 1: Large Span 2 */}
-                  <div className="md:col-span-2 rounded-xl border border-neutral-200 bg-neutral-50/50 p-6 sm:p-8 shadow-xs flex flex-col justify-between">
+                  <div className="md:col-span-2 rounded-2xl border border-neutral-200/90 bg-white p-6 sm:p-8 shadow-xs transition-colors hover:border-neutral-300 flex flex-col justify-between">
                     <div>
-                      <div className="inline-flex size-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600 mb-4 border border-blue-100">
-                        <ShieldCheck className="size-5" />
+                      <div className="inline-flex size-9 items-center justify-center rounded-xl bg-neutral-100 border border-neutral-200/80 text-neutral-900 mb-4 shadow-2xs">
+                        <ShieldCheck className="size-5 text-neutral-800" />
                       </div>
                       <h3 className="text-xl font-semibold text-neutral-950">
                         Papan Loker & Sentinel Live Audit
@@ -803,38 +763,39 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                     </div>
 
                     {/* Visual UI Preview */}
-                    <div className="mt-6 rounded-lg border border-neutral-200 bg-white p-4 shadow-xs">
-                      <div className="flex items-center justify-between border-b border-neutral-100 pb-3 text-xs">
+                    <div className="mt-6 rounded-xl border border-neutral-200/90 bg-white p-4 shadow-2xs">
+                      <div className="flex items-center justify-between border-b border-neutral-100 pb-2.5 text-xs">
                         <span className="font-semibold text-neutral-800 flex items-center gap-1.5">
-                          <Terminal className="size-3.5 text-blue-500" />
-                          <span>Sentinel Audit Engine v2.4</span>
+                          <Terminal className="size-3.5 text-neutral-700" />
+                          <span>Sinkronisasi KarirHub</span>
                         </span>
-                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-700 font-medium">
-                          Live Active
+                        <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11px] font-medium text-neutral-700">
+                          <span className="size-1.5 rounded-full bg-neutral-900" />
+                          Aktif
                         </span>
                       </div>
-                      <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                        <div className="rounded border border-neutral-100 bg-neutral-50/70 p-2.5">
-                          <span className="text-neutral-400 block">Total Dipindai</span>
+                      <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                        <div className="rounded-lg border border-neutral-100 bg-neutral-50/70 p-2.5">
+                          <span className="text-neutral-400 block text-[11px]">Total Dipindai</span>
                           <span className="font-bold text-neutral-900 text-sm mt-0.5 block">{jobs.length} Loker</span>
                         </div>
-                        <div className="rounded border border-neutral-100 bg-neutral-50/70 p-2.5">
-                          <span className="text-neutral-400 block">Status AMAN</span>
-                          <span className="font-bold text-emerald-600 text-sm mt-0.5 block">{cleanJobsCount} Terverifikasi</span>
+                        <div className="rounded-lg border border-neutral-100 bg-neutral-50/70 p-2.5">
+                          <span className="text-neutral-400 block text-[11px]">Status Aman</span>
+                          <span className="font-bold text-neutral-900 text-sm mt-0.5 block">{cleanJobsCount} Terverifikasi</span>
                         </div>
-                        <div className="rounded border border-neutral-100 bg-neutral-50/70 p-2.5">
-                          <span className="text-neutral-400 block">Fee Terfilter</span>
-                          <span className="font-bold text-blue-600 text-sm mt-0.5 block">100% Bersih</span>
+                        <div className="rounded-lg border border-neutral-100 bg-neutral-50/70 p-2.5">
+                          <span className="text-neutral-400 block text-[11px]">Fee Seleksi</span>
+                          <span className="font-bold text-neutral-900 text-sm mt-0.5 block">0 Pungutan Liar</span>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Bento Card 2: Ubah tantangan jadi bukti karya */}
-                  <div className="rounded-xl border border-neutral-200 bg-neutral-50/50 p-6 sm:p-8 shadow-xs flex flex-col justify-between">
+                  {/* Bento Card 2: Bukti Karya Terverifikasi */}
+                  <div className="rounded-2xl border border-neutral-200/90 bg-white p-6 sm:p-8 shadow-xs transition-colors hover:border-neutral-300 flex flex-col justify-between">
                     <div>
-                      <div className="inline-flex size-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 mb-4 border border-emerald-100">
-                        <FileCheck2 className="size-5" />
+                      <div className="inline-flex size-9 items-center justify-center rounded-xl bg-neutral-100 border border-neutral-200/80 text-neutral-900 mb-4 shadow-2xs">
+                        <FileCheck2 className="size-5 text-neutral-800" />
                       </div>
                       <h3 className="text-xl font-semibold text-neutral-950">
                         Bukti Karya Terverifikasi
@@ -844,44 +805,52 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                       </p>
                     </div>
 
-                    <div className="mt-6 rounded-lg border border-neutral-200 bg-white p-3.5 text-xs text-neutral-600 font-mono">
-                      <div className="text-[11px] text-neutral-400 mb-1">HMAC Signature:</div>
-                      <div className="truncate text-neutral-700 bg-neutral-50 p-1.5 rounded border border-neutral-100">
-                        sha256-9a4f7e2c81b0d3...
+                    <div className="mt-6 rounded-xl border border-neutral-200/90 bg-white p-3.5 shadow-2xs text-xs">
+                      <div className="flex items-center justify-between text-neutral-500 text-[11px] mb-1.5">
+                        <span>Attestation Status</span>
+                        <span className="inline-flex items-center gap-1 font-medium text-neutral-800">
+                          <Check className="size-3 text-neutral-900" />
+                          Terverifikasi
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between rounded-lg bg-neutral-50 px-2.5 py-1.5 border border-neutral-100 text-[11px] text-neutral-700">
+                        <span>HMAC-SHA256</span>
+                        <span className="text-neutral-400">verify.careevo.id</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Bento Card 3: AI Fit Score */}
-                  <div className="rounded-xl border border-neutral-200 bg-neutral-50/50 p-6 sm:p-8 shadow-xs flex flex-col justify-between">
+                  {/* Bento Card 3: Kesesuaian Skill & Penutup Gap */}
+                  <div className="rounded-2xl border border-neutral-200/90 bg-white p-6 sm:p-8 shadow-xs transition-colors hover:border-neutral-300 flex flex-col justify-between">
                     <div>
-                      <div className="inline-flex size-9 items-center justify-center rounded-lg bg-amber-50 text-amber-600 mb-4 border border-amber-100">
-                        <Sparkles className="size-5" />
+                      <div className="inline-flex size-9 items-center justify-center rounded-xl bg-neutral-100 border border-neutral-200/80 text-neutral-900 mb-4 shadow-2xs">
+                        <Target className="size-5 text-neutral-800" />
                       </div>
                       <h3 className="text-xl font-semibold text-neutral-950">
-                        AI Fit Score & Penutup Gap
+                        Kesesuaian Skill &amp; Penutup Gap
                       </h3>
                       <p className="mt-2 text-sm text-neutral-600 leading-relaxed">
                         Bandingkan keahlianmu dengan requirement loker secara objektif. Navigator menyarankan modul latihan spesifik untuk menutup kekurangan skill.
                       </p>
                     </div>
 
-                    <div className="mt-6 rounded-lg border border-neutral-200 bg-white p-3 text-xs">
-                      <div className="flex justify-between font-medium text-neutral-700">
-                        <span>Kesiapan Teknis</span>
-                        <span className="text-emerald-600 font-semibold">94%</span>
+                    <div className="mt-6 rounded-xl border border-neutral-200/90 bg-white p-3 shadow-2xs text-xs space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-neutral-500 text-[11px]">Kebutuhan Posisi</span>
+                        <span className="font-medium text-neutral-800 text-[11px]">Backend API</span>
                       </div>
-                      <div className="mt-1.5 h-1.5 w-full rounded-full bg-neutral-100 overflow-hidden">
-                        <div className="h-full bg-emerald-500 rounded-full" style={{ width: "94%" }} />
+                      <div className="flex items-center justify-between border-t border-neutral-100 pt-1.5">
+                        <span className="text-neutral-500 text-[11px]">Modul Rekomendasi</span>
+                        <span className="font-medium text-neutral-900 text-[11px]">PostgreSQL Indexing</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Bento Card 4: Pencarian Bahasa Alami */}
-                  <div className="rounded-xl border border-neutral-200 bg-neutral-50/50 p-6 sm:p-8 shadow-xs flex flex-col justify-between">
+                  {/* Bento Card 4: Pencarian Kata Kunci Cerdas */}
+                  <div className="rounded-2xl border border-neutral-200/90 bg-white p-6 sm:p-8 shadow-xs transition-colors hover:border-neutral-300 flex flex-col justify-between">
                     <div>
-                      <div className="inline-flex size-9 items-center justify-center rounded-lg bg-purple-50 text-purple-600 mb-4 border border-purple-100">
-                        <Search className="size-5" />
+                      <div className="inline-flex size-9 items-center justify-center rounded-xl bg-neutral-100 border border-neutral-200/80 text-neutral-900 mb-4 shadow-2xs">
+                        <Search className="size-5 text-neutral-800" />
                       </div>
                       <h3 className="text-xl font-semibold text-neutral-950">
                         Pencarian Kata Kunci Cerdas
@@ -892,18 +861,23 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                     </div>
 
                     <div className="mt-6 flex flex-wrap gap-1.5 text-xs">
-                      <span className="rounded bg-white border border-neutral-200 px-2 py-1 font-medium text-neutral-700">#React</span>
-                      <span className="rounded bg-white border border-neutral-200 px-2 py-1 font-medium text-neutral-700">#Node.js</span>
-                      <span className="rounded bg-white border border-neutral-200 px-2 py-1 font-medium text-neutral-700">#Remote</span>
-                      <span className="rounded bg-white border border-neutral-200 px-2 py-1 font-medium text-neutral-700">#TypeScript</span>
+                      <span className="rounded-lg bg-neutral-50 border border-neutral-200/80 px-2.5 py-1 text-[11px] font-medium text-neutral-700 shadow-2xs">
+                        Remote Friendly
+                      </span>
+                      <span className="rounded-lg bg-neutral-50 border border-neutral-200/80 px-2.5 py-1 text-[11px] font-medium text-neutral-700 shadow-2xs">
+                        Fullstack &amp; Backend
+                      </span>
+                      <span className="rounded-lg bg-neutral-50 border border-neutral-200/80 px-2.5 py-1 text-[11px] font-medium text-neutral-700 shadow-2xs">
+                        Gaji Transparan
+                      </span>
                     </div>
                   </div>
 
                   {/* Bento Card 5: Karantina Scam Otomatis */}
-                  <div className="rounded-xl border border-neutral-200 bg-neutral-50/50 p-6 sm:p-8 shadow-xs flex flex-col justify-between">
+                  <div className="rounded-2xl border border-neutral-200/90 bg-white p-6 sm:p-8 shadow-xs transition-colors hover:border-neutral-300 flex flex-col justify-between">
                     <div>
-                      <div className="inline-flex size-9 items-center justify-center rounded-lg bg-rose-50 text-rose-600 mb-4 border border-rose-100">
-                        <ShieldAlert className="size-5" />
+                      <div className="inline-flex size-9 items-center justify-center rounded-xl bg-neutral-100 border border-neutral-200/80 text-neutral-900 mb-4 shadow-2xs">
+                        <ShieldAlert className="size-5 text-neutral-800" />
                       </div>
                       <h3 className="text-xl font-semibold text-neutral-950">
                         Karantina Scam Otomatis
@@ -913,9 +887,12 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                       </p>
                     </div>
 
-                    <div className="mt-6 rounded-lg border border-rose-200 bg-rose-50/50 p-3 text-xs text-rose-800 flex items-center gap-2">
-                      <AlertTriangle className="size-4 text-rose-600 shrink-0" />
-                      <span>Sinyal fee terdeteksi: Loker ditahan otomatis</span>
+                    <div className="mt-6 rounded-xl border border-neutral-200/90 bg-neutral-50/80 p-3 text-xs text-neutral-700 flex items-center gap-2.5">
+                      <AlertTriangle className="size-4 text-neutral-800 shrink-0" />
+                      <div className="leading-tight">
+                        <span className="font-semibold text-neutral-900 block">Sinyal Pungutan Biaya</span>
+                        <span className="text-[11px] text-neutral-500">Loker ditahan otomatis ke karantina</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1270,50 +1247,52 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                   </div>
 
                   {/* Pro Plan */}
-                  <div className="relative flex flex-col justify-between rounded-xl border-2 border-neutral-900 bg-white p-6 sm:p-8 shadow-sm">
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-neutral-900 px-3 py-0.5 text-[10px] font-semibold text-white uppercase tracking-wider">
+                  <div className="relative rounded-xl p-[2px] bg-gradient-to-br from-blue-600 via-blue-500 to-sky-400 shadow-md">
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-blue-700 via-blue-600 to-blue-500 px-3 py-0.5 text-[10px] font-semibold text-white uppercase tracking-wider shadow-sm">
                       Paling Populer
                     </span>
-                    <div>
-                      <div className="text-xs font-semibold text-neutral-900 uppercase tracking-wider">
-                        Careevo Plus
-                      </div>
-                      <div className="mt-3 flex items-baseline gap-1">
-                        <span className="text-4xl font-bold tracking-tight text-neutral-950">
-                          {billingCycle === "monthly" ? "Rp 99.000" : "Rp 79.000"}
-                        </span>
-                        <span className="text-xs text-neutral-500">/ bulan</span>
-                      </div>
-                      <p className="mt-3 text-xs text-neutral-600 leading-relaxed">
-                        Pendampingan intensif Socrates AI, evaluasi Fit Score mendalam, penutup skill gap otomatis, dan simulasi interview teknis.
-                      </p>
+                    <div className="flex h-full flex-col justify-between rounded-[10px] bg-white p-6 sm:p-8">
+                      <div>
+                        <div className="text-xs font-semibold text-blue-700 uppercase tracking-wider">
+                          Careevo Plus
+                        </div>
+                        <div className="mt-3 flex items-baseline gap-1">
+                          <span className="text-4xl font-bold tracking-tight text-neutral-950">
+                            {billingCycle === "monthly" ? "Rp 99.000" : "Rp 79.000"}
+                          </span>
+                          <span className="text-xs text-neutral-500">/ bulan</span>
+                        </div>
+                        <p className="mt-3 text-xs text-neutral-600 leading-relaxed">
+                          Pendampingan intensif Socrates AI, evaluasi Fit Score mendalam, penutup skill gap otomatis, dan simulasi interview teknis.
+                        </p>
 
-                      <ul className="mt-6 space-y-2.5 text-xs text-neutral-700">
-                        <li className="flex items-center gap-2">
-                          <Check className="size-4 text-emerald-600 shrink-0" />
-                          <span>Semua fitur Pencari Kerja</span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <Check className="size-4 text-emerald-600 shrink-0" />
-                          <span>Bimbingan Sokratik AI interaktif</span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <Check className="size-4 text-emerald-600 shrink-0" />
-                          <span>AI Fit Score terperinci per lowongan</span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <Check className="size-4 text-emerald-600 shrink-0" />
-                          <span>Tanda tangan bukti karya HMAC</span>
-                        </li>
-                      </ul>
+                        <ul className="mt-6 space-y-2.5 text-xs text-neutral-700">
+                          <li className="flex items-center gap-2">
+                            <Check className="size-4 text-emerald-600 shrink-0" />
+                            <span>Semua fitur Pencari Kerja</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="size-4 text-emerald-600 shrink-0" />
+                            <span>Bimbingan Sokratik AI interaktif</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="size-4 text-emerald-600 shrink-0" />
+                            <span>AI Fit Score terperinci per lowongan</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="size-4 text-emerald-600 shrink-0" />
+                            <span>Tanda tangan bukti karya HMAC</span>
+                          </li>
+                        </ul>
+                      </div>
+
+                      <Link
+                        href="/careevo-plus"
+                        className="chrome-btn chrome-btn-brand mt-8 !w-full !h-10 !text-xs font-semibold shadow-sm"
+                      >
+                        Tingkatkan ke Plus
+                      </Link>
                     </div>
-
-                    <Link
-                      href="/careevo-plus"
-                      className="chrome-btn chrome-btn-brand mt-8 !w-full !h-10 !text-xs"
-                    >
-                      Tingkatkan ke Plus
-                    </Link>
                   </div>
 
                   {/* Enterprise / Mitra Rekruter */}

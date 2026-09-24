@@ -1,5 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { modulKursus, hitungProgres, irisModulSelesai } from "./kurikulum";
+import { modulUntuk, modulUntukSumber } from "./modul-resolver";
+import { createModul, resetCourses } from "./store";
 
 const SUMBER = {
   id: "crs-1",
@@ -72,5 +74,77 @@ describe("hitungProgres", () => {
     expect(hitungProgres(9, 5)).toBe(100);
     expect(hitungProgres(-2, 5)).toBe(0);
     expect(hitungProgres(1, 0)).toBe(0);
+  });
+});
+
+describe("modulUntukSumber", () => {
+  // `resetCourses()` mematikan penulisan disk untuk sisa proses, jadi seluruh
+  // test di blok ini berjalan murni in-memory dan tidak menyentuh
+  // `data/courses.json` milik mesin pengembang.
+  beforeEach(() => {
+    resetCourses();
+  });
+
+  it("jatuh ke modul turunan saat kursus belum punya modul tersimpan", async () => {
+    const modul = await modulUntukSumber(SUMBER);
+    expect(modul).toHaveLength(5);
+    expect(modul.map((m) => m.id)).toEqual([
+      "crs-1-m1",
+      "crs-1-m2",
+      "crs-1-m3",
+      "crs-1-m4",
+      "crs-1-m5",
+    ]);
+  });
+
+  it("memakai modul tersimpan bila ada, terurut menaik, ber-url kursus", async () => {
+    // `createModul` selalu menaruh modul baru di akhir, jadi `urutan` yang
+    // diharapkan mengikuti urutan pembuatan: 1 untuk "Orientasi", 2 untuk
+    // "Deep Dive React".
+    const pertama = await createModul("crs-1", {
+      judul: "Orientasi",
+      ringkasan: "Peta materi dan tujuan belajar.",
+      durasi_min: 15,
+    });
+    const kedua = await createModul("crs-1", {
+      judul: "Deep Dive React",
+      ringkasan: "Membahas React 19 secara mendalam.",
+      durasi_min: 45,
+    });
+    expect(pertama).not.toBeNull();
+    expect(kedua).not.toBeNull();
+
+    const modul = await modulUntukSumber(SUMBER);
+    expect(modul).toHaveLength(2);
+    // Terurut `urutan` menaik, dan memakai id tersimpan — bukan id turunan.
+    expect(modul.map((m) => m.id)).toEqual([pertama!.id, kedua!.id]);
+    expect(modul.map((m) => m.judul)).toEqual(["Orientasi", "Deep Dive React"]);
+    expect(modul.map((m) => m.durasi_min)).toEqual([15, 45]);
+    // Semua modul mewarisi url kursus induknya, bukan url per modul.
+    expect(modul.every((m) => m.url === SUMBER.url)).toBe(true);
+  });
+
+  it("jatuh ke turunan untuk id yang tidak ada di store (kursus fixture)", async () => {
+    // Fixture resource memang tidak pernah punya modul tersimpan, jadi ia tetap
+    // memakai cabang turunan — bukan daftar kosong.
+    const modul = await modulUntukSumber({ ...SUMBER, id: "r1" });
+    expect(modul).toHaveLength(5);
+    expect(modul[0].id).toBe("r1-m1");
+  });
+});
+
+describe("modulUntuk", () => {
+  beforeEach(() => {
+    resetCourses();
+  });
+
+  it("mengembalikan daftar kosong bila id kursus tidak ada di store", async () => {
+    expect(await modulUntuk("tidak-ada")).toEqual([]);
+  });
+
+  it("mendelegasikan ke modul turunan untuk kursus seed tanpa modul tersimpan", async () => {
+    const modul = await modulUntuk("crs-1");
+    expect(modul).toHaveLength(5);
+    expect(modul[0].id).toBe("crs-1-m1");
   });
 });

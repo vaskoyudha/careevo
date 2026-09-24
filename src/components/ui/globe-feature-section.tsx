@@ -128,9 +128,9 @@ export function Globe({
   );
 }
 
-export default function Featured_05() {
+export default function Featured_05({ className }: { className?: string }) {
   return (
-    <section className="relative w-full overflow-hidden rounded-none bg-neutral-50/70 dark:bg-muted/30 border-y border-neutral-300 dark:border-neutral-800 shadow-none px-6 py-16 sm:px-12 md:px-16 md:py-24 my-12 sm:my-16">
+    <section className={cn("relative w-full overflow-hidden rounded-none bg-white dark:bg-neutral-950 border-y border-neutral-200 dark:border-neutral-800 shadow-none px-6 py-14 sm:px-10 md:px-14 md:py-20 my-0", className)}>
       <div className="mx-auto max-w-7xl flex flex-col-reverse items-center justify-between gap-10 md:flex-row">
         <div className="z-10 max-w-xl text-left">
           <h2 className="text-3xl font-normal text-neutral-900 dark:text-white tracking-tight">
