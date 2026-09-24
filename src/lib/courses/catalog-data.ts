@@ -470,13 +470,23 @@ export const PROGRAMS_REGISTRY: Record<string, ProgramDetails> = {
   },
 };
 
+const ACRONYMS: Record<string, string> = {
+  ibm: "IBM",
+  ai: "AI",
+  aws: "AWS",
+  it: "IT",
+  ux: "UX",
+  ui: "UI",
+  sql: "SQL",
+};
+
 export function getProgramBySlug(slug: string): ProgramDetails {
   return PROGRAMS_REGISTRY[slug] ?? {
     slug,
     type: slug.includes("certificate") ? "Professional Certificate" : "Specialization",
     title: slug
       .split("-")
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .map((w) => ACRONYMS[w.toLowerCase()] ?? (w.charAt(0).toUpperCase() + w.slice(1)))
       .join(" "),
     subtitle: `Explore comprehensive training and build practical industry-ready skills with this accredited ${slug.includes("certificate") ? "Professional Certificate" : "Specialization"}.`,
     provider: "Careevo Industry Partners",
@@ -498,7 +508,7 @@ export function getProgramBySlug(slug: string): ProgramDetails {
     level: "Beginner level",
     durationWeeks: 4,
     hoursPerWeek: 10,
-    pace: "Flexible schedule • Learn at your own pace",
+    pace: "Flexible schedule",
     whatYouWillLearn: [
       "Master industry standard workflows, patterns, and foundational frameworks",
       "Complete hands-on assignments evaluated with verifiable HMAC attestations",
