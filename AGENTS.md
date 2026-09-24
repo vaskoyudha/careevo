@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Careevo is a Next.js prototype ("Learn. Verify. Earn."): a learning-to-job bridge with HMAC attestations, fixture-backed audit data, and a Socrates review agent. Core fixture data is loaded through `src/lib/fixtures.ts`. Auth, onboarding, and course state also use cookie or in-process state. Gemini evaluation is an optional, on-demand network call.
+Careevo is a Next.js prototype ("Learn. Verify. Earn."): a learning-to-job bridge with HMAC attestations, fixture-backed audit data, and a Socrates review agent. Core fixture data is loaded through `src/lib/fixtures.ts`. Auth and onboarding use cookie state; courses, their modules, and their materials are persisted to `data/courses.json` on disk (see `src/lib/courses/storage.ts`), with uploads under `public/uploads/`. Gemini evaluation is an optional, on-demand network call.
 
 ## Commands
 
@@ -74,6 +74,47 @@ A skill with invalid frontmatter fails silently, so `npm run skills:check` is th
 ## Stubs — do not assume these work
 
 Several modules intentionally throw `"... belum diimplementasikan"` and are unimplemented placeholders: `logAudit` (`src/lib/audit/logger.ts`) and `runAgent`/`toAgentRun` (`src/lib/agents/orchestrator.ts`). The audit log and agent-run persistence are not wired up; pages read from fixtures instead.
+
+## Course curriculum — stored vs derived
+
+Module lists come in two flavours and the distinction is load-bearing:
+
+- **Derived** — `modulKursus()` (`src/lib/courses/kurikulum.ts`) always generates exactly 5 modules with positional ids (`${courseId}-m1`…`-m5`). This is what every course and fixture resource uses until an admin edits its curriculum. Those ids are the ones stored in real users' `ls_enroll` progress cookies.
+- **Stored** — `Course.modul` holds `Modul[]`, each with its own `materi` array (`Materi` is a discriminated union over `video | teks | pdf | kuis`). Editing a course's curriculum in `/admin/courses/[id]` switches that course to stored modules with new ids; old progress is then dropped safely by `irisModulSelesai()`.
+
+`src/lib/courses/modul-resolver.ts` is the single resolver (`modulUntuk` / `modulUntukSumber`): stored wins, otherwise derived. **Never call `modulKursus()` directly from a page or action** — divergence between the four call sites was the bug this split fixes, and `enrollment.test.ts` pins the derived ids to catch regressions.
+
+That resolver must stay server-only. `kurikulum.ts` is imported by client components (`detail-kursus.tsx`), so putting the store import (`→ storage.ts → node:fs`) there breaks the production Turbopack build with "chunking context does not support external modules". Keep `kurikulum.ts` pure.
+
+Persistence and uploads, both worth knowing before debugging "my change vanished":
+
+- Courses are written to `data/courses.json` (gitignored) via write-to-temp-then-rename, cached in memory per process. `resetCourses()` in tests disables disk writes entirely, so unit tests never touch your dev data.
+- ⚠️ That cache is **per process**. A second `next start` / script that writes the same file is invisible to an already-running server until it restarts — a newly created course can 404 on a long-running `next dev` that hydrated before it existed.
+- `POST /api/unggah` writes to `public/uploads/courses/<courseId>/<subjectId>/`. Its session gate lives *inside* the handler (route handlers sit outside the gated layouts), filename extensions come from the verified MIME rather than the submitted name, and it returns a `/uploads/...` path. In `next dev` new files are served immediately; under `next start`, `public/` is snapshotted at startup.
+
+## Halaman berformat — prosa lives here, not in materi
+
+A module holds two independent collections: **halaman** (formatted prose, written by admins) and **materi** (attachments: video/PDF/quiz). `TipeMateri` is deliberately `video | pdf | kuis` — there is **no `teks` variant**, because prose has exactly one home now. Legacy `teks` materials in `courses.json` are promoted into pages on read by `normalisasiHalamanLama()` (`src/lib/courses/halaman.ts`); the migration is lazy, idempotent (page ids derive from material ids), and runs in `pastikanTermuat()`.
+
+`Modul.halaman` is nested, like `materi`, so deleting a module takes its pages with it. `createModul` accepts `jumlah_halaman` and creates that many empty pages in **one** disk write; `updateModul` deliberately does *not* accept it, so editing a module's title can never silently add pages.
+
+### Content is structured blocks, never HTML
+
+`BlokHalaman` is a discriminated union (`paragraf | heading | daftar | kutipan | gambar`) stored as JSON. `halaman-view.tsx` maps it to React elements and `<strong>`/`<em>` — there is **no `dangerouslySetInnerHTML` anywhere**, and none should be added. This repo has no sanitizer, so rendering admin-authored HTML would turn a dormant hole into stored XSS. The editor enforces the same rule from the other side: `blok-editor.tsx` uses `contentEditable` but serialises only recognised text nodes and `b/strong`, `i/em`, and allow-listed `a[href]` — anything pasted in from elsewhere loses its markup before it can reach disk.
+
+### Backlinks and section anchors
+
+Anchors are **derived** from heading text (`daftarSection()` in `src/lib/courses/blok.ts`), not stored, and `petaSection()` is what the renderer uses to install the matching `id`. Duplicate headings on one page get `-2`, `-3` suffixes. Two consequences worth knowing:
+
+- Renaming a heading changes its anchor, so an existing backlink to it dies. That is the accepted trade-off: anchors always match the visible text. Admin repair is via the picker.
+- Because HTML anchors are page-local, backlinks are **page-scoped only**. The editor's link picker offers nothing but sections of the page being edited, plus external URLs. Cross-page movement is what the Sebelumnya/Berikutnya pager is for.
+- `rangkumBacklink()` resolves incoming links so a heading can show "ditautkan dari". Links to anchors that don't exist on the page are ignored rather than shown — displaying them would claim something untrue.
+
+Link shape is validated in `validation/blok.ts`: `#slug` (regex, never free text) or http/https via the shared `skemaUrlHttp`, which rejects `javascript:`.
+
+### Module boundaries for this feature
+
+`blok.ts` and `halaman.ts` are **pure and client-safe** and must stay that way — the page renderer is a client component. `slugBagian()` in `blok.ts` intentionally duplicates slug logic rather than importing `slugify` from `store.ts`, because that import chain reaches `node:fs`. Do not "de-duplicate" them. `npm run build` is the gate that catches a violation here; `npm run check` does not.
 
 ## Conventions that differ from defaults
 

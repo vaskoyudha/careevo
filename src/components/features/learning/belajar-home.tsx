@@ -198,6 +198,19 @@ const COURSE_METAS: Record<string, CourseMeta> = {
 };
 
 function getCourseMeta(resource: EntriSumber): CourseMeta {
+  // Sampul unggahan admin menang atas apa pun yang hardcoded di bawah: kalau
+  // admin sudah mengganti gambar kursus, thumbnail bawaan harus mengalah.
+  if (resource.cover_image) {
+    const bawaan = COURSE_METAS[resource.id];
+    const hash = resource.id.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return {
+      thumbnail: resource.cover_image,
+      credentialType: bawaan?.credentialType ?? "Kursus",
+      rating: bawaan?.rating ?? 4.8,
+      reviews: bawaan?.reviews ?? `${(hash % 40) + 12}k`,
+      skills: bawaan?.skills ?? resource.tags.slice(0, 3),
+    };
+  }
   if (COURSE_METAS[resource.id]) return COURSE_METAS[resource.id];
   const hash = resource.id.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const fallbackThumbnails = [
@@ -1370,7 +1383,7 @@ const FAQS = [
   },
   {
     q: "Apakah ada materi kursus yang bisa saya ikuti secara gratis?",
-    a: "Tentu saja. Sebagian besar kurikulum dasar kami bertanda 'Gratis' dan dapat dipelajari secara cuma-cuma dari modul 1 hingga modul 5 lengkap dengan materi terkurasi dari MDN, Google, W3C, dan React Docs.",
+    a: "Tentu saja. Sebagian besar kurikulum dasar kami bertanda 'Gratis' dan dapat dipelajari secara cuma-cuma dari modul pertama hingga modul terakhir, lengkap dengan materi terkurasi dari MDN, Google, W3C, dan React Docs.",
   },
   {
     q: "Bagaimana alur dari belajar hingga siap disalurkan ke lowongan kerja?",
@@ -1378,7 +1391,7 @@ const FAQS = [
   },
   {
     q: "Bagaimana sistem melacak kemajuan dan modul yang telah saya selesaikan?",
-    a: "Saat mendaftar di halaman detail kursus, Anda mendapatkan lembar pelacakan 5 modul. Setiap kali menandai modul selesai, progres persentase Anda diperbarui seketika dan disimpan secara persisten di sesi belajar Anda.",
+    a: "Saat mendaftar di halaman detail kursus, Anda mendapatkan lembar pelacakan seluruh modul kursus tersebut. Setiap kali menandai modul selesai, progres persentase Anda diperbarui seketika dan disimpan secara persisten di sesi belajar Anda.",
   },
 ];
 
