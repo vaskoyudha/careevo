@@ -1,21 +1,24 @@
 # AGENTS.md
 
-Careevo — Next.js prototype ("Learn. Verify. Earn."): a learning-to-job bridge with HMAC attestations, append-only audit, and a Socrates review agent. **This is a fixture-backed prototype: there is no database and no network backend.** All app data comes from `src/fixtures/*.json` via `src/lib/fixtures.ts`.
+Careevo is a Next.js prototype ("Learn. Verify. Earn."): a learning-to-job bridge with HMAC attestations, fixture-backed audit data, and a Socrates review agent. Core fixture data is loaded through `src/lib/fixtures.ts`. Auth, onboarding, and course state also use cookie or in-process state. Gemini evaluation is an optional, on-demand network call.
 
 ## Commands
 
-- `npm run dev` — dev server (Turbopack).
-- `npm run build` / `npm start` — production build / serve.
-- `npm run lint` — runs `eslint` (flat config). Note: **not** `next lint`.
-- `npm run typecheck` — `tsc --noEmit`. Faster standalone check than a full `build`.
-- `npm test` — `vitest run` (one-shot). `npm run test:watch` to watch.
-- `npm run check` — **the gate**: typecheck + lint + skills:check + test.
-- `npm run skills:check` — validate `.agents/skills/` against the Agent Skills spec.
-- `npx vitest run src/lib/scoring/scoring.test.ts` — single file.
-- `npx vitest run -t "A1:"` — single test by name.
-- `npm run smoke [baseUrl]` — HTTP smoke test of 15 routes. **Requires a running server** (`npm run dev`) first; defaults to `http://localhost:3000`.
+- `npm run dev` starts the Next 16 dev server; `next dev` uses Turbopack by default.
+- `npm run build` / `npm start` build and serve production output.
+- `npm run lint` runs ESLint with flat config; `next lint` is not used.
+- `npm run typecheck` runs `tsc --noEmit`, a faster standalone check than a full `build`.
+- `npm test` runs `vitest run` once. `npm run test:watch` starts watch mode.
+- `npm run check` is the manual gate, in this order: typecheck -> lint -> skills:check -> test. It does not run `build`, `smoke`, or `e2e:onboarding`.
+- `npm run skills:check` validates `.agents/skills/` against the Agent Skills spec.
+- `npx vitest run src/lib/scoring/scoring.test.ts` runs one test file.
+- `npx vitest run -t "A1:"` runs one test by name.
+- `npm run smoke -- [baseUrl]` runs the HTTP smoke check and requires a running server. Its route count is derived from the `routes` array; the source comment is stale, so do not hardcode a count here.
+- `npm run e2e:onboarding -- [baseUrl]` runs the signed-cookie onboarding gate check and requires a running server.
 
-Deps use npm (`package-lock.json`); `node_modules` is not checked in — run `npm install` before any command.
+Deps use npm with `package-lock.json` v3. The root `package.json` has no `packageManager` or `engines` pin. The current Vitest 5.0.1 requires Node `^22.12.0 || ^24.0.0 || >=26.0.0`; Next declares Node `>=20.9.0`. For a clean checkout, run `npm ci` (`node_modules` is not checked in).
+
+There is no repository-managed CI workflow or pre-commit hook. Treat `npm run check` as a manual gate.
 
 ## Skills
 
@@ -27,22 +30,24 @@ Deps use npm (`package-lock.json`); `node_modules` is not checked in — run `np
 - **`careevo-attribution`** — MIT notice requirements for code ported from career-ops. Read before adding adapted code.
 - **`career-ops-port`** — what was adopted from career-ops, what was rejected and why. Read before proposing further integration.
 
-A skill with invalid frontmatter fails silently, so `npm run skills:check` validates them.
+`docs/career-ops-architecture-study.md` is historical. The current port decision source is the `career-ops-port` skill.
+
+A skill with invalid frontmatter fails silently, so `npm run skills:check` is the validator. `scripts/validate-skills.mjs` imports `js-yaml`, which is a direct dependency in `package.json`.
 
 ## Testing quirks
 
-- Vitest `include` is `src/**/*.test.ts` only. `.test.tsx` files are **not** picked up.
-- Test environment is `node` (no jsdom) — tests cover pure logic only (`src/lib/scoring`, `src/lib/attestation`, plus a trivial `src/app/smoke.test.ts`).
+- Vitest `include` is exactly `src/**/*.test.ts`; `.test.tsx` and browser tests are not included.
+- Test environment is `node`, with no jsdom or browser test runner.
 - `@/` alias maps to `src/` in both `tsconfig.json` and `vitest.config.mts`; keep them in sync.
 
 ## Architecture
 
-- App Router with route groups in `src/app/`: `(marketing)` = `/`, `(public)` = masuk/daftar/loker/`p/[username]`/`verify/[token]`, `(app)` = dashboard/belajar/loker/[id]/pengaturan/submission/[id], `(focus)` = challenge/[id], `(verifikator)` = review/review/[id]/audit.
-- **Auth gating lives in the group layouts**, not middleware (there is no `middleware.ts`): `(app)` and `(focus)` redirect to `/masuk` when `getSession()` is null; `(verifikator)` additionally requires `isStaffRole`. Individual pages re-check `getSession()` and `return null` if absent.
+- App Router uses route groups in `src/app/`: `(marketing)` (`/`, `/careevo-plus`), `(public)` (for example `/masuk`, `/kerja`, `/loker`, `/p/[username]`, `/verify/[token]`, and catalog routes such as `/explore/most-popular-courses` and `/specializations/[slug]`), `(onboarding)` (`/onboarding`, `/onboarding/demo`), plus learner `(app)`, focus `(focus)`, and staff `(verifikator)` pages.
+- **Auth gating lives in the group layouts**, not middleware (there is no `middleware.ts`): `(app)` redirects missing sessions to `/masuk` and learner sessions without a completed profile to `/onboarding`; `(focus)` checks the session and completed profile, redirecting missing profiles to `/onboarding`; `(verifikator)` checks the session and `isStaffRole()`. Individual pages re-check `getSession()` and `return null` if absent.
 - Auth is **cookie-only**: HMAC-signed session cookie `ls_session` (`src/lib/auth/session.ts`) and registered users in an HMAC-signed `ls_users` cookie capped at 20 (`src/lib/auth/user-store.ts`). Passwords are salted SHA-256, not bcrypt.
-- Env: `SESSION_SECRET` and `ATTESTATION_SECRET` are optional — both fall back to dev defaults, so the app runs with no `.env`. `.env*` is gitignored.
-- `src/actions/*.ts` are `"use server"` server actions (`auth.ts`, `review.ts`).
-- Domain/business logic lives in `src/lib/{scoring,agents,attestation,audit,jobs,validation}`; UI in `src/components` (shadcn/ui under `src/components/ui`, feature components under `src/components/features`).
+- Env: `SESSION_SECRET` and `ATTESTATION_SECRET` are optional and fall back to dev defaults, so the app runs with no `.env`; `GEMINI_API_KEY` is optional and enables the on-demand evaluation. `.env*` is gitignored.
+- `src/actions/*.ts` are `"use server"` server actions: `auth.ts`, `review.ts`, `onboarding.ts`, `profile.ts`, `enrollment.ts`, `courses.ts`, and `evaluasi.ts`.
+- Domain/business logic lives in `src/lib/{scoring,agents,attestation,audit,jobs,validation,courses,onboarding,profile}`; UI in `src/components` (shadcn/ui under `src/components/ui`, feature components under `src/components/features`).
 
 ## Navigation — navbar contract (do not regress)
 

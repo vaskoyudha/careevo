@@ -24,6 +24,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { JobsBoard } from "@/components/features/jobs/jobs-board";
 import { CurvySearchBar } from "@/components/features/jobs/curvy-search-bar";
 import Featured_05 from "@/components/ui/globe-feature-section";
+import { LogoCloud } from "@/components/ui/logo-cloud-2";
 import { cn } from "@/lib/utils";
 
 interface VertexKerjaViewProps {
@@ -145,18 +146,6 @@ const FEATURED_ROLES = [
       { action: "Kandidat menerima skor evaluasi A", time: "1 hari lalu" },
     ],
   },
-];
-
-// Partner logos
-const PARTNER_LOGOS = [
-  { name: "KarirHub Kemnaker", role: "Penyedia Data Loker Resmi" },
-  { name: "Dicoding Indonesia", role: "Mitra Kurikulum & Latihan" },
-  { name: "Google Developers", role: "Standar Ekosistem Web" },
-  { name: "GitHub", role: "Audit Repositori & Bukti Kode" },
-  { name: "Vercel", role: "Infrastruktur Deployment Demo" },
-  { name: "Supabase", role: "Verifikasi Arsitektur Database" },
-  { name: "Stripe", role: "Infrastruktur Pembayaran Mitra" },
-  { name: "Hacktiv8", role: "Jaringan Komunitas Talenta" },
 ];
 
 // Testimonials data
@@ -707,72 +696,42 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                   </div>
                 </div>
               </div>
-
-              {/* Full-width Interactive 3D Globe Feature Section */}
-              <div className="w-full mt-12 sm:mt-16">
-                <Featured_05 />
-              </div>
             </div>
 
             {/* ============================================================ */}
-            {/* OUTER VERTEX GRID FRAME (Starting below Hero Section)        */}
+            {/* FULL-WIDTH FEATURE BANDS (Globe & Logo Cloud)                */}
+            {/* Separated from vertical container lines, spanning 100% width */}
+            {/* ============================================================ */}
+            <div className="relative z-10 w-full overflow-hidden">
+              {/* Top dashed divider */}
+              <div className="relative h-10 w-full border-y border-dashed border-neutral-200 bg-[size:10px_10px] [background-image:repeating-linear-gradient(315deg,rgba(0,0,0,0.035)_0_1px,transparent_0_50%)] md:h-12" />
+
+              {/* 1. Full-width Globe Feature Section */}
+              <Featured_05 className="w-full border-b border-t-0" />
+
+              {/* Middle dashed divider */}
+              <div className="relative h-10 w-full border-y border-dashed border-neutral-200 bg-[size:10px_10px] [background-image:repeating-linear-gradient(315deg,rgba(0,0,0,0.035)_0_1px,transparent_0_50%)] md:h-12" />
+
+              {/* 2. Full-width Logo Cloud Section */}
+              <section aria-label="Trusted by" className="relative w-full bg-white dark:bg-neutral-950 overflow-hidden">
+                <div className="w-full border-b border-neutral-200 bg-neutral-50/50 py-3.5 text-center">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
+                    Terhubung dengan ekosistem verifikasi dan agregator loker terpercaya
+                  </p>
+                </div>
+                <LogoCloud className="w-full border-x-0" />
+              </section>
+
+              {/* Bottom dashed divider */}
+              <div className="relative h-10 w-full border-y border-dashed border-neutral-200 bg-[size:10px_10px] [background-image:repeating-linear-gradient(315deg,rgba(0,0,0,0.035)_0_1px,transparent_0_50%)] md:h-12" />
+            </div>
+
+            {/* ============================================================ */}
+            {/* OUTER VERTEX GRID FRAME (Starting below Full-Width Sections) */}
             {/* ============================================================ */}
             <div className="container relative z-10 mx-auto mt-10 sm:mt-14 lg:mt-16">
               <div className="border-x border-neutral-200">
                 <div className="mx-1 border-x border-neutral-200 sm:mx-1.5 lg:mx-2 bg-white">
-                  {/* ============================================================ */}
-                  {/* 2. DASHED SECTION DIVIDER                                    */}
-                  {/* ============================================================ */}
-                  <div className="relative h-10 border-y border-dashed border-neutral-200 bg-[size:10px_10px] [background-image:repeating-linear-gradient(315deg,rgba(0,0,0,0.035)_0_1px,transparent_0_50%)] md:h-12" />
-
-            {/* ============================================================ */}
-            {/* 3. LOGO CLOUD / TRUSTED SOURCES (SEC 2)                      */}
-            {/* ============================================================ */}
-            <section aria-label="Trusted by" className="bg-white py-12 md:py-16">
-              <div className="px-6 sm:px-8 lg:px-12">
-                <div className="relative rounded-xl border border-neutral-200 bg-neutral-50/40 p-6 sm:p-8">
-                  {/* Crosshair markers on 4 corners */}
-                  <div className="pointer-events-none absolute size-3 -translate-x-1/2 -translate-y-1/2 top-0 left-0">
-                    <span className="absolute inset-0 m-auto block h-px w-full bg-neutral-400" />
-                    <span className="absolute inset-0 m-auto block h-full w-px bg-neutral-400" />
-                  </div>
-                  <div className="pointer-events-none absolute size-3 -translate-y-1/2 top-0 right-0 translate-x-1/2">
-                    <span className="absolute inset-0 m-auto block h-px w-full bg-neutral-400" />
-                    <span className="absolute inset-0 m-auto block h-full w-px bg-neutral-400" />
-                  </div>
-                  <div className="pointer-events-none absolute size-3 -translate-x-1/2 bottom-0 left-0 translate-y-1/2">
-                    <span className="absolute inset-0 m-auto block h-px w-full bg-neutral-400" />
-                    <span className="absolute inset-0 m-auto block h-full w-px bg-neutral-400" />
-                  </div>
-                  <div className="pointer-events-none absolute size-3 bottom-0 right-0 translate-x-1/2 translate-y-1/2">
-                    <span className="absolute inset-0 m-auto block h-px w-full bg-neutral-400" />
-                    <span className="absolute inset-0 m-auto block h-full w-px bg-neutral-400" />
-                  </div>
-
-                  <p className="text-center text-xs font-medium uppercase tracking-wider text-neutral-400">
-                    Terhubung dengan ekosistem verifikasi dan agregator loker terpercaya
-                  </p>
-
-                  <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-4">
-                    {PARTNER_LOGOS.map((partner) => (
-                      <div
-                        key={partner.name}
-                        className="flex flex-col items-center justify-center rounded-lg border border-neutral-200/80 bg-white p-3.5 text-center shadow-xs transition-all hover:border-neutral-300"
-                      >
-                        <span className="font-semibold text-sm text-neutral-900">{partner.name}</span>
-                        <span className="text-[11px] text-neutral-500 mt-0.5">{partner.role}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* ============================================================ */}
-            {/* 4. DASHED SECTION DIVIDER                                    */}
-            {/* ============================================================ */}
-            <div className="relative h-10 border-y border-dashed border-neutral-200 bg-[size:10px_10px] [background-image:repeating-linear-gradient(315deg,rgba(0,0,0,0.035)_0_1px,transparent_0_50%)] md:h-12" />
-
             {/* ============================================================ */}
             {/* 5. FEATURES / BENTO GRID (SEC 4)                             */}
             {/* ============================================================ */}
