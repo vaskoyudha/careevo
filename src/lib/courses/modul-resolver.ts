@@ -32,6 +32,9 @@ function dariTersimpan(modul: Modul[], urlKursus: string): ModulKursus[] {
       // Halaman ikut dibawa karena prosa kini tinggal di sana; tanpa ini,
       // modul tersimpan akan tampak kosong di halaman belajar walau sudah diisi.
       halaman: [...(m.halaman ?? [])].sort((a, b) => a.urutan - b.urutan),
+      // Checkpoint juga harus ikut: kalau tidak, gerbang learner akan memakai
+      // default dan mengabaikan aturan pengerjaan yang dipilih admin.
+      checkpoint: m.checkpoint,
     }));
 }
 
