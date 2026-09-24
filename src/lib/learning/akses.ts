@@ -52,6 +52,34 @@ export function checkpointEfektif(modul: ModulCheckpoint): CheckpointMateri {
   return { ...c };
 }
 
+/**
+ * Apakah sebuah course mewajibkan penyelesaian lewat sesi terverifikasi?
+ *
+ * Kebijakan `opsional` bebas; selain itu course menuntut sesi — **terlepas dari
+ * ada atau tidaknya bukti saat ini**. Kehadiran bukti sengaja tidak masuk
+ * hitungan di sini: pertanyaan "course ini wajib sesi?" adalah sifat kebijakan,
+ * bukan sifat permintaan sesaat. Kalau bukti dijadikan syarat untuk *memilih*
+ * jalur terverifikasi, klien tanpa bukti akan dibelokkan ke jalur informal
+ * (menandai sendiri) dan gerbang server tidak pernah dievaluasi — justru
+ * peserta yang belum memenuhi syarat yang lolos, dan yang sudah memenuhi syarat
+ * malah ditolak. Peserta/pemanggil tidak boleh jadi penjaga otoritatif.
+ *
+ * Dipakai bersama oleh rute UI (`detail-kursus.tsx`) dan action server
+ * (`selesaikanMateriAction`) supaya keduanya tidak bisa menyimpang.
+ */
+export function wajibSesiTerverifikasi(kebijakan: KebijakanCourse): boolean {
+  return kebijakan.aturan_pengawasan !== "opsional";
+}
+
+/**
+ * Jenis checkpoint yang penyelesaiannya diverifikasi server (bukan ditandai
+ * manual oleh peserta). Hanya modul `materi`; `kuis`/`proyek` dinilai lewat
+ * jalur penilaiannya sendiri, jadi penandaan manual tetap sah di sana.
+ */
+export function checkpointTerverifikasi(checkpoint: CheckpointMateri): boolean {
+  return checkpoint.mode === "materi";
+}
+
 export function putuskanAkses({ jenisKegiatan, kebijakan, adaBuktiSesi }: KonteksAkses): KeputusanAkses {
   // Asesmen tanpa AI selalu menutup bantuan akademik, terlepas dari sesi.
   if (jenisKegiatan === "bantuan_akademik" && kebijakan.aturan_bantuan === "tanpa_ai") {

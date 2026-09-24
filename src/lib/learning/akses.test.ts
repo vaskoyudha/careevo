@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { kebijakanDefault } from "@/lib/courses/kebijakan";
 import type { CheckpointMateri, KebijakanCourse } from "@/types/course";
-import { checkpointEfektif, kategoriDiblokir, klasifikasiKejadian, putuskanAkses } from "./akses";
+import {
+  checkpointEfektif,
+  checkpointTerverifikasi,
+  kategoriDiblokir,
+  klasifikasiKejadian,
+  putuskanAkses,
+  wajibSesiTerverifikasi,
+} from "./akses";
 
 const MODUL = { id: "m1", checkpoint: { batas_waktu_menit: 20, mode: "kuis", ref: "mat-1" } as CheckpointMateri };
 const kebijakan = (p: Partial<KebijakanCourse> = {}): KebijakanCourse => ({ ...kebijakanDefault(), ...p });
@@ -43,6 +50,46 @@ describe("putuskanAkses", () => {
 
   it("allows tutor help under the tutor rule", () => {
     expect(putuskanAkses({ jenisKegiatan: "bantuan_akademik", kebijakan: kebijakan({ aturan_bantuan: "bertutor" }), adaBuktiSesi: false }).tipe).toBe("bebas");
+  });
+});
+
+describe("rute penyelesaian terverifikasi", () => {
+  it("menandai course wajib sesi sebagai butuh verifikasi", () => {
+    expect(wajibSesiTerverifikasi(kebijakan({ aturan_pengawasan: "wajib" }))).toBe(true);
+    expect(wajibSesiTerverifikasi(kebijakan({ aturan_pengawasan: "opsional" }))).toBe(false);
+  });
+
+  it("hanya checkpoint materi yang diverifikasi server", () => {
+    expect(checkpointTerverifikasi(checkpointEfektif({ id: "m1" }))).toBe(true);
+    expect(checkpointTerverifikasi(MODUL.checkpoint as CheckpointMateri)).toBe(false);
+  });
+
+  /**
+   * Inilah regresi yang diperbaiki: jalur terverifikasi dipilih murni dari
+   * kebijakan + checkpoint, jadi peserta **tanpa** bukti pun dikirim ke server
+   * (yang menolak dengan pesan gerbangnya) alih-alih dibelokkan ke penandaan
+   * informal, dan peserta **dengan** bukti tidak pernah dilewatkan verifikasi.
+   */
+  it("memilih jalur terverifikasi terlepas dari ada atau tidaknya bukti", () => {
+    const wajib = kebijakan({ aturan_pengawasan: "wajib" });
+    const materi = { id: "m1" };
+    const keputusan = [true, false].map((adaBuktiSesi) => {
+      const jalur =
+        wajibSesiTerverifikasi(wajib) && checkpointTerverifikasi(checkpointEfektif(materi));
+      // Klien hanya memilih jalur; keputusan akhir tetap milik server.
+      return { adaBuktiSesi, jalur, putusanServer: putuskanAkses({ jenisKegiatan: "materi", kebijakan: wajib, adaBuktiSesi }).tipe };
+    });
+    expect(keputusan).toEqual([
+      { adaBuktiSesi: true, jalur: true, putusanServer: "bebas" },
+      { adaBuktiSesi: false, jalur: true, putusanServer: "perlu_sesi" },
+    ]);
+  });
+
+  it("kursus opsional dan checkpoint kuis/proyek tetap informal", () => {
+    const opsional = kebijakan({ aturan_pengawasan: "opsional" });
+    const wajib = kebijakan({ aturan_pengawasan: "wajib" });
+    expect(wajibSesiTerverifikasi(opsional) && checkpointTerverifikasi(checkpointEfektif({ id: "m1" }))).toBe(false);
+    expect(wajibSesiTerverifikasi(wajib) && checkpointTerverifikasi(checkpointEfektif(MODUL))).toBe(false);
   });
 });
 

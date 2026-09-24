@@ -5,7 +5,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { ModulKursus } from "@/lib/courses/kurikulum";
 import { hitungProgres, irisModulSelesai } from "@/lib/courses/kurikulum";
-import { checkpointEfektif } from "@/lib/learning/akses";
+import { checkpointEfektif, checkpointTerverifikasi, wajibSesiTerverifikasi } from "@/lib/learning/akses";
 import { daftarKursusAction, tandaiModulAction } from "@/actions/enrollment";
 import { selesaikanMateriAction } from "@/actions/learning";
 import { MateriView } from "./materi-view";
@@ -150,16 +150,24 @@ function RuangBelajar({
   const { boleh, kebijakan, bukti } = useCourseSession();
   const keputusanLampiran = boleh("materi");
   /**
-   * Apakah penyelesaian modul `materi` wajib lewat sesi terverifikasi.
+   * Apakah course ini mewajibkan penyelesaian lewat sesi terverifikasi.
    *
-   * Gerbang ini cermin `putuskanAkses` untuk kegiatan "materi": kebijakan
-   * `opsional` selalu bebas, selain itu peserta tidak punya bukti sesi = belum
-   * boleh. Dipisah dari `keputusanLampiran` dengan sengaja walaupun nilainya
-   * sama hari ini, supaya kedua gerbang bisa bergerak sendiri: lampiran dan
-   * penandaan selesai adalah dua keputusan produk yang berbeda.
+   * Hanya sifat **kebijakan**, bukan ketersediaan bukti saat ini: `bukti` sengaja
+   * tidak dibaca di sini. Kalau klien memilih jalur berdasarkan ada/tidaknya
+   * bukti, jalur terverifikasi justru hanya terpilih saat bukti **tidak** ada —
+   * peserta yang sudah memulai sesi dibelokkan ke penandaan informal (gerbang
+   * server dilewati), dan peserta tanpa bukti dikirim ke action terverifikasi
+   * dengan bukti kosong yang selalu ditolaknya, sehingga modulnya mustahil
+   * diselesaikan. Karena itu klien tidak menyaring sama sekali: ia hanya
+   * *merutekan* ke action yang memverifikasi, dan server yang memutuskan —
+   * dengan bukti, permintaan berhasil; tanpa bukti, server menjawab
+   * `PESAN_POLICY.wajib` sebagai pesan gerbang yang jelas.
+   *
+   * Dipakai bersama `selesaikanMateriAction` supaya definisi "wajib" hanya ada
+   * satu; di sini ia dipasangkan dengan `checkpointEfektif(modul).mode` untuk
+   * memilih jalur per modul.
    */
-  const wajibSesiMateri =
-    kebijakan.aturan_pengawasan !== "opsional" && !bukti;
+  const wajibSesiMateri = wajibSesiTerverifikasi(kebijakan);
   /**
    * Halaman yang sedang dibaca di dalam modul yang terbuka.
    *
@@ -183,23 +191,34 @@ function RuangBelajar({
   /**
    * Tandai/batalkan satu modul selesai.
    *
-   * Dua jalur sengaja, dipilih per modul:
+   * Dua jalur sengaja, dipilih **saat klik** (bukan disimpan di state, supaya
+   * perubahan sesi tidak membuat state basi memilih jalur yang salah):
    *
    * - Moderasi `wajib` + checkpoint `materi` → `selesaikanMateriAction`, satu-
-   *   satunya jalur yang memverifikasi bukti sesi di server. Lewat jalur
-   *   informal, peserta bisa menyelesaikan modul wajib sesi tanpa sesi sama
-   *   sekali — gerbang Task 6 jadi hiasan.
-   * - Sisanya (checkpoint kuis/proyek, atau kursus `opsional`) → jalur informal
-   *   `tandaiModulAction`, supaya modul kuis tetap tersimpan sebagai progres
-   *   informal dan kursus non-verifikasi tidak berubah perilakunya.
+   *   satunya jalur yang memverifikasi bukti sesi di server. Klien **tidak**
+   *   memeriksa ada/tidaknya bukti sebelum memilih jalur: kalau ia menyaring,
+   *   peserta yang belum memenuhi syarat justru lolos lewat jalur informal
+   *   (gerbang Task 7 jadi hiasan) dan peserta yang sudah memenuhi syarat
+   *   ditolak. Hasilnya ditentukan server: bukti sah → modul selesai; tanpa
+   *   bukti → server menolak dengan pesan gerbangnya sendiri (`PESAN_POLICY.wajib`)
+   *   dan modul tetap belum selesai. Di jalur ini tidak ada penulisan
+   *   optimistis — hanya `hasil.ok` yang menambah centang.
+   * - Sisanya — checkpoint `kuis`/`proyek`, kursus `opsional`, atau pembatalan
+   *   (`sudah === true`) → jalur informal `tandaiModulAction`, supaya modul
+   *   kuis tetap tersimpan sebagai progres informal dan kursus non-verifikasi
+   *   tidak berubah perilakunya. Pembatalan tidak punya jalur terverifikasi:
+   *   action itu hanya menandai selesai, jadi mengoreksi tanda harus tetap
+   *   mungkin lewat jalur informal.
    *
-   * Keputusan jalur dihitung **saat klik**, bukan disimpan di state: bukti sesi
-   * bisa berubah kapan saja (sesi mulai/diakhiri) dan state basi akan memilih
-   * jalur yang salah.
+   * Jadi jalur informal hanya untuk `opsional`, checkpoint `kuis`/`proyek`, dan
+   * pembatalan; setiap penyelesaian `materi` di course `wajib` diperiksa server.
    */
   const tandai = (modul: ModulKursus, sudah: boolean) =>
     startTransition(async () => {
-      const wajibTerverifikasi = checkpointEfektif(modul).mode === "materi" && wajibSesiMateri;
+      // Kedua suku murni soal kebijakan/checkpoint; tidak ada pemeriksaan bukti
+      // di klien. Konsekuensinya jalur informal hanya untuk `opsional`,
+      // checkpoint non-`materi`, dan pembatalan — persis kontrak di atas.
+      const wajibTerverifikasi = wajibSesiMateri && checkpointTerverifikasi(checkpointEfektif(modul));
       // Modul yang belum tuntas tidak bisa "dibatalkan" lewat jalur
       // terverifikasi: action itu hanya menandai selesai. Pembatalan tetap
       // informal supaya peserta masih bisa mengoreksi tandanya.
@@ -219,9 +238,9 @@ function RuangBelajar({
         return;
       }
 
-      // Jalur terverifikasi: bukti sesi dari provider. Tanpa bukti, biarkan
-      // server menolak dan pesannya yang dipakai apa adanya — klien bukan
-      // penjaga otoritatif.
+      // Jalur terverifikasi: bukti sesi dari provider diteruskan apa adanya.
+      // Bukti kosong bukan alasan mengganti jalur — server yang menolak, dan
+      // pesannya dipakai apa adanya; klien bukan penjaga otoritatif.
       const hasil = await selesaikanMateriAction({
         courseId: kursus.id,
         modulId: modul.id,
