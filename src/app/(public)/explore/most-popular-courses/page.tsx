@@ -1,280 +1,319 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { Star, ArrowRight, Sparkles } from "lucide-react";
+import { TrendingUp, ArrowRight } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Most popular courses and skills | Careevo",
-  description: "Explore our top courses and skills, loved by learners and developed by leading experts.",
+  description:
+    "Explore our top courses and skills, loved by learners and developed by leading experts from Google, IBM, Microsoft, and global institutions.",
 };
 
-interface ExploreCourse {
+interface ExploreCard {
   title: string;
   provider: string;
   providerLogo: string;
   type: string;
-  rating: number;
-  reviews: string;
-  thumbnail: string;
-  statusBadge?: string;
+  imageUrl: string;
   href: string;
-  category: "Data Science" | "Business" | "Computer Science" | "Information Technology";
+  category: "Business" | "Data Science" | "Computer Science" | "Information Technology";
+  trending?: boolean;
+  freeTrial?: boolean;
 }
 
-const TRENDING_COURSES: ExploreCourse[] = [
-  {
-    title: "The Complete Claude Code & Claude Cowork Masterclass Specialization",
-    provider: "Dr. Ryan Ahmed",
-    providerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/8e/7ca56107974898be41dca49b5aff74/Digital_360x360.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
-    type: "Specialization",
-    rating: 4.9,
-    reviews: "2.3K",
-    thumbnail: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://s3.amazonaws.com/coursera-course-photos/65/569c735d49495b9d332616f1a942eb/1.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=640&h=360&fit=crop&q=50",
-    statusBadge: "Hot new release",
-    href: "/specializations/complete-claude-code-claude-cowork-masterclass",
-    category: "Computer Science",
-  },
+const TRENDING_COURSES: ExploreCard[] = [
   {
     title: "Google Project Management",
     provider: "Google",
-    providerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+    providerLogo:
+      "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
     type: "Professional Certificate",
-    rating: 4.8,
-    reviews: "120K",
-    thumbnail: "https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=640&q=80",
-    statusBadge: "Trending right now",
+    imageUrl:
+      "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/64/2c23361e8c42a680e3e34c57db8e27/GCC-Coursera-thumbnail-PM-foundations-emilio-cert-level.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50&crop=focalpoint&fp-y=0.48",
     href: "/professional-certificates/google-project-management",
     category: "Business",
+    trending: true,
+    freeTrial: true,
   },
   {
     title: "Google Data Analytics",
     provider: "Google",
-    providerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+    providerLogo:
+      "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
     type: "Professional Certificate",
-    rating: 4.8,
-    reviews: "140K",
-    thumbnail: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/60/097644c12e4aeba0c3420de571cac1/GCC-Coursera-thumbnail-DA-foundations-tony-cert-level.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50&crop=focalpoint&fp-y=0.48",
-    statusBadge: "Trending right now",
+    imageUrl:
+      "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/60/097644c12e4aeba0c3420de571cac1/GCC-Coursera-thumbnail-DA-foundations-tony-cert-level.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50&crop=focalpoint&fp-y=0.48",
     href: "/professional-certificates/google-data-analytics",
     category: "Data Science",
+    trending: true,
+    freeTrial: true,
   },
   {
     title: "Google IT Support",
     provider: "Google",
-    providerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+    providerLogo:
+      "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
     type: "Professional Certificate",
-    rating: 4.8,
-    reviews: "180K",
-    thumbnail: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=640&q=80",
-    statusBadge: "Trending right now",
+    imageUrl:
+      "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/87/a6fe9eac464f3d93cb68689fb4edab/GCC-Coursera-thumbnail-IT-tech-support-fundamentals-kevin-cert-level.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50&crop=focalpoint&fp-y=0.48",
     href: "/professional-certificates/google-it-support",
     category: "Information Technology",
+    trending: true,
+    freeTrial: true,
   },
   {
     title: "Google UX Design",
     provider: "Google",
-    providerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+    providerLogo:
+      "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
     type: "Professional Certificate",
-    rating: 4.8,
-    reviews: "95K",
-    thumbnail: "https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?auto=format&fit=crop&w=640&q=80",
-    statusBadge: "Trending right now",
+    imageUrl:
+      "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/7d/13e379b4d3490ead26fd4f89a31136/UX-Design.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50&crop=focalpoint&fp-y=0.48",
     href: "/professional-certificates/google-ux-design",
     category: "Computer Science",
+    trending: true,
+    freeTrial: true,
   },
   {
     title: "Google Cybersecurity",
     provider: "Google",
-    providerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+    providerLogo:
+      "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
     type: "Professional Certificate",
-    rating: 4.8,
-    reviews: "45K",
-    thumbnail: "https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=640&q=80",
-    statusBadge: "Trending right now",
+    imageUrl:
+      "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/1b/cf7188df91422ca7ffe0ba00848482/Cybersecurity.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50&crop=focalpoint&fp-y=0.48",
     href: "/professional-certificates/google-cybersecurity",
     category: "Information Technology",
+    trending: true,
+    freeTrial: true,
   },
   {
     title: "Google Digital Marketing & E-commerce",
     provider: "Google",
-    providerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+    providerLogo:
+      "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
     type: "Professional Certificate",
-    rating: 4.8,
-    reviews: "75K",
-    thumbnail: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=640&q=80",
-    statusBadge: "Trending right now",
+    imageUrl:
+      "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/91/e424f15b9d4626a10b1088573092e0/DME.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50&crop=focalpoint&fp-y=0.48",
     href: "/professional-certificates/google-digital-marketing-ecommerce",
     category: "Business",
+    trending: true,
+    freeTrial: true,
   },
   {
     title: "Google IT Automation with Python",
     provider: "Google",
-    providerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+    providerLogo:
+      "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
     type: "Professional Certificate",
-    rating: 4.8,
-    reviews: "52K",
-    thumbnail: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=640&q=80",
-    statusBadge: "Trending right now",
+    imageUrl:
+      "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/6a/13981d577743e89f9cfe8e12808876/GCC-Coursera-thumbnail-ITwithPython-crash-course-python-christine-cert-level.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50&crop=focalpoint&fp-y=0.48",
     href: "/professional-certificates/google-it-automation",
     category: "Information Technology",
+    trending: true,
+    freeTrial: true,
   },
   {
     title: "Google AI Essentials",
     provider: "Google",
-    providerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+    providerLogo:
+      "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
     type: "Specialization",
-    rating: 4.8,
-    reviews: "60K",
-    thumbnail: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/07/eced232a07415eb3d77c788ae5754e/AIE.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50&crop=focalpoint&fp-y=0.48",
-    statusBadge: "Top AI program",
+    imageUrl:
+      "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/07/eced232a07415eb3d77c788ae5754e/AIE.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50&crop=focalpoint&fp-y=0.48",
     href: "/specializations/ai-essentials-google",
     category: "Computer Science",
-  },
-  {
-    title: "IBM Data Analyst",
-    provider: "IBM",
-    providerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/bb/f5ced241374d08852372f5c71b6980/IBM_logo_blue_100x100.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
-    type: "Professional Certificate",
-    rating: 4.7,
-    reviews: "82K",
-    thumbnail: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/23/f74c5a9a9c4110b78909194abbdc7a/BC-5768_VisMerch-Phase-3-Assets_ProCerts_IBM_DataAnalyst.png?auto=format%2Ccompress&dpr=1&w=320&h=180&fit=crop&q=50",
-    statusBadge: "Popular",
-    href: "/professional-certificates/ibm-data-analyst",
-    category: "Data Science",
-  },
-  {
-    title: "Machine Learning",
-    provider: "DeepLearning.AI & Stanford",
-    providerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/9a/c0a6b0143811e7a3ec515d9da6396e/DeepLearning-AI-Logo_Square.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
-    type: "Specialization",
-    rating: 4.9,
-    reviews: "39K",
-    thumbnail: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://s3.amazonaws.com/coursera-course-photos/6a/48f4bf23504f7a93b4a2ebfc6d6fb3/MLS_Thumbnail_v2.png?auto=format%2Ccompress&dpr=1&w=320&h=180&fit=crop&q=50",
-    statusBadge: "Top Rated",
-    href: "/specializations/machine-learning-introduction",
-    category: "Data Science",
-  },
-  {
-    title: "IBM Data Science",
-    provider: "IBM",
-    providerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/bb/f5ced241374d08852372f5c71b6980/IBM_logo_blue_100x100.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
-    type: "Professional Certificate",
-    rating: 4.6,
-    reviews: "115K",
-    thumbnail: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/60/097644c12e4aeba0c3420de571cac1/GCC-Coursera-thumbnail-DA-foundations-tony-cert-level.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50&crop=focalpoint&fp-y=0.48",
-    statusBadge: "Professional Certificate",
-    href: "/professional-certificates/ibm-data-science",
-    category: "Data Science",
+    trending: true,
+    freeTrial: true,
   },
 ];
+
+const CATEGORY_COURSES: Record<string, ExploreCard[]> = {
+  "Data Science": [
+    {
+      title: "Google Data Analytics",
+      provider: "Google",
+      providerLogo:
+        "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+      type: "Professional Certificate",
+      imageUrl:
+        "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/60/097644c12e4aeba0c3420de571cac1/GCC-Coursera-thumbnail-DA-foundations-tony-cert-level.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50&crop=focalpoint&fp-y=0.48",
+      href: "/professional-certificates/google-data-analytics",
+      category: "Data Science",
+      trending: true,
+      freeTrial: true,
+    },
+    {
+      title: "Machine Learning",
+      provider: "DeepLearning.AI & Stanford Online",
+      providerLogo:
+        "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/b4/5cb90bb92f420b99bf323a0356f451/Icon.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+      type: "Specialization",
+      imageUrl:
+        "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/3a/9d2a7af297483a845340bcfbac6f1e/MLS.course-banners-01_Course-Logo-.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50",
+      href: "/specializations/machine-learning-introduction",
+      category: "Data Science",
+      trending: true,
+      freeTrial: true,
+    },
+    {
+      title: "IBM Data Science",
+      provider: "IBM",
+      providerLogo:
+        "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/bb/f5ced2bdd4437aa79f00eb1bf7fbf0/IBM-Logo-Blk---Square.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+      type: "Professional Certificate",
+      imageUrl:
+        "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/6c/1510973eca4293ba9eb71d8b28f86f/BC-5768_VisMerch-Phase-3-Assets_ProCerts_IBM_DataScience.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50",
+      href: "/professional-certificates/ibm-data-science",
+      category: "Data Science",
+      trending: true,
+      freeTrial: true,
+    },
+    {
+      title: "IBM Data Analyst",
+      provider: "IBM",
+      providerLogo:
+        "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/bb/f5ced2bdd4437aa79f00eb1bf7fbf0/IBM-Logo-Blk---Square.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
+      type: "Professional Certificate",
+      imageUrl:
+        "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/f8/a9b8a9547948789bd154efafcd114e/BC-5768_VisMerch-Phase-3-Assets_ProCerts_IBM_DataAnalyst.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50",
+      href: "/professional-certificates/ibm-data-analyst",
+      category: "Data Science",
+      trending: true,
+      freeTrial: true,
+    },
+  ],
+};
 
 export default function MostPopularCoursesPage() {
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      {/* Hero Header */}
-      <section className="border-b border-gray-200 bg-linear-to-b from-blue-50/50 to-white pt-24 pb-14 sm:pt-28 sm:pb-16">
+      {/* Hero Section — Solid Deep Blue #0060EB with Exact Stylized Coursera Graphic */}
+      <section className="bg-[#0060EB] text-white pt-24 pb-12 sm:pt-28 sm:pb-14">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="max-w-3xl">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-[#0056D2]">
-              <Sparkles className="size-3.5" />
-              <span>Program Pilihan Terpopuler</span>
+          <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-12 lg:gap-12">
+            {/* Left Content */}
+            <div className="lg:col-span-7">
+              <h1 className="text-3xl font-extrabold tracking-tight sm:text-5xl lg:text-[44px] leading-[1.12]">
+                Most popular courses and skills
+              </h1>
+              <p className="mt-4 text-base sm:text-lg text-white/95 leading-relaxed max-w-2xl font-normal">
+                Explore our top courses and skills, loved by learners and developed by leading experts.
+              </p>
+              <div className="mt-7">
+                <Link
+                  href="/daftar"
+                  className="inline-flex items-center justify-center rounded-lg bg-white px-7 py-3 text-base font-bold text-[#0056D2] shadow-sm transition-all hover:bg-gray-100 active:scale-[0.98]"
+                >
+                  Start 7-day free trial
+                </Link>
+              </div>
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-neutral-900 sm:text-5xl">
-              Most popular courses and skills
-            </h1>
-            <p className="mt-4 text-base text-gray-600 sm:text-lg leading-relaxed">
-              Explore our top courses and skills, loved by learners and developed by leading experts from Google, IBM, Microsoft, and global institutions.
-            </p>
-            <div className="mt-8 flex flex-wrap items-center gap-4">
-              <Link
-                href="/daftar"
-                className="chrome-btn chrome-btn-brand !h-12 !px-7 !text-base"
-              >
-                <span>Start 7-day free trial</span>
-                <ArrowRight className="size-4" />
-              </Link>
-              <Link
-                href="/belajar"
-                className="chrome-btn chrome-btn-white !h-12 !px-7 !text-base"
-              >
-                Lihat Semua Katalog
-              </Link>
+
+            {/* Right Graphic — Stacked paper cards, heart chat, 5-star badge */}
+            <div className="lg:col-span-5 flex justify-center lg:justify-end">
+              <div className="relative aspect-[16/9] w-full max-w-[480px]">
+                <Image
+                  src="https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/KOVqWiEQZMkOrGH3CamfH/893706cb2d87e556ab7426ab9b384c8b/Frame_1__5_.png?auto=format%2C%20compress&dpr=1&w=1763&h=980&q=40&fit=clip"
+                  alt="Most popular courses and skills"
+                  fill
+                  priority
+                  sizes="(max-width: 1024px) 100vw, 480px"
+                  className="object-contain"
+                  unoptimized
+                />
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Section 1: Learning that's trending */}
-      <section className="py-14 sm:py-16">
+      {/* Section 1: Learning that’s trending */}
+      <section className="py-12 sm:py-16 bg-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mb-8 flex items-end justify-between">
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
-                Learning that’s trending
-              </h2>
-              <p className="mt-1 text-sm text-gray-500">
-                Kursus dan sertifikat paling banyak diambil minggu ini oleh para pembelajar aktif.
-              </p>
-            </div>
+          <div className="mb-8">
+            <h2 className="text-2xl sm:text-[28px] font-bold tracking-tight text-gray-900">
+              Learning that’s trending
+            </h2>
           </div>
 
+          {/* 8 Cards in 2 Rows of 4 */}
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {TRENDING_COURSES.map((course) => (
               <Link
                 key={course.title}
                 href={course.href}
-                className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-2xs transition-all duration-200 hover:-translate-y-1 hover:border-gray-300 hover:shadow-md active:scale-[0.98]"
+                className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-[#C1CBDB] bg-white shadow-2xs transition-all duration-200 hover:-translate-y-1 hover:border-gray-400 hover:shadow-md"
               >
                 <div>
-                  <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-gray-100">
+                  {/* Thumbnail Container */}
+                  <div className="relative aspect-[16/9] w-full overflow-hidden bg-gray-100">
                     <Image
-                      src={course.thumbnail}
+                      src={course.imageUrl}
                       alt={course.title}
                       fill
-                      sizes="(max-width: 768px) 100vw, 25vw"
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                       className="object-cover transition-transform duration-300 group-hover:scale-105"
                       unoptimized
                     />
-                    {course.statusBadge && (
-                      <span className="absolute top-2 left-2 rounded-md bg-[#0056D2] px-2 py-0.5 text-[10px] font-semibold text-white uppercase tracking-wider shadow-xs">
-                        {course.statusBadge}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="mt-4 flex items-center gap-2">
-                    <div className="relative size-4 shrink-0 overflow-hidden">
+                    {/* Top-left Google G logo badge */}
+                    <div className="absolute top-2.5 left-2.5 size-6 rounded bg-white p-1 shadow-xs flex items-center justify-center">
                       <Image
                         src={course.providerLogo}
-                        alt={course.provider}
-                        fill
-                        sizes="16px"
+                        alt="Google"
+                        width={18}
+                        height={18}
                         className="object-contain"
                         unoptimized
                       />
                     </div>
-                    <span className="text-xs font-medium text-gray-600">{course.provider}</span>
                   </div>
 
-                  <h3
-                    className="mt-2 line-clamp-2 text-sm sm:text-base font-bold text-gray-900 group-hover:text-[#0056D2] transition-colors leading-snug"
-                    title={course.title}
-                  >
-                    {course.title}
-                  </h3>
+                  {/* Card Content Area */}
+                  <div className="p-4">
+                    {/* Partner info */}
+                    <div className="flex items-center gap-1.5">
+                      <div className="relative size-4 shrink-0 overflow-hidden">
+                        <Image
+                          src={course.providerLogo}
+                          alt={course.provider}
+                          fill
+                          sizes="16px"
+                          className="object-contain"
+                          unoptimized
+                        />
+                      </div>
+                      <span className="text-xs font-medium text-gray-700">{course.provider}</span>
+                    </div>
+
+                    {/* Course Title */}
+                    <h3
+                      className="mt-2 line-clamp-2 text-base font-bold text-[#0D0F12] group-hover:text-[#0056D2] transition-colors leading-snug min-h-[44px]"
+                      title={course.title}
+                    >
+                      {course.title}
+                    </h3>
+
+                    {/* Product Type */}
+                    <p className="mt-1 text-xs text-gray-500 font-normal">
+                      {course.type}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="mt-4 border-t border-gray-100 pt-3">
-                  <div className="flex items-center gap-1.5 text-xs text-gray-600">
-                    <Star className="size-3.5 fill-amber-500 text-amber-500 shrink-0" />
-                    <span className="font-semibold text-gray-900">{course.rating}</span>
-                    <span>({course.reviews})</span>
-                    <span className="text-gray-300">·</span>
-                    <span className="truncate">{course.type}</span>
-                  </div>
-                  <div className="mt-2 text-[11px] font-medium text-emerald-700">
-                    Status: Free trial
-                  </div>
+                {/* Status Tags Row at Bottom */}
+                <div className="px-4 pb-4 pt-1 flex flex-wrap items-center gap-1.5">
+                  {course.trending && (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-[#FCE5E8] px-2 py-0.5 text-[11px] font-semibold text-[#C51E37]">
+                      <TrendingUp className="size-3" />
+                      <span>Trending right now</span>
+                    </span>
+                  )}
+                  {course.freeTrial && (
+                    <span className="inline-flex items-center rounded-md bg-[#F0F6FF] px-2 py-0.5 text-[11px] font-semibold text-[#0D2F60]">
+                      Free trial
+                    </span>
+                  )}
                 </div>
               </Link>
             ))}
@@ -282,47 +321,63 @@ export default function MostPopularCoursesPage() {
         </div>
       </section>
 
-      {/* Promotional Bento Section */}
-      <section className="border-t border-gray-100 bg-[#f5f7fa] py-14">
+      {/* Promotional Bento Section — Exact Coursera Magenta & Navy Banners */}
+      <section className="border-t border-gray-100 bg-[#F5F7FA] py-14">
         <div className="mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 md:grid-cols-2 lg:px-8">
-          <div className="flex flex-col justify-between rounded-2xl bg-[#00255d] p-8 text-white shadow-md">
+          {/* Card 1: Coursera Plus Promo */}
+          <div className="relative flex flex-col justify-between overflow-hidden rounded-2xl bg-[#C429A8] p-8 text-white shadow-md">
             <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-blue-300">
-                Careevo Plus
-              </span>
-              <h3 className="mt-2 text-2xl font-bold text-white sm:text-3xl">
+              <div className="relative h-4 w-36 overflow-hidden">
+                <Image
+                  src="https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/NxPkwTU0sAEpcAUWZkfR1/f1abc250476ce6841a0faff27924487b/Coursera_Plus_White_Logo.png?auto=format%2Ccompress&dpr=1&h=16"
+                  alt="Careevo Plus"
+                  fill
+                  sizes="144px"
+                  className="object-contain object-left"
+                  unoptimized
+                />
+              </div>
+              <h3 className="mt-4 text-2xl sm:text-3xl font-bold text-white leading-tight">
                 Break down barriers to learning with big savings
               </h3>
-              <p className="mt-3 text-sm text-blue-100/90 leading-relaxed">
-                Akses ribuan materi, sertifikat resmi, dan bimbingan Socrates AI tanpa batas dalam satu langganan hemat.
+              <p className="mt-2 text-sm text-pink-100 leading-relaxed">
+                40% off 3 months of savings
               </p>
             </div>
-            <div className="mt-8">
+            <div className="mt-8 flex items-center justify-between">
               <Link
                 href="/careevo-plus"
-                className="chrome-btn chrome-btn-white !h-11 !px-6 !text-sm"
+                className="inline-flex items-center justify-center rounded-lg bg-white px-6 py-2.5 text-sm font-bold text-[#C429A8] shadow-sm transition-all hover:bg-gray-100"
               >
                 Get Careevo Plus
               </Link>
             </div>
           </div>
 
-          <div className="flex flex-col justify-between rounded-2xl bg-[#0e3b43] p-8 text-white shadow-md">
+          {/* Card 2: Careevo for Teams Promo */}
+          <div className="relative flex flex-col justify-between overflow-hidden rounded-2xl bg-[#002761] p-8 text-white shadow-md">
             <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-teal-300">
-                Careevo for Business
-              </span>
-              <h3 className="mt-2 text-2xl font-bold text-white sm:text-3xl">
+              <div className="relative h-4 w-40 overflow-hidden">
+                <Image
+                  src="https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/3OYpxt8mmtxQGEyCZ76oqE/6e4a82d152d8f0dbe770bc0507655853/WES_Coursera_for_Teams_Logo__1_.png?auto=format%2Ccompress&dpr=1&h=18"
+                  alt="Careevo for Teams"
+                  fill
+                  sizes="160px"
+                  className="object-contain object-left"
+                  unoptimized
+                />
+              </div>
+              <h3 className="mt-4 text-2xl sm:text-3xl font-bold text-white leading-tight">
                 Start with easy savings for hard-working teams
               </h3>
-              <p className="mt-3 text-sm text-teal-100/90 leading-relaxed">
-                Tingkatkan kapabilitas tim teknik dan analisis data dengan kurikulum berstandar industri dan pelacakan progres terpusat.
+              <p className="mt-2 text-sm text-blue-100 leading-relaxed">
+                30% off team training
               </p>
             </div>
-            <div className="mt-8">
+            <div className="mt-8 flex items-center justify-between">
               <Link
                 href="mailto:bisnis@careevo.id"
-                className="chrome-btn chrome-btn-brand !h-11 !px-6 !text-sm"
+                className="inline-flex items-center justify-center rounded-lg bg-white px-6 py-2.5 text-sm font-bold text-[#002761] shadow-sm transition-all hover:bg-gray-100"
               >
                 Save 30% today
               </Link>
@@ -332,28 +387,40 @@ export default function MostPopularCoursesPage() {
       </section>
 
       {/* Section 2: Most popular by category */}
-      <section className="py-16">
+      <section className="py-14 sm:py-16 bg-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-6">
-            <h2 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+            <h2 className="text-2xl sm:text-[28px] font-bold tracking-tight text-gray-900">
               Most popular by category
             </h2>
-            <p className="mt-1 text-sm text-gray-500">
-              Temukan spesialisasi dan sertifikat terunggul di setiap ranah teknologi.
-            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {["Data Science", "Business", "Computer Science", "Information Technology"].map((tab, i) => (
+                <button
+                  key={tab}
+                  type="button"
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                    i === 0
+                      ? "bg-[#1E1E1E] text-white"
+                      : "bg-[#F5F7FA] text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {TRENDING_COURSES.slice(0, 4).map((c) => (
+            {(CATEGORY_COURSES["Data Science"] || []).map((c) => (
               <Link
-                key={`cat-${c.title}`}
+                key={c.title}
                 href={c.href}
-                className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-2xs transition-all duration-200 hover:-translate-y-1 hover:border-gray-300 hover:shadow-md"
+                className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-[#C1CBDB] bg-white shadow-2xs transition-all duration-200 hover:-translate-y-1 hover:border-gray-400 hover:shadow-md"
               >
                 <div>
-                  <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-gray-100">
+                  <div className="relative aspect-[16/9] w-full overflow-hidden bg-gray-100">
                     <Image
-                      src={c.thumbnail}
+                      src={c.imageUrl}
                       alt={c.title}
                       fill
                       sizes="(max-width: 768px) 100vw, 25vw"
@@ -361,19 +428,34 @@ export default function MostPopularCoursesPage() {
                       unoptimized
                     />
                   </div>
-                  <div className="mt-4 flex items-center gap-2">
-                    <span className="text-xs font-medium text-gray-600">{c.provider}</span>
+                  <div className="p-4">
+                    <div className="flex items-center gap-1.5">
+                      <div className="relative size-4 shrink-0 overflow-hidden">
+                        <Image
+                          src={c.providerLogo}
+                          alt={c.provider}
+                          fill
+                          sizes="16px"
+                          className="object-contain"
+                          unoptimized
+                        />
+                      </div>
+                      <span className="text-xs font-medium text-gray-700">{c.provider}</span>
+                    </div>
+                    <h4 className="mt-2 line-clamp-2 text-base font-bold text-[#0D0F12] group-hover:text-[#0056D2] leading-snug min-h-[44px]">
+                      {c.title}
+                    </h4>
+                    <p className="mt-1 text-xs text-gray-500 font-normal">{c.type}</p>
                   </div>
-                  <h4 className="mt-2 line-clamp-2 text-sm sm:text-base font-bold text-gray-900 group-hover:text-[#0056D2]">
-                    {c.title}
-                  </h4>
                 </div>
-                <div className="mt-4 border-t border-gray-100 pt-3">
-                  <div className="text-xs text-gray-500">{c.type}</div>
-                  <div className="mt-1 flex items-center gap-1 text-xs">
-                    <Star className="size-3.5 fill-amber-500 text-amber-500" />
-                    <span className="font-semibold text-gray-900">{c.rating}</span>
-                  </div>
+                <div className="px-4 pb-4 pt-1 flex items-center gap-1.5">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-[#FCE5E8] px-2 py-0.5 text-[11px] font-semibold text-[#C51E37]">
+                    <TrendingUp className="size-3" />
+                    <span>Trending right now</span>
+                  </span>
+                  <span className="inline-flex items-center rounded-md bg-[#F0F6FF] px-2 py-0.5 text-[11px] font-semibold text-[#0D2F60]">
+                    Free trial
+                  </span>
                 </div>
               </Link>
             ))}
@@ -382,23 +464,36 @@ export default function MostPopularCoursesPage() {
       </section>
 
       {/* Outcome Stat Banner */}
-      <section className="border-t border-gray-200 bg-white py-14">
+      <section className="border-t border-gray-200 bg-[#001D4A] text-white py-14">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col items-center justify-between gap-6 rounded-2xl bg-blue-50/70 p-8 sm:flex-row sm:p-10 border border-blue-100">
-            <div>
-              <h3 className="text-2xl font-bold text-gray-900 sm:text-3xl">
+          <div className="flex flex-col items-center justify-between gap-8 md:flex-row">
+            <div className="max-w-xl">
+              <h3 className="text-2xl sm:text-3xl font-extrabold text-white leading-tight">
                 91% of learners achieved a positive career outcome
               </h3>
-              <p className="mt-2 text-sm text-gray-600 max-w-2xl leading-relaxed">
+              <p className="mt-2.5 text-sm sm:text-base text-blue-100/90 leading-relaxed">
                 They reported new job opportunities, increased knowledge, improved work performance, and verified attestations employers trust.
               </p>
+              <div className="mt-6">
+                <Link
+                  href="/daftar"
+                  className="inline-flex items-center gap-2 rounded-lg bg-white px-6 py-2.5 text-sm font-bold text-[#001D4A] transition-colors hover:bg-gray-100"
+                >
+                  <span>Learn more</span>
+                  <ArrowRight className="size-4" />
+                </Link>
+              </div>
             </div>
-            <Link
-              href="/daftar"
-              className="chrome-btn chrome-btn-brand shrink-0 !h-11 !px-6 !text-sm"
-            >
-              Learn more
-            </Link>
+            <div className="relative h-44 w-64 shrink-0 overflow-hidden">
+              <Image
+                src="https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/6uWwSiVVLJjYSCROqKk7IN/f6d77dce08e447a6ac8f310827d8931d/Learner_outcome_stat.png?auto=format%2Ccompress&dpr=1&w=350"
+                alt="Learner outcome stat"
+                fill
+                sizes="256px"
+                className="object-contain"
+                unoptimized
+              />
+            </div>
           </div>
         </div>
       </section>
