@@ -40,9 +40,19 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# runtime data (file-based resume store: structured JSON + uploaded CV/portfolio)
+/.data/
+
 # playwright mcp tooling artifacts
 /.playwright-mcp/
 
 # agent run artifacts
 /.omo/
+/.omc/
+
+# runtime data store (kursus & kurikulum tersimpan)
+/data/
+
+# berkas unggahan runtime (cover kursus, PDF materi)
+/public/uploads/
 

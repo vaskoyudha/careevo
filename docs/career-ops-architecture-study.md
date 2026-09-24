@@ -202,19 +202,21 @@ possible, but exposed to IP blocking and schema drift. This is real but fragile 
 | "Lamar sekarang" (no-op) | `prepare-application.mjs` (drafts, never submits) | Ours is a stub | ⚠️ philosophy |
 | `(app)/loker/[id]` tracker | `data/applications.md` + `tracker.mjs` | Ours is fixture-only | ❌ out of scope |
 | Location-only filter | 6 filter builders | Ours is 1 dimension | ✅ port |
-| `lib/jobs/{ingestor,cache}.ts` | — | **Dead code** (imported nowhere) | 🔧 fix |
+| `lib/jobs/{ingestor,cache}.ts` | — | ~~**Dead code**~~ now **live** (loker pages, evaluasi, fixtures) | ✅ done |
 | No LLM anywhere | 6 CLI integrations + 3 standalone evaluators | **Architectural** | ⚠️ big |
 | `id` copy strings | `modes/id/` (full localization) | Ours is UI strings only | ✅ reference |
 
 ### 4.1 Careevo's structural constraints (verified)
 
-- **No backend.** `src/actions/` contains only `auth.ts` and `review.ts`. No job server action.
-- **No database.** `src/lib/` has no data layer — `fixtures.ts` reads JSON at import time.
-- **No network calls.** The app is hermetic.
+> **Status note (updated).** Several claims below have since been fixed; they are kept struck-through so the record of what changed stays visible. See `AGENTS.md` for the current architecture.
+
+- ~~**No backend.** `src/actions/` contains only `auth.ts` and `review.ts`.~~ **Fixed:** `src/actions/` now has 8 action modules (`auth`, `review`, `courses`, `enrollment`, `evaluasi`, `onboarding`, `profile`, `resume`) plus co-located tests.
+- **No database.** Still true — `src/lib/` has no data layer; `fixtures.ts` reads JSON at import time. The one exception is the **file-based resume store** (`src/lib/resume`, writes JSON + uploaded PDFs under `.data/`); there is still no DB.
+- ~~**No network calls.** The app is hermetic.~~ **Nuance:** the app itself makes no network calls, but the resume feature serves/accepts uploaded files over its own route handlers.
 - **Next 16.3.5 / React 19.2.8** — one patch ahead of career-ops web (16.3.3 / 19.2.5). Compatible.
-- **Dead code confirmed:** `src/lib/jobs/ingestor.ts` and `src/lib/jobs/cache.ts` are imported nowhere.
-- **Rejected jobs reachable** by direct URL: `visibleJobs()` filters the list, but
-  `getJob(id)` in `(app)/loker/[id]/page.tsx` does not re-check `sentinel_status`.
+- ~~**Dead code confirmed:** `src/lib/jobs/ingestor.ts` and `src/lib/jobs/cache.ts` are imported nowhere.~~ **Fixed:** both are now live — used by the loker pages, `src/actions/evaluasi.ts`, and `fixtures.ts`.
+- ~~**Rejected jobs reachable** by direct URL.~~ **Fixed:** `ambilLokerById` routes through `getVisibleJob`, so a rejected `sentinel_status` can no longer be opened by direct URL.
+- **`fit_score`** — removed from fixtures and the UI; only an unused field remains on `Application` in `src/lib/domain` types.
 
 ---
 
@@ -285,12 +287,14 @@ Rationale:
 **Sequencing:**
 
 ```
-1. Fix dead code + rejected-job URL leak        (hygiene, ~30 min)
+1. ~~Fix dead code + rejected-job URL leak~~   (done)
 2. Option A: trust validator → auditLoker       (Sentinel gets stronger)
 3. Option C: filter builders → jobs-board       (correctness)
 4. Re-evaluate Option B against a hosting plan
 5. Only then: consider an LLM-backed fit score
 ```
+
+_Out of band:_ the profile gained a LinkedIn-style resume + CV/portfolio upload (`src/lib/resume`, file-based under `.data/`) — orthogonal to this study, but it is why the file-serving route layer now exists.
 
 ---
 
@@ -299,8 +303,8 @@ Rationale:
 1. **Hosting:** will Careevo be deployed (Vercel/other) or stay local? This decides whether Option B is
    even possible (shared-IP blocking).
 2. **LLM budget:** is a real fit score (A–H style) in scope? It requires an API key + per-eval cost.
-3. **Fit score honesty:** should we remove the derived/hardcoded `fit_score` until a real one exists?
-   Right now `matched.length * 15` is presented as a score.
+3. **Fit score honesty:** the derived/hardcoded `fit_score` has been removed from the fixtures and UI.
+   The question that remains is whether to build a *real* (A–H style) one, which needs an LLM.
 4. **Attribution:** comfortable adding the MIT NOTICE + credits line?
 
 ---

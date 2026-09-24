@@ -5,7 +5,17 @@
  * modul — agar tetap fixture-backed, modul diturunkan secara deterministik
  * dari judul, tag, dan durasi. Fungsi di sini murni (tanpa cookie/IO)
  * sehingga mudah diuji.
+ *
+ * Sejak modul bisa disimpan sungguhan, resolver `modulUntuk()` /
+ * `modulUntukSumber()` tinggal di `./modul-resolver` — modul server-only —
+ * supaya bundel klien tidak ikut menarik `node:fs`. Fungsi murni di bawah tidak
+ * dihapus karena cabang fallback inilah yang menjaga id modul lama tetap
+ * stabil.
  */
+
+// `import type` hilang saat kompilasi, jadi ini tidak menarik runtime apa pun
+// ke bundel klien — aman dipakai di berkas yang juga diimpor komponen klien.
+import type { Halaman, Kuis, Materi } from "@/types/course";
 
 export interface ModulKursus {
   id: string;
@@ -13,6 +23,29 @@ export interface ModulKursus {
   ringkasan: string;
   durasi_min: number;
   url: string;
+  /**
+   * Materi modul, hanya ada untuk modul tersimpan.
+   *
+   * Modul turunan selalu kosong: tidak ada materi nyata untuk ditampilkan, jadi
+   * UI learner tetap memakai tautan `url` kursus seperti sebelumnya.
+   */
+  materi?: Materi[];
+  /**
+   * Halaman berformat modul, juga hanya ada untuk modul tersimpan.
+   *
+   * Modul turunan tidak punya halaman: isinya diturunkan dari metadata, bukan
+   * ditulis admin, jadi tidak ada prosa yang bisa dihalaman-kan.
+   */
+  halaman?: Halaman[];
+  /**
+   * Kuis yang dipasang di modul ini — **sudah diresolusi**, bukan daftar id.
+   *
+   * `Modul.kuis` menyimpan id karena bank soal adalah sumber kebenarannya;
+   * resolusi ke objek terjadi di `modul-resolver.ts`, yang punya akses ke
+   * store. UI learner tidak boleh menyentuh store, jadi yang dibawanya adalah
+   * hasil resolusi.
+   */
+  kuis?: Kuis[];
 }
 
 export interface SumberModul {

@@ -4,7 +4,7 @@ import { getSession } from "@/lib/auth/session";
 import { LearnerShell } from "@/components/ui/learner-shell";
 import { DetailKursus, type KursusTerkait } from "@/components/features/learning/detail-kursus";
 import { cariEntri, katalogBelajar } from "@/lib/courses/katalog";
-import { modulKursus } from "@/lib/courses/kurikulum";
+import { modulUntukSumber } from "@/lib/courses/modul-resolver";
 import { cariPendaftaran } from "@/lib/courses/enrollment";
 import { getCourseById } from "@/lib/courses/store";
 import { tasks } from "@/lib/fixtures";
@@ -37,7 +37,7 @@ export default async function DetailKursusPage({
     kursusAsli?.description ??
     `Pelajari ${entri.tags.join(", ")} melalui ${entri.type} ${entri.duration_min} menit dari ${entri.provider}.`;
 
-  const modul = modulKursus({
+  const modul = await modulUntukSumber({
     id: entri.id,
     title: entri.title,
     tags: entri.tags,

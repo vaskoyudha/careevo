@@ -32,7 +32,28 @@ const PAGE_LABELS: Record<string, string> = {
   "/review": "Review",
   "/audit": "Audit",
   "/admin/courses": "Kelola Kursus",
+  "/admin/kuis": "Kelola Kuis",
 };
+
+/**
+ * Judul halaman dari path.
+ *
+ * Pencocokan persis dulu, lalu awalan terpanjang — tanpa langkah kedua,
+ * halaman bersarang seperti `/admin/courses/<id>` akan diam-diam berlabel
+ * "Dashboard" karena tidak ada kunci yang sama persis.
+ */
+function pageLabel(current: string): string {
+  const persis = PAGE_LABELS[current];
+  if (persis) return persis;
+
+  let cocok: string | null = null;
+  for (const kunci of Object.keys(PAGE_LABELS)) {
+    if ((current === kunci || current.startsWith(`${kunci}/`)) && (!cocok || kunci.length > cocok.length)) {
+      cocok = kunci;
+    }
+  }
+  return cocok ? PAGE_LABELS[cocok] : "Dashboard";
+}
 
 export function AppShell({
   session,
@@ -55,7 +76,7 @@ export function AppShell({
     }
   };
 
-  const label = PAGE_LABELS[current] ?? "Dashboard";
+  const label = pageLabel(current);
   const roleLabel =
     session.role === "admin"
       ? "Admin"

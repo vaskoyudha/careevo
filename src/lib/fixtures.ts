@@ -62,6 +62,11 @@ export interface ResourceFixture {
   is_free: boolean;
   duration_min: number;
   completed: boolean;
+  /**
+   * Gambar sampul hasil unggahan admin. Fixture tidak pernah mengisinya —
+   * hanya entri yang berasal dari course store yang membawanya.
+   */
+  cover_image?: string;
 }
 
 export interface TaskFixture {

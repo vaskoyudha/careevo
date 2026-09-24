@@ -6,6 +6,15 @@ import { cn } from "@/lib/utils";
 import type { ModulKursus } from "@/lib/courses/kurikulum";
 import { hitungProgres, irisModulSelesai } from "@/lib/courses/kurikulum";
 import { daftarKursusAction, tandaiModulAction } from "@/actions/enrollment";
+import { MateriView } from "./materi-view";
+import { HalamanView } from "./halaman-view";
+import { KuisView } from "./kuis-view";
+import type { TipeMateri } from "@/types/course";
+
+const LABEL_TIPE: Record<TipeMateri, string> = {
+  video: "Video",
+  pdf: "PDF",
+};
 
 export interface KursusTerkait {
   slug: string;
@@ -70,8 +79,22 @@ export function DetailKursus({
   const [butuhPlus, setButuhPlus] = useState(false);
   const [pending, startTransition] = useTransition();
   const [modulSibuk, setModulSibuk] = useState<string | null>(null);
+  /**
+   * Satu modul terbuka pada satu waktu. Hanya modul tersimpan yang punya
+   * materi; modul turunan tetap menampilkan tautan eksternal seperti dulu.
+   */
+  const [modulTerbuka, setModulTerbuka] = useState<string | null>(null);
+  /**
+   * Halaman yang sedang dibaca di dalam modul yang terbuka.
+   *
+   * Disimpan sebagai state, bukan diturunkan dari URL: pager halaman berada di
+   * dalam daftar modul, dan menaikkan query ke URL akan memuat ulang seluruh
+   * halaman hanya untuk berpindah halaman materi.
+   */
+  const [halamanTerpilih, setHalamanTerpilih] = useState<string | null>(null);
   const selesaiValid = irisModulSelesai(selesai, modul);
   const progres = hitungProgres(selesaiValid.length, modul.length);
+  const jumlahHalaman = modul.reduce((total, m) => total + (m.halaman?.length ?? 0), 0);
 
   const daftar = () =>
     startTransition(async () => {
@@ -162,53 +185,134 @@ export function DetailKursus({
             </h2>
             <p className="mb-4 text-sm text-gray-600">
               {modul.length} modul · {kursus.duration_min} menit total
+              {jumlahHalaman > 0 ? ` · ${jumlahHalaman} halaman` : ""}
               {terdaftar ? "" : " · daftar untuk menyimpan progres"}
             </p>
             <ol className="space-y-3">
               {modul.map((m, index) => {
                 const sudah = selesai.includes(m.id);
+                const daftarMateri = m.materi ?? [];
+                const daftarHalaman = [...(m.halaman ?? [])].sort((a, b) => a.urutan - b.urutan);
+                const daftarKuis = m.kuis ?? [];
+                const punyaIsi =
+                  daftarMateri.length > 0 || daftarHalaman.length > 0 || daftarKuis.length > 0;
+                const terbuka = modulTerbuka === m.id;
+                // Halaman yang sedang ditampilkan di dalam modul ini. Berbeda
+                // dari `modulTerbuka`, ini berpindah tanpa menutup modul supaya
+                // pembaca tidak kehilangan tempatnya saat menekan "Berikutnya".
+                const halamanAktif =
+                  daftarHalaman.find((h) => h.id === halamanTerpilih) ?? daftarHalaman[0] ?? null;
                 return (
                   <li
                     key={m.id}
                     className={cn(
-                      "flex items-start gap-3 rounded-2xl border bg-white p-4",
+                      "rounded-2xl border bg-white",
                       sudah ? "border-emerald-200" : "border-gray-200",
                     )}
                   >
-                    <span
-                      aria-hidden="true"
-                      className={cn(
-                        "mt-0.5 grid size-7 shrink-0 place-items-center rounded-full text-xs font-bold",
-                        sudah ? "bg-emerald-500 text-white" : "bg-gray-100 text-gray-500",
-                      )}
-                    >
-                      {sudah ? "✓" : index + 1}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <h3 className="text-sm font-semibold text-gray-900">{m.judul}</h3>
-                      <p className="mt-0.5 text-sm leading-relaxed text-gray-600">{m.ringkasan}</p>
-                      <p className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-gray-500">
-                        <span>{m.durasi_min} mnt</span>
-                        <a href={m.url} target="_blank" rel="noreferrer" className="font-medium text-[#0056D2] hover:underline">
-                          Buka materi ↗
-                        </a>
-                      </p>
-                    </div>
-                    {sudahDaftar ? (
-                      <button
-                        type="button"
-                        onClick={() => tandai(m.id, sudah)}
-                        disabled={pending || modulSibuk === m.id}
-                        aria-pressed={sudah}
+                    <div className="flex items-start gap-3 p-4">
+                      <span
+                        aria-hidden="true"
                         className={cn(
-                          "shrink-0 cursor-pointer rounded-full border px-3 py-1.5 text-xs font-semibold disabled:opacity-60",
-                          sudah
-                            ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                            : "border-gray-300 bg-white text-gray-600 hover:bg-gray-50",
+                          "mt-0.5 grid size-7 shrink-0 place-items-center rounded-full text-xs font-bold",
+                          sudah ? "bg-emerald-500 text-white" : "bg-gray-100 text-gray-500",
                         )}
                       >
-                        {sudah ? "Selesai" : "Tandai selesai"}
-                      </button>
+                        {sudah ? "✓" : index + 1}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-sm font-semibold text-gray-900">{m.judul}</h3>
+                        <p className="mt-0.5 text-sm leading-relaxed text-gray-600">{m.ringkasan}</p>
+                        <p className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                          <span>{m.durasi_min} mnt</span>
+                          {daftarHalaman.length > 0 ? (
+                            <span>
+                              {daftarHalaman.length} halaman
+                              {daftarMateri.length > 0
+                                ? ` · ${daftarMateri.length} lampiran`
+                                : ""}
+                              {daftarKuis.length > 0 ? ` · ${daftarKuis.length} kuis` : ""}
+                            </span>
+                          ) : null}
+                          {punyaIsi ? (
+                            <button
+                              type="button"
+                              onClick={() => setModulTerbuka(terbuka ? null : m.id)}
+                              aria-expanded={terbuka}
+                              className="cursor-pointer font-medium text-[#0056D2] hover:underline"
+                            >
+                              {terbuka ? "Tutup materi" : "Buka materi"}
+                            </button>
+                          ) : (
+                            <a
+                              href={m.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="font-medium text-[#0056D2] hover:underline"
+                            >
+                              Buka materi ↗
+                            </a>
+                          )}
+                        </p>
+                      </div>
+                      {sudahDaftar ? (
+                        <button
+                          type="button"
+                          onClick={() => tandai(m.id, sudah)}
+                          disabled={pending || modulSibuk === m.id}
+                          aria-pressed={sudah}
+                          className={cn(
+                            "shrink-0 cursor-pointer rounded-full border px-3 py-1.5 text-xs font-semibold disabled:opacity-60",
+                            sudah
+                              ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                              : "border-gray-300 bg-white text-gray-600 hover:bg-gray-50",
+                          )}
+                        >
+                          {sudah ? "Selesai" : "Tandai selesai"}
+                        </button>
+                      ) : null}
+                    </div>
+
+                    {terbuka && punyaIsi ? (
+                      <div className="space-y-4 border-t border-gray-100 px-4 py-4">
+                        {halamanAktif ? (
+                          <HalamanView
+                            modul={m}
+                            halaman={halamanAktif}
+                            onPindahHalaman={setHalamanTerpilih}
+                          />
+                        ) : null}
+
+                        {daftarKuis.length > 0 ? (
+                          <div className="space-y-3">
+                            <p className="text-[11px] font-semibold tracking-wider text-gray-500 uppercase">
+                              Kuis
+                            </p>
+                            {daftarKuis.map((kuis) => (
+                              <KuisView key={kuis.id} kuis={kuis} />
+                            ))}
+                          </div>
+                        ) : null}
+
+                        {daftarMateri.length > 0 ? (
+                          <div className="space-y-3">
+                            <p className="text-[11px] font-semibold tracking-wider text-gray-500 uppercase">
+                              Lampiran
+                            </p>
+                            {daftarMateri.map((materi) => (
+                              <div key={materi.id}>
+                                <p className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-gray-700">
+                                  <span className="inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-[#0056D2] uppercase">
+                                    {LABEL_TIPE[materi.tipe]}
+                                  </span>
+                                  {materi.judul}
+                                </p>
+                                <MateriView materi={materi} />
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
                     ) : null}
                   </li>
                 );
