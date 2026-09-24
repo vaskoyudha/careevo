@@ -140,11 +140,21 @@ await checkRoute({
 await checkRoute({ label: "edit mode stays", path: "/onboarding?edit=1", cookie: learnerCookie, status: 200 });
 await checkRoute({ label: "demo public", path: "/onboarding/demo", status: 200 });
 await checkRoute({
+  label: "public login has no study chat",
+  path: "/masuk",
+  status: 200,
+  forbidden: ["data-study-chat"],
+});
+await checkRoute({
   label: "recommendation path",
   path: "/belajar/jalur",
   cookie: learnerCookie,
   status: 200,
-  required: ['data-path-source="recommendation"', "Mulai kursus"],
+  required: [
+    'data-path-source="recommendation"',
+    'data-study-chat="ready"',
+    "Mulai kursus",
+  ],
   forbidden: ['data-path-source="active-enrollment"'],
 });
 await checkRoute({
@@ -154,6 +164,7 @@ await checkRoute({
   status: 200,
   required: [
     'data-path-source="active-enrollment"',
+    'data-study-chat="ready"',
     'data-module-status="current"',
     "Lanjutkan belajar",
   ],
