@@ -1,30 +1,11 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
+import { ChevronRight, Search, Star, ArrowRight, Rocket, TrendingUp, Binoculars } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ResourceFixture, TaskFixture } from "@/lib/fixtures";
-
-const GRADIENTS = [
-  "from-blue-600 via-blue-500 to-sky-400",
-  "from-indigo-600 via-violet-500 to-fuchsia-400",
-  "from-emerald-600 via-teal-500 to-cyan-400",
-  "from-amber-500 via-orange-500 to-rose-400",
-  "from-slate-700 via-slate-600 to-slate-400",
-  "from-cyan-600 via-sky-500 to-blue-400",
-];
-
-function gradientFor(id: string) {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
-  return GRADIENTS[hash % GRADIENTS.length];
-}
-
-function levelLabel(level: string) {
-  if (level === "dasar") return "Pemula";
-  if (level === "menengah") return "Menengah";
-  return "Lanjutan";
-}
 
 export interface KursusTerdaftar {
   id: string;
@@ -38,53 +19,300 @@ export interface KursusTerdaftar {
 
 type EntriSumber = ResourceFixture & { slug?: string };
 
-function CourseCard({ resource }: { resource: EntriSumber }) {
+interface CourseMeta {
+  thumbnail: string;
+  providerLogo?: string;
+  credentialType: "Sertifikat Profesional" | "Spesialisasi" | "Kursus" | "Proyek Terpandu";
+  rating: number;
+  reviews: string;
+  skills: string[];
+}
+
+const COURSE_METAS: Record<string, CourseMeta> = {
+  r1: {
+    thumbnail: "https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=640&q=80",
+    credentialType: "Kursus",
+    rating: 4.8,
+    reviews: "34k",
+    skills: ["HTML5", "CSS3", "Responsive Design", "Flexbox"],
+  },
+  r2: {
+    thumbnail: "https://images.unsplash.com/photo-1579468118864-1b9ea3c0db4a?auto=format&fit=crop&w=640&q=80",
+    credentialType: "Spesialisasi",
+    rating: 4.9,
+    reviews: "48k",
+    skills: ["JavaScript", "Promises", "Async/Await", "ES6+"],
+  },
+  r3: {
+    thumbnail: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?auto=format&fit=crop&w=640&q=80",
+    credentialType: "Sertifikat Profesional",
+    rating: 4.9,
+    reviews: "52k",
+    skills: ["React", "Hooks", "Component Lifecycle", "JSX"],
+  },
+  r4: {
+    thumbnail: "https://images.unsplash.com/photo-1516116211227-bbc66e855a90?auto=format&fit=crop&w=640&q=80",
+    providerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/11pJTA8yOZPwVRMKnSKPRz/340cf59915e8ce0d3b993d39959972d6/eded33b5eb1694336861de4bfda6d36bf72b7780.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+    credentialType: "Kursus",
+    rating: 4.8,
+    reviews: "29k",
+    skills: ["TypeScript", "Generics", "Type Inference", "Interfaces"],
+  },
+  r5: {
+    thumbnail: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=640&q=80",
+    credentialType: "Proyek Terpandu",
+    rating: 4.8,
+    reviews: "15k",
+    skills: ["Vitest", "Unit Testing", "TDD", "Mocking"],
+  },
+  r6: {
+    thumbnail: "https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?auto=format&fit=crop&w=640&q=80",
+    credentialType: "Kursus",
+    rating: 4.9,
+    reviews: "67k",
+    skills: ["Git", "GitHub", "Branching", "Merge Conflicts"],
+  },
+  r7: {
+    thumbnail: "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=640&q=80",
+    credentialType: "Sertifikat Profesional",
+    rating: 4.8,
+    reviews: "41k",
+    skills: ["Node.js", "Express", "RESTful API", "Middleware"],
+  },
+  r8: {
+    thumbnail: "https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?auto=format&fit=crop&w=640&q=80",
+    credentialType: "Kursus",
+    rating: 4.7,
+    reviews: "12k",
+    skills: ["WCAG 2.2", "ARIA", "Screen Readers", "Color Contrast"],
+  },
+  r9: {
+    thumbnail: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=640&q=80",
+    providerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/11pJTA8yOZPwVRMKnSKPRz/340cf59915e8ce0d3b993d39959972d6/eded33b5eb1694336861de4bfda6d36bf72b7780.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+    credentialType: "Proyek Terpandu",
+    rating: 4.9,
+    reviews: "19k",
+    skills: ["Playwright", "E2E Testing", "Browser Automation"],
+  },
+  r10: {
+    thumbnail: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=640&q=80",
+    credentialType: "Spesialisasi",
+    rating: 4.8,
+    reviews: "22k",
+    skills: ["Zustand", "Jotai", "State Management", "React"],
+  },
+  r11: {
+    thumbnail: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=640&q=80",
+    credentialType: "Sertifikat Profesional",
+    rating: 4.9,
+    reviews: "38k",
+    skills: ["Next.js 15", "App Router", "Server Actions", "Streaming"],
+  },
+  r12: {
+    thumbnail: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=640&q=80",
+    providerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/3ZIhQ7yxmgGMFZGtlqpCG6/0d0f40bc5133948bb3805cab25af62ba/Google-G_360x360.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+    credentialType: "Kursus",
+    rating: 4.8,
+    reviews: "26k",
+    skills: ["Lighthouse", "Core Web Vitals", "LCP", "CLS"],
+  },
+  r13: {
+    thumbnail: "https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=640&q=80",
+    credentialType: "Kursus",
+    rating: 4.9,
+    reviews: "31k",
+    skills: ["Tailwind CSS", "Design Tokens", "Design System"],
+  },
+  r14: {
+    thumbnail: "https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=640&q=80",
+    credentialType: "Spesialisasi",
+    rating: 4.9,
+    reviews: "44k",
+    skills: ["Web Security", "OWASP Top 10", "XSS", "CSRF"],
+  },
+  r15: {
+    thumbnail: "https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&w=640&q=80",
+    credentialType: "Sertifikat Profesional",
+    rating: 4.95,
+    reviews: "58k",
+    skills: ["Algoritma", "Struktur Data", "Interview Tech", "Big-O"],
+  },
+  "crs-1": {
+    thumbnail: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=640&q=80",
+    credentialType: "Sertifikat Profesional",
+    rating: 4.9,
+    reviews: "42k",
+    skills: ["Next.js 15", "React 19", "Fullstack", "Tailwind v4"],
+  },
+  "crs-2": {
+    thumbnail: "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=640&q=80",
+    credentialType: "Spesialisasi",
+    rating: 4.8,
+    reviews: "28k",
+    skills: ["Node.js", "Express", "HMAC Auth", "Zod"],
+  },
+  "crs-3": {
+    thumbnail: "https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=640&q=80",
+    credentialType: "Sertifikat Profesional",
+    rating: 4.95,
+    reviews: "35k",
+    skills: ["OWASP Top 10", "Penetration Testing", "Audit", "Cryptography"],
+  },
+  "crs-4": {
+    thumbnail: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/60/097644c12e4aeba0c3420de571cac1/GCC-Coursera-thumbnail-DA-foundations-tony-cert-level.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50",
+    providerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/3ZIhQ7yxmgGMFZGtlqpCG6/0d0f40bc5133948bb3805cab25af62ba/Google-G_360x360.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+    credentialType: "Sertifikat Profesional",
+    rating: 4.8,
+    reviews: "89k",
+    skills: ["Python", "Pandas", "Matplotlib", "Data Analytics"],
+  },
+  "crs-5": {
+    thumbnail: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://coursera-course-photos.s3.amazonaws.com/87/f53a62e6c84b5c9be99db814e19f00/juleswhite_3d_colorful_volumeric_organic_rounded_vibrant_highly_ed068faa-2a26-4d84-94b6-5cbfb2614a39.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50",
+    providerLogo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/B6gbch3CrIAfBm9F0GpE5/51c6f4fbaf2b25ef11fce8ef9563b7d9/Icon.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+    credentialType: "Sertifikat Profesional",
+    rating: 4.9,
+    reviews: "62k",
+    skills: ["Machine Learning", "Prompt Engineering", "LLM Evaluation", "RAG"],
+  },
+};
+
+function getCourseMeta(resource: EntriSumber): CourseMeta {
+  if (COURSE_METAS[resource.id]) return COURSE_METAS[resource.id];
+  const hash = resource.id.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const fallbackThumbnails = [
+    "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=640&q=80",
+    "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=640&q=80",
+    "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=640&q=80",
+    "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=640&q=80",
+  ];
+  return {
+    thumbnail: fallbackThumbnails[hash % fallbackThumbnails.length],
+    credentialType: "Kursus",
+    rating: 4.8,
+    reviews: `${(hash % 40) + 12}k`,
+    skills: resource.tags.slice(0, 3),
+  };
+}
+
+function levelLabel(level: string) {
+  if (level === "dasar") return "Pemula";
+  if (level === "menengah") return "Menengah";
+  return "Lanjutan";
+}
+
+const PARTNERS = [
+  {
+    name: "Google",
+    logo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/3ZIhQ7yxmgGMFZGtlqpCG6/0d0f40bc5133948bb3805cab25af62ba/Google-G_360x360.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+  },
+  {
+    name: "IBM",
+    logo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/7iLJYdbTLExBFAgVoHe2Pc/1735062f2f3a6df1dca8cfd9f1815098/ibm-logo.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+  },
+  {
+    name: "Microsoft",
+    logo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/11pJTA8yOZPwVRMKnSKPRz/340cf59915e8ce0d3b993d39959972d6/eded33b5eb1694336861de4bfda6d36bf72b7780.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+  },
+  {
+    name: "University of Illinois",
+    logo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/1BjGzhrTBjvvOPuzuqQDHS/81bdfa5d44c5ec8c0364e8ee4761ccff/200x48-illinois.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+  },
+  {
+    name: "OpenAI",
+    logo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/88r0gwMY5y55z3J0h1T4M/e80fdcb65ff8681943c5394c670f6b7d/OAI_MVP_01_OpenAI_Logo_Black.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+  },
+  {
+    name: "Anthropic",
+    logo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/2qT888LE5BPxxD8d4pfXmJ/89b8eb03eaebe5ff116f509333f24fb5/Anthropic-logo.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+  },
+  {
+    name: "DeepLearning.AI",
+    logo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/B6gbch3CrIAfBm9F0GpE5/51c6f4fbaf2b25ef11fce8ef9563b7d9/Icon.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+  },
+  {
+    name: "Stanford University",
+    logo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/1s6p4WQHsv79stjgyiWBtI/d55f3608a884d6d1e48f78935b73362f/3c8a16b167a785920d061664a6512c3a60cdb30e.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+  },
+  {
+    name: "Univ. of Pennsylvania",
+    logo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/3Y7rH8FUwg4eai7LK5j9u3/880203b6e241e81112bf48f252ca8e72/Penn-badge.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+  },
+  {
+    name: "Univ. of Michigan",
+    logo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/7sWcR45W6I4bvFrJfCmb5d/2dff9bbefe50a9fcbcf89b2e5ee7032e/umich.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+  },
+];
+
+function CourseraCourseCard({ resource }: { resource: EntriSumber }) {
+  const meta = getCourseMeta(resource);
   const href = `/belajar/${resource.slug ?? resource.id}`;
+
   return (
-    <article className="w-64 shrink-0 overflow-hidden rounded-xl bg-white shadow-[0_2px_12px_rgba(0,0,0,0.08)] ring-1 ring-black/5 lg:w-72">
-      <Link href={href} aria-label={`Lihat detail ${resource.title}`} className="block">
-        <span className={cn("relative block h-36 bg-gradient-to-br", gradientFor(resource.id))}>
-          <span
-            aria-hidden="true"
-            className="absolute right-3 bottom-2 text-3xl font-bold text-white/90"
-          >
-            {resource.provider.charAt(0)}
-          </span>
-          <span className="absolute top-3 left-3 rounded-full bg-black/45 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur-sm">
-            {resource.type}
-          </span>
+    <article className="group flex w-[270px] shrink-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xs transition-shadow duration-200 hover:shadow-md sm:w-[280px]">
+      <Link href={href} aria-label={`Lihat detail ${resource.title}`} className="relative block aspect-[16/9] w-full overflow-hidden bg-gray-100">
+        <Image
+          src={meta.thumbnail}
+          alt={resource.title}
+          fill
+          sizes="(max-width: 640px) 270px, 280px"
+          className="object-cover transition-transform duration-300 group-hover:scale-105"
+        />
+        <span className="absolute top-2.5 left-2.5 rounded-md bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-gray-800 shadow-xs backdrop-blur-xs">
+          {meta.credentialType}
         </span>
       </Link>
-      <div className="p-4">
-        <p className="mb-1 flex items-center gap-2 text-xs text-gray-500">
-          <span
-            aria-hidden="true"
-            className="inline-flex size-5 items-center justify-center rounded-sm bg-blue-700 text-[10px] font-bold text-white"
-          >
-            {resource.provider.charAt(0)}
+
+      <div className="flex flex-1 flex-col p-4">
+        <div className="mb-2 flex items-center gap-2">
+          {meta.providerLogo ? (
+            <div className="relative size-5 shrink-0 overflow-hidden rounded-sm">
+              <Image
+                src={meta.providerLogo}
+                alt={resource.provider}
+                fill
+                sizes="20px"
+                className="object-contain"
+              />
+            </div>
+          ) : (
+            <span
+              aria-hidden="true"
+              className="inline-flex size-5 shrink-0 items-center justify-center rounded-sm bg-[#0056D2] text-[10px] font-bold text-white uppercase"
+            >
+              {resource.provider.charAt(0)}
+            </span>
+          )}
+          <span className="truncate text-xs font-medium text-gray-600">
+            {resource.provider}
           </span>
-          <span className="truncate">{resource.provider}</span>
-        </p>
-        <h3 className="mb-1 line-clamp-2 min-h-10 text-sm font-semibold text-gray-900">
+        </div>
+
+        <h3 className="mb-1.5 line-clamp-2 min-h-[2.6rem] text-sm font-bold text-gray-900 group-hover:text-[#0056D2]">
           <Link href={href} className="hover:underline">
             {resource.title}
           </Link>
         </h3>
-        <p className="mb-2 text-xs text-gray-500">
+
+        <div className="mb-3 flex items-center gap-1.5 text-xs">
+          <div className="flex items-center text-[#eb8a04]">
+            <Star className="size-3.5 fill-[#eb8a04] text-[#eb8a04]" />
+            <span className="ml-1 font-bold text-gray-900">{meta.rating}</span>
+          </div>
+          <span className="text-gray-400">·</span>
+          <span className="text-gray-500">({meta.reviews})</span>
+        </div>
+
+        <p className="mb-3 text-[11px] text-gray-500">
           {levelLabel(resource.level)} · {resource.duration_min} mnt
         </p>
-        <div className="flex flex-wrap gap-1.5">
-          <span className="inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
-            {resource.tags[0] ?? "Umum"}
+
+        <div className="mt-auto flex items-center justify-between border-t border-gray-100 pt-3">
+          <span className="inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-[#0056D2]">
+            {resource.tags[0] ?? "Teknologi"}
           </span>
-          <span className="inline-flex rounded-full border border-gray-200 px-2 py-0.5 text-[11px] font-medium text-gray-600">
-            {resource.is_free ? "Gratis" : "Berbayar"}
+          <span className="text-xs font-semibold text-gray-700">
+            {resource.is_free ? "Gratis" : "Careevo Plus"}
           </span>
-          {resource.completed ? (
-            <span className="inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
-              Selesai
-            </span>
-          ) : null}
         </div>
       </div>
     </article>
@@ -94,14 +322,15 @@ function CourseCard({ resource }: { resource: EntriSumber }) {
 function CarouselRow({ children, label }: { children: React.ReactNode; label: string }) {
   const scroller = useRef<HTMLDivElement>(null);
   const scroll = (dir: -1 | 1) =>
-    scroller.current?.scrollBy({ left: dir * 300, behavior: "smooth" });
+    scroller.current?.scrollBy({ left: dir * 320, behavior: "smooth" });
+
   return (
     <div className="relative">
       <button
         type="button"
         aria-label={`${label} sebelumnya`}
         onClick={() => scroll(-1)}
-        className="absolute -left-3 top-24 z-10 flex size-9 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-sm hover:bg-gray-50"
+        className="absolute -left-4 top-1/2 z-10 hidden size-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-gray-300 bg-white text-gray-700 shadow-md transition-colors hover:bg-gray-50 active:scale-95 sm:flex"
       >
         ‹
       </button>
@@ -109,13 +338,13 @@ function CarouselRow({ children, label }: { children: React.ReactNode; label: st
         type="button"
         aria-label={`${label} berikutnya`}
         onClick={() => scroll(1)}
-        className="absolute -right-3 top-24 z-10 flex size-9 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-sm hover:bg-gray-50"
+        className="absolute -right-4 top-1/2 z-10 hidden size-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-gray-300 bg-white text-gray-700 shadow-md transition-colors hover:bg-gray-50 active:scale-95 sm:flex"
       >
         ›
       </button>
       <div
         ref={scroller}
-        className="flex gap-4 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex gap-4 overflow-x-auto pb-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {children}
       </div>
@@ -123,121 +352,225 @@ function CarouselRow({ children, label }: { children: React.ReactNode; label: st
   );
 }
 
-const HERO_SLIDES = [
+const HERO_BENTO_SLIDES = [
   {
-    eyebrow: "Careevo Plus",
+    logo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/NxPkwTU0sAEpcAUWZkfR1/f1abc250476ce6841a0faff27924487b/Coursera_Plus_White_Logo.png?auto=format%2Ccompress&dpr=1&w=161&h=16",
+    badge: "PENAWARAN TERBATAS",
     title: "Hemat 40% untuk 3 bulan Careevo Plus",
-    body: "Fleksibel untuk pelajar sibuk. Mulai dengan harga khusus bulan ini.",
-    cta: "Lihat penawaran",
+    body: "Tumbuh dengan fleksibilitas yang dibutuhkan pelajar aktif. Mulai dengan ribuan materi dari Google, IBM, dan universitas ternama.",
+    cta: "Dapatkan penawaran",
     href: "/careevo-plus",
+    bgClass: "bg-[#00255d]",
+    image: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/5WjTmMVrb8WjfC9QD1ZrXz/63fd6b219b626575a628a842a4a51371/Global__Catch-All__Main_Campaign_LOHP-Desktop_330x304.webp?auto=format%2C%20compress&dpr=1&w=323&q=40&fit=clip",
   },
   {
-    eyebrow: "Belajar AI praktis",
-    title: "AI dari konsep sampai studi kasus",
-    body: "Alur, penilaian, dan tools yang dipakai tim produk modern.",
+    logo: null,
+    badge: "DOMAIN AI UNGGULAN",
+    title: "Pelajari AI dari perusahaan pembuatnya",
+    body: "Kursus dan sertifikat dari Google, OpenAI, Anthropic, dan IBM — untuk setiap tingkat kemahiran dan peran profesional.",
     cta: "Jelajahi kursus AI",
     href: "#katalog",
+    bgClass: "bg-[#0b1c3d]",
+    image: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/7puav77wSBnD8y6GiiDXwK/4de64002f3216738af9f22faa2397404/BC-5459_AI_Domain_Growth_Campaign_LOHP-Bento_330x304.png?auto=format%2C%20compress&dpr=1&w=323&q=40&fit=clip",
   },
   {
-    eyebrow: "Untuk tim",
-    title: "Tutup gap skill tim lebih cepat",
-    body: "Pelatihan terstruktur dengan progres yang bisa dipantau.",
-    cta: "Lihat paket tim",
+    logo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/3OYpxt8mmtxQGEyCZ76oqE/6e4a82d152d8f0dbe770bc0507655853/WES_Coursera_for_Teams_Logo__1_.png?auto=format%2Ccompress&dpr=1&w=1614&h=18",
+    badge: "CAREEVO UNTUK TIM",
+    title: "Tutup kesenjangan skill tim lebih cepat",
+    body: "Tingkatkan kapabilitas tim dengan diskon 30% untuk pelatihan terstruktur dan metrik penguasaan yang terukur.",
+    cta: "Hemat 30% hari ini",
     href: "/careevo-plus#paket",
+    bgClass: "bg-[#052b47]",
+    image: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/72W90xkzXmebg3oik1SEDK/56bfc27e76f6e1ef1a4fbb4417ac4af6/WES_Main_Campaign_LOHP-Desktop_330x304.webp?auto=format%2C%20compress&dpr=1&w=323&q=40&fit=clip",
   },
 ];
 
-function Hero({ query, onQuery }: { query: string; onQuery: (v: string) => void }) {
+function HeroSection({
+  query,
+  onQuery,
+}: {
+  query: string;
+  onQuery: (val: string) => void;
+}) {
   const [slide, setSlide] = useState(0);
+  const currentSlide = HERO_BENTO_SLIDES[slide];
+
   return (
-    <section className="bg-[#f5f7fa]">
-      <div className="mx-auto grid w-full max-w-7xl items-center gap-8 px-4 py-10 sm:px-6 lg:grid-cols-2 lg:px-8 lg:py-14">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900 lg:text-4xl">
+    <section className="bg-white">
+      <div className="mx-auto grid w-full max-w-7xl items-center gap-10 px-4 pt-8 pb-12 sm:px-6 lg:grid-cols-12 lg:px-8 lg:pt-12 lg:pb-16">
+        <div className="lg:col-span-7">
+          <h1 className="text-4xl font-bold tracking-tight text-[#1f1f1f] sm:text-5xl lg:text-[3.5rem] lg:leading-[1.12]">
             Belajar tanpa batas
           </h1>
-          <p className="mt-3 max-w-md text-base leading-relaxed text-gray-600">
-            Resource terkurasi, challenge praktik, dan verifikasi karya — satu
-            alur dari belajar sampai siap kerja.
+          <p className="mt-4 max-w-xl text-lg leading-relaxed text-gray-600">
+            Mulai, beralih, atau percepat kariermu dengan lebih dari 7.000 kursus,
+            Sertifikat Profesional, dan gelar dari universitas dan perusahaan kelas dunia.
           </p>
+
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <Link
+              href="#katalog"
+              className="inline-flex items-center justify-center rounded-lg bg-[#0056D2] px-7 py-3.5 text-base font-semibold text-white shadow-xs transition-colors hover:bg-[#00419e] active:scale-[0.98]"
+            >
+              Gabung Gratis
+            </Link>
+            <Link
+              href="/careevo-plus#paket"
+              className="inline-flex items-center justify-center rounded-lg border border-[#0056D2] bg-white px-7 py-3.5 text-base font-semibold text-[#0056D2] transition-colors hover:bg-blue-50/60 active:scale-[0.98]"
+            >
+              Coba Careevo untuk Bisnis
+            </Link>
+          </div>
+
           <form
             role="search"
-            className="mt-5 flex max-w-md items-center gap-2 rounded-full border border-gray-400 bg-white p-1.5 pl-4 focus-within:border-[#0056D2]"
             onSubmit={(e) => {
               e.preventDefault();
               document.getElementById("katalog")?.scrollIntoView({ behavior: "smooth" });
             }}
+            className="mt-6 flex max-w-xl items-center overflow-hidden rounded-lg border border-gray-400 bg-white shadow-xs focus-within:border-[#0056D2] focus-within:ring-1 focus-within:ring-[#0056D2]"
           >
-            <span aria-hidden="true" className="text-gray-400">
-              ⌕
-            </span>
-            <input
-              value={query}
-              onChange={(e) => onQuery(e.target.value)}
-              placeholder="Cari: HTML, React, interview…"
-              aria-label="Cari resource belajar"
-              className="w-full bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400"
-            />
-            <a
-              href="#katalog"
-              className="shrink-0 rounded-full bg-[#0056D2] px-4 py-2 text-sm font-semibold text-white hover:bg-[#00419e]"
+            <div className="flex flex-1 items-center px-4 py-3">
+              <Search className="size-5 shrink-0 text-gray-400" />
+              <input
+                value={query}
+                onChange={(e) => onQuery(e.target.value)}
+                placeholder="Apa yang ingin kamu pelajari hari ini?"
+                aria-label="Cari topik atau kursus"
+                className="ml-3 w-full bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400"
+              />
+            </div>
+            <button
+              type="submit"
+              className="flex h-full items-center bg-[#0056D2] px-6 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-[#00419e] active:scale-[0.98]"
             >
               Cari
-            </a>
+            </button>
           </form>
+
           <p className="mt-3 text-xs text-gray-500">
-            Populer: HTML · React · TypeScript · Testing
+            Pencarian populer:{" "}
+            <button type="button" onClick={() => onQuery("Python")} className="font-medium text-[#0056D2] hover:underline">Python</button> ·{" "}
+            <button type="button" onClick={() => onQuery("React")} className="font-medium text-[#0056D2] hover:underline">React</button> ·{" "}
+            <button type="button" onClick={() => onQuery("Data Analytics")} className="font-medium text-[#0056D2] hover:underline">Data Analytics</button> ·{" "}
+            <button type="button" onClick={() => onQuery("AI")} className="font-medium text-[#0056D2] hover:underline">AI & Prompting</button>
           </p>
         </div>
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-800 via-blue-600 to-sky-400 p-6 text-white lg:p-8">
-          <p className="text-xs font-semibold tracking-widest text-white/80 uppercase">
-            {HERO_SLIDES[slide].eyebrow}
-          </p>
-          <h2 className="mt-2 text-2xl font-semibold text-white lg:text-3xl">
-            {HERO_SLIDES[slide].title}
-          </h2>
-          <p className="mt-2 max-w-sm text-sm leading-relaxed text-white/85">
-            {HERO_SLIDES[slide].body}
-          </p>
-          <Link
-            href={HERO_SLIDES[slide].href}
-            className="mt-4 inline-flex rounded-full bg-white px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50"
-          >
-            {HERO_SLIDES[slide].cta}
-          </Link>
-          <div className="mt-6 flex items-center gap-3">
-            <button
-              type="button"
-              aria-label="Slide sebelumnya"
-              onClick={() => setSlide((s) => (s + HERO_SLIDES.length - 1) % HERO_SLIDES.length)}
-              className="flex size-8 cursor-pointer items-center justify-center rounded-full border border-white/40 hover:bg-white/10"
-            >
-              ‹
-            </button>
-            <button
-              type="button"
-              aria-label="Slide berikutnya"
-              onClick={() => setSlide((s) => (s + 1) % HERO_SLIDES.length)}
-              className="flex size-8 cursor-pointer items-center justify-center rounded-full border border-white/40 hover:bg-white/10"
-            >
-              ›
-            </button>
-            <div className="flex gap-1.5">
-              {HERO_SLIDES.map((s, i) => (
+
+        <div className="lg:col-span-5">
+          <div className={cn("relative overflow-hidden rounded-2xl p-6 text-white shadow-lg transition-colors duration-300 sm:p-7", currentSlide.bgClass)}>
+            <div className="flex min-h-[160px] flex-col justify-between sm:min-h-[180px]">
+              <div>
+                {currentSlide.logo ? (
+                  <div className="relative mb-3 h-5 w-36">
+                    <Image
+                      src={currentSlide.logo}
+                      alt="Logo Promo"
+                      fill
+                      sizes="150px"
+                      className="object-contain object-left"
+                    />
+                  </div>
+                ) : (
+                  <p className="mb-2 text-[11px] font-bold tracking-wider text-blue-200 uppercase">
+                    {currentSlide.badge}
+                  </p>
+                )}
+                <h2 className="text-xl font-bold text-white sm:text-2xl">
+                  {currentSlide.title}
+                </h2>
+                <p className="mt-2 text-xs leading-relaxed text-blue-100 sm:text-sm">
+                  {currentSlide.body}
+                </p>
+              </div>
+
+              <div className="mt-5 flex items-center justify-between">
+                <Link
+                  href={currentSlide.href}
+                  className="inline-flex rounded-lg bg-white px-5 py-2.5 text-xs font-bold text-[#00255d] transition-colors hover:bg-blue-50 active:scale-[0.98] sm:text-sm"
+                >
+                  {currentSlide.cta}
+                </Link>
+
+                <div className="relative size-20 shrink-0 sm:size-24">
+                  <Image
+                    src={currentSlide.image}
+                    alt={currentSlide.title}
+                    fill
+                    sizes="96px"
+                    className="object-contain"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 flex items-center justify-between border-t border-white/20 pt-4">
+              <div className="flex gap-1.5">
+                {HERO_BENTO_SLIDES.map((s, idx) => (
+                  <button
+                    key={s.title}
+                    type="button"
+                    aria-label={`Ke slide ${idx + 1}`}
+                    onClick={() => setSlide(idx)}
+                    className={cn(
+                      "h-1.5 cursor-pointer rounded-full transition-all duration-200",
+                      idx === slide ? "w-6 bg-white" : "w-1.5 bg-white/40"
+                    )}
+                  />
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2">
                 <button
-                  key={s.title}
                   type="button"
-                  aria-label={`Ke slide ${i + 1}`}
-                  aria-current={i === slide}
-                  onClick={() => setSlide(i)}
-                  className={cn(
-                    "h-1.5 cursor-pointer rounded-full transition-all",
-                    i === slide ? "w-6 bg-white" : "w-1.5 bg-white/50",
-                  )}
-                />
-              ))}
+                  aria-label="Slide promo sebelumnya"
+                  onClick={() => setSlide((s) => (s + HERO_BENTO_SLIDES.length - 1) % HERO_BENTO_SLIDES.length)}
+                  className="flex size-7 cursor-pointer items-center justify-center rounded-full border border-white/30 text-xs text-white hover:bg-white/10 active:scale-95"
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  aria-label="Slide promo berikutnya"
+                  onClick={() => setSlide((s) => (s + 1) % HERO_BENTO_SLIDES.length)}
+                  className="flex size-7 cursor-pointer items-center justify-center rounded-full border border-white/30 text-xs text-white hover:bg-white/10 active:scale-95"
+                >
+                  ›
+                </button>
+              </div>
             </div>
           </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function PartnersBar() {
+  return (
+    <section aria-labelledby="mitra-heading" className="border-y border-gray-200 bg-[#f5f7fa] py-8">
+      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+        <h2 id="mitra-heading" className="mb-5 text-center text-sm font-semibold tracking-wide text-gray-600 uppercase">
+          Belajar dari 350+ universitas dan perusahaan terkemuka dunia
+        </h2>
+        <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 lg:gap-8">
+          {PARTNERS.map((partner) => (
+            <div
+              key={partner.name}
+              className="flex items-center gap-2.5 rounded-lg border border-gray-200 bg-white px-3.5 py-2 shadow-2xs transition-colors hover:border-gray-300"
+            >
+              <div className="relative size-5 shrink-0">
+                <Image
+                  src={partner.logo}
+                  alt={partner.name}
+                  fill
+                  sizes="20px"
+                  className="object-contain"
+                />
+              </div>
+              <span className="text-xs font-semibold text-gray-800">{partner.name}</span>
+            </div>
+          ))}
         </div>
       </div>
     </section>
@@ -250,68 +583,306 @@ const POPULAR_TABS = [
   {
     label: "Kursus AI & data",
     filter: (r: ResourceFixture) =>
-      r.tags.some((t) => /algoritma|interview|api|testing/i.test(t)),
+      r.tags.some((t) => /algoritma|interview|api|testing|ai|data|python/i.test(t)),
   },
 ] as const;
 
-const ROLE_TABS = ["AI Engineer", "Software Developer", "Data Analyst", "QA Engineer"] as const;
-
-const TRENDING = ["HTML", "React", "TypeScript", "Testing", "Node.js", "Git", "Aksesibilitas"];
-
-const GOALS = [
-  "Mulai karier saya",
-  "Pindah karier",
-  "Tumbuh di peran saat ini",
-  "Eksplor topik di luar kerja",
+const ROLE_TABS = [
+  "AI Engineer",
+  "Software Developer",
+  "Data Analyst",
+  "QA & Security Engineer",
 ] as const;
+
+const CAREER_PROGRAMS = [
+  {
+    role: "Machine Learning Engineer",
+    salary: "$136,000",
+    openings: "18,400+ lowongan",
+    image: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/599o30wORCv3HfGL69jCc3/6f765c21b0030a065e71dfdf14686764/Machine_Learning_Engineer-role-card_2x.png?auto=format%2Ccompress&dpr=1&w=305&h=125",
+    cert: "Machine Learning & AI Prompt Engineering",
+    provider: "DeepLearning.AI",
+  },
+  {
+    role: "Data Scientist",
+    salary: "$124,000",
+    openings: "24,800+ lowongan",
+    image: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/2okXQwMsMaDLsff3uh3uUz/c619cf8860813538a005dbea25425df5/Data_Scientist-role-card_2x.png?auto=format%2Ccompress&dpr=1&w=305&h=125",
+    cert: "Dasar Analisis Data & Visualisasi Python",
+    provider: "Google",
+  },
+  {
+    role: "Data Analyst",
+    salary: "$92,000",
+    openings: "36,000+ lowongan",
+    image: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/1Z2h61l00YMxiMD8Xu7sHw/669880819cd3c5eac5a5fd08606679d1/data-analyst-role-card_2x.png?auto=format%2Ccompress&dpr=1&w=305&h=125",
+    cert: "Google Data Analytics Professional Certificate",
+    provider: "Google",
+  },
+  {
+    role: "Frontend Developer",
+    salary: "$105,000",
+    openings: "29,500+ lowongan",
+    image: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/2C1nzPfmiVmVk5ElvQeoKV/aa4e79a26fcd538c8ded0de64823a812/content-creator-role-card_1X.png?auto=format%2Ccompress&dpr=1&w=305&h=125",
+    cert: "Fullstack Web Development: Next.js 15 & React 19",
+    provider: "Meta & Careevo",
+  },
+];
+
+const DEGREES = [
+  {
+    title: "Master of Computer Science",
+    school: "University of Illinois Urbana-Champaign",
+    logo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/1BjGzhrTBjvvOPuzuqQDHS/81bdfa5d44c5ec8c0364e8ee4761ccff/200x48-illinois.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+    duration: "12–36 Bulan",
+    badge: "100% Online",
+    description: "Program pascasarjana ilmu komputer peringkat teratas dengan kurikulum kecerdasan buatan, sistem komputasi, dan rekayasa perangkat lunak.",
+  },
+  {
+    title: "Master of Science in Data Science",
+    school: "University of Pennsylvania",
+    logo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/3Y7rH8FUwg4eai7LK5j9u3/880203b6e241e81112bf48f252ca8e72/Penn-badge.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+    duration: "16–40 Bulan",
+    badge: "Gelar Ivy League",
+    description: "Dirancang oleh Penn Engineering untuk mempersiapkan praktisi data terdepan dalam machine learning, analisis terapan, dan big data.",
+  },
+  {
+    title: "Bachelor of Science in Computer Science",
+    school: "University of London",
+    logo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/7sWcR45W6I4bvFrJfCmb5d/2dff9bbefe50a9fcbcf89b2e5ee7032e/umich.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+    duration: "3–6 Tahun",
+    badge: "Terakreditasi Global",
+    description: "Gelar sarjana sarat keahlian komputasi praktis dengan arahan langsung akademisi Goldsmiths University of London.",
+  },
+];
+
+interface CompactCardItem {
+  title: string;
+  org: string;
+  orgLogo: string;
+  type: string;
+  rating: string;
+  thumbnail: string;
+  href: string;
+}
+
+const TRENDING_COLUMNS: {
+  category: string;
+  categoryHref: string;
+  items: CompactCardItem[];
+}[] = [
+  {
+    category: "Python",
+    categoryHref: "#katalog",
+    items: [
+      {
+        title: "Microsoft Python Development",
+        org: "Microsoft",
+        orgLogo:
+          "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/11pJTA8yOZPwVRMKnSKPRz/340cf59915e8ce0d3b993d39959972d6/eded33b5eb1694336861de4bfda6d36bf72b7780.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+        type: "Professional Certificate",
+        rating: "★ 4.4",
+        thumbnail:
+          "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=320&q=85",
+        href: "/belajar/crs-4",
+      },
+      {
+        title: "Python for Everybody",
+        org: "University of Michigan",
+        orgLogo:
+          "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/7sWcR45W6I4bvFrJfCmb5d/2dff9bbefe50a9fcbcf89b2e5ee7032e/umich.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+        type: "Specialization",
+        rating: "★ 4.8",
+        thumbnail:
+          "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=320&q=80",
+        href: "/belajar/crs-4",
+      },
+      {
+        title: "Python 3 Programming",
+        org: "University of Michigan",
+        orgLogo:
+          "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/7sWcR45W6I4bvFrJfCmb5d/2dff9bbefe50a9fcbcf89b2e5ee7032e/umich.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+        type: "Specialization",
+        rating: "★ 4.8",
+        thumbnail:
+          "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d2j5ihb19pt1hq.cloudfront.net/sdp_page/s12n_logos/python.jpg?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50",
+        href: "/belajar/crs-4",
+      },
+    ],
+  },
+  {
+    category: "Data Analytics",
+    categoryHref: "#katalog",
+    items: [
+      {
+        title: "Excel Skills for Business",
+        org: "Macquarie University",
+        orgLogo:
+          "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/3Y7rH8FUwg4eai7LK5j9u3/880203b6e241e81112bf48f252ca8e72/Penn-badge.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+        type: "Specialization",
+        rating: "★ 4.9",
+        thumbnail:
+          "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=320&q=80",
+        href: "/belajar/r12",
+      },
+      {
+        title: "Microsoft Power BI Data Analyst",
+        org: "Microsoft",
+        orgLogo:
+          "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/11pJTA8yOZPwVRMKnSKPRz/340cf59915e8ce0d3b993d39959972d6/eded33b5eb1694336861de4bfda6d36bf72b7780.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+        type: "Professional Certificate",
+        rating: "★ 4.6",
+        thumbnail:
+          "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=320&q=85",
+        href: "/belajar/crs-4",
+      },
+      {
+        title: "Google Data Analytics",
+        org: "Google",
+        orgLogo:
+          "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/3ZIhQ7yxmgGMFZGtlqpCG6/0d0f40bc5133948bb3805cab25af62ba/Google-G_360x360.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+        type: "Professional Certificate",
+        rating: "★ 4.8",
+        thumbnail:
+          "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/60/097644c12e4aeba0c3420de571cac1/GCC-Coursera-thumbnail-DA-foundations-tony-cert-level.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50&crop=focalpoint&fp-y=0.48",
+        href: "/belajar/crs-4",
+      },
+    ],
+  },
+  {
+    category: "Project Management",
+    categoryHref: "#katalog",
+    items: [
+      {
+        title: "Project Management Principles and Practices",
+        org: "University of California, Irvine",
+        orgLogo:
+          "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/1s6p4WQHsv79stjgyiWBtI/d55f3608a884d6d1e48f78935b73362f/3c8a16b167a785920d061664a6512c3a60cdb30e.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+        type: "Specialization",
+        rating: "★ 4.7",
+        thumbnail:
+          "https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=320&q=80",
+        href: "/belajar/r6",
+      },
+      {
+        title: "IBM Project Manager",
+        org: "IBM",
+        orgLogo:
+          "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/7iLJYdbTLExBFAgVoHe2Pc/1735062f2f3a6df1dca8cfd9f1815098/ibm-logo.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+        type: "Professional Certificate",
+        rating: "★ 4.8",
+        thumbnail:
+          "https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=320&q=80",
+        href: "/belajar/crs-2",
+      },
+      {
+        title: "Microsoft Project Management: Build Job-Ready...",
+        org: "Microsoft",
+        orgLogo:
+          "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/11pJTA8yOZPwVRMKnSKPRz/340cf59915e8ce0d3b993d39959972d6/eded33b5eb1694336861de4bfda6d36bf72b7780.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+        type: "Professional Certificate",
+        rating: "★ 4.6",
+        thumbnail:
+          "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=320&h=180&q=80",
+        href: "/belajar/r7",
+      },
+    ],
+  },
+];
+
+const INTENTS_DATA = [
+  {
+    id: "career",
+    label: "Start my career",
+    icon: <Rocket className="size-4.5" />,
+  },
+  {
+    id: "change",
+    label: "Change my career",
+    icon: (
+      <svg className="size-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M16 3h5v5" />
+        <path d="M4 20L21 3" />
+        <path d="M21 16v5h-5" />
+        <path d="M15 15l6 6" />
+        <path d="M4 4l5 5" />
+      </svg>
+    ),
+  },
+  {
+    id: "grow",
+    label: "Grow in my current role",
+    icon: <TrendingUp className="size-4.5" />,
+  },
+  {
+    id: "explore",
+    label: "Explore topics outside of work",
+    icon: <Binoculars className="size-4.5" />,
+  },
+];
 
 const TESTIMONIALS = [
   {
-    name: "Sari P.",
-    text: "Struktur belajarnya jelas — resource, challenge, lalu review. Saya bisa belajar sambil kerja tanpa ketinggalan progres.",
+    name: "Sarah W.",
+    role: "Data Analyst di Fintech",
+    avatar: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/5i5srEZb2oOiyBzsckTgCE/9e395a15dc3a0ee381ba8cad950694fa/Sarah_W..jpeg?auto=format%2Ccompress&dpr=1&w=64&h=64&fit=crop",
+    text: "Reputasi materi Careevo yang berkualitas tinggi, dipadu struktur belajar yang fleksibel, memudahkan saya mendalami analitika data sembari mengurus keluarga dan pekerjaan harian.",
   },
   {
-    name: "Dimas A.",
-    text: "Challenge praktiknya yang paling membantu. Bukan cuma nonton, tapi langsung membangun dan dapat umpan balik.",
+    name: "Noeris B.",
+    role: "Software Engineer",
+    avatar: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/1hutGkdWK4YixkAB4MRESr/6d9020693440cba7c65f2ae12cdc91e8/NoerisB.jpg?auto=format%2Ccompress&dpr=1&w=64&h=64&fit=crop",
+    text: "Careevo mengembalikan rasa percaya diri saya dan membuka peluang untuk bermimpi lebih besar. Bukan sekadar menyerap materi—tetapi membuktikan potensi lewat challenge karya nyata.",
   },
   {
-    name: "Rina K.",
-    text: "Verifikasi karya membuat portofolio saya lebih dipercaya saat melamar. Prosesnya transparan dari awal.",
+    name: "Abdullahi M.",
+    role: "Tech Lead & Mentor",
+    avatar: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/4Y6jSp1xS4TKuPRNEIYAof/3e3baba688ce331ff7577f5583fc5c87/Abdullahi_M.jpg?auto=format%2Ccompress&dpr=1&w=64&h=64&fit=crop",
+    text: "Sekarang saya merasa sangat siap mengambil tanggung jawab kepemimpinan teknis dan telah aktif menjadi mentor bagi rekan kerja baru di kantor.",
   },
   {
-    name: "Bagus T.",
-    text: "Filter levelnya pas — mulai dari dasar sampai lanjut tanpa bingung mau lanjut ke mana.",
+    name: "Anas A.",
+    role: "AI Researcher & Engineer",
+    avatar: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/3H5hysCHFHUu7JWjv0FXCC/aab7b9f6be57cda1552bb52fcb6f8098/Anas_Alubaidi_pic.JPEG?auto=format%2Ccompress&dpr=1&w=64&h=64&fit=crop",
+    text: "Belajar di sini memperluas keahlian profesional saya berkat materi standar industri terkini, studi kasus riil, dan wawasan langsung dari praktisi terkemuka.",
   },
+];
+
+const CATEGORIES = [
+  { name: "Kecerdasan Buatan & AI", count: 48, icon: "🤖" },
+  { name: "Ilmu Komputer & Web", count: 72, icon: "💻" },
+  { name: "Data Science & Analitika", count: 54, icon: "📊" },
+  { name: "Cyber Security & Jaringan", count: 32, icon: "🔒" },
+  { name: "Bisnis & Manajemen Produk", count: 40, icon: "📈" },
+  { name: "Desain UI/UX & Interaksi", count: 28, icon: "🎨" },
+  { name: "Cloud & DevOps", count: 36, icon: "☁️" },
+  { name: "Pengembangan Pribadi", count: 22, icon: "🚀" },
+  { name: "Algoritma & Matematika", count: 30, icon: "📐" },
+  { name: "Mobile App Development", count: 26, icon: "📱" },
+  { name: "Testing & Quality Assurance", count: 18, icon: "🧪" },
+  { name: "Sistem Basis Data & SQL", count: 24, icon: "🗄️" },
 ];
 
 const FAQS = [
   {
-    q: "Apakah materi di Careevo diakui pemberi kerja?",
-    a: "Careevo menggabungkan resource dari penyedia tepercaya dengan challenge praktik dan verifikasi karya. Setiap karya yang lolos review tercatat dengan atestasi sehingga bisa diverifikasi lewat halaman publik dan profil.",
+    q: "Apakah sertifikat Careevo diakui oleh pemberi kerja dan industri?",
+    a: "Ya. Setiap sertifikat dan atestasi di Careevo ditandatangani secara kriptografis (HMAC-SHA256) dan dilengkapi bukti submission karya nyata, skor evaluasi, serta tautan repositori publik yang dapat diverifikasi langsung oleh tim perekrut di halaman publik tanpa biaya.",
   },
   {
-    q: "Apakah sertifikat Careevo bermanfaat?",
-    a: "Berguna sebagai bukti skill yang bisa diverifikasi — bukan sekadar klaim. Lengkapi dengan tautan demo dan skor challenge agar pemberi kerja bisa menilai langsung kualitas karyamu.",
+    q: "Apa itu Careevo Plus dan keuntungan yang didapatkan?",
+    a: "Careevo Plus adalah paket keanggotaan menyeluruh yang memberikan akses tanpa batas ke seluruh katalog kursus terakreditasi, challenge praktik premium, penilaian cepat oleh Socrates AI dan verifikator manusia, serta unduhan sertifikat profesional tak terbatas.",
   },
   {
-    q: "Apa itu Careevo Plus?",
-    a: "Paket berlangganan untuk membuka seluruh jalur belajar, challenge premium, dan prioritas review dalam satu harga. Lihat halaman Careevo Plus untuk detail paket dan harga.",
+    q: "Apakah ada materi kursus yang bisa saya ikuti secara gratis?",
+    a: "Tentu saja. Sebagian besar kurikulum dasar kami bertanda 'Gratis' dan dapat dipelajari secara cuma-cuma dari modul 1 hingga modul 5 lengkap dengan materi terkurasi dari MDN, Google, W3C, dan React Docs.",
   },
   {
-    q: "Apakah ada materi gratis?",
-    a: "Ya. Sebagian besar resource bertanda Gratis bisa diakses tanpa membayar. Gunakan filter Gratis saja di katalog untuk melihat semuanya.",
+    q: "Bagaimana alur dari belajar hingga siap disalurkan ke lowongan kerja?",
+    a: "Alurnya terstruktur dalam 4 pilar: Belajar materi terkurasi → Kerjakan challenge praktik nyata → Review dan atestasi karya oleh verifikator → Karya otomatis dipamerkan di profil publik Anda dan dipadankan dengan ribuan lowongan resmi di papan Sentinel Kerja.",
   },
   {
-    q: "Bagaimana cara mulai dari nol?",
-    a: "Pilih level Pemula di katalog, selesaikan 2–3 resource dasar, lalu kerjakan challenge pertama. Progres modul tercatat otomatis setiap resource selesai.",
-  },
-  {
-    q: "Bagaimana Careevo membantu karier saya?",
-    a: "Alurnya: belajar terukur → challenge praktik → review verifikator → karya terverifikasi di profil publik. Karya yang terverifikasi bisa dibagikan ke perekrut lewat halaman loker.",
-  },
-  {
-    q: "Bagaimana cara mendaftar kursus dan melacak progres?",
-    a: "Buka halaman detail kursus lalu tekan Daftar gratis. Setiap kursus dibagi menjadi 5 modul — tandai modul yang selesai dan progresmu tersimpan otomatis, lalu lanjutkan ke challenge praktik terkait.",
+    q: "Bagaimana sistem melacak kemajuan dan modul yang telah saya selesaikan?",
+    a: "Saat mendaftar di halaman detail kursus, Anda mendapatkan lembar pelacakan 5 modul. Setiap kali menandai modul selesai, progres persentase Anda diperbarui seketika dan disimpan secara persisten di sesi belajar Anda.",
   },
 ];
 
@@ -329,150 +900,155 @@ export function BelajarHome({
   const [query, setQuery] = useState(queryAwal);
   const [popularTab, setPopularTab] = useState(0);
   const [role, setRole] = useState<(typeof ROLE_TABS)[number]>("Software Developer");
-  const [goal, setGoal] = useState<(typeof GOALS)[number]>(GOALS[0]);
+  const [goal, setGoal] = useState<string>("Start my career");
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [story, setStory] = useState(0);
 
   const nextTask = tasks.find((t) => t.status === "available" || t.status === "review");
-  const completedCount = resources.filter((r) => r.completed).length;
 
   const searched = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return resources;
     return resources.filter((r) =>
-      [r.title, r.provider, ...r.tags].join(" ").toLowerCase().includes(q),
+      [r.title, r.provider, ...r.tags].join(" ").toLowerCase().includes(q)
     );
   }, [resources, query]);
 
   const popular = useMemo(
     () => resources.filter(POPULAR_TABS[popularTab].filter),
-    [resources, popularTab],
+    [resources, popularTab]
   );
   const popularList = (popular.length > 0 ? popular : resources).slice(0, 8);
 
   const roleList = useMemo(() => {
     const keyword: Record<string, RegExp> = {
-      "AI Engineer": /algoritma|interview|api/i,
-      "Software Developer": /html|css|react|javascript|typescript|node/i,
-      "Data Analyst": /data|performance|struktur/i,
-      "QA Engineer": /testing|vitest|playwright|aksesibilitas/i,
+      "AI Engineer": /algoritma|interview|api|prompt|machine/i,
+      "Software Developer": /html|css|react|javascript|typescript|node|fullstack/i,
+      "Data Analyst": /data|analisis|visualisasi|python|pandas/i,
+      "QA & Security Engineer": /testing|vitest|playwright|aksesibilitas|security|owasp/i,
     };
     const rx = keyword[role];
     const hit = resources.filter((r) =>
-      [r.title, ...r.tags].join(" ").match(rx),
+      [r.title, ...r.tags].join(" ").match(rx)
     );
     return (hit.length > 0 ? hit : resources).slice(0, 6);
   }, [resources, role]);
 
-  const providers = useMemo(
-    () => Array.from(new Set(resources.map((r) => r.provider))).slice(0, 10),
-    [resources],
-  );
-
-  const topik = useMemo(() => {
-    const hitung = new Map<string, number>();
-    for (const resource of resources) {
-      for (const tag of resource.tags) {
-        hitung.set(tag, (hitung.get(tag) ?? 0) + 1);
-      }
-    }
-    return [...hitung.entries()]
-      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-      .slice(0, 12);
-  }, [resources]);
-
   return (
-    <div className="min-w-0 overflow-x-clip bg-white">
+    <div className="min-w-0 overflow-x-clip bg-white text-gray-900">
       {nextTask ? (
-        <section aria-labelledby="lanjut-belajar" className="bg-[#e8effd]">
-          <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-5 sm:px-6 lg:px-8">
+        <aside aria-label="Lanjutkan belajar" className="border-b border-blue-200 bg-[#e8effd]">
+          <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold tracking-wider text-[#0056D2] uppercase">
-                Lanjutkan belajar
-              </p>
-              <p id="lanjut-belajar" className="mt-1 text-base font-semibold text-gray-900">
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold tracking-wider text-[#0056D2] uppercase">
+                <span className="size-2 rounded-full bg-[#0056D2] animate-pulse" />
+                Lanjutkan Belajar Aktif
+              </span>
+              <p className="mt-0.5 text-sm font-bold text-gray-900 sm:text-base">
                 {nextTask.title}
               </p>
-              <p className="max-w-xl text-sm text-gray-600">{nextTask.brief}</p>
+              <p className="line-clamp-1 max-w-2xl text-xs text-gray-600 sm:text-sm">
+                {nextTask.brief}
+              </p>
             </div>
             <Link
               href={`/challenge/${nextTask.id}`}
-              className="shrink-0 rounded-full bg-[#0056D2] px-4 py-2 text-sm font-semibold text-white hover:bg-[#00419e]"
+              className="inline-flex shrink-0 items-center justify-center rounded-lg bg-[#0056D2] px-5 py-2.5 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-[#00419e] active:scale-[0.98] sm:text-sm"
             >
-              Buka challenge
+              Buka challenge →
             </Link>
           </div>
-        </section>
+        </aside>
       ) : null}
 
-      <Hero query={query} onQuery={setQuery} />
+      <HeroSection query={query} onQuery={setQuery} />
+
+      <PartnersBar />
 
       {terdaftar.length > 0 ? (
-        <section aria-labelledby="pembelajaran-saya" className="bg-white">
-          <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-            <h2 id="pembelajaran-saya" className="mb-1 text-xl font-bold tracking-tight text-gray-900">
-              Pembelajaran saya
-            </h2>
-            <p className="mb-4 text-sm text-gray-600">
-              Lanjutkan kursus yang sudah kamu mulai.
-            </p>
-            <div className="grid gap-4 md:grid-cols-2">
-            {terdaftar.map((kursus) => (
-              <Link
-                key={kursus.id}
-                href={`/belajar/${kursus.slug}`}
-                className="rounded-2xl border border-gray-200 bg-white p-5 transition-colors hover:border-blue-300 hover:bg-blue-50/40"
-              >
-                <p className="text-xs text-gray-500">{kursus.provider}</p>
-                <h3 className="mt-0.5 line-clamp-2 text-sm font-semibold text-gray-900">
-                  {kursus.title}
-                </h3>
-                <div
-                  role="progressbar"
-                  aria-label={`Progres ${kursus.title} ${kursus.progres} persen`}
-                  aria-valuenow={kursus.progres}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  className="mt-3 h-2 overflow-hidden rounded-full bg-gray-200"
-                >
-                  <div
-                    className="h-full rounded-full bg-blue-600"
-                    style={{ width: `${kursus.progres}%` }}
-                  />
-                </div>
-                <p className="mt-1.5 text-xs text-gray-500">
-                  {kursus.progres}% · {kursus.selesai} dari {kursus.total} modul
-                  {kursus.progres === 100 ? " · selesai 🎉" : " · lanjutkan →"}
+        <section aria-labelledby="pembelajaran-saya" className="border-b border-gray-200 bg-white py-12">
+          <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <h2 id="pembelajaran-saya" className="text-2xl font-bold tracking-tight text-gray-900">
+                  Pembelajaran saya
+                </h2>
+                <p className="mt-1 text-sm text-gray-600">
+                  Lanjutkan modul dan tantangan kursus yang sedang kamu tempuh.
                 </p>
+              </div>
+              <Link href="/dashboard" className="text-sm font-semibold text-[#0056D2] hover:underline">
+                Lihat semua di dashboard →
               </Link>
-            ))}
+            </div>
+
+            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {terdaftar.map((kursus) => (
+                <Link
+                  key={kursus.id}
+                  href={`/belajar/${kursus.slug}`}
+                  className="group relative flex flex-col justify-between rounded-xl border border-gray-200 bg-white p-5 shadow-xs transition-all hover:border-[#0056D2] hover:shadow-md"
+                >
+                  <div>
+                    <span className="text-xs font-semibold text-gray-500 uppercase">{kursus.provider}</span>
+                    <h3 className="mt-1 line-clamp-2 text-base font-bold text-gray-900 group-hover:text-[#0056D2]">
+                      {kursus.title}
+                    </h3>
+                  </div>
+
+                  <div className="mt-5">
+                    <div className="flex items-center justify-between text-xs text-gray-600">
+                      <span className="font-semibold text-gray-900">{kursus.progres}% selesai</span>
+                      <span>{kursus.selesai}/{kursus.total} modul</span>
+                    </div>
+                    <div
+                      role="progressbar"
+                      aria-label={`Progres ${kursus.title}`}
+                      aria-valuenow={kursus.progres}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      className="mt-2 h-2 overflow-hidden rounded-full bg-gray-100"
+                    >
+                      <div
+                        className="h-full rounded-full bg-[#0056D2] transition-all duration-300"
+                        style={{ width: `${kursus.progres}%` }}
+                      />
+                    </div>
+                    <p className="mt-3 text-xs font-semibold text-[#0056D2] group-hover:underline">
+                      {kursus.progres === 100 ? "Lihat sertifikat dan atestasi →" : "Lanjutkan modul berikutnya →"}
+                    </p>
+                  </div>
+                </Link>
+              ))}
             </div>
           </div>
         </section>
       ) : null}
 
-      <section aria-labelledby="baru-populer" className="bg-white">
-        <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+      <section aria-labelledby="baru-populer" className="bg-white py-12">
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
             <div>
-              <h2 id="baru-populer" className="text-xl font-bold tracking-tight text-gray-900">
+              <h2 id="baru-populer" className="text-2xl font-bold tracking-tight text-[#1f1f1f] sm:text-3xl">
                 Baru dan populer
               </h2>
-              <p className="mt-1 text-sm text-gray-600">
-                Pilihan teratas minggu ini dari katalog Careevo.
+              <p className="mt-1.5 text-sm text-gray-600">
+                Pilihan kursus teratas minggu ini dari universitas dan mitra industri Careevo.
               </p>
             </div>
-            <div className="flex gap-2" aria-label="Filter populer">
-              {POPULAR_TABS.map((t, i) => (
+
+            <div className="flex flex-wrap gap-2" aria-label="Filter populer">
+              {POPULAR_TABS.map((t, idx) => (
                 <button
                   key={t.label}
-                  aria-pressed={popularTab === i}
-                  onClick={() => setPopularTab(i)}
+                  type="button"
+                  aria-pressed={popularTab === idx}
+                  onClick={() => setPopularTab(idx)}
                   className={cn(
-                    "cursor-pointer rounded-full border px-4 py-1.5 text-sm font-medium transition-colors",
-                    popularTab === i
-                      ? "border-[#0056D2] bg-[#0056D2] text-white"
-                      : "border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50",
+                    "cursor-pointer rounded-full px-4 py-2 text-xs font-semibold transition-colors active:scale-95 sm:text-sm",
+                    popularTab === idx
+                      ? "bg-[#0056D2] text-white shadow-xs"
+                      : "border border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50"
                   )}
                 >
                   {t.label}
@@ -480,279 +1056,444 @@ export function BelajarHome({
               ))}
             </div>
           </div>
+
           <CarouselRow label="Katalog populer">
             {popularList.map((r) => (
-              <CourseCard key={r.id} resource={r} />
+              <CourseraCourseCard key={r.id} resource={r} />
             ))}
           </CarouselRow>
         </div>
       </section>
 
-      <section aria-labelledby="ai-untuk-kerja" className="bg-[#f5f7fa]">
-        <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <h2 id="ai-untuk-kerja" className="max-w-2xl text-xl font-bold tracking-tight text-gray-900 lg:text-2xl">
-            AI untuk pekerjaanmu — dan karier yang kamu mau
-          </h2>
-          <p className="mt-1 max-w-xl text-sm leading-relaxed text-gray-600">
-            Pilih bidangmu. Pelajari alur kerja, penilaian, dan tools yang
-            mengubah bidang itu.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
+      <section aria-labelledby="ai-untuk-kerja" className="bg-[#f5f7fa] py-14">
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="max-w-3xl">
+            <h2 id="ai-untuk-kerja" className="text-2xl font-bold tracking-tight text-[#1f1f1f] sm:text-3xl">
+              AI untuk pekerjaanmu — dan karier yang kamu tuju
+            </h2>
+            <p className="mt-2 text-base text-gray-600">
+              Pilih bidangmu. Pelajari alur kerja, penilaian kritis, dan tools mutakhir yang merevolusi industri saat ini.
+            </p>
+          </div>
+
+          <div className="mt-6 flex flex-wrap gap-2">
             {ROLE_TABS.map((r) => (
               <button
                 key={r}
+                type="button"
                 onClick={() => setRole(r)}
                 aria-pressed={role === r}
                 className={cn(
-                  "cursor-pointer rounded-full border px-4 py-1.5 text-sm font-medium transition-colors",
+                  "cursor-pointer rounded-full px-4 py-2 text-xs font-semibold transition-colors active:scale-95 sm:text-sm",
                   role === r
-                    ? "border-[#0056D2] bg-[#0056D2] text-white"
-                    : "border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50",
+                    ? "bg-[#0056D2] text-white shadow-xs"
+                    : "border border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50"
                 )}
               >
                 {r}
               </button>
             ))}
           </div>
-          <div className="mt-6 flex gap-4 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+
+          <div className="mt-8 flex gap-4 overflow-x-auto pb-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {roleList.map((r) => (
-              <CourseCard key={r.id} resource={r} />
+              <CourseraCourseCard key={r.id} resource={r} />
             ))}
           </div>
         </div>
       </section>
 
-      <section aria-label="Promo" className="bg-white">
-        <div className="mx-auto grid w-full max-w-7xl gap-4 px-4 py-10 sm:px-6 md:grid-cols-2 lg:px-8">
-          <div className="rounded-2xl bg-gradient-to-br from-blue-800 to-blue-500 p-6 text-white">
-            <p className="text-xs font-semibold tracking-widest text-white/80 uppercase">Careevo Plus</p>
-            <h3 className="mt-1 text-xl font-bold text-white">Hancurkan hambatan belajar dengan harga hemat</h3>
-            <Link
-              href="/careevo-plus"
-              className="mt-3 inline-flex rounded-full bg-white px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50"
-            >
-              Dapatkan Careevo Plus
-            </Link>
-          </div>
-          <div className="rounded-2xl bg-gradient-to-br from-emerald-700 to-teal-500 p-6 text-white">
-            <p className="text-xs font-semibold tracking-widest text-white/80 uppercase">Careevo untuk Tim</p>
-            <h3 className="mt-1 text-xl font-bold text-white">Mulai dengan penghematan untuk tim yang bekerja keras</h3>
-            <Link
-              href="/careevo-plus#paket"
-              className="mt-3 inline-flex rounded-full bg-white px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
-            >
-              Lihat paket tim
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      <section aria-labelledby="mitra" className="border-y border-gray-200 bg-white">
-        <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-          <h2 id="mitra" className="mb-4 text-xl font-bold tracking-tight text-gray-900">
-            Belajar dari penerbit dan komunitas terkemuka
-          </h2>
-          <div className="flex gap-3 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {providers.map((p) => (
-              <span
-                key={p}
-                className="inline-flex shrink-0 items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700"
-              >
-                <span
-                  aria-hidden="true"
-                  className="inline-flex size-5 items-center justify-center rounded-sm bg-gray-900 text-[10px] font-bold text-white"
-                >
-                  {p.charAt(0)}
-                </span>
-                {p}
-              </span>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section aria-label="Jalur" className="bg-white">
-        <div className="mx-auto grid w-full max-w-7xl gap-4 px-4 py-10 sm:px-6 md:grid-cols-3 lg:px-8">
-          {[
-            {
-              title: "Luncurkan karier baru",
-              body: "Mulai dari nol dengan jalur pemula dan challenge terstruktur.",
-              href: "#katalog",
-              cta: "Mulai jalur",
-            },
-            {
-              title: "Coba Careevo untuk tim",
-              body: "Pantau progres belajar seluruh anggota dalam satu tempat.",
-              href: "/careevo-plus#paket",
-              cta: "Untuk tim",
-            },
-            {
-              title: "Raih pengakuan skill",
-              body: "Kumpulkan karya terverifikasi yang bisa dibagikan ke perekrut.",
-              href: "/dashboard",
-              cta: "Lihat progres",
-            },
-          ].map((b) => (
-            <div key={b.title} className="rounded-2xl border border-gray-200 bg-white p-6">
-              <h3 className="text-lg font-bold text-gray-900">{b.title}</h3>
-              <p className="mt-1 text-sm leading-relaxed text-gray-600">{b.body}</p>
-              <Link href={b.href} className="mt-3 inline-flex text-sm font-semibold text-[#0056D2] hover:underline">
-                {b.cta} →
-              </Link>
+      <section aria-label="Bento Promosi Unggulan" className="bg-white py-12">
+        <div className="mx-auto grid w-full max-w-7xl gap-6 px-4 sm:px-6 md:grid-cols-2 lg:px-8">
+          <div className="flex flex-col justify-between rounded-2xl bg-[#00255d] p-7 text-white shadow-md sm:p-9">
+            <div>
+              <div className="relative mb-3 h-5 w-32">
+                <Image
+                  src="https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/NxPkwTU0sAEpcAUWZkfR1/f1abc250476ce6841a0faff27924487b/Coursera_Plus_White_Logo.png?auto=format%2Ccompress&dpr=1&w=161&h=16"
+                  alt="Careevo Plus"
+                  fill
+                  sizes="130px"
+                  className="object-contain object-left"
+                />
+              </div>
+              <h3 className="text-2xl font-bold text-white sm:text-3xl">
+                Hancurkan hambatan belajar dengan penghematan besar
+              </h3>
+              <p className="mt-3 text-sm leading-relaxed text-blue-100 sm:text-base">
+                Buka akses ke ribuan materi belajar, challenge praktik terverifikasi, dan sertifikat profesional tanpa batas.
+              </p>
             </div>
-          ))}
-        </div>
-      </section>
 
-      <section aria-labelledby="kategori" className="bg-[#f5f7fa]">
-        <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <h2 id="kategori" className="mb-1 text-xl font-bold tracking-tight text-gray-900">
-            Jelajahi topik
-          </h2>
-          <p className="mb-4 text-sm text-gray-600">
-            Topik paling banyak dicari, dihitung dari katalog saat ini.
-          </p>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {topik.map(([nama, jumlah]) => (
-              <button
-                key={nama}
-                type="button"
-                onClick={() => {
-                  setQuery(nama);
-                  document.getElementById("katalog")?.scrollIntoView({ behavior: "smooth" });
-                }}
-                className="cursor-pointer rounded-xl border border-gray-200 bg-white px-4 py-3 text-left transition-colors hover:border-[#0056D2] hover:bg-blue-50/50"
+            <div className="mt-6 flex items-center justify-between gap-4">
+              <Link
+                href="/careevo-plus"
+                className="inline-flex rounded-lg bg-white px-6 py-3 text-sm font-bold text-[#00255d] transition-colors hover:bg-blue-50 active:scale-[0.98]"
               >
-                <span className="block text-sm font-medium text-gray-800">{nama}</span>
-                <span className="mt-0.5 block text-xs text-gray-500">
-                  {jumlah} kursus
-                </span>
-              </button>
-            ))}
+                Dapatkan Careevo Plus
+              </Link>
+              <div className="relative size-24 shrink-0 sm:size-32">
+                <Image
+                  src="https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/5aCPp47zimm4yziPpwrYkO/dac1f4ef6e4dd66b49c80d0f34afcad9/Global__Catch-All__Main_Campaign_Canned_Collection-480x350.webp?auto=format%2Ccompress&dpr=1&w=960&h=700"
+                  alt="Diskon Careevo Plus"
+                  fill
+                  sizes="128px"
+                  className="object-contain"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col justify-between rounded-2xl bg-[#032e3b] p-7 text-white shadow-md sm:p-9">
+            <div>
+              <div className="relative mb-3 h-5 w-44">
+                <Image
+                  src="https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/3OYpxt8mmtxQGEyCZ76oqE/6e4a82d152d8f0dbe770bc0507655853/WES_Coursera_for_Teams_Logo__1_.png?auto=format%2Ccompress&dpr=1&w=1614&h=18"
+                  alt="Careevo untuk Tim"
+                  fill
+                  sizes="170px"
+                  className="object-contain object-left"
+                />
+              </div>
+              <h3 className="text-2xl font-bold text-white sm:text-3xl">
+                Mulai dengan penghematan untuk tim yang bekerja keras
+              </h3>
+              <p className="mt-3 text-sm leading-relaxed text-teal-100 sm:text-base">
+                Bangun talenta teknologi internal organisasi dengan kurikulum terarah, dashboard pelacakan progres, dan jalur evaluasi riil.
+              </p>
+            </div>
+
+            <div className="mt-6 flex items-center justify-between gap-4">
+              <Link
+                href="/careevo-plus#paket"
+                className="inline-flex rounded-lg bg-white px-6 py-3 text-sm font-bold text-[#032e3b] transition-colors hover:bg-teal-50 active:scale-[0.98]"
+              >
+                Lihat paket tim
+              </Link>
+              <div className="relative size-24 shrink-0 sm:size-32">
+                <Image
+                  src="https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/6C5dMIj3ba9tyWCJv0wjF9/8280504e1cf3b61bcef620e178b1711f/WES_MainCampaign_CannedCollection-480x350.webp?auto=format%2Ccompress&dpr=1&w=960&h=700"
+                  alt="Pelatihan Tim Careevo"
+                  fill
+                  sizes="128px"
+                  className="object-contain"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      <section aria-labelledby="tren" className="bg-[#f5f7fa]">
-        <div className="mx-auto w-full max-w-7xl px-4 pb-10 sm:px-6 lg:px-8">
-          <h2 id="tren" className="mb-3 text-xl font-bold tracking-tight text-gray-900">
-            Pencarian populer
-          </h2>
-          <div className="flex flex-wrap gap-2">
-            {TRENDING.map((t) => (
-              <button
-                key={t}
-                onClick={() => setQuery(t)}
-                aria-pressed={query === t}
-                className={cn(
-                  "cursor-pointer rounded-full border px-4 py-1.5 text-sm font-medium transition-colors",
-                  query === t
-                    ? "border-[#0056D2] bg-[#0056D2] text-white"
-                    : "border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50",
-                )}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section aria-labelledby="tujuan" className="bg-white">
-        <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <h2 id="tujuan" className="text-xl font-bold tracking-tight text-gray-900">
-            Apa yang membawamu ke Careevo hari ini?
-          </h2>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {GOALS.map((g) => (
-              <button
-                key={g}
-                onClick={() => setGoal(g)}
-                aria-pressed={goal === g}
-                className={cn(
-                  "cursor-pointer rounded-2xl border p-4 text-left text-sm font-medium transition-colors",
-                  goal === g
-                    ? "border-[#0056D2] bg-blue-50/60 text-gray-900 shadow-sm"
-                    : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50",
-                )}
-              >
-                {g}
-              </button>
-            ))}
-          </div>
-          <div className="mt-6 rounded-2xl border border-gray-200 bg-[#f5f7fa] p-6 lg:p-8">
-            <h3 className="text-xl font-bold text-gray-900">
+      <section aria-labelledby="siap-kerja-heading" className="bg-[#f5f7fa] py-14">
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="max-w-2xl">
+            <h2 id="siap-kerja-heading" className="text-2xl font-bold tracking-tight text-[#1f1f1f] sm:text-3xl">
               Siap kerja untuk karier yang banyak dicari
-            </h3>
-            <p className="mt-1 text-sm text-gray-600">
-              {goal}: tanpa pengalaman pun bisa mulai dari level pemula.
+            </h2>
+            <p className="mt-2 text-base text-gray-600">
+              Tanpa pengalaman sebelumnya pun kamu bisa memulai. Dapatkan keahlian praktis yang langsung bernilai bagi industri.
             </p>
-            <div className="mt-4 flex gap-4 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          </div>
+
+          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {CAREER_PROGRAMS.map((program) => (
+              <div
+                key={program.role}
+                className="flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xs transition-all hover:border-[#0056D2] hover:shadow-md"
+              >
+                <div className="relative aspect-[2.4/1] w-full bg-gray-50">
+                  <Image
+                    src={program.image}
+                    alt={program.role}
+                    fill
+                    sizes="(max-width: 640px) 100vw, 25vw"
+                    className="object-contain p-2"
+                  />
+                </div>
+                <div className="flex flex-1 flex-col p-5">
+                  <h3 className="text-base font-bold text-gray-900">{program.role}</h3>
+                  <div className="mt-2 flex items-baseline gap-2">
+                    <span className="text-lg font-bold text-[#0056D2]">{program.salary}</span>
+                    <span className="text-xs text-gray-500">median gaji</span>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">{program.openings}</p>
+
+                  <div className="mt-4 border-t border-gray-100 pt-3">
+                    <p className="text-[11px] font-semibold text-gray-500 uppercase">Sertifikat Rekomendasi:</p>
+                    <p className="mt-1 line-clamp-2 text-xs font-medium text-gray-800">{program.cert}</p>
+                    <p className="mt-0.5 text-[11px] text-gray-500">{program.provider}</p>
+                  </div>
+
+                  <Link
+                    href="#katalog"
+                    className="mt-4 inline-flex items-center text-xs font-bold text-[#0056D2] hover:underline"
+                  >
+                    Pelajari jalur karier <ArrowRight className="ml-1 size-3.5" />
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="gelar-heading" className="bg-white py-14">
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div className="max-w-2xl">
+              <span className="text-xs font-bold tracking-wider text-[#0056D2] uppercase">
+                PENDIDIKAN TINGGI TERAKREDITASI
+              </span>
+              <h2 id="gelar-heading" className="mt-1 text-2xl font-bold tracking-tight text-[#1f1f1f] sm:text-3xl">
+                Raih gelar dari universitas terkemuka dunia
+              </h2>
+              <p className="mt-2 text-base text-gray-600">
+                100% online dengan biaya yang lebih terjangkau. Gelar akademik resmi yang diakui global.
+              </p>
+            </div>
+            <Link
+              href="#katalog"
+              className="inline-flex items-center text-sm font-semibold text-[#0056D2] hover:underline"
+            >
+              Lihat seluruh program gelar <ChevronRight className="ml-1 size-4" />
+            </Link>
+          </div>
+
+          <div className="mt-8 grid gap-6 md:grid-cols-3">
+            {DEGREES.map((deg) => (
+              <div
+                key={deg.title}
+                className="flex flex-col justify-between rounded-xl border border-gray-200 bg-white p-6 shadow-xs transition-shadow hover:shadow-md"
+              >
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-semibold text-[#0056D2]">
+                      {deg.badge}
+                    </span>
+                    <span className="text-xs text-gray-500">{deg.duration}</span>
+                  </div>
+
+                  <div className="mt-4 flex items-center gap-2.5">
+                    <div className="relative size-6 shrink-0">
+                      <Image
+                        src={deg.logo}
+                        alt={deg.school}
+                        fill
+                        sizes="24px"
+                        className="object-contain"
+                      />
+                    </div>
+                    <span className="text-xs font-semibold text-gray-700">{deg.school}</span>
+                  </div>
+
+                  <h3 className="mt-3 text-lg font-bold text-gray-900">{deg.title}</h3>
+                  <p className="mt-2 text-xs leading-relaxed text-gray-600">{deg.description}</p>
+                </div>
+
+                <div className="mt-6 border-t border-gray-100 pt-4">
+                  <Link
+                    href="#katalog"
+                    className="inline-flex items-center text-xs font-bold text-[#0056D2] hover:underline"
+                  >
+                    Informasi pendaftaran <ArrowRight className="ml-1 size-3.5" />
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="trending-searches-heading" className="border-t border-gray-200 bg-white py-14">
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+          <h2 id="trending-searches-heading" className="mb-6 text-2xl font-bold tracking-tight text-[#111827] sm:text-3xl">
+            Trending searches
+          </h2>
+
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            {TRENDING_COLUMNS.map((col) => (
+              <div key={col.category} className="flex flex-col rounded-2xl bg-[#EBF3FB] p-5">
+                <Link
+                  href={col.categoryHref}
+                  className="group mb-4 inline-flex items-center text-base font-bold text-[#111827] hover:text-[#0056D2]"
+                >
+                  <span>{col.category}</span>
+                  <span className="ml-1.5 transition-transform group-hover:translate-x-1">→</span>
+                </Link>
+
+                <div className="flex flex-col gap-3">
+                  {col.items.map((item) => (
+                    <Link
+                      key={item.title}
+                      href={item.href}
+                      className="group flex items-center gap-3.5 rounded-xl border border-transparent bg-white p-3 shadow-2xs transition-all hover:border-gray-200 hover:shadow-xs"
+                    >
+                      <div className="relative size-14 shrink-0 overflow-hidden rounded-md bg-gray-100">
+                        <Image
+                          src={item.thumbnail}
+                          alt={item.title}
+                          fill
+                          sizes="56px"
+                          className="object-cover"
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <div className="relative size-3.5 shrink-0 overflow-hidden">
+                            <Image
+                              src={item.orgLogo}
+                              alt={item.org}
+                              fill
+                              sizes="14px"
+                              className="object-contain"
+                            />
+                          </div>
+                          <span className="truncate text-xs font-normal text-[#4B5563]">
+                            {item.org}
+                          </span>
+                        </div>
+                        <h4 className="mt-0.5 line-clamp-2 text-xs sm:text-sm font-bold text-[#111827] group-hover:text-[#0056D2]" title={item.title}>
+                          {item.title}
+                        </h4>
+                        <p className="mt-0.5 text-xs text-[#4B5563]">
+                          {item.type} · <span className="font-semibold text-gray-900">{item.rating}</span>
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-8 rounded-2xl bg-[#EBF3FB] p-5 sm:p-6">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+              <h3 className="shrink-0 text-lg font-bold tracking-tight text-[#111827] sm:text-xl">
+                What brings you to Coursera today?
+              </h3>
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+                {INTENTS_DATA.map((item) => {
+                  const active = goal === item.label;
+                  return (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={() => setGoal(item.label)}
+                      aria-pressed={active}
+                      className={cn(
+                        "flex cursor-pointer items-center gap-2.5 rounded-xl border bg-white px-3 py-2 shadow-2xs transition-all hover:border-[#0056D2] hover:shadow-xs active:scale-[0.98]",
+                        active
+                          ? "border-[#0056D2] ring-2 ring-[#0056D2]/25 font-bold"
+                          : "border-gray-200 text-gray-700"
+                      )}
+                    >
+                      <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#0056D2] text-white">
+                        {item.icon}
+                      </div>
+                      <span className="whitespace-nowrap text-xs font-semibold text-[#111827]">
+                        {item.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-xs sm:p-8">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h4 className="text-xl font-bold text-gray-900">
+                  Rekomendasi Terarah: {goal}
+                </h4>
+                <p className="mt-1 text-sm text-gray-600">
+                  Kursus dan challenge proyek yang dirancang untuk mendukung sasaran belajarmu.
+                </p>
+              </div>
+              <a
+                href="#katalog"
+                className="inline-flex rounded-lg bg-[#0056D2] px-5 py-2.5 text-xs font-semibold text-white hover:bg-[#00419e]"
+              >
+                Lihat semua katalog →
+              </a>
+            </div>
+
+            <div className="mt-6 flex gap-4 overflow-x-auto pb-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {resources.slice(0, 6).map((r) => (
-                <CourseCard key={r.id} resource={r} />
+                <CourseraCourseCard key={r.id} resource={r} />
               ))}
             </div>
           </div>
         </div>
       </section>
 
-      <section aria-label="Hasil belajar" className="bg-white">
-        <div className="mx-auto grid w-full max-w-7xl items-center gap-6 px-4 pb-10 sm:px-6 lg:grid-cols-2 lg:px-8">
-        <div>
-          <p className="text-4xl font-semibold text-gray-900">
-            {completedCount}/{resources.length}
-          </p>
-          <h2 className="mt-1 text-2xl font-medium tracking-tight text-gray-900">
-            progres modulmu sudah berjalan
-          </h2>
-          <p className="mt-2 max-w-md text-sm leading-relaxed text-gray-600">
-            Peserta yang konsisten menyelesaikan resource dan challenge
-            melaporkan peluang kerja baru, pengetahuan bertambah, dan performa
-            kerja yang meningkat.
-          </p>
-        </div>
-        <div className="h-40 rounded-2xl bg-gradient-to-br from-blue-100 via-indigo-100 to-emerald-100 p-5">
-          <div className="h-full w-full rounded-xl bg-white/70 p-4">
-            <p className="text-xs font-semibold text-gray-500">Progres</p>
-            <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-gray-200">
-              <div
-                role="progressbar"
-                aria-label={`Progres modul ${Math.round((completedCount / Math.max(resources.length, 1)) * 100)} persen`}
-                aria-valuenow={Math.round((completedCount / Math.max(resources.length, 1)) * 100)}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                className="h-full rounded-full bg-blue-600"
-                style={{ width: `${Math.round((completedCount / Math.max(resources.length, 1)) * 100)}%` }}
-              />
-            </div>
-            <p className="mt-2 text-xs text-gray-500">
-              {Math.round((completedCount / Math.max(resources.length, 1)) * 100)}% resource selesai
+      <section aria-label="Hasil Karier Positif" className="border-t border-gray-200 bg-white py-14">
+        <div className="mx-auto grid w-full max-w-7xl items-center gap-10 px-4 sm:px-6 lg:grid-cols-12 lg:px-8">
+          <div className="lg:col-span-7">
+            <span className="text-xs font-bold tracking-wider text-[#0056D2] uppercase">
+              HASIL PEMBELAJAR YANG TERBUKTI
+            </span>
+            <h2 className="mt-2 text-3xl font-bold tracking-tight text-[#1f1f1f] sm:text-4xl">
+              91% peserta meraih hasil karier yang positif
+            </h2>
+            <p className="mt-4 text-base leading-relaxed text-gray-600">
+              Lulusan Careevo melaporkan tawaran pekerjaan baru, promosi kenaikan jabatan, peningkatan produktivitas, serta portofolio karya nyata yang tervalidasi.
             </p>
+
+            <div className="mt-6 grid grid-cols-3 gap-4 border-t border-gray-100 pt-6">
+              <div>
+                <p className="text-2xl font-bold text-[#0056D2] sm:text-3xl">91%</p>
+                <p className="mt-1 text-xs text-gray-600">Meraih lompatan karier positif</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-[#0056D2] sm:text-3xl">84%</p>
+                <p className="mt-1 text-xs text-gray-600">Peningkatan kepercayaan diri</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-[#0056D2] sm:text-3xl">72%</p>
+                <p className="mt-1 text-xs text-gray-600">Menerapkan skill langsung di tempat kerja</p>
+              </div>
+            </div>
+
+            <div className="mt-8">
+              <Link
+                href="/careevo-plus"
+                className="inline-flex rounded-lg bg-[#0056D2] px-6 py-3 text-sm font-semibold text-white hover:bg-[#00419e] active:scale-[0.98]"
+              >
+                Pelajari selengkapnya
+              </Link>
+            </div>
           </div>
-        </div>
+
+          <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-[#f5f7fa] p-4 lg:col-span-5">
+            <Image
+              src="https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/2FoYK9aUFG5lwb7ihssz9x/823a1b48f0261955624a7ecf75873b8f/Coursera-graph_2x.png?auto=format%2C%20compress&dpr=1&w=444&h=298&q=40&fit=clip"
+              alt="Grafik dampak karier peserta"
+              fill
+              sizes="(max-width: 1024px) 100vw, 40vw"
+              className="object-contain"
+            />
+          </div>
         </div>
       </section>
 
-      <section aria-labelledby="cerita" className="bg-[#f5f7fa]">
-        <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <h2 id="cerita" className="mb-4 text-xl font-bold tracking-tight text-gray-900">
-            Kenapa peserta memilih Careevo
-          </h2>
-          <div className="relative rounded-2xl border border-gray-200 bg-white p-6 lg:p-8">
-            <blockquote key={story}>
-              <p className="max-w-3xl text-lg leading-relaxed text-gray-800">
-                “{TESTIMONIALS[story].text}”
-              </p>
-              <footer className="mt-3 text-sm font-semibold text-gray-900">
-                {TESTIMONIALS[story].name}
-              </footer>
-            </blockquote>
-            <div className="mt-4 flex items-center gap-2">
+      <section aria-labelledby="testimoni-heading" className="bg-[#f5f7fa] py-14">
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <span className="text-xs font-bold tracking-wider text-[#0056D2] uppercase">
+                CERITA SUKSES
+              </span>
+              <h2 id="testimoni-heading" className="mt-1 text-2xl font-bold tracking-tight text-[#1f1f1f] sm:text-3xl">
+                Kenapa peserta memilih Careevo
+              </h2>
+            </div>
+
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 aria-label="Cerita sebelumnya"
                 onClick={() => setStory((s) => (s + TESTIMONIALS.length - 1) % TESTIMONIALS.length)}
-                className="flex size-8 cursor-pointer items-center justify-center rounded-full border border-gray-200 hover:bg-gray-50"
+                className="flex size-9 cursor-pointer items-center justify-center rounded-full border border-gray-300 bg-white text-gray-700 shadow-xs hover:bg-gray-50 active:scale-95"
               >
                 ‹
               </button>
@@ -760,65 +1501,144 @@ export function BelajarHome({
                 type="button"
                 aria-label="Cerita berikutnya"
                 onClick={() => setStory((s) => (s + 1) % TESTIMONIALS.length)}
-                className="flex size-8 cursor-pointer items-center justify-center rounded-full border border-gray-200 hover:bg-gray-50"
+                className="flex size-9 cursor-pointer items-center justify-center rounded-full border border-gray-300 bg-white text-gray-700 shadow-xs hover:bg-gray-50 active:scale-95"
               >
                 ›
               </button>
-              {TESTIMONIALS.map((t, i) => (
-                <button
-                  key={t.name}
-                  type="button"
-                  aria-label={`Ke cerita ${i + 1}`}
-                  aria-current={i === story}
-                  onClick={() => setStory(i)}
-                  className={cn(
-                    "h-1.5 cursor-pointer rounded-full transition-all",
-                    i === story ? "w-6 bg-[#0056D2]" : "w-1.5 bg-gray-300",
-                  )}
-                />
-              ))}
             </div>
+          </div>
+
+          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {TESTIMONIALS.map((t, idx) => (
+              <div
+                key={t.name}
+                className={cn(
+                  "flex flex-col justify-between rounded-xl border bg-white p-6 shadow-xs transition-all",
+                  story === idx ? "border-[#0056D2] ring-2 ring-[#0056D2]/20" : "border-gray-200"
+                )}
+              >
+                <div className="mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="relative size-12 shrink-0 overflow-hidden rounded-full border border-gray-200">
+                      <Image
+                        src={t.avatar}
+                        alt={t.name}
+                        fill
+                        sizes="48px"
+                        className="object-cover"
+                      />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-900">{t.name}</h3>
+                      <p className="text-xs text-gray-500">{t.role}</p>
+                    </div>
+                  </div>
+                  <p className="mt-4 text-xs leading-relaxed text-gray-700 sm:text-sm">
+                    “{t.text}”
+                  </p>
+                </div>
+                <div className="flex text-[#eb8a04]">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} className="size-3.5 fill-[#eb8a04]" />
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      <section id="katalog" aria-labelledby="katalog-title" className="scroll-mt-20 bg-white">
-        <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <h2 id="katalog-title" className="mb-1 text-xl font-bold tracking-tight text-gray-900">
-            Katalog resource
+      <section aria-labelledby="kategori-heading" className="bg-white py-14">
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+          <h2 id="kategori-heading" className="text-2xl font-bold tracking-tight text-[#1f1f1f] sm:text-3xl">
+            Jelajahi kategori
           </h2>
-          <p className="mb-4 text-sm text-gray-600">
-            {searched.length} dari {resources.length} resource
-            {query.trim() ? ` untuk “${query.trim()}”` : ""} · {completedCount} selesai
+          <p className="mt-1.5 text-sm text-gray-600">
+            Temukan topik sesuai minat dan spesialisasi keahlianmu.
           </p>
-          <div className="flex gap-4 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {searched.map((r) => (
-              <CourseCard key={r.id} resource={r} />
+
+          <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat.name}
+                type="button"
+                onClick={() => {
+                  setQuery(cat.name.split(" ")[0]);
+                  document.getElementById("katalog")?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 text-left shadow-2xs transition-colors hover:border-[#0056D2] hover:bg-blue-50/40 active:scale-[0.98]"
+              >
+                <span className="text-2xl" aria-hidden="true">{cat.icon}</span>
+                <div className="min-w-0 flex-1">
+                  <span className="block truncate text-xs font-bold text-gray-900 sm:text-sm">{cat.name}</span>
+                  <span className="text-[11px] text-gray-500">{cat.count}+ materi</span>
+                </div>
+              </button>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section id="katalog" aria-labelledby="katalog-heading" className="scroll-mt-20 border-t border-gray-200 bg-[#f5f7fa] py-14">
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h2 id="katalog-heading" className="text-2xl font-bold tracking-tight text-[#1f1f1f] sm:text-3xl">
+                Katalog lengkap kursus
+              </h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Menampilkan {searched.length} dari {resources.length} materi
+                {query.trim() ? ` untuk pencarian “${query.trim()}”` : ""}
+              </p>
+            </div>
+
+            {query ? (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                className="text-xs font-semibold text-[#0056D2] hover:underline sm:text-sm"
+              >
+                Reset pencarian
+              </button>
+            ) : null}
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            {searched.map((r) => (
+              <CourseraCourseCard key={r.id} resource={r} />
+            ))}
+          </div>
+
           {searched.length === 0 ? (
-            <div className="mt-2 rounded-2xl border border-dashed border-gray-300 bg-white p-6 text-center">
-              <p className="text-sm text-gray-600">
-                Tidak ada hasil untuk “{query.trim()}”.
+            <div className="mt-6 rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center">
+              <p className="text-base font-semibold text-gray-800">
+                Tidak ada materi yang cocok dengan pencarian “{query.trim()}”.
+              </p>
+              <p className="mt-1 text-sm text-gray-500">
+                Coba gunakan kata kunci umum seperti “HTML”, “React”, “Python”, atau “Security”.
               </p>
               <button
                 type="button"
                 onClick={() => setQuery("")}
-                className="mt-2 cursor-pointer rounded-full bg-[#0056D2] px-4 py-1.5 text-sm font-medium text-white hover:bg-[#00419e]"
+                className="mt-4 inline-flex rounded-lg bg-[#0056D2] px-5 py-2.5 text-xs font-semibold text-white hover:bg-[#00419e]"
               >
-                Tampilkan semua
+                Tampilkan semua materi
               </button>
             </div>
           ) : null}
         </div>
       </section>
 
-      <section aria-labelledby="faq" className="bg-white">
-        <div className="mx-auto w-full max-w-7xl px-4 pb-14 sm:px-6 lg:px-8">
-          <h2 id="faq" className="mb-4 text-xl font-bold tracking-tight text-gray-900">
-            Pertanyaan umum
+      <section aria-labelledby="faq-heading" className="border-t border-gray-200 bg-white py-14">
+        <div className="mx-auto w-full max-w-4xl px-4 sm:px-6 lg:px-8">
+          <h2 id="faq-heading" className="text-center text-2xl font-bold tracking-tight text-[#1f1f1f] sm:text-3xl">
+            Pertanyaan yang sering diajukan
           </h2>
-          <div className="divide-y divide-gray-200 rounded-2xl border border-gray-200 bg-white">
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Semua yang perlu kamu ketahui tentang pembelajaran, akreditasi, dan sertifikat di Careevo.
+          </p>
+
+          <div className="mt-8 divide-y divide-gray-200 rounded-2xl border border-gray-200 bg-white shadow-xs">
             {FAQS.map((f, i) => {
               const open = openFaq === i;
               const panelId = `faq-panel-${i}`;
@@ -829,15 +1649,17 @@ export function BelajarHome({
                     onClick={() => setOpenFaq(open ? null : i)}
                     aria-expanded={open}
                     aria-controls={panelId}
-                    className="flex w-full cursor-pointer items-center justify-between gap-4 px-5 py-4 text-left"
+                    className="flex w-full cursor-pointer items-center justify-between gap-4 px-6 py-5 text-left transition-colors hover:bg-gray-50/60"
                   >
-                    <span className="text-sm font-semibold text-gray-900">{f.q}</span>
-                    <span aria-hidden="true" className="text-gray-400">
+                    <span className="text-sm font-bold text-gray-900 sm:text-base">{f.q}</span>
+                    <span aria-hidden="true" className="text-lg font-bold text-gray-400">
                       {open ? "−" : "+"}
                     </span>
                   </button>
                   {open ? (
-                    <p id={panelId} className="px-5 pb-5 text-sm leading-relaxed text-gray-600">{f.a}</p>
+                    <p id={panelId} className="px-6 pb-6 text-sm leading-relaxed text-gray-600">
+                      {f.a}
+                    </p>
                   ) : null}
                 </div>
               );
