@@ -724,7 +724,7 @@ const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
       rating: "4.7",
       reviews: "101K",
       type: "Professional Certificate",
-      href: "/belajar/crs-2",
+      href: "/professional-certificates/ibm-generative-ai",
     },
     {
       title: "AI Agents and Agentic AI with Python & Generative AI",
@@ -734,7 +734,7 @@ const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
       rating: "4.6",
       reviews: "479",
       type: "Course",
-      href: "/belajar/crs-1",
+      href: "/specializations/ai-agents-python",
     },
     {
       title: "Deep Learning",
@@ -744,7 +744,7 @@ const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
       rating: "4.8",
       reviews: "147K",
       type: "Specialization",
-      href: "/belajar/crs-3",
+      href: "/specializations/deep-learning",
     },
     {
       title: "Machine Learning",
@@ -754,7 +754,7 @@ const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
       rating: "4.9",
       reviews: "39K",
       type: "Specialization",
-      href: "/belajar/r1",
+      href: "/specializations/machine-learning-introduction",
     },
   ],
   "Software Developer": [
@@ -1059,7 +1059,7 @@ const NEW_AND_POPULAR_COLUMNS: {
         rating: "4.8",
         thumbnail:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/60/097644c12e4aeba0c3420de571cac1/GCC-Coursera-thumbnail-DA-foundations-tony-cert-level.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50&crop=focalpoint&fp-y=0.48",
-        href: "/belajar/crs-4",
+        href: "/professional-certificates/google-data-analytics",
       },
       {
         title: "IBM Data Analyst",
@@ -1070,24 +1070,24 @@ const NEW_AND_POPULAR_COLUMNS: {
         rating: "4.6",
         thumbnail:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/23/f74c5a9a9c4110b78909194abbdc7a/BC-5768_VisMerch-Phase-3-Assets_ProCerts_IBM_DataAnalyst.png?auto=format%2Ccompress&dpr=1&w=320&h=180&fit=crop&q=50",
-        href: "/belajar/crs-2",
+        href: "/professional-certificates/ibm-data-analyst",
       },
       {
-        title: "Google AI",
+        title: "Google AI Essentials",
         org: "Google",
         orgLogo:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
-        type: "Professional Certificate",
+        type: "Specialization",
         rating: "4.8",
         thumbnail:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://coursera-course-photos.s3.amazonaws.com/64/1dd26fb7e24637b91b119764d08e01/GCC-Coursera-thumbnail-DA-foundations-tony.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50&crop=faces",
-        href: "/belajar/r1",
+        href: "/specializations/ai-essentials-google",
       },
     ],
   },
   {
     category: "Hot new releases",
-    categoryHref: "#katalog",
+    categoryHref: "/explore/most-popular-courses",
     items: [
       {
         title: "The Complete Claude Code & Claude Cowork Masterclass",
@@ -1097,7 +1097,7 @@ const NEW_AND_POPULAR_COLUMNS: {
         type: "Specialization",
         thumbnail:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/26/26ea676ea74cf09e0540737ab855b8/Coursera_Specialization_600x600.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=64&fit=clip&q=50",
-        href: "/belajar/r3",
+        href: "/specializations/complete-claude-code-claude-cowork-masterclass",
       },
       {
         title: "AWS Security Engineer Advanced",
@@ -1107,7 +1107,7 @@ const NEW_AND_POPULAR_COLUMNS: {
         type: "Professional Certificate",
         thumbnail:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/de/1d3ba587274f8cb6694947d8f76fef/AWS_logo_square_1200x1200.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=64&fit=clip&q=50",
-        href: "/belajar/r7",
+        href: "/professional-certificates/aws-security-engineer",
       },
       {
         title: "Microsoft Data Analysis with SQL, Excel & Power BI",
@@ -1118,13 +1118,13 @@ const NEW_AND_POPULAR_COLUMNS: {
         rating: "4.6",
         thumbnail:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/8c/625f6802494c73be844b9e745d4d4d/Microsoft-Data-Analysis-with-SQL-Excel-Power-BI.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=64&fit=clip&q=50",
-        href: "/belajar/r12",
+        href: "/specializations/microsoft-data-analysis",
       },
     ],
   },
   {
     category: "Trending AI courses",
-    categoryHref: "#katalog",
+    categoryHref: "/explore/most-popular-courses",
     items: [
       {
         title: "AWS Generative AI Developer Advanced",
@@ -1134,7 +1134,7 @@ const NEW_AND_POPULAR_COLUMNS: {
         type: "Professional Certificate",
         thumbnail:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/e4/71610c146f478c82f76469455e1080/AWS_logo_square_1200x1200.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=64&fit=clip&q=50",
-        href: "/belajar/r9",
+        href: "/professional-certificates/aws-generative-ai",
       },
       {
         title: "Machine Learning",
@@ -1145,7 +1145,7 @@ const NEW_AND_POPULAR_COLUMNS: {
         rating: "4.9",
         thumbnail:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/3a/9d2a7af297483a845340bcfbac6f1e/MLS.course-banners-01_Course-Logo-.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=64&fit=clip&q=50",
-        href: "/belajar/r2",
+        href: "/specializations/machine-learning-introduction",
       },
       {
         title: "Google AI Essentials",
@@ -1156,7 +1156,7 @@ const NEW_AND_POPULAR_COLUMNS: {
         rating: "4.8",
         thumbnail:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/07/eced232a07415eb3d77c788ae5754e/AIE.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50&crop=focalpoint&fp-y=0.48",
-        href: "/belajar/r1",
+        href: "/specializations/ai-essentials-google",
       },
     ],
   },
