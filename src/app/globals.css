@@ -1530,6 +1530,13 @@ body {
  * and an inset top highlight to fake the "pane" edge. Falls back to a solid
  * near-white pane where backdrop-filter is unsupported.
  * ------------------------------------------------------------------------- */
+/* Wrapped in `@layer components` on purpose: these classes set `position` and
+ * other properties that a Tailwind utility on the same element must be able to
+ * override. Un-layered CSS beats Tailwind's utility layer regardless of source
+ * order, which made `.glass-card { position: relative }` silently defeat the
+ * `fixed` utility on the Edit-profile `DialogContent` — the dialog rendered
+ * inline instead of as an overlay. Layering restores the normal cascade. */
+@layer components {
 .glass-ambient {
   position: relative;
   isolation: isolate;
@@ -1596,6 +1603,7 @@ body {
   .glass-card { background: rgba(255, 255, 255, 0.92); }
   .glass-card--strong { background: rgba(255, 255, 255, 0.96); }
   .glass-chip { background: rgba(255, 255, 255, 0.94); }
+}
 }
 
 .profile-card { margin-top: 2.5rem; }

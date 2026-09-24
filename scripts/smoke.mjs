@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Smoke test: cek status HTTP 15 route PRD (tanpa supabase, mock session).
+// Smoke test: cek status HTTP route PRD (tanpa supabase, mock session).
 // Pakai: node scripts/smoke.mjs [baseUrl]
 
 const base = process.argv[2] ?? "http://localhost:3000";
