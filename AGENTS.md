@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Careevo is a Next.js prototype ("Learn. Verify. Earn."): a learning-to-job bridge with HMAC attestations, fixture-backed audit data, and a Socrates review agent. Core fixture data is loaded through `src/lib/fixtures.ts`. Auth and onboarding use cookie state; courses, their modules, and their materials are persisted to `data/courses.json` on disk (see `src/lib/courses/storage.ts`), with uploads under `public/uploads/`. Gemini evaluation is an optional, on-demand network call.
+Careevo is a Next.js prototype ("Learn. Verify. Earn."): a learning-to-job bridge with HMAC attestations, fixture-backed audit data, and a Socrates review agent. Core fixture data is loaded through `src/lib/fixtures.ts`. Auth and onboarding use cookie state; courses, their modules, and their materials are persisted to `data/courses.json` on disk (see `src/lib/courses/storage.ts`), with uploads under `public/uploads/`. The editable public profile uses a signed cookie, and the LinkedIn-style resume (work/projects/education/skills/CV uploads) uses a small file-based store under `.data/` (see below). Gemini evaluation is an optional, on-demand network call.
 
 ## Commands
 
@@ -37,17 +37,22 @@ A skill with invalid frontmatter fails silently, so `npm run skills:check` is th
 ## Testing quirks
 
 - Vitest `include` is exactly `src/**/*.test.ts`; `.test.tsx` and browser tests are not included.
-- Test environment is `node`, with no jsdom or browser test runner.
+- Test environment is `node`, with no jsdom or browser test runner — tests cover pure logic only (e.g. `src/lib/scoring`, `src/lib/attestation`, `src/lib/resume`, `src/app/smoke.test.ts`).
+- The file-based resume store's test points `CAREERS_DATA_DIR` at a temp dir **before** importing the module, so it never touches the repo's real `.data/`.
 - `@/` alias maps to `src/` in both `tsconfig.json` and `vitest.config.mts`; keep them in sync.
 
 ## Architecture
 
-- App Router uses route groups in `src/app/`: `(marketing)` (`/`, `/careevo-plus`), `(public)` (for example `/masuk`, `/kerja`, `/loker`, `/p/[username]`, `/verify/[token]`, and catalog routes such as `/explore/most-popular-courses` and `/specializations/[slug]`), `(onboarding)` (`/onboarding`, `/onboarding/demo`), plus learner `(app)`, focus `(focus)`, and staff `(verifikator)` pages.
+- App Router uses route groups in `src/app/`: `(marketing)` (`/`, `/careevo-plus`), `(public)` (for example `/masuk`, `/kerja`, `/loker`, `/p/[username]`, `/verify/[token]`, and catalog routes such as `/explore/most-popular-courses` and `/specializations/[slug]`; plus `p/[username]/berkas/[slot]` for public CV/portfolio PDFs), `(onboarding)` (`/onboarding`, `/onboarding/demo`), plus learner `(app)`, focus `(focus)`, and staff `(verifikator)` pages.
 - **Auth gating lives in the group layouts**, not middleware (there is no `middleware.ts`): `(app)` redirects missing sessions to `/masuk` and learner sessions without a completed profile to `/onboarding`; `(focus)` checks the session and completed profile, redirecting missing profiles to `/onboarding`; `(verifikator)` checks the session and `isStaffRole()`. Individual pages re-check `getSession()` and `return null` if absent.
 - Auth is **cookie-only**: HMAC-signed session cookie `ls_session` (`src/lib/auth/session.ts`) and registered users in an HMAC-signed `ls_users` cookie capped at 20 (`src/lib/auth/user-store.ts`). Passwords are salted SHA-256, not bcrypt.
 - Env: `SESSION_SECRET` and `ATTESTATION_SECRET` are optional and fall back to dev defaults, so the app runs with no `.env`; `GEMINI_API_KEY` is optional and enables the on-demand evaluation. `.env*` is gitignored.
-- `src/actions/*.ts` are `"use server"` server actions: `auth.ts`, `review.ts`, `onboarding.ts`, `profile.ts`, `enrollment.ts`, `courses.ts`, and `evaluasi.ts`.
-- Domain/business logic lives in `src/lib/{scoring,agents,attestation,audit,jobs,validation,courses,onboarding,profile}`; UI in `src/components` (shadcn/ui under `src/components/ui`, feature components under `src/components/features`).
+- `src/actions/*.ts` are `"use server"` server actions: `auth.ts`, `review.ts`, `onboarding.ts`, `profile.ts`, `enrollment.ts`, `courses.ts`, `evaluasi.ts`, and `resume.ts`.
+- Domain/business logic lives in `src/lib/{scoring,agents,attestation,audit,jobs,validation,courses,onboarding,profile,resume}`; UI in `src/components` (shadcn/ui under `src/components/ui`, feature components under `src/components/features`).
+- **Persistence patterns, deliberately different — do not "unify" them:**
+  - **Signed cookies** (`src/lib/auth`, `src/lib/onboarding`, `src/lib/profile`) — small, tamper-evident JSON; `next/headers` is mocked in tests. The editable public profile (`src/lib/profile`) fits here because it is only a name, a bio and two downscaled images.
+  - **`data/courses.json`** (`src/lib/courses/storage.ts`) — courses/modules/materials (and formatted prose pages), written to disk with uploads under `public/uploads/`. See the curriculum section below.
+  - **File-based resume store** (`src/lib/resume`) — the LinkedIn-style resume (work/projects/education/skills/certifications, about + contact, and uploaded CV/portfolio PDFs). Unbounded in size, so it is written under `.data/` (gitignored) as JSON + files, **not** a cookie: a payload that big would silently exceed the ~4KB cookie limit and lose data with no error. Owner dirs are keyed by `sha256(email)` so a username can never traverse the tree; file names are `path.basename`-checked. Writes to `process.cwd()` fail on a read-only serverless FS — set `CAREERS_DATA_DIR` to a writable path there. Uploaded files are served publicly via `GET /p/[username]/berkas/[slot]` (product decision: a candidate shares their CV), and validated server-side (MIME + `%PDF-` magic bytes + 5MB cap) in `validasiBerkas`.
 
 ## Navigation — navbar contract (do not regress)
 

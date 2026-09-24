@@ -64,8 +64,10 @@ export function Problem() {
             <p>
               Tiga segmen Course, Validasi, dan Job Seeking plus bukti proses (Process Trail, prompt
               log, VTS, dan attestation HMAC), bukan klaim portfolio AI. Proses terekam, hasil
-              ditandatangani, dan keputusan akhir tetap di verifikator manusia. Tanpa biometrik, tanpa
-              silent reject.
+              ditandatangani, dan keputusan akhir tetap di verifikator manusia. Kamera dirancang
+              hanya aktif di dalam sesi terverifikasi yang kamu setujui, dan belum berjalan di
+              aplikasi ini — tanpa deteksi identitas, tanpa silent
+              reject.
             </p>
           </div>
         </div>

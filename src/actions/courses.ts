@@ -17,6 +17,7 @@ import {
   updateCourseSchema,
   type CourseFormData,
 } from "@/lib/validation/course";
+import { kebijakanDefault } from "@/lib/courses/kebijakan";
 
 export interface CourseActionState {
   ok: boolean;
@@ -104,7 +105,12 @@ export async function updateCourseAction(
     return { ok: false, error: "Kursus tidak ditemukan dalam sistem." };
   }
 
+  // `is_free` hanya ditimpa bila formulir benar-benar mengirimkannya: form
+  // kebijakan (dan form identitas) tidak punya kontrol harga, sehingga
+  // menstempel `false` di sini akan diam-diam mengubah kursus gratis menjadi
+  // berbayar setiap kali admin menyimpan hal lain.
   const isFreeRaw = formData.get("is_free");
+  const adaIsFree = isFreeRaw !== null;
   const isFree = isFreeRaw === "true" || isFreeRaw === "on" || isFreeRaw === "1";
 
   const raw: Record<string, unknown> = {
@@ -117,8 +123,12 @@ export async function updateCourseAction(
     tags: formData.get("tags") ?? existing.tags.join(", "),
     url: formData.get("url") ?? existing.url,
     duration_min: formData.get("duration_min") ?? existing.duration_min,
-    is_free: isFree,
-    price: isFree ? 0 : formData.get("price") ?? 0,
+    ...(adaIsFree
+      ? {
+          is_free: isFree,
+          price: isFree ? 0 : formData.get("price") ?? 0,
+        }
+      : {}),
     status: formData.get("status") ?? existing.status,
   };
 
@@ -127,12 +137,46 @@ export async function updateCourseAction(
     raw.slug = slug.trim();
   }
 
+  // Kebijakan ikut hanya bila field-nya benar-benar dikirim: form identitas
+  // tidak mengirimnya, dan menyertakan `undefined` akan dianggap "tidak
+  // berubah" oleh store (versi tidak naik), tetapi memaksakan dua aturan wajib
+  // di sini justru menolak form yang tidak menyentuh kebijakan sama sekali.
+  const bantuan = formData.get("kebijakan_aturan_bantuan");
+  const pengawasan = formData.get("kebijakan_aturan_pengawasan");
+  if (typeof bantuan === "string" && bantuan) {
+    raw.kebijakan = {
+      aturan_bantuan: bantuan,
+      // Kursus yang belum pernah punya kebijakan tidak menyimpan aturan
+      // pengawasan apa pun, jadi jatuhkan ke default — bukan `undefined` yang
+      // akan langsung ditolak skema dan menggagalkan simpan.
+      aturan_pengawasan:
+        typeof pengawasan === "string" && pengawasan
+          ? pengawasan
+          : (existing.kebijakan?.aturan_pengawasan ?? kebijakanDefault().aturan_pengawasan),
+    };
+  }
+
   const parsed = updateCourseSchema.safeParse(raw);
   if (!parsed.success) {
+    // Error bersarang (`kebijakan.aturan_bantuan`) dipetakan ke nama field
+    // formulirnya supaya pesannya tampil di sebelah kontrol yang salah —
+    // `extractFieldErrors` hanya memakai segmen path pertama, sehingga tanpa
+    // ini keduanya menumpuk di kunci `kebijakan` yang tidak punya input.
+    const fieldErrors: Record<string, string> = {};
+    for (const issue of parsed.error.issues) {
+      const [pertama, kedua] = issue.path;
+      const kunci =
+        pertama === "kebijakan" && typeof kedua === "string"
+          ? `kebijakan_${kedua}`
+          : typeof pertama === "string"
+            ? pertama
+            : "";
+      if (kunci && !fieldErrors[kunci]) fieldErrors[kunci] = issue.message;
+    }
     return {
       ok: false,
       error: "Periksa kembali perbaikan data kursus.",
-      fieldErrors: extractFieldErrors(parsed.error),
+      fieldErrors,
     };
   }
 

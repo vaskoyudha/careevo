@@ -112,6 +112,46 @@ describe("Modul Server Actions", () => {
     expect(tersimpan?.judul).toBe("React Hooks Lanjutan");
   });
 
+  it("menyimpan checkpoint modul lewat form", async () => {
+    vi.spyOn(sessionModule, "getSession").mockResolvedValue(adminSession);
+
+    const dibuat = await createModulAction({ ok: false }, formModul());
+    const id = dibuat.modul!.id;
+
+    const res = await updateModulAction(
+      { ok: false },
+      formModul({
+        id,
+        checkpoint_mode: "proyek",
+        checkpoint_batas_waktu: "90",
+        checkpoint_ref: "ch-7",
+      }),
+    );
+
+    expect(res.ok).toBe(true);
+    expect(res.modul?.checkpoint?.mode).toBe("proyek");
+    expect(res.modul?.checkpoint?.batas_waktu_menit).toBe(90);
+    expect(res.modul?.checkpoint?.ref).toBe("ch-7");
+
+    const tersimpan = await getModul(COURSE_ID, id);
+    expect(tersimpan?.checkpoint?.mode).toBe("proyek");
+  });
+
+  it("menolak checkpoint dengan batas waktu di luar rentang", async () => {
+    vi.spyOn(sessionModule, "getSession").mockResolvedValue(adminSession);
+
+    const dibuat = await createModulAction({ ok: false }, formModul());
+    const id = dibuat.modul!.id;
+
+    const res = await updateModulAction(
+      { ok: false },
+      formModul({ id, checkpoint_mode: "materi", checkpoint_batas_waktu: "9999" }),
+    );
+
+    expect(res.ok).toBe(false);
+    expect(res.fieldErrors?.checkpoint).toBeDefined();
+  });
+
   it("menghapus modul dan mengosongkan store", async () => {
     vi.spyOn(sessionModule, "getSession").mockResolvedValue(adminSession);
 

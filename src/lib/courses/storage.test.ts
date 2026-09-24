@@ -103,6 +103,26 @@ describe("simpanCourses", () => {
     expect(hasil?.[0].modul?.[0].materi?.[0].tipe).toBe("video");
   });
 
+  it("mempertahankan kebijakan asesmen di dalam kursus", async () => {
+    const kursus = {
+      ...INITIAL_COURSES[0],
+      kebijakan: {
+        aturan_bantuan: "tanpa_ai" as const,
+        aturan_pengawasan: "wajib" as const,
+        versi: 3,
+        aturan_pengawasan_sejak: "2026-09-24T00:00:00.000Z",
+      },
+    };
+
+    await simpanCourses([kursus]);
+    const hasil = await muatCourses();
+
+    // `isCourse` sengaja longgar terhadap field opsional, jadi `kebijakan`
+    // harus melewati penyaring muat maupun tulis tanpa perlu diubah.
+    expect(hasil?.[0].kebijakan?.versi).toBe(3);
+    expect(hasil?.[0].kebijakan?.aturan_bantuan).toBe("tanpa_ai");
+  });
+
   it("tidak meninggalkan berkas sementara setelah selesai", async () => {
     await simpanCourses(INITIAL_COURSES);
 
