@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { daftarKursusAction, tandaiModulAction } from "./enrollment";
-import { resetCourses } from "@/lib/courses/store";
+import { createModul, resetCourses } from "@/lib/courses/store";
 import { decodePendaftaran } from "@/lib/courses/enrollment";
 import * as sessionModule from "@/lib/auth/session";
 import * as cacheModule from "next/cache";
@@ -119,5 +119,74 @@ describe("enrollment actions", () => {
     expect(daftar).toHaveLength(1);
     expect(daftar[0].course_id).toBe("crs-1");
     expect(daftar[0].selesai_modul).toEqual(["crs-1-m1"]);
+  });
+
+  it("menolak modul dengan checkpoint kuis", async () => {
+    await daftarKursusAction("crs-3");
+    // Modul tersimpan dengan checkpoint kuis: kelulusannya hanya sah dari kuis,
+    // jadi tombol "Tandai selesai" tidak boleh menembusnya.
+    const modulKuis = await createModul("crs-3", {
+      judul: "Kuis Keamanan Dasar",
+      ringkasan: "Uji pemahaman dasar OWASP lewat kuis tersimpan.",
+      durasi_min: 20,
+      checkpoint: { mode: "kuis", batas_waktu_menit: 20 },
+    });
+    expect(modulKuis).not.toBeNull();
+
+    const res = await tandaiModulAction("crs-3", modulKuis!.id);
+    expect(res.ok).toBe(false);
+    // Pesannya disamakan dengan `selesaikanMateriAction`, lengkap dengan dua
+    // kata kuncinya, supaya kedua jalur tidak menyimpang.
+    expect(res.error).toContain("kuis/proyek");
+    expect(res.error).toContain("penandaan manual");
+
+    // Bukti bahwa penolakan benar-benar menghentikan penulisan: progres tetap
+    // kosong, bukan hanya balasan `ok: false`.
+    const daftar = decodePendaftaran(jar.get("ls_enroll"));
+    expect(daftar[0].selesai_modul).toEqual([]);
+  });
+
+  it("menolak modul dengan checkpoint proyek", async () => {
+    await daftarKursusAction("crs-3");
+    const modulProyek = await createModul("crs-3", {
+      judul: "Proyek Keamanan Terapan",
+      ringkasan: "Bangun tinjauan keamanan sebagai proyek penilaian.",
+      durasi_min: 60,
+      checkpoint: { mode: "proyek", batas_waktu_menit: 120 },
+    });
+    expect(modulProyek).not.toBeNull();
+
+    const res = await tandaiModulAction("crs-3", modulProyek!.id);
+    expect(res.ok).toBe(false);
+    expect(res.error).toContain("kuis/proyek");
+  });
+
+  it("tetap mengizinkan penandaan modul checkpoint materi", async () => {
+    await daftarKursusAction("crs-3");
+    // Mode `materi` (dan modul turunan tanpa checkpoint) adalah jalur informal
+    // yang sah: kursus beraturan tetap bisa ditandai sendiri peserta.
+    const modulMateri = await createModul("crs-3", {
+      judul: "Pengantar OWASP",
+      ringkasan: "Ringkasan sepuluh risiko teratas menurut OWASP.",
+      durasi_min: 15,
+      checkpoint: { mode: "materi", batas_waktu_menit: 30 },
+    });
+    expect(modulMateri).not.toBeNull();
+
+    const res = await tandaiModulAction("crs-3", modulMateri!.id);
+    expect(res.ok).toBe(true);
+
+    const daftar = decodePendaftaran(jar.get("ls_enroll"));
+    expect(daftar[0].selesai_modul).toEqual([modulMateri!.id]);
+  });
+
+  it("tetap mengizinkan penandaan modul turunan tanpa checkpoint tersimpan", async () => {
+    // Kursus yang belum pernah diedit admin memakai modul turunan (id lama);
+    // modul itu tidak punya checkpoint, jadi defaultnya `materi` dan jalur
+    // informal harus tetap bekerja persis seperti sebelumnya.
+    await daftarKursusAction("crs-1");
+    const res = await tandaiModulAction("crs-1", "crs-1-m1");
+    expect(res.ok).toBe(true);
+    expect(decodePendaftaran(jar.get("ls_enroll"))[0].selesai_modul).toEqual(["crs-1-m1"]);
   });
 });
