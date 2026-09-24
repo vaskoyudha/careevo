@@ -102,6 +102,50 @@ const SEED_LEGACY = [
   },
 ];
 
+/**
+ * Kursus dengan materi `kuis` dari versi sebelumnya.
+ *
+ * Kuis dulu salah satu varian materi; sekarang ia entitas tersendiri di bank
+ * soal. Berkas lama tetap bisa memuat bentuk materi itu, jadi migrasinya diuji
+ * lewat jalur disk yang sebenarnya — bukan hanya lewat fungsi murninya.
+ */
+const SEED_LEGACY_KUIS = [
+  {
+    ...SEED_DARI_DISK[0],
+    id: "crs-legacy-kuis-1",
+    title: "Kursus Kuis Lama",
+    slug: "kursus-kuis-lama",
+    modul: [
+      {
+        ...SEED_DARI_DISK[0].modul![0],
+        id: "mod-kuis-1",
+        course_id: "crs-legacy-kuis-1",
+        materi: [
+          {
+            id: "mat-kuis-1",
+            modul_id: "mod-kuis-1",
+            course_id: "crs-legacy-kuis-1",
+            judul: "Kuis Lama",
+            urutan: 1,
+            created_at: "2026-09-20T00:00:00.000Z",
+            updated_at: "2026-09-20T00:00:00.000Z",
+            tipe: "kuis",
+            soal: [
+              {
+                id: "s1",
+                pertanyaan: "Apa kegunaan useState?",
+                pilihan: ["Menyimpan state lokal", "Mengambil data HTTP"],
+                jawaban_benar: 0,
+              },
+            ],
+            nilai_lulus: 75,
+          },
+        ],
+      },
+    ],
+  },
+];
+
 let DIR = "";
 
 beforeAll(() => {
@@ -109,7 +153,7 @@ beforeAll(() => {
   process.env.CAREEVO_DATA_DIR = DIR;
   writeFileSync(
     path.join(DIR, "courses.json"),
-    JSON.stringify([...SEED_DARI_DISK, ...SEED_LEGACY], null, 2),
+    JSON.stringify([...SEED_DARI_DISK, ...SEED_LEGACY, ...SEED_LEGACY_KUIS], null, 2),
     "utf8",
   );
 });
@@ -124,7 +168,11 @@ describe("hidrasi store dari disk", () => {
     const { listCourses } = await import("./store");
     const daftar = await listCourses();
 
-    expect(daftar.map((c) => c.id)).toEqual(["crs-disk-1", "crs-legacy-1"]);
+    expect(daftar.map((c) => c.id)).toEqual([
+      "crs-disk-1",
+      "crs-legacy-1",
+      "crs-legacy-kuis-1",
+    ]);
     expect(daftar[0].title).toBe("Kursus Dari Disk");
   });
 
@@ -191,5 +239,47 @@ describe("hidrasi store dari disk", () => {
     // Tanpa diteruskan resolver, modul tersimpan akan tampak kosong di halaman
     // belajar walau isinya sudah dimigrasikan.
     expect(modul[0].halaman?.[0].judul).toBe("Catatan Lama");
+  });
+
+  it("migrasi materi kuis lama menjadi entri bank soal", async () => {
+    // Promosi kuis harus terjadi sebelum penulisan apa pun, supaya referensi
+    // `Modul.kuis` dan entri banknya konsisten sejak pembacaan pertama.
+    const { getCourseById, listKuis } = await import("./store");
+    const kursus = await getCourseById("crs-legacy-kuis-1");
+    const mod = kursus?.modul?.[0];
+
+    expect(mod?.materi).toEqual([]);
+    expect(mod?.kuis).toEqual(["kuis-mat-kuis-1"]);
+
+    const bank = await listKuis();
+    expect(bank).toHaveLength(1);
+    expect(bank[0].judul).toBe("Kuis Lama");
+    expect(bank[0].nilai_lulus).toBe(75);
+    expect(bank[0].soal).toHaveLength(1);
+  });
+
+  it("kuis hasil migrasi terbaca lewat resolver modul", async () => {
+    // Resolver yang meresolusi id ke entri bank; tanpa itu UI learner hanya
+    // melihat daftar id yang tidak bisa dirender.
+    const { modulUntuk } = await import("./modul-resolver");
+    const modul = await modulUntuk("crs-legacy-kuis-1");
+
+    expect(modul[0].kuis).toHaveLength(1);
+    expect(modul[0].kuis?.[0].judul).toBe("Kuis Lama");
+  });
+
+  it("migrasi kuis menuliskan banknya ke berkas sendiri", async () => {
+    // Bank soal disimpan di `kuis.json`, bukan ditumpangkan ke `courses.json` —
+    // itulah yang memungkinkan satu kuis dipakai lintas kursus.
+    const { createKuis } = await import("./store");
+    await createKuis({ judul: "Kuis Baru", soal: [], nilai_lulus: 70 });
+
+    const mentah = JSON.parse(readFileSync(path.join(DIR, "kuis.json"), "utf8")) as Array<{
+      judul: string;
+    }>;
+
+    expect(mentah.map((k) => k.judul)).toContain("Kuis Baru");
+    // Kuis hasil migrasi juga ikut tersimpan pada penulisan berikutnya.
+    expect(mentah.map((k) => k.judul)).toContain("Kuis Lama");
   });
 });

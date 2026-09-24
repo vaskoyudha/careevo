@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { cn } from "@/lib/utils";
-import type { Materi, SoalKuis } from "@/types/course";
+import type { Materi } from "@/types/course";
 
 /**
  * Renderer materi per tipe untuk sisi learner.
@@ -11,7 +10,8 @@ import type { Materi, SoalKuis } from "@/types/course";
  * dilihat admin saat menyusun materi sama persis dengan yang dilihat peserta.
  *
  * Hanya **lampiran** yang dirender di sini. Prosa ditulis sebagai halaman
- * berformat dan dirender `halaman-view.tsx` — lihat catatan di `TipeMateri`.
+ * berformat dan dirender `halaman-view.tsx`; asesmen ditulis sebagai kuis dan
+ * dirender `kuis-view.tsx`. Lihat catatan di `TipeMateri`.
  *
  * `switch` di sini sengaja tanpa `default`: menambah varian `Materi` baru akan
  * menjadi error tipe di sini, bukan diam-diam tidak ter-render.
@@ -97,8 +97,6 @@ export function MateriView({
           />
         </div>
       );
-    case "kuis":
-      return <MateriKuis soal={materi.soal} nilaiLulus={materi.nilai_lulus} className={className} />;
   }
 }
 
@@ -137,98 +135,6 @@ function MateriVideo({
         allowFullScreen
         className="aspect-video w-full"
       />
-    </div>
-  );
-}
-
-export function MateriKuis({
-  soal,
-  nilaiLulus,
-  className,
-}: {
-  soal: SoalKuis[];
-  nilaiLulus: number;
-  className?: string;
-}) {
-  const [jawaban, setJawaban] = useState<Record<string, number>>({});
-  const [nilai, setNilai] = useState<number | null>(null);
-
-  const terjawab = Object.keys(jawaban).length;
-
-  const nilaiSekarang = () => {
-    if (soal.length === 0) return 0;
-    const benar = soal.filter((s) => jawaban[s.id] === s.jawaban_benar).length;
-    return Math.round((benar / soal.length) * 100);
-  };
-
-  return (
-    <div className={cn("rounded-xl border border-gray-200 bg-white p-4", className)}>
-      <ol className="space-y-4">
-        {soal.map((s, index) => (
-          <li key={s.id}>
-            <p className="text-sm font-semibold text-gray-900">
-              {index + 1}. {s.pertanyaan}
-            </p>
-            <div className="mt-2 space-y-1.5">
-              {s.pilihan.map((pilihan, i) => {
-                const dipilih = jawaban[s.id] === i;
-                // Setelah dinilai, tandai mana yang benar — umpan balik yang
-                // membuat kuis berguna, bukan sekadar angka di akhir.
-                const benar = nilai !== null && i === s.jawaban_benar;
-                const salah = nilai !== null && dipilih && i !== s.jawaban_benar;
-                return (
-                  <label
-                    key={`${s.id}-${i}`}
-                    className={cn(
-                      "flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm",
-                      benar
-                        ? "border-emerald-300 bg-emerald-50 text-emerald-800"
-                        : salah
-                          ? "border-red-300 bg-red-50 text-red-800"
-                          : "border-gray-200 hover:bg-gray-50",
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name={s.id}
-                      checked={dipilih}
-                      onChange={() => setJawaban((prev) => ({ ...prev, [s.id]: i }))}
-                      className="accent-[#0056D2]"
-                    />
-                    <span className="text-gray-700">{pilihan}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </li>
-        ))}
-      </ol>
-
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={() => setNilai(nilaiSekarang())}
-          disabled={terjawab < soal.length}
-          className="cursor-pointer rounded-full bg-[#0056D2] px-4 py-2 text-xs font-semibold text-white hover:bg-[#00419e] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          Periksa jawaban
-        </button>
-        <span className="text-xs text-gray-500">
-          {terjawab} dari {soal.length} soal terjawab · nilai lulus {nilaiLulus}
-        </span>
-      </div>
-
-      {nilai !== null ? (
-        <p
-          role="status"
-          className={cn(
-            "mt-3 rounded-lg px-3 py-2 text-sm font-medium",
-            nilai >= nilaiLulus ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800",
-          )}
-        >
-          Nilaimu {nilai}. {nilai >= nilaiLulus ? "Lulus!" : `Belum lulus — minimal ${nilaiLulus}.`}
-        </p>
-      ) : null}
     </div>
   );
 }

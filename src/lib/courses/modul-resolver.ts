@@ -1,6 +1,7 @@
-import { getCourseById } from "./store";
+import { getCourseById, listKuis } from "./store";
 import { modulKursus, type ModulKursus, type SumberModul } from "./kurikulum";
-import type { Modul } from "@/types/course";
+import { kuisUntukModul } from "./kuis";
+import type { Kuis, Modul } from "@/types/course";
 
 /**
  * Resolver modul — **hanya untuk server**.
@@ -18,8 +19,11 @@ import type { Modul } from "@/types/course";
  *
  * Modul tersimpan tidak membawa `url` sendiri (materi yang punya), jadi `url`
  * kursus induknya diisikan di sini — sama seperti modul turunan.
+ *
+ * `bank` diteruskan, bukan dibaca di sini, supaya bank soal hanya dimuat sekali
+ * untuk seluruh kursus — bukan sekali per modul.
  */
-function dariTersimpan(modul: Modul[], urlKursus: string): ModulKursus[] {
+function dariTersimpan(modul: Modul[], urlKursus: string, bank: Kuis[]): ModulKursus[] {
   return [...modul]
     .sort((a, b) => a.urutan - b.urutan)
     .map((m) => ({
@@ -32,6 +36,10 @@ function dariTersimpan(modul: Modul[], urlKursus: string): ModulKursus[] {
       // Halaman ikut dibawa karena prosa kini tinggal di sana; tanpa ini,
       // modul tersimpan akan tampak kosong di halaman belajar walau sudah diisi.
       halaman: [...(m.halaman ?? [])].sort((a, b) => a.urutan - b.urutan),
+      // Id kuis diresolusi ke entri banknya di sini. Id yatim (kuisnya sudah
+      // dihapus) otomatis gugur lewat `kuisUntukModul`, jadi UI tidak pernah
+      // menerima referensi yang tidak bisa dirender.
+      kuis: kuisUntukModul(m, bank),
     }));
 }
 
@@ -71,7 +79,7 @@ export async function modulUntuk(courseId: string): Promise<ModulKursus[]> {
 export async function modulUntukSumber(sumber: SumberModul): Promise<ModulKursus[]> {
   const kursus = await getCourseById(sumber.id);
   if (kursus?.modul && kursus.modul.length > 0) {
-    return dariTersimpan(kursus.modul, kursus.url);
+    return dariTersimpan(kursus.modul, kursus.url, await listKuis());
   }
   return modulKursus(sumber);
 }
