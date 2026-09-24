@@ -7,7 +7,7 @@ export const metadata: Metadata = {
     template: "%s · Careevo",
   },
   description:
-    "Jembatan dari course ke pekerjaan pertama: proses belajar terekam, badge HMAC, dan loker teraudit, tanpa biometrik.",
+    "Jembatan dari course ke pekerjaan pertama: proses belajar terekam, badge HMAC, dan loker teraudit; kamera hanya aktif selama sesi terverifikasi yang kamu setujui, tanpa deteksi identitas.",
   applicationName: "Careevo",
 };
 

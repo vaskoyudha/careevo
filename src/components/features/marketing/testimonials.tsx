@@ -27,7 +27,7 @@ const SMALL = [
   },
   {
     quote:
-      "Zero-PII dan nir-biometrik jadi alasan kampus kami berani pakai. Privasi mahasiswa tetap aman.",
+      "Zero-PII dan kamera yang hanya aktif selama sesi terverifikasi jadi alasan kampus kami berani pakai. Privasi mahasiswa tetap aman.",
     name: "Sari Wulandari",
     role: "Koordinator Karier, Kampus Merdeka",
     avatar: AV.four,
