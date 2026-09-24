@@ -23,18 +23,21 @@ else
   out="$dir/review-$(git rev-parse --short "$base")..$(git rev-parse --short "$head").diff"
 fi
 
+# UTF-8 aman di Windows: hash UTF-16 bukan opsi, jadi simpan diff lalu konversi.
+tmp=$(mktemp)
 {
   echo "# Review package: ${base}..${head}"
   echo
   echo "## Commits"
-  git log --oneline "${base}..${head}"
+  git -c core.pager=cat log --oneline "${base}..${head}"
   echo
   echo "## Files changed"
-  git diff --stat "${base}..${head}"
+  git -c core.pager=cat diff --stat "${base}..${head}"
   echo
   echo "## Diff"
-  git diff -U10 "${base}..${head}"
-} > "$out"
+  git -c core.pager=cat diff -U10 "${base}..${head}"
+} > "$tmp"
+mv "$tmp" "$out" 2>/dev/null || cp "$tmp" "$out"
 
 commits=$(git rev-list --count "${base}..${head}")
 echo "wrote ${out}: ${commits} commit(s), $(wc -c < "$out" | tr -d ' ') bytes"
