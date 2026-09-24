@@ -5,7 +5,9 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { ModulKursus } from "@/lib/courses/kurikulum";
 import { hitungProgres, irisModulSelesai } from "@/lib/courses/kurikulum";
+import { checkpointEfektif } from "@/lib/learning/akses";
 import { daftarKursusAction, tandaiModulAction } from "@/actions/enrollment";
+import { selesaikanMateriAction } from "@/actions/learning";
 import { MateriView } from "./materi-view";
 import { HalamanView } from "./halaman-view";
 import {
@@ -145,8 +147,19 @@ function RuangBelajar({
    * sebaliknya — dan menyinkronkannya lewat effect malah menambah render
    * berantai. `boleh` sendiri dimemo oleh provider.
    */
-  const { boleh } = useCourseSession();
+  const { boleh, kebijakan, bukti } = useCourseSession();
   const keputusanLampiran = boleh("materi");
+  /**
+   * Apakah penyelesaian modul `materi` wajib lewat sesi terverifikasi.
+   *
+   * Gerbang ini cermin `putuskanAkses` untuk kegiatan "materi": kebijakan
+   * `opsional` selalu bebas, selain itu peserta tidak punya bukti sesi = belum
+   * boleh. Dipisah dari `keputusanLampiran` dengan sengaja walaupun nilainya
+   * sama hari ini, supaya kedua gerbang bisa bergerak sendiri: lampiran dan
+   * penandaan selesai adalah dua keputusan produk yang berbeda.
+   */
+  const wajibSesiMateri =
+    kebijakan.aturan_pengawasan !== "opsional" && !bukti;
   /**
    * Halaman yang sedang dibaca di dalam modul yang terbuka.
    *
@@ -167,18 +180,57 @@ function RuangBelajar({
       if (hasil.ok) setSudahDaftar(true);
     });
 
-  const tandai = (modulId: string, sudah: boolean) =>
+  /**
+   * Tandai/batalkan satu modul selesai.
+   *
+   * Dua jalur sengaja, dipilih per modul:
+   *
+   * - Moderasi `wajib` + checkpoint `materi` → `selesaikanMateriAction`, satu-
+   *   satunya jalur yang memverifikasi bukti sesi di server. Lewat jalur
+   *   informal, peserta bisa menyelesaikan modul wajib sesi tanpa sesi sama
+   *   sekali — gerbang Task 6 jadi hiasan.
+   * - Sisanya (checkpoint kuis/proyek, atau kursus `opsional`) → jalur informal
+   *   `tandaiModulAction`, supaya modul kuis tetap tersimpan sebagai progres
+   *   informal dan kursus non-verifikasi tidak berubah perilakunya.
+   *
+   * Keputusan jalur dihitung **saat klik**, bukan disimpan di state: bukti sesi
+   * bisa berubah kapan saja (sesi mulai/diakhiri) dan state basi akan memilih
+   * jalur yang salah.
+   */
+  const tandai = (modul: ModulKursus, sudah: boolean) =>
     startTransition(async () => {
-      setModulSibuk(modulId);
-      setSelesai((daftar) =>
-        sudah ? daftar.filter((id) => id !== modulId) : [...daftar, modulId],
-      );
-      const hasil = await tandaiModulAction(kursus.id, modulId);
-      setModulSibuk(null);
-      if (!hasil.ok) {
+      const wajibTerverifikasi = checkpointEfektif(modul).mode === "materi" && wajibSesiMateri;
+      // Modul yang belum tuntas tidak bisa "dibatalkan" lewat jalur
+      // terverifikasi: action itu hanya menandai selesai. Pembatalan tetap
+      // informal supaya peserta masih bisa mengoreksi tandanya.
+      if (!wajibTerverifikasi || sudah) {
+        setModulSibuk(modul.id);
         setSelesai((daftar) =>
-          sudah ? [...daftar, modulId] : daftar.filter((id) => id !== modulId),
+          sudah ? daftar.filter((id) => id !== modul.id) : [...daftar, modul.id],
         );
+        const hasil = await tandaiModulAction(kursus.id, modul.id);
+        setModulSibuk(null);
+        if (!hasil.ok) {
+          setSelesai((daftar) =>
+            sudah ? [...daftar, modul.id] : daftar.filter((id) => id !== modul.id),
+          );
+          setPesan(hasil.error ?? null);
+        }
+        return;
+      }
+
+      // Jalur terverifikasi: bukti sesi dari provider. Tanpa bukti, biarkan
+      // server menolak dan pesannya yang dipakai apa adanya — klien bukan
+      // penjaga otoritatif.
+      const hasil = await selesaikanMateriAction({
+        courseId: kursus.id,
+        modulId: modul.id,
+        bukti: bukti ?? "",
+      });
+      if (hasil.ok) {
+        setSelesai((daftar) => [...daftar, modul.id]);
+        setPesan(null);
+      } else {
         setPesan(hasil.error ?? null);
       }
     });
@@ -335,7 +387,7 @@ function RuangBelajar({
                       {sudahDaftar ? (
                         <button
                           type="button"
-                          onClick={() => tandai(m.id, sudah)}
+                          onClick={() => tandai(m, sudah)}
                           disabled={pending || modulSibuk === m.id}
                           aria-pressed={sudah}
                           className={cn(

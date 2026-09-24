@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth/session";
 import { getCourseById } from "@/lib/courses/store";
 import { resources } from "@/lib/fixtures";
 import { modulUntukSumber } from "@/lib/courses/modul-resolver";
+import { checkpointEfektif } from "@/lib/learning/akses";
 import {
   cariPendaftaran,
   daftarKursus,
@@ -56,6 +57,10 @@ async function selesaikanKursus(courseId: string) {
       slug: kursus.slug,
       berbayar: !kursus.is_free,
       modulValid: new Set(modul.map((item) => item.id)),
+      // Modul utuh dibawa, bukan hanya id-nya: pemanggil perlu membaca
+      // checkpoint efektif dan enggan memanggil resolver dua kali dengan sumber
+      // yang sama (mahal, dan dua panggilan bisa berbeda bila store berubah).
+      modul: async () => modul,
     };
   }
   const resource = resources.find((item) => item.id === courseId);
@@ -72,6 +77,7 @@ async function selesaikanKursus(courseId: string) {
     slug: resource.id,
     berbayar: !resource.is_free,
     modulValid: new Set(modul.map((item) => item.id)),
+    modul: async () => modul,
   };
 }
 
@@ -108,6 +114,19 @@ export async function daftarKursusAction(courseId: string): Promise<PendaftaranA
   return { ok: true, message: "Pendaftaran berhasil. Selamat belajar!" };
 }
 
+/**
+ * Selesaikan/selesaikan-batal satu modul lewat tombol informal "Tandai selesai".
+ *
+ * Penandaan informal ini hanya sah untuk modul yang checkpoint efektifnya
+ * `materi`. Modul kuis/proyek harus dilalui checkpoint-nya sendiri: tanpa
+ * penolakan di sini, peserta bisa menandai modul kuis selesai dari tombol ini
+ * saja dan melewati lampiran/gerbang yang dibangun untuknya — gerbang sesi
+ * yang otoritatif (`selesaikanMateriAction`) jadi tidak ada artinya.
+ *
+ * Pesan penolakan sengaja disamakan kata per kata dengan `selesaikanMateriAction`
+ * di `actions/learning.ts`: satu jalur penolakan = satu copy yang tidak
+ * menyimpang antar action.
+ */
 export async function tandaiModulAction(
   courseId: string,
   modulId: string,
@@ -126,6 +145,18 @@ export async function tandaiModulAction(
   }
   if (!target.modulValid.has(modulId)) {
     return { ok: false, error: "Modul tidak dikenal untuk kursus ini." };
+  }
+
+  // Modul kuis/proyek ditolak **sebelum** gerbang lain: ini penolakan yang
+  // paling spesifik dan tidak bergantung pada siapa pemanggilnya.
+  const modul = await target.modul();
+  const modulTarget = modul.find((item) => item.id === modulId);
+  const checkpoint = checkpointEfektif(modulTarget ?? { id: modulId });
+  if (checkpoint.mode !== "materi") {
+    return {
+      ok: false,
+      error: "Modul ini diselesaikan lewat checkpoint kuis/proyek, bukan penandaan manual.",
+    };
   }
 
   await tandaiModul(target.id, modulId);
