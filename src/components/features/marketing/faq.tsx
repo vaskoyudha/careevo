@@ -23,8 +23,8 @@ const FAQS = [
     a: "Setiap proses penyelesaian tugas dan pengujian dicatat otomatis dan ditandatangani secara kriptografis. Rekruter dapat membuka tautan publik untuk memastikan keaslian bukti kerjamu.",
   },
   {
-    q: "Apakah data saya aman tanpa biometrik?",
-    a: "Ya. Careevo tidak menggunakan kamera pengawas webcam, keylogger, atau data pribadi sensitif. Identitas di halaman portofolio publik terlindungi dan hanya menampilkan username.",
+    q: "Apakah data saya aman dan apa yang direkam?",
+    a: "Ya. Careevo tidak memakai keylogger, tidak merekam geolokasi, dan tidak mendeteksi identitas: kamera tidak dipakai untuk mengenali wajah. Rancangan sesi terverifikasi memang mengaktifkan kamera, tetapi hanya selama sesi terverifikasi yang kamu setujui — kamera tidak pernah menyala di luar sesi itu, dan permintaan akses kamera belum aktif di aplikasi ini. Yang dicatat hari ini terbatas pada kejadian sesi: pindah tab, status kamera, dan koneksi. Bukti sesi hanya dilihat peserta dan staf berwenang, dan kamu bisa mengajukan keberatan lewat pengaturan. Identitas di halaman portofolio publik juga terlindungi: yang tampil hanya username.",
   },
   {
     q: "Bagaimana loker diaudit agar bebas penipuan?",

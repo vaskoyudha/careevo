@@ -61,7 +61,12 @@ export function SettingsForm({ nama, email, username }: { nama: string; email: s
           <span>Izinkan perekaman artefak proses (snapshot, prompt log) untuk sesi ini</span>
         </Label>
         <p className="caption muted">
-          Nir-biometrik: tanpa webcam, tanpa rekam ketukan. Hanya artefak dan persetujuan eksplisit.
+          Kamera hanya aktif selama sesi terverifikasi yang kamu setujui, tidak pernah di luarnya.
+          Hari ini pencatatan terbatas pada kejadian sesi — pindah tab, fokus, dan awal/akhir sesi;
+          pengaktifan kamera adalah bagian dari rancangan sesi terverifikasi dan belum berjalan di
+          aplikasi ini. Tidak ada rekaman tuts, tidak ada geolokasi, dan tidak ada deteksi identitas:
+          kamera tidak dipakai untuk mengenali wajah. Bukti sesi hanya dilihat peserta dan staf
+          berwenang, dan kamu bisa mengajukan keberatan lewat halaman pengaturan ini.
         </p>
         <Button
           type="button"
