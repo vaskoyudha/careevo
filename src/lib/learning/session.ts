@@ -89,9 +89,27 @@ function isRun(value: unknown): value is SessionRun {
   );
 }
 
+/** Pemisah kolom bukti sesi. Kolom tidak boleh memuatnya sendiri. */
+const PEMISAH_BUKTI = "\u0001";
+
+/**
+ * Tolak kolom bukti sesi yang kosong atau memuat pemisah.
+ *
+ * Tanda tangan mengautentikasi string gabungan, bukan kolom satu per satu, jadi
+ * kolom yang memuat pemisah membuat pembacaan kolom tidak lagi sepakat dengan
+ * yang ditandatangani — penyerang bisa menyelipkan kolom ekstra untuk memakai
+ * token milik orang lain pada versi kebijakan yang berbeda.
+ */
+function periksaKolomBukti(nilai: string): string {
+  if (!nilai || nilai.includes(PEMISAH_BUKTI)) throw new Error("Kolom bukti sesi tidak valid");
+  return nilai;
+}
+
 /** Bukti sesi: tanda tangan atas (courseId, owner, policyVersion). */
 export function buktiBaru(input: BuktiSesi): string {
-  const isi = [input.courseId, input.owner, input.policyVersion].join("\u0001");
+  const courseId = periksaKolomBukti(input.courseId);
+  const owner = periksaKolomBukti(input.owner);
+  const isi = [courseId, owner, input.policyVersion].join(PEMISAH_BUKTI);
   return `${Buffer.from(isi, "utf8").toString("base64url")}.${tanda(isi)}`;
 }
 
@@ -114,7 +132,12 @@ export function verifikasiBuktiSesi(token: string, harapan: BuktiSesi): BuktiSes
   }
   if (!samakan(signature, tanda(isi))) return null;
 
-  const [courseId, owner, versi] = isi.split("\u0001");
+  // Harus tepat tiga kolom: jumlah yang lain berarti ada pemisah yang
+  // diselipkan ke dalam kolom, dan pembacaan kolom tidak lagi cocok dengan
+  // string yang ditandatangani.
+  const bagian = isi.split(PEMISAH_BUKTI);
+  if (bagian.length !== 3) return null;
+  const [courseId, owner, versi] = bagian;
   if (!courseId || !owner) return null;
   const policyVersion = Number(versi);
   if (!Number.isInteger(policyVersion)) return null;
