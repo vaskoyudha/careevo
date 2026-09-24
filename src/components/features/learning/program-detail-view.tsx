@@ -17,38 +17,8 @@ import type { ProgramDetails } from "@/lib/courses/catalog-data";
 export function ProgramDetailView({ program }: { program: ProgramDetails }) {
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      {/* Top Breadcrumb Trail */}
-      <nav aria-label="Breadcrumb" className="border-b border-gray-200 bg-white pt-20 pb-3 sm:pt-24 sm:pb-3.5">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <ol className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-gray-600">
-            <li className="flex items-center gap-1.5">
-              <Link href="/" className="flex items-center gap-1 text-gray-500 hover:text-gray-900 transition-colors">
-                <Home className="size-3.5" />
-                <span className="sr-only">Home</span>
-              </Link>
-              <ChevronRight className="size-3 text-gray-400" />
-            </li>
-            <li className="flex items-center gap-1.5">
-              <Link href="/explore/most-popular-courses" className="hover:text-gray-900 transition-colors">
-                Categories
-              </Link>
-              <ChevronRight className="size-3 text-gray-400" />
-            </li>
-            <li className="flex items-center gap-1.5">
-              <Link href="/explore/most-popular-courses" className="hover:text-gray-900 transition-colors">
-                {program.category}
-              </Link>
-              <ChevronRight className="size-3 text-gray-400" />
-            </li>
-            <li className="text-gray-900 font-medium truncate max-w-[200px] sm:max-w-none">
-              {program.subcategory}
-            </li>
-          </ol>
-        </div>
-      </nav>
-
       {/* Hero Section with Concentric Arcs Background */}
-      <section className="relative overflow-hidden bg-linear-to-r from-[#F0F5FA] via-[#F4F8FC] to-[#E9F0F8] py-10 sm:py-14 border-b border-gray-200">
+      <header className="relative bg-linear-to-b from-[#F0F5FA] via-[#F4F8FC] to-[#EBF3FA] border-b border-gray-200 pt-20 sm:pt-24 pb-0">
         {/* Concentric Geometric Arcs Graphic on Right */}
         <div className="pointer-events-none absolute right-0 top-0 h-full w-2/5 overflow-hidden opacity-40 hidden md:block">
           <svg
@@ -64,6 +34,34 @@ export function ProgramDetailView({ program }: { program: ProgramDetails }) {
         </div>
 
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          {/* Top Breadcrumb Trail inside Hero */}
+          <nav aria-label="Breadcrumb" className="mb-6">
+            <ol className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-gray-600">
+              <li className="flex items-center gap-1.5">
+                <Link href="/" className="flex items-center gap-1 text-gray-500 hover:text-gray-900 transition-colors">
+                  <Home className="size-3.5" />
+                  <span className="sr-only">Home</span>
+                </Link>
+                <ChevronRight className="size-3 text-gray-400" />
+              </li>
+              <li className="flex items-center gap-1.5">
+                <Link href="/explore/most-popular-courses" className="hover:text-gray-900 transition-colors">
+                  Categories
+                </Link>
+                <ChevronRight className="size-3 text-gray-400" />
+              </li>
+              <li className="flex items-center gap-1.5">
+                <Link href="/explore/most-popular-courses" className="hover:text-gray-900 transition-colors">
+                  {program.category}
+                </Link>
+                <ChevronRight className="size-3 text-gray-400" />
+              </li>
+              <li className="text-gray-900 font-medium truncate max-w-[200px] sm:max-w-none">
+                {program.subcategory}
+              </li>
+            </ol>
+          </nav>
+
           <div className="max-w-3xl">
             {/* Banner Graphic or Org Logo */}
             <div className="mb-5 flex items-center gap-3">
@@ -154,37 +152,63 @@ export function ProgramDetailView({ program }: { program: ProgramDetails }) {
               </Link>
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* Course Glance 4-Column Card */}
-      <section className="border-b border-gray-200 bg-white py-5">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-xs sm:grid-cols-4 sm:gap-6 sm:p-6">
-            <div>
-              <div className="text-base font-bold text-gray-900">{program.seriesCount} course series</div>
-              <p className="mt-0.5 text-xs text-gray-500">Get in-depth knowledge of a subject</p>
-            </div>
-            <div>
-              <div className="flex items-center gap-1 text-base font-bold text-gray-900">
-                <span>{program.level}</span>
-                <Info className="size-3.5 text-gray-400" />
+          {/* Overlapping 4-Column Metric Card - Exactly 50% overlapping hero bottom border */}
+          <div className="relative z-20 mt-10 sm:mt-12 translate-y-1/2">
+            <div className="grid grid-cols-1 divide-y sm:divide-y-0 sm:divide-x divide-gray-200 rounded-xl border border-gray-200 bg-white p-2 shadow-lg shadow-gray-900/5 sm:grid-cols-2 lg:grid-cols-4">
+              {/* Column 1: Course series */}
+              <div className="p-4 sm:p-5">
+                <div className="text-base font-bold text-gray-900 underline decoration-gray-300 underline-offset-4">
+                  {program.seriesCount} course series
+                </div>
+                <p className="mt-1 text-xs text-gray-500 leading-normal">
+                  Earn a career credential that demonstrates your expertise
+                </p>
               </div>
-              <p className="mt-0.5 text-xs text-gray-500">Recommended experience</p>
-            </div>
-            <div>
-              <div className="text-base font-bold text-gray-900">{program.durationWeeks} weeks to complete</div>
-              <p className="mt-0.5 text-xs text-gray-500">at {program.hoursPerWeek} hours a week</p>
-            </div>
-            <div>
-              <div className="text-base font-bold text-gray-900">Flexible schedule</div>
-              <p className="mt-0.5 text-xs text-gray-500">Learn at your own pace</p>
+
+              {/* Column 2: Rating & Reviews */}
+              <div className="p-4 sm:p-5">
+                <div className="flex items-center gap-1.5 text-base font-bold text-gray-900">
+                  <span>{program.rating || 4.8}</span>
+                  <Star className="size-4 fill-amber-400 text-amber-400" />
+                </div>
+                <p className="mt-1 text-xs text-gray-500 leading-normal">
+                  from {program.reviews || "10,000+"} reviews of courses in this program
+                </p>
+              </div>
+
+              {/* Column 3: Level */}
+              <div className="p-4 sm:p-5">
+                <div className="flex items-center gap-1.5 text-base font-bold text-gray-900">
+                  <span>{program.level}</span>
+                  <Info className="size-4 text-gray-400" />
+                </div>
+                <p className="mt-1 text-xs text-gray-500 leading-normal">
+                  Recommended experience
+                </p>
+              </div>
+
+              {/* Column 4: Schedule */}
+              <div className="p-4 sm:p-5">
+                <div className="text-base font-bold text-gray-900">
+                  {program.pace || "Flexible schedule"}
+                </div>
+                <p className="mt-1 text-xs text-gray-500 leading-normal">
+                  {program.durationWeeks} weeks at {program.hoursPerWeek} hours a week
+                </p>
+                <p className="mt-0.5 text-xs text-gray-400">
+                  Learn at your own pace
+                </p>
+              </div>
             </div>
           </div>
         </div>
-      </section>
+      </header>
 
-      {/* Tab Navigation Bar: About, Outcomes, Courses, Testimonials */}
+      {/* Spacer for bottom half of overlapping card */}
+      <div className="h-16 sm:h-20 bg-white" aria-hidden="true" />
+
+      {/* Tab Navigation Bar: About, Outcomes, Courses, Testimonials, Reviews */}
       <nav aria-label="Course section tabs" className="border-b border-gray-200 bg-white sticky top-16 z-10 backdrop-blur-md bg-white/95">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2 py-3 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -211,6 +235,12 @@ export function ProgramDetailView({ program }: { program: ProgramDetails }) {
               className="rounded-full px-4 py-1.5 text-sm font-semibold text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
             >
               Testimonials
+            </Link>
+            <Link
+              href="#reviews"
+              className="rounded-full px-4 py-1.5 text-sm font-semibold text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+            >
+              Reviews
             </Link>
           </div>
         </div>
