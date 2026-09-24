@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "skills:check": "node scripts/validate-skills.mjs",
     "check": "npm run typecheck && npm run lint && npm run skills:check && npm test",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "e2e:onboarding": "node scripts/e2e-onboarding.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.24.0",

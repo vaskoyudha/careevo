@@ -10,7 +10,7 @@ import {
   isDemoEmail,
 } from "@/lib/auth/session";
 import { addStoredUser, hashPassword, isEmailTaken } from "@/lib/auth/user-store";
-import { homeForRole } from "@/lib/auth/roles";
+import { landingFor } from "@/lib/auth/landing";
 import type { AuthFormState } from "@/lib/auth/types";
 
 function fieldErrors(error: z.ZodError): Record<string, string> {
@@ -48,7 +48,7 @@ export async function loginAction(
   }
 
   await createSession(user);
-  redirect(homeForRole(user.role));
+  redirect(await landingFor(user.role, user.email));
 }
 
 export async function registerAction(
@@ -99,7 +99,7 @@ export async function registerAction(
     passwordHash: hashPassword(password),
   });
   await createSession({ email, nama, username, role });
-  redirect(homeForRole(role));
+  redirect(await landingFor(role, email));
 }
 
 export async function logoutAction(): Promise<void> {
