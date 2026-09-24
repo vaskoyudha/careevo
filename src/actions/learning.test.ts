@@ -26,15 +26,35 @@ vi.mock("next/headers", () => ({
 }));
 
 const sesi = { email: "siswa@careevo.test", nama: "Siswa", username: "siswa", role: "user", iat: 1 };
+/**
+ * Sesi bisa dicabut per test supaya cabang "belum masuk" benar-benar diuji.
+ * Modul-mock-nya tetap statis dan tanpa efek samping; keadaan sesi dipindah ke
+ * variabel agar `vi.mock` tetap bisa di-hoist tanpa membaca keadaan runtime.
+ */
+const { auth } = vi.hoisted(() => ({ auth: { sesi: null as typeof sesi | null } }));
+auth.sesi = sesi;
+
 vi.mock("@/lib/auth/session", () => ({
-  getSession: async () => sesi,
+  getSession: async () => auth.sesi,
 }));
+
+/**
+ * `revalidatePath` di-spy supaya jalur terverifikasi bisa dibuktikan
+ * me-revalidasi permukaan yang sama dengan jalur informal. `next/cache` gagal
+ * di luar lifecycle request Next.js, jadi tanpa mock ini revalidasinya
+ * tertelan oleh `try/catch` dan tidak bisa diamati.
+ */
+vi.mock("next/cache", async () => {
+  const asli = await vi.importActual<typeof import("next/cache")>("next/cache");
+  return { ...asli, revalidatePath: vi.fn() };
+});
 
 const { mulaiSesiAction, catatKejadianAction, selesaikanMateriAction, akhiriSesiAction } = await import(
   "./learning"
 );
-const { daftarKursus } = await import("@/lib/courses/enrollment");
+const { daftarKursus, decodePendaftaran, ENROLL_COOKIE } = await import("@/lib/courses/enrollment");
 const { createModul, resetCourses } = await import("@/lib/courses/store");
+const cacheModule = await import("next/cache");
 // `mulaiRun` dipakai untuk menyiapkan sesi milik pengguna **lain**: kepemilikan
 // hanya bisa diuji dengan run nyata yang ownernya bukan pemanggil, sebab run
 // tak dikenal berhenti di cabang "tidak ditemukan" sebelum owner dibandingkan.
@@ -42,11 +62,25 @@ const { ambilRun, mulaiRun } = await import("@/lib/learning/session");
 
 afterAll(() => rmSync(DIR, { recursive: true, force: true }));
 
+/**
+ * `tandaiModul` men-toggle: id yang sudah ada akan **dihapus**. Test di sini
+ * membaca cookie `ls_enroll` mentah (bukan hanya nilai balik action) supaya
+ * hazard itu benar-benar tertangkap, bukan sekadar tebakan dari `ok: true`.
+ */
+function selesaiModul(courseId: string): string[] {
+  const entri = decodePendaftaran(jar.get(ENROLL_COOKIE)).find(
+    (item) => item.course_id === courseId,
+  );
+  return entri?.selesai_modul ?? [];
+}
+
 // Store kursus bisa menghidrasi `data/courses.json` milik mesin pengembang;
 // reset memakai seed in-memory tanpa menyentuh disk supaya hasil test deterministik.
 beforeEach(() => {
   resetCourses();
   jar.clear();
+  auth.sesi = sesi;
+  vi.clearAllMocks();
 });
 
 describe("mulaiSesiAction", () => {
@@ -122,6 +156,161 @@ describe("selesaikanMateriAction", () => {
       bukti: mulai.bukti ?? "",
     });
     expect(hasil.ok).toBe(true);
+  });
+});
+
+/**
+ * Kelengkapan terverifikasi: gerbangnya sudah benar sejak awal, tetapi
+ * sebelum ini jalur terverifikasi hanya me-revalidasi dan tidak pernah
+ * memanggil `tandaiModul`, sehingga centang "terverifikasi" hidup hanya di
+ * state klien dan hilang begitu halaman dimuat ulang. Test di blok ini menuntut
+ * **keadaan tersimpan**, bukan nilai balik action.
+ *
+ * Sekaligus ini penutup kebuntuan: `tandaiModulAction` menolak penyelesaian
+ * informal di kursus `wajib`, sedangkan kursus seed memakai kebijakan default
+ * `wajib` — tanpa penyimpanan di sini, tidak ada satu pun jalur penyelesaian
+ * yang bekerja untuk kursus bawaan.
+ */
+describe("selesaikanMateriAction — penyimpanan progres terverifikasi", () => {
+  it("menyimpan modul selesai di kursus wajib yang terverifikasi", async () => {
+    await daftarKursus("crs-2", "crs-2");
+    const mulai = await mulaiSesiAction("crs-2");
+
+    const hasil = await selesaikanMateriAction({
+      courseId: "crs-2",
+      modulId: "crs-2-m1",
+      bukti: mulai.bukti ?? "",
+    });
+
+    expect(hasil.ok).toBe(true);
+    // Bukti penyimpanan: cookie `ls_enroll` memuat id modulnya.
+    expect(selesaiModul("crs-2")).toEqual(["crs-2-m1"]);
+    // Revalidasi disamakan dengan jalur informal supaya daftar dan halaman
+    // belajar tidak menyajikan progres basi.
+    expect(cacheModule.revalidatePath).toHaveBeenCalledWith("/belajar");
+    expect(cacheModule.revalidatePath).toHaveBeenCalledWith(
+      "/belajar/membangun-rest-api-modern-dengan-nodejs",
+    );
+  });
+
+  it("idempoten: pemanggilan kedua tidak membatalkan tanda selesai", async () => {
+    // `tandaiModul` men-toggle, jadi panggilan naif pada modul yang sudah
+    // selesai justru **menghapus** tandanya. Peserta yang mengeklik dua kali
+    // (atau menyelesaikan ulang modul yang sudah pernah tuntas) akan melihat
+    // centangnya hilang; itu regresi yang dikunci test ini.
+    await daftarKursus("crs-2", "crs-2");
+    const mulai = await mulaiSesiAction("crs-2");
+    const argumen = { courseId: "crs-2", modulId: "crs-2-m1", bukti: mulai.bukti ?? "" };
+
+    const pertama = await selesaikanMateriAction(argumen);
+    expect(pertama.ok).toBe(true);
+    expect(selesaiModul("crs-2")).toEqual(["crs-2-m1"]);
+
+    const kedua = await selesaikanMateriAction(argumen);
+
+    expect(kedua.ok).toBe(true);
+    expect(selesaiModul("crs-2")).toEqual(["crs-2-m1"]);
+  });
+
+  it("tidak menulis apa pun saat bukti sesi hilang", async () => {
+    await daftarKursus("crs-2", "crs-2");
+
+    const hasil = await selesaikanMateriAction({ courseId: "crs-2", modulId: "crs-2-m1", bukti: "" });
+
+    expect(hasil.ok).toBe(false);
+    expect(selesaiModul("crs-2")).toEqual([]);
+    expect(cacheModule.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("tidak menulis apa pun saat bukti sesi tidak sah", async () => {
+    await daftarKursus("crs-2", "crs-2");
+
+    const hasil = await selesaikanMateriAction({
+      courseId: "crs-2",
+      modulId: "crs-2-m1",
+      bukti: "bukti-palsu",
+    });
+
+    expect(hasil.ok).toBe(false);
+    expect(selesaiModul("crs-2")).toEqual([]);
+    expect(cacheModule.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("tidak menulis saat modul checkpoint kuis/proyek", async () => {
+    await daftarKursus("crs-3", "crs-3");
+    const modulKuis = await createModul("crs-3", {
+      judul: "Kuis Keamanan Lanjutan",
+      ringkasan: "Kuis tersimpan untuk uji gerbang checkpoint.",
+      durasi_min: 20,
+      checkpoint: { mode: "kuis", batas_waktu_menit: 20 },
+    });
+    expect(modulKuis).not.toBeNull();
+    const mulai = await mulaiSesiAction("crs-3");
+    expect(mulai.ok).toBe(true);
+
+    const hasil = await selesaikanMateriAction({
+      courseId: "crs-3",
+      modulId: modulKuis!.id,
+      bukti: mulai.bukti ?? "",
+    });
+
+    expect(hasil.ok).toBe(false);
+    expect(selesaiModul("crs-3")).toEqual([]);
+    expect(cacheModule.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("tidak menulis saat pemanggil belum masuk", async () => {
+    await daftarKursus("crs-2", "crs-2");
+    const mulai = await mulaiSesiAction("crs-2");
+    // Sesi dicabut setelah bukti sah didapat: bukti yang sah pun tidak boleh
+    // dihormati tanpa identitas pemanggil.
+    auth.sesi = null;
+
+    const hasil = await selesaikanMateriAction({
+      courseId: "crs-2",
+      modulId: "crs-2-m1",
+      bukti: mulai.bukti ?? "",
+    });
+
+    expect(hasil.ok).toBe(false);
+    expect(hasil.error).toContain("Masuk");
+    expect(selesaiModul("crs-2")).toEqual([]);
+  });
+
+  it("tidak menulis saat kursus tidak ada", async () => {
+    const hasil = await selesaikanMateriAction({
+      courseId: "tidak-ada",
+      modulId: "crs-2-m1",
+      bukti: "bukti-palsu",
+    });
+
+    expect(hasil.ok).toBe(false);
+    expect(hasil.error).toContain("tidak ditemukan");
+    expect(jar.get(ENROLL_COOKIE)).toBeUndefined();
+  });
+
+  it("menyimpan penyelesaian modul kursus seed berkebijakan default (wajib)", async () => {
+    // Sifat yang memotivasi perbaikan ini: kursus seed `INITIAL_COURSES` tidak
+    // menyimpan `kebijakan`, sehingga `kebijakanDefault()` (`wajib`) berlaku dan
+    // jalur informal menolaknya. Modul turunan tanpa checkpoint juga default
+    // `materi`. Dulu jalur terverifikasi satu-satunya yang menerima — tetapi
+    // tidak menyimpan apa pun, jadi tidak ada modul kursus bawaan yang bisa
+    // tuntas. Sekarang penyelesaiannya harus bertahan di cookie `ls_enroll`.
+    await daftarKursus("crs-1", "crs-1");
+    const mulai = await mulaiSesiAction("crs-1");
+    expect(mulai.ok).toBe(true);
+
+    const hasil = await selesaikanMateriAction({
+      courseId: "crs-1",
+      modulId: "crs-1-m1",
+      bukti: mulai.bukti ?? "",
+    });
+
+    expect(hasil.ok).toBe(true);
+    expect(selesaiModul("crs-1")).toEqual(["crs-1-m1"]);
+    expect(cacheModule.revalidatePath).toHaveBeenCalledWith(
+      "/belajar/fullstack-web-development-nextjs-15-react-19",
+    );
   });
 });
 
