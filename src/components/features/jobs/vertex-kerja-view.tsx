@@ -16,7 +16,7 @@ import {
   Search,
   ShieldAlert,
   ShieldCheck,
-  Sparkles,
+  Target,
   Terminal,
 } from "lucide-react";
 import type { JobFixture } from "@/lib/fixtures";
@@ -749,10 +749,10 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                 {/* Bento Grid */}
                 <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
                   {/* Bento Card 1: Large Span 2 */}
-                  <div className="md:col-span-2 rounded-xl border border-neutral-200 bg-neutral-50/50 p-6 sm:p-8 shadow-xs flex flex-col justify-between">
+                  <div className="md:col-span-2 rounded-2xl border border-neutral-200/90 bg-white p-6 sm:p-8 shadow-xs transition-colors hover:border-neutral-300 flex flex-col justify-between">
                     <div>
-                      <div className="inline-flex size-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600 mb-4 border border-blue-100">
-                        <ShieldCheck className="size-5" />
+                      <div className="inline-flex size-9 items-center justify-center rounded-xl bg-neutral-100 border border-neutral-200/80 text-neutral-900 mb-4 shadow-2xs">
+                        <ShieldCheck className="size-5 text-neutral-800" />
                       </div>
                       <h3 className="text-xl font-semibold text-neutral-950">
                         Papan Loker & Sentinel Live Audit
@@ -763,38 +763,39 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                     </div>
 
                     {/* Visual UI Preview */}
-                    <div className="mt-6 rounded-lg border border-neutral-200 bg-white p-4 shadow-xs">
-                      <div className="flex items-center justify-between border-b border-neutral-100 pb-3 text-xs">
+                    <div className="mt-6 rounded-xl border border-neutral-200/90 bg-white p-4 shadow-2xs">
+                      <div className="flex items-center justify-between border-b border-neutral-100 pb-2.5 text-xs">
                         <span className="font-semibold text-neutral-800 flex items-center gap-1.5">
-                          <Terminal className="size-3.5 text-blue-500" />
-                          <span>Sentinel Audit Engine v2.4</span>
+                          <Terminal className="size-3.5 text-neutral-700" />
+                          <span>Sinkronisasi KarirHub</span>
                         </span>
-                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-700 font-medium">
-                          Live Active
+                        <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11px] font-medium text-neutral-700">
+                          <span className="size-1.5 rounded-full bg-neutral-900" />
+                          Aktif
                         </span>
                       </div>
-                      <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                        <div className="rounded border border-neutral-100 bg-neutral-50/70 p-2.5">
-                          <span className="text-neutral-400 block">Total Dipindai</span>
+                      <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                        <div className="rounded-lg border border-neutral-100 bg-neutral-50/70 p-2.5">
+                          <span className="text-neutral-400 block text-[11px]">Total Dipindai</span>
                           <span className="font-bold text-neutral-900 text-sm mt-0.5 block">{jobs.length} Loker</span>
                         </div>
-                        <div className="rounded border border-neutral-100 bg-neutral-50/70 p-2.5">
-                          <span className="text-neutral-400 block">Status AMAN</span>
-                          <span className="font-bold text-emerald-600 text-sm mt-0.5 block">{cleanJobsCount} Terverifikasi</span>
+                        <div className="rounded-lg border border-neutral-100 bg-neutral-50/70 p-2.5">
+                          <span className="text-neutral-400 block text-[11px]">Status Aman</span>
+                          <span className="font-bold text-neutral-900 text-sm mt-0.5 block">{cleanJobsCount} Terverifikasi</span>
                         </div>
-                        <div className="rounded border border-neutral-100 bg-neutral-50/70 p-2.5">
-                          <span className="text-neutral-400 block">Fee Terfilter</span>
-                          <span className="font-bold text-blue-600 text-sm mt-0.5 block">100% Bersih</span>
+                        <div className="rounded-lg border border-neutral-100 bg-neutral-50/70 p-2.5">
+                          <span className="text-neutral-400 block text-[11px]">Fee Seleksi</span>
+                          <span className="font-bold text-neutral-900 text-sm mt-0.5 block">0 Pungutan Liar</span>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Bento Card 2: Ubah tantangan jadi bukti karya */}
-                  <div className="rounded-xl border border-neutral-200 bg-neutral-50/50 p-6 sm:p-8 shadow-xs flex flex-col justify-between">
+                  {/* Bento Card 2: Bukti Karya Terverifikasi */}
+                  <div className="rounded-2xl border border-neutral-200/90 bg-white p-6 sm:p-8 shadow-xs transition-colors hover:border-neutral-300 flex flex-col justify-between">
                     <div>
-                      <div className="inline-flex size-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 mb-4 border border-emerald-100">
-                        <FileCheck2 className="size-5" />
+                      <div className="inline-flex size-9 items-center justify-center rounded-xl bg-neutral-100 border border-neutral-200/80 text-neutral-900 mb-4 shadow-2xs">
+                        <FileCheck2 className="size-5 text-neutral-800" />
                       </div>
                       <h3 className="text-xl font-semibold text-neutral-950">
                         Bukti Karya Terverifikasi
@@ -804,44 +805,52 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                       </p>
                     </div>
 
-                    <div className="mt-6 rounded-lg border border-neutral-200 bg-white p-3.5 text-xs text-neutral-600 font-mono">
-                      <div className="text-[11px] text-neutral-400 mb-1">HMAC Signature:</div>
-                      <div className="truncate text-neutral-700 bg-neutral-50 p-1.5 rounded border border-neutral-100">
-                        sha256-9a4f7e2c81b0d3...
+                    <div className="mt-6 rounded-xl border border-neutral-200/90 bg-white p-3.5 shadow-2xs text-xs">
+                      <div className="flex items-center justify-between text-neutral-500 text-[11px] mb-1.5">
+                        <span>Attestation Status</span>
+                        <span className="inline-flex items-center gap-1 font-medium text-neutral-800">
+                          <Check className="size-3 text-neutral-900" />
+                          Terverifikasi
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between rounded-lg bg-neutral-50 px-2.5 py-1.5 border border-neutral-100 text-[11px] text-neutral-700">
+                        <span>HMAC-SHA256</span>
+                        <span className="text-neutral-400">verify.careevo.id</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Bento Card 3: AI Fit Score */}
-                  <div className="rounded-xl border border-neutral-200 bg-neutral-50/50 p-6 sm:p-8 shadow-xs flex flex-col justify-between">
+                  {/* Bento Card 3: Kesesuaian Skill & Penutup Gap */}
+                  <div className="rounded-2xl border border-neutral-200/90 bg-white p-6 sm:p-8 shadow-xs transition-colors hover:border-neutral-300 flex flex-col justify-between">
                     <div>
-                      <div className="inline-flex size-9 items-center justify-center rounded-lg bg-amber-50 text-amber-600 mb-4 border border-amber-100">
-                        <Sparkles className="size-5" />
+                      <div className="inline-flex size-9 items-center justify-center rounded-xl bg-neutral-100 border border-neutral-200/80 text-neutral-900 mb-4 shadow-2xs">
+                        <Target className="size-5 text-neutral-800" />
                       </div>
                       <h3 className="text-xl font-semibold text-neutral-950">
-                        AI Fit Score & Penutup Gap
+                        Kesesuaian Skill &amp; Penutup Gap
                       </h3>
                       <p className="mt-2 text-sm text-neutral-600 leading-relaxed">
                         Bandingkan keahlianmu dengan requirement loker secara objektif. Navigator menyarankan modul latihan spesifik untuk menutup kekurangan skill.
                       </p>
                     </div>
 
-                    <div className="mt-6 rounded-lg border border-neutral-200 bg-white p-3 text-xs">
-                      <div className="flex justify-between font-medium text-neutral-700">
-                        <span>Kesiapan Teknis</span>
-                        <span className="text-emerald-600 font-semibold">94%</span>
+                    <div className="mt-6 rounded-xl border border-neutral-200/90 bg-white p-3 shadow-2xs text-xs space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-neutral-500 text-[11px]">Kebutuhan Posisi</span>
+                        <span className="font-medium text-neutral-800 text-[11px]">Backend API</span>
                       </div>
-                      <div className="mt-1.5 h-1.5 w-full rounded-full bg-neutral-100 overflow-hidden">
-                        <div className="h-full bg-emerald-500 rounded-full" style={{ width: "94%" }} />
+                      <div className="flex items-center justify-between border-t border-neutral-100 pt-1.5">
+                        <span className="text-neutral-500 text-[11px]">Modul Rekomendasi</span>
+                        <span className="font-medium text-neutral-900 text-[11px]">PostgreSQL Indexing</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Bento Card 4: Pencarian Bahasa Alami */}
-                  <div className="rounded-xl border border-neutral-200 bg-neutral-50/50 p-6 sm:p-8 shadow-xs flex flex-col justify-between">
+                  {/* Bento Card 4: Pencarian Kata Kunci Cerdas */}
+                  <div className="rounded-2xl border border-neutral-200/90 bg-white p-6 sm:p-8 shadow-xs transition-colors hover:border-neutral-300 flex flex-col justify-between">
                     <div>
-                      <div className="inline-flex size-9 items-center justify-center rounded-lg bg-purple-50 text-purple-600 mb-4 border border-purple-100">
-                        <Search className="size-5" />
+                      <div className="inline-flex size-9 items-center justify-center rounded-xl bg-neutral-100 border border-neutral-200/80 text-neutral-900 mb-4 shadow-2xs">
+                        <Search className="size-5 text-neutral-800" />
                       </div>
                       <h3 className="text-xl font-semibold text-neutral-950">
                         Pencarian Kata Kunci Cerdas
@@ -852,18 +861,23 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                     </div>
 
                     <div className="mt-6 flex flex-wrap gap-1.5 text-xs">
-                      <span className="rounded bg-white border border-neutral-200 px-2 py-1 font-medium text-neutral-700">#React</span>
-                      <span className="rounded bg-white border border-neutral-200 px-2 py-1 font-medium text-neutral-700">#Node.js</span>
-                      <span className="rounded bg-white border border-neutral-200 px-2 py-1 font-medium text-neutral-700">#Remote</span>
-                      <span className="rounded bg-white border border-neutral-200 px-2 py-1 font-medium text-neutral-700">#TypeScript</span>
+                      <span className="rounded-lg bg-neutral-50 border border-neutral-200/80 px-2.5 py-1 text-[11px] font-medium text-neutral-700 shadow-2xs">
+                        Remote Friendly
+                      </span>
+                      <span className="rounded-lg bg-neutral-50 border border-neutral-200/80 px-2.5 py-1 text-[11px] font-medium text-neutral-700 shadow-2xs">
+                        Fullstack &amp; Backend
+                      </span>
+                      <span className="rounded-lg bg-neutral-50 border border-neutral-200/80 px-2.5 py-1 text-[11px] font-medium text-neutral-700 shadow-2xs">
+                        Gaji Transparan
+                      </span>
                     </div>
                   </div>
 
                   {/* Bento Card 5: Karantina Scam Otomatis */}
-                  <div className="rounded-xl border border-neutral-200 bg-neutral-50/50 p-6 sm:p-8 shadow-xs flex flex-col justify-between">
+                  <div className="rounded-2xl border border-neutral-200/90 bg-white p-6 sm:p-8 shadow-xs transition-colors hover:border-neutral-300 flex flex-col justify-between">
                     <div>
-                      <div className="inline-flex size-9 items-center justify-center rounded-lg bg-rose-50 text-rose-600 mb-4 border border-rose-100">
-                        <ShieldAlert className="size-5" />
+                      <div className="inline-flex size-9 items-center justify-center rounded-xl bg-neutral-100 border border-neutral-200/80 text-neutral-900 mb-4 shadow-2xs">
+                        <ShieldAlert className="size-5 text-neutral-800" />
                       </div>
                       <h3 className="text-xl font-semibold text-neutral-950">
                         Karantina Scam Otomatis
@@ -873,9 +887,12 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                       </p>
                     </div>
 
-                    <div className="mt-6 rounded-lg border border-rose-200 bg-rose-50/50 p-3 text-xs text-rose-800 flex items-center gap-2">
-                      <AlertTriangle className="size-4 text-rose-600 shrink-0" />
-                      <span>Sinyal fee terdeteksi: Loker ditahan otomatis</span>
+                    <div className="mt-6 rounded-xl border border-neutral-200/90 bg-neutral-50/80 p-3 text-xs text-neutral-700 flex items-center gap-2.5">
+                      <AlertTriangle className="size-4 text-neutral-800 shrink-0" />
+                      <div className="leading-tight">
+                        <span className="font-semibold text-neutral-900 block">Sinyal Pungutan Biaya</span>
+                        <span className="text-[11px] text-neutral-500">Loker ditahan otomatis ke karantina</span>
+                      </div>
                     </div>
                   </div>
                 </div>
