@@ -1516,6 +1516,82 @@ body {
   .focal-card { background: rgba(255, 255, 255, 0.94); }
 }
 
+/* ---------------------------------------------------------------------------
+ * Glassmorphism (profile surface)
+ *
+ * Light-mode glass: translucent white fills over a soft coloured ambient
+ * backdrop, blurred with a saturated backdrop-filter, hairline white borders
+ * and an inset top highlight to fake the "pane" edge. Falls back to a solid
+ * near-white pane where backdrop-filter is unsupported.
+ * ------------------------------------------------------------------------- */
+.glass-ambient {
+  position: relative;
+  isolation: isolate;
+}
+
+.glass-ambient::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(42rem 26rem at 12% -6%, rgba(59, 130, 246, 0.18), transparent 60%),
+    radial-gradient(38rem 24rem at 92% 4%, rgba(56, 189, 248, 0.16), transparent 62%),
+    radial-gradient(34rem 30rem at 70% 100%, rgba(16, 185, 129, 0.10), transparent 60%),
+    linear-gradient(180deg, #f6f9ff 0%, #f4f8fb 45%, #f5f7fa 100%);
+}
+
+.glass-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, 0.9) inset,
+    0 10px 30px -12px rgba(10, 61, 98, 0.22),
+    0 2px 8px -4px rgba(10, 61, 98, 0.12);
+}
+
+.glass-card--strong {
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.glass-card--interactive {
+  transition:
+    transform 300ms ease-in-out,
+    box-shadow 300ms ease-in-out,
+    border-color 300ms ease-in-out,
+    background 300ms ease-in-out;
+}
+
+.glass-card--interactive:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.72);
+  border-color: rgba(147, 197, 253, 0.9);
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, 0.95) inset,
+    0 18px 40px -14px rgba(10, 61, 98, 0.28),
+    0 4px 12px -6px rgba(10, 61, 98, 0.14);
+}
+
+/* A slim glass chip, for the icon tiles inside cards. */
+.glass-chip {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, 0.85) inset,
+    0 6px 14px -8px rgba(10, 61, 98, 0.28);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-card { background: rgba(255, 255, 255, 0.92); }
+  .glass-card--strong { background: rgba(255, 255, 255, 0.96); }
+  .glass-chip { background: rgba(255, 255, 255, 0.94); }
+}
+
 .profile-card { margin-top: 2.5rem; }
 
 .profile-head {
