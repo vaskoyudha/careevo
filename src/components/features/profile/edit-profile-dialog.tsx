@@ -57,7 +57,7 @@ export function EditProfileDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="flex max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg [&>button:last-child]:top-3.5">
+      <DialogContent className="glass-card glass-card--strong flex max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden rounded-2xl border-white/70 p-0 backdrop-blur-xl sm:max-w-lg [&>button:last-child]:top-3.5">
         <DialogHeader className="contents space-y-0 text-left">
           <DialogTitle className="border-b border-gray-200 px-6 py-4 text-base font-medium">
             Edit profile

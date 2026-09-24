@@ -30,7 +30,7 @@ const ROLE_LABEL: Record<SessionPayload["role"], string> = {
   admin: "Admin",
 };
 
-/** Rounded-square, blue-tinted icon chip — the landing page's icon language. */
+/** Rounded-square icon chip: glass pane with the landing blue-tinted icon. */
 function IconChip({
   children,
   className,
@@ -41,7 +41,7 @@ function IconChip({
   return (
     <span
       className={
-        "inline-flex size-12 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 " +
+        "glass-chip inline-flex size-12 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 " +
         (className ?? "")
       }
     >
@@ -85,11 +85,11 @@ export function ProfileView({
     : "Belum diisi";
 
   return (
-    <div className="min-w-0 overflow-x-clip bg-white">
+    <div className="glass-ambient min-w-0 overflow-x-clip">
       {/* Identity header */}
-      <section className="bg-[#f5f7fa]">
+      <section>
         <div className="mx-auto w-full max-w-7xl px-4 pt-8 pb-10 sm:px-6 lg:px-8">
-          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_2px_16px_rgba(0,0,0,0.06)]">
+          <div className="glass-card overflow-hidden rounded-2xl">
             <div className="relative h-32 bg-gradient-to-br from-blue-800 via-blue-600 to-sky-400 sm:h-40">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -97,6 +97,11 @@ export function ProfileView({
                 alt=""
                 aria-hidden="true"
                 className="h-full w-full object-cover"
+              />
+              {/* glass sheen over the cover so the pane reads as glass */}
+              <div
+                aria-hidden="true"
+                className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/25 to-transparent"
               />
             </div>
 
@@ -118,7 +123,7 @@ export function ProfileView({
                       <h1 className="text-2xl font-medium -tracking-[0.6px] text-gray-900">
                         {displayName}
                       </h1>
-                      <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-blue-600 uppercase">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-white/70 bg-white/55 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-blue-600 uppercase backdrop-blur-sm">
                         <BadgeCheck className="size-3.5" strokeWidth={2} aria-hidden="true" />
                         {ROLE_LABEL[session.role]}
                       </span>
@@ -170,7 +175,7 @@ export function ProfileView({
       </section>
 
       {/* Quick stats */}
-      <section className="border-y border-gray-200 bg-white">
+      <section>
         <div className="mx-auto grid w-full max-w-7xl grid-cols-2 gap-4 px-4 py-8 sm:px-6 lg:grid-cols-4 lg:px-8">
           <StatTile
             icon={<GraduationCap className="size-6" strokeWidth={1.75} aria-hidden="true" />}
@@ -196,7 +201,7 @@ export function ProfileView({
       </section>
 
       {/* Personalization summary */}
-      <section className="bg-[#f5f7fa]">
+      <section>
         <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
             <div>
@@ -248,7 +253,7 @@ export function ProfileView({
               />
             </div>
           ) : (
-            <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center">
+            <div className="glass-card rounded-2xl border-dashed p-8 text-center">
               <p className="text-sm text-gray-600">
                 Kamu belum mengisi preferensi belajar. Isi sebentar supaya rekomendasi jadi relevan.
               </p>
@@ -262,7 +267,7 @@ export function ProfileView({
 
       {/* Recommendations the profile actually powers */}
       {kursus.length > 0 ? (
-        <section className="bg-white">
+        <section>
           <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
             <h2 className="text-2xl font-medium -tracking-[0.6px] text-gray-900">
               Dipilih untukmu
@@ -275,12 +280,12 @@ export function ProfileView({
                 <a
                   key={item.id}
                   href={`/belajar/${item.slug ?? item.id}`}
-                  className="group flex flex-col rounded-2xl border border-gray-200 bg-white p-5 transition duration-300 ease-in-out hover:border-blue-300 hover:bg-blue-50/40"
+                  className="glass-card glass-card--interactive group flex flex-col rounded-2xl p-5"
                 >
                   <IconChip className="size-11">
                     <GraduationCap className="size-5" strokeWidth={1.75} aria-hidden="true" />
                   </IconChip>
-                  <span className="mt-3 inline-flex w-fit rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-[11px] font-medium text-blue-700">
+                  <span className="mt-3 inline-flex w-fit rounded-full border border-blue-200/80 bg-white/70 px-2.5 py-0.5 text-[11px] font-medium text-blue-700 backdrop-blur-sm">
                     {item.tags[0] ?? "Umum"}
                   </span>
                   <h3 className="mt-2 line-clamp-2 text-sm font-semibold text-gray-900 group-hover:underline">
@@ -297,9 +302,9 @@ export function ProfileView({
       ) : null}
 
       {/* Public profile + account */}
-      <section className="bg-[#f5f7fa]">
-        <div className="mx-auto grid w-full max-w-7xl gap-4 px-4 py-10 sm:px-6 lg:grid-cols-2 lg:px-8">
-          <div className="rounded-2xl border border-gray-200 bg-white p-6">
+      <section>
+        <div className="mx-auto grid w-full max-w-7xl gap-4 px-4 py-10 pb-16 sm:px-6 lg:grid-cols-2 lg:px-8">
+          <div className="glass-card rounded-2xl p-6">
             <div className="flex items-start gap-3">
               <IconChip>
                 <Link2 className="size-6" strokeWidth={1.75} aria-hidden="true" />
@@ -318,7 +323,7 @@ export function ProfileView({
             </div>
           </div>
 
-          <div className="rounded-2xl border border-gray-200 bg-white p-6">
+          <div className="glass-card glass-card--strong rounded-2xl p-6">
             <div className="flex items-start gap-3">
               <IconChip>
                 <BadgeCheck className="size-6" strokeWidth={1.75} aria-hidden="true" />
@@ -364,7 +369,7 @@ function StatTile({
   value: string;
 }) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5 transition duration-300 ease-in-out hover:border-blue-200 hover:shadow-[0_2px_16px_rgba(0,0,0,0.05)]">
+    <div className="glass-card glass-card--interactive rounded-2xl p-5">
       <IconChip>{icon}</IconChip>
       <p className="mt-4 text-3xl font-medium -tracking-[0.6px] text-gray-900">{value}</p>
       <p className="mt-0.5 text-sm text-gray-500">{label}</p>
@@ -386,8 +391,7 @@ function InfoCard({
   return (
     <div
       className={
-        "flex items-start gap-3 rounded-2xl border border-gray-200 bg-white p-4 " +
-        (className ?? "")
+        "glass-card flex items-start gap-3 rounded-2xl p-4 " + (className ?? "")
       }
     >
       <IconChip className="size-10 rounded-lg">{icon}</IconChip>
