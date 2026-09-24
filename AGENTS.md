@@ -1,21 +1,24 @@
 # AGENTS.md
 
-Careevo — Next.js prototype ("Learn. Verify. Earn."): a learning-to-job bridge with HMAC attestations, append-only audit, and a Socrates review agent. **This is a fixture-backed prototype: there is no database and no network backend.** Catalog/job data comes from `src/fixtures/*.json` via `src/lib/fixtures.ts`; the only other persistence is HMAC-signed cookies plus a small file-based store (see below).
+Careevo is a Next.js prototype ("Learn. Verify. Earn."): a learning-to-job bridge with HMAC attestations, fixture-backed audit data, and a Socrates review agent. Core fixture data is loaded through `src/lib/fixtures.ts`. Auth and onboarding use cookie state; courses, their modules, and their materials are persisted to `data/courses.json` on disk (see `src/lib/courses/storage.ts`), with uploads under `public/uploads/`. The editable public profile uses a signed cookie, and the LinkedIn-style resume (work/projects/education/skills/CV uploads) uses a small file-based store under `.data/` (see below). Gemini evaluation is an optional, on-demand network call.
 
 ## Commands
 
-- `npm run dev` — dev server (Turbopack).
-- `npm run build` / `npm start` — production build / serve.
-- `npm run lint` — runs `eslint` (flat config). Note: **not** `next lint`.
-- `npm run typecheck` — `tsc --noEmit`. Faster standalone check than a full `build`.
-- `npm test` — `vitest run` (one-shot). `npm run test:watch` to watch.
-- `npm run check` — **the gate**: typecheck + lint + skills:check + test.
-- `npm run skills:check` — validate `.agents/skills/` against the Agent Skills spec.
-- `npx vitest run src/lib/scoring/scoring.test.ts` — single file.
-- `npx vitest run -t "A1:"` — single test by name.
-- `npm run smoke [baseUrl]` — HTTP smoke test of 15 routes. **Requires a running server** (`npm run dev`) first; defaults to `http://localhost:3000`.
+- `npm run dev` starts the Next 16 dev server; `next dev` uses Turbopack by default.
+- `npm run build` / `npm start` build and serve production output.
+- `npm run lint` runs ESLint with flat config; `next lint` is not used.
+- `npm run typecheck` runs `tsc --noEmit`, a faster standalone check than a full `build`.
+- `npm test` runs `vitest run` once. `npm run test:watch` starts watch mode.
+- `npm run check` is the manual gate, in this order: typecheck -> lint -> skills:check -> test. It does not run `build`, `smoke`, or `e2e:onboarding`.
+- `npm run skills:check` validates `.agents/skills/` against the Agent Skills spec.
+- `npx vitest run src/lib/scoring/scoring.test.ts` runs one test file.
+- `npx vitest run -t "A1:"` runs one test by name.
+- `npm run smoke -- [baseUrl]` runs the HTTP smoke check and requires a running server. Its route count is derived from the `routes` array; the source comment is stale, so do not hardcode a count here.
+- `npm run e2e:onboarding -- [baseUrl]` runs the signed-cookie onboarding gate check and requires a running server.
 
-Deps use npm (`package-lock.json`); `node_modules` is not checked in — run `npm install` before any command.
+Deps use npm with `package-lock.json` v3. The root `package.json` has no `packageManager` or `engines` pin. The current Vitest 5.0.1 requires Node `^22.12.0 || ^24.0.0 || >=26.0.0`; Next declares Node `>=20.9.0`. For a clean checkout, run `npm ci` (`node_modules` is not checked in).
+
+There is no repository-managed CI workflow or pre-commit hook. Treat `npm run check` as a manual gate.
 
 ## Skills
 
@@ -27,26 +30,29 @@ Deps use npm (`package-lock.json`); `node_modules` is not checked in — run `np
 - **`careevo-attribution`** — MIT notice requirements for code ported from career-ops. Read before adding adapted code.
 - **`career-ops-port`** — what was adopted from career-ops, what was rejected and why. Read before proposing further integration.
 
-A skill with invalid frontmatter fails silently, so `npm run skills:check` validates them.
+`docs/career-ops-architecture-study.md` is historical. The current port decision source is the `career-ops-port` skill.
+
+A skill with invalid frontmatter fails silently, so `npm run skills:check` is the validator. `scripts/validate-skills.mjs` imports `js-yaml`, which is a direct dependency in `package.json`.
 
 ## Testing quirks
 
-- Vitest `include` is `src/**/*.test.ts` only. `.test.tsx` files are **not** picked up.
-- Test environment is `node` (no jsdom) — tests cover pure logic only (`src/lib/scoring`, `src/lib/attestation`, `src/lib/resume`, plus a trivial `src/app/smoke.test.ts`).
+- Vitest `include` is exactly `src/**/*.test.ts`; `.test.tsx` and browser tests are not included.
+- Test environment is `node`, with no jsdom or browser test runner — tests cover pure logic only (e.g. `src/lib/scoring`, `src/lib/attestation`, `src/lib/resume`, `src/app/smoke.test.ts`).
 - The file-based resume store's test points `CAREERS_DATA_DIR` at a temp dir **before** importing the module, so it never touches the repo's real `.data/`.
 - `@/` alias maps to `src/` in both `tsconfig.json` and `vitest.config.mts`; keep them in sync.
 
 ## Architecture
 
-- App Router with route groups in `src/app/`: `(marketing)` = `/`, `(public)` = masuk/daftar/loker/`p/[username]`/`verify/[token]` (plus `p/[username]/berkas/[slot]` for public CV/portfolio PDFs), `(app)` = dashboard/belajar/loker/[id]/pengaturan/submission/[id], `(focus)` = challenge/[id], `(verifikator)` = review/review/[id]/audit.
-- **Auth gating lives in the group layouts**, not middleware (there is no `middleware.ts`): `(app)` and `(focus)` redirect to `/masuk` when `getSession()` is null; `(verifikator)` additionally requires `isStaffRole`. Individual pages re-check `getSession()` and `return null` if absent.
+- App Router uses route groups in `src/app/`: `(marketing)` (`/`, `/careevo-plus`), `(public)` (for example `/masuk`, `/kerja`, `/loker`, `/p/[username]`, `/verify/[token]`, and catalog routes such as `/explore/most-popular-courses` and `/specializations/[slug]`; plus `p/[username]/berkas/[slot]` for public CV/portfolio PDFs), `(onboarding)` (`/onboarding`, `/onboarding/demo`), plus learner `(app)`, focus `(focus)`, and staff `(verifikator)` pages.
+- **Auth gating lives in the group layouts**, not middleware (there is no `middleware.ts`): `(app)` redirects missing sessions to `/masuk` and learner sessions without a completed profile to `/onboarding`; `(focus)` checks the session and completed profile, redirecting missing profiles to `/onboarding`; `(verifikator)` checks the session and `isStaffRole()`. Individual pages re-check `getSession()` and `return null` if absent.
 - Auth is **cookie-only**: HMAC-signed session cookie `ls_session` (`src/lib/auth/session.ts`) and registered users in an HMAC-signed `ls_users` cookie capped at 20 (`src/lib/auth/user-store.ts`). Passwords are salted SHA-256, not bcrypt.
-- Env: `SESSION_SECRET` and `ATTESTATION_SECRET` are optional — both fall back to dev defaults, so the app runs with no `.env`. `.env*` is gitignored.
-- `src/actions/*.ts` are `"use server"` server actions (`auth.ts`, `review.ts`, `courses.ts`, `enrollment.ts`, `evaluasi.ts`, `onboarding.ts`, `profile.ts`, `resume.ts`).
-- Domain/business logic lives in `src/lib/{scoring,agents,attestation,audit,jobs,validation,profile,resume,onboarding,courses}`; UI in `src/components` (shadcn/ui under `src/components/ui`, feature components under `src/components/features`).
-- **Two persistence patterns, deliberately different:**
+- Env: `SESSION_SECRET` and `ATTESTATION_SECRET` are optional and fall back to dev defaults, so the app runs with no `.env`; `GEMINI_API_KEY` is optional and enables the on-demand evaluation. `.env*` is gitignored.
+- `src/actions/*.ts` are `"use server"` server actions: `auth.ts`, `review.ts`, `onboarding.ts`, `profile.ts`, `enrollment.ts`, `courses.ts`, `evaluasi.ts`, and `resume.ts`.
+- Domain/business logic lives in `src/lib/{scoring,agents,attestation,audit,jobs,validation,courses,onboarding,profile,resume}`; UI in `src/components` (shadcn/ui under `src/components/ui`, feature components under `src/components/features`).
+- **Persistence patterns, deliberately different — do not "unify" them:**
   - **Signed cookies** (`src/lib/auth`, `src/lib/onboarding`, `src/lib/profile`) — small, tamper-evident JSON; `next/headers` is mocked in tests. The editable public profile (`src/lib/profile`) fits here because it is only a name, a bio and two downscaled images.
-  - **File-based store** (`src/lib/resume`) — the LinkedIn-style resume (work/projects/education/skills/certifications, about + contact, and uploaded CV/portfolio PDFs). Unbounded in size, so it is written under `.data/` (gitignored) as JSON + files, **not** a cookie: a payload that big would silently exceed the ~4KB cookie limit and lose data with no error. Owner dirs are keyed by `sha256(email)` so a username can never traverse the tree; file names are `path.basename`-checked. Writes to `process.cwd()` fail on a read-only serverless FS — set `CAREERS_DATA_DIR` to a writable path there. Uploaded files are served publicly via `GET /p/[username]/berkas/[slot]` (product decision: a candidate shares their CV), and validated server-side (MIME + `%PDF-` magic bytes + 5MB cap) in `validasiBerkas`.
+  - **`data/courses.json`** (`src/lib/courses/storage.ts`) — courses/modules/materials (and formatted prose pages), written to disk with uploads under `public/uploads/`. See the curriculum section below.
+  - **File-based resume store** (`src/lib/resume`) — the LinkedIn-style resume (work/projects/education/skills/certifications, about + contact, and uploaded CV/portfolio PDFs). Unbounded in size, so it is written under `.data/` (gitignored) as JSON + files, **not** a cookie: a payload that big would silently exceed the ~4KB cookie limit and lose data with no error. Owner dirs are keyed by `sha256(email)` so a username can never traverse the tree; file names are `path.basename`-checked. Writes to `process.cwd()` fail on a read-only serverless FS — set `CAREERS_DATA_DIR` to a writable path there. Uploaded files are served publicly via `GET /p/[username]/berkas/[slot]` (product decision: a candidate shares their CV), and validated server-side (MIME + `%PDF-` magic bytes + 5MB cap) in `validasiBerkas`.
 
 ## Navigation — navbar contract (do not regress)
 
@@ -73,6 +79,47 @@ A skill with invalid frontmatter fails silently, so `npm run skills:check` valid
 ## Stubs — do not assume these work
 
 Several modules intentionally throw `"... belum diimplementasikan"` and are unimplemented placeholders: `logAudit` (`src/lib/audit/logger.ts`) and `runAgent`/`toAgentRun` (`src/lib/agents/orchestrator.ts`). The audit log and agent-run persistence are not wired up; pages read from fixtures instead.
+
+## Course curriculum — stored vs derived
+
+Module lists come in two flavours and the distinction is load-bearing:
+
+- **Derived** — `modulKursus()` (`src/lib/courses/kurikulum.ts`) always generates exactly 5 modules with positional ids (`${courseId}-m1`…`-m5`). This is what every course and fixture resource uses until an admin edits its curriculum. Those ids are the ones stored in real users' `ls_enroll` progress cookies.
+- **Stored** — `Course.modul` holds `Modul[]`, each with its own `materi` array (`Materi` is a discriminated union over `video | teks | pdf | kuis`). Editing a course's curriculum in `/admin/courses/[id]` switches that course to stored modules with new ids; old progress is then dropped safely by `irisModulSelesai()`.
+
+`src/lib/courses/modul-resolver.ts` is the single resolver (`modulUntuk` / `modulUntukSumber`): stored wins, otherwise derived. **Never call `modulKursus()` directly from a page or action** — divergence between the four call sites was the bug this split fixes, and `enrollment.test.ts` pins the derived ids to catch regressions.
+
+That resolver must stay server-only. `kurikulum.ts` is imported by client components (`detail-kursus.tsx`), so putting the store import (`→ storage.ts → node:fs`) there breaks the production Turbopack build with "chunking context does not support external modules". Keep `kurikulum.ts` pure.
+
+Persistence and uploads, both worth knowing before debugging "my change vanished":
+
+- Courses are written to `data/courses.json` (gitignored) via write-to-temp-then-rename, cached in memory per process. `resetCourses()` in tests disables disk writes entirely, so unit tests never touch your dev data.
+- ⚠️ That cache is **per process**. A second `next start` / script that writes the same file is invisible to an already-running server until it restarts — a newly created course can 404 on a long-running `next dev` that hydrated before it existed.
+- `POST /api/unggah` writes to `public/uploads/courses/<courseId>/<subjectId>/`. Its session gate lives *inside* the handler (route handlers sit outside the gated layouts), filename extensions come from the verified MIME rather than the submitted name, and it returns a `/uploads/...` path. In `next dev` new files are served immediately; under `next start`, `public/` is snapshotted at startup.
+
+## Halaman berformat — prosa lives here, not in materi
+
+A module holds two independent collections: **halaman** (formatted prose, written by admins) and **materi** (attachments: video/PDF/quiz). `TipeMateri` is deliberately `video | pdf | kuis` — there is **no `teks` variant**, because prose has exactly one home now. Legacy `teks` materials in `courses.json` are promoted into pages on read by `normalisasiHalamanLama()` (`src/lib/courses/halaman.ts`); the migration is lazy, idempotent (page ids derive from material ids), and runs in `pastikanTermuat()`.
+
+`Modul.halaman` is nested, like `materi`, so deleting a module takes its pages with it. `createModul` accepts `jumlah_halaman` and creates that many empty pages in **one** disk write; `updateModul` deliberately does *not* accept it, so editing a module's title can never silently add pages.
+
+### Content is structured blocks, never HTML
+
+`BlokHalaman` is a discriminated union (`paragraf | heading | daftar | kutipan | gambar`) stored as JSON. `halaman-view.tsx` maps it to React elements and `<strong>`/`<em>` — there is **no `dangerouslySetInnerHTML` anywhere**, and none should be added. This repo has no sanitizer, so rendering admin-authored HTML would turn a dormant hole into stored XSS. The editor enforces the same rule from the other side: `blok-editor.tsx` uses `contentEditable` but serialises only recognised text nodes and `b/strong`, `i/em`, and allow-listed `a[href]` — anything pasted in from elsewhere loses its markup before it can reach disk.
+
+### Backlinks and section anchors
+
+Anchors are **derived** from heading text (`daftarSection()` in `src/lib/courses/blok.ts`), not stored, and `petaSection()` is what the renderer uses to install the matching `id`. Duplicate headings on one page get `-2`, `-3` suffixes. Two consequences worth knowing:
+
+- Renaming a heading changes its anchor, so an existing backlink to it dies. That is the accepted trade-off: anchors always match the visible text. Admin repair is via the picker.
+- Because HTML anchors are page-local, backlinks are **page-scoped only**. The editor's link picker offers nothing but sections of the page being edited, plus external URLs. Cross-page movement is what the Sebelumnya/Berikutnya pager is for.
+- `rangkumBacklink()` resolves incoming links so a heading can show "ditautkan dari". Links to anchors that don't exist on the page are ignored rather than shown — displaying them would claim something untrue.
+
+Link shape is validated in `validation/blok.ts`: `#slug` (regex, never free text) or http/https via the shared `skemaUrlHttp`, which rejects `javascript:`.
+
+### Module boundaries for this feature
+
+`blok.ts` and `halaman.ts` are **pure and client-safe** and must stay that way — the page renderer is a client component. `slugBagian()` in `blok.ts` intentionally duplicates slug logic rather than importing `slugify` from `store.ts`, because that import chain reaches `node:fs`. Do not "de-duplicate" them. `npm run build` is the gate that catches a violation here; `npm run check` does not.
 
 ## Conventions that differ from defaults
 

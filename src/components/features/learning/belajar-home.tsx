@@ -198,6 +198,19 @@ const COURSE_METAS: Record<string, CourseMeta> = {
 };
 
 function getCourseMeta(resource: EntriSumber): CourseMeta {
+  // Sampul unggahan admin menang atas apa pun yang hardcoded di bawah: kalau
+  // admin sudah mengganti gambar kursus, thumbnail bawaan harus mengalah.
+  if (resource.cover_image) {
+    const bawaan = COURSE_METAS[resource.id];
+    const hash = resource.id.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return {
+      thumbnail: resource.cover_image,
+      credentialType: bawaan?.credentialType ?? "Kursus",
+      rating: bawaan?.rating ?? 4.8,
+      reviews: bawaan?.reviews ?? `${(hash % 40) + 12}k`,
+      skills: bawaan?.skills ?? resource.tags.slice(0, 3),
+    };
+  }
   if (COURSE_METAS[resource.id]) return COURSE_METAS[resource.id];
   const hash = resource.id.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const fallbackThumbnails = [
@@ -724,7 +737,7 @@ const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
       rating: "4.7",
       reviews: "101K",
       type: "Professional Certificate",
-      href: "/belajar/crs-2",
+      href: "/professional-certificates/ibm-generative-ai",
     },
     {
       title: "AI Agents and Agentic AI with Python & Generative AI",
@@ -734,7 +747,7 @@ const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
       rating: "4.6",
       reviews: "479",
       type: "Course",
-      href: "/belajar/crs-1",
+      href: "/specializations/ai-agents-python",
     },
     {
       title: "Deep Learning",
@@ -744,7 +757,7 @@ const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
       rating: "4.8",
       reviews: "147K",
       type: "Specialization",
-      href: "/belajar/crs-3",
+      href: "/specializations/deep-learning",
     },
     {
       title: "Machine Learning",
@@ -754,7 +767,7 @@ const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
       rating: "4.9",
       reviews: "39K",
       type: "Specialization",
-      href: "/belajar/r1",
+      href: "/specializations/machine-learning-introduction",
     },
   ],
   "Software Developer": [
@@ -1059,7 +1072,7 @@ const NEW_AND_POPULAR_COLUMNS: {
         rating: "4.8",
         thumbnail:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/60/097644c12e4aeba0c3420de571cac1/GCC-Coursera-thumbnail-DA-foundations-tony-cert-level.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50&crop=focalpoint&fp-y=0.48",
-        href: "/belajar/crs-4",
+        href: "/professional-certificates/google-data-analytics",
       },
       {
         title: "IBM Data Analyst",
@@ -1070,24 +1083,24 @@ const NEW_AND_POPULAR_COLUMNS: {
         rating: "4.6",
         thumbnail:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/23/f74c5a9a9c4110b78909194abbdc7a/BC-5768_VisMerch-Phase-3-Assets_ProCerts_IBM_DataAnalyst.png?auto=format%2Ccompress&dpr=1&w=320&h=180&fit=crop&q=50",
-        href: "/belajar/crs-2",
+        href: "/professional-certificates/ibm-data-analyst",
       },
       {
-        title: "Google AI",
+        title: "Google AI Essentials",
         org: "Google",
         orgLogo:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
-        type: "Professional Certificate",
+        type: "Specialization",
         rating: "4.8",
         thumbnail:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://coursera-course-photos.s3.amazonaws.com/64/1dd26fb7e24637b91b119764d08e01/GCC-Coursera-thumbnail-DA-foundations-tony.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50&crop=faces",
-        href: "/belajar/r1",
+        href: "/specializations/ai-essentials-google",
       },
     ],
   },
   {
     category: "Hot new releases",
-    categoryHref: "#katalog",
+    categoryHref: "/explore/most-popular-courses",
     items: [
       {
         title: "The Complete Claude Code & Claude Cowork Masterclass",
@@ -1097,7 +1110,7 @@ const NEW_AND_POPULAR_COLUMNS: {
         type: "Specialization",
         thumbnail:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/26/26ea676ea74cf09e0540737ab855b8/Coursera_Specialization_600x600.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=64&fit=clip&q=50",
-        href: "/belajar/r3",
+        href: "/specializations/complete-claude-code-claude-cowork-masterclass",
       },
       {
         title: "AWS Security Engineer Advanced",
@@ -1107,7 +1120,7 @@ const NEW_AND_POPULAR_COLUMNS: {
         type: "Professional Certificate",
         thumbnail:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/de/1d3ba587274f8cb6694947d8f76fef/AWS_logo_square_1200x1200.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=64&fit=clip&q=50",
-        href: "/belajar/r7",
+        href: "/professional-certificates/aws-security-engineer",
       },
       {
         title: "Microsoft Data Analysis with SQL, Excel & Power BI",
@@ -1118,13 +1131,13 @@ const NEW_AND_POPULAR_COLUMNS: {
         rating: "4.6",
         thumbnail:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/8c/625f6802494c73be844b9e745d4d4d/Microsoft-Data-Analysis-with-SQL-Excel-Power-BI.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=64&fit=clip&q=50",
-        href: "/belajar/r12",
+        href: "/specializations/microsoft-data-analysis",
       },
     ],
   },
   {
     category: "Trending AI courses",
-    categoryHref: "#katalog",
+    categoryHref: "/explore/most-popular-courses",
     items: [
       {
         title: "AWS Generative AI Developer Advanced",
@@ -1134,7 +1147,7 @@ const NEW_AND_POPULAR_COLUMNS: {
         type: "Professional Certificate",
         thumbnail:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/e4/71610c146f478c82f76469455e1080/AWS_logo_square_1200x1200.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=64&fit=clip&q=50",
-        href: "/belajar/r9",
+        href: "/professional-certificates/aws-generative-ai",
       },
       {
         title: "Machine Learning",
@@ -1145,7 +1158,7 @@ const NEW_AND_POPULAR_COLUMNS: {
         rating: "4.9",
         thumbnail:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/3a/9d2a7af297483a845340bcfbac6f1e/MLS.course-banners-01_Course-Logo-.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=64&fit=clip&q=50",
-        href: "/belajar/r2",
+        href: "/specializations/machine-learning-introduction",
       },
       {
         title: "Google AI Essentials",
@@ -1156,7 +1169,7 @@ const NEW_AND_POPULAR_COLUMNS: {
         rating: "4.8",
         thumbnail:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/07/eced232a07415eb3d77c788ae5754e/AIE.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50&crop=focalpoint&fp-y=0.48",
-        href: "/belajar/r1",
+        href: "/specializations/ai-essentials-google",
       },
     ],
   },
@@ -1370,7 +1383,7 @@ const FAQS = [
   },
   {
     q: "Apakah ada materi kursus yang bisa saya ikuti secara gratis?",
-    a: "Tentu saja. Sebagian besar kurikulum dasar kami bertanda 'Gratis' dan dapat dipelajari secara cuma-cuma dari modul 1 hingga modul 5 lengkap dengan materi terkurasi dari MDN, Google, W3C, dan React Docs.",
+    a: "Tentu saja. Sebagian besar kurikulum dasar kami bertanda 'Gratis' dan dapat dipelajari secara cuma-cuma dari modul pertama hingga modul terakhir, lengkap dengan materi terkurasi dari MDN, Google, W3C, dan React Docs.",
   },
   {
     q: "Bagaimana alur dari belajar hingga siap disalurkan ke lowongan kerja?",
@@ -1378,7 +1391,7 @@ const FAQS = [
   },
   {
     q: "Bagaimana sistem melacak kemajuan dan modul yang telah saya selesaikan?",
-    a: "Saat mendaftar di halaman detail kursus, Anda mendapatkan lembar pelacakan 5 modul. Setiap kali menandai modul selesai, progres persentase Anda diperbarui seketika dan disimpan secara persisten di sesi belajar Anda.",
+    a: "Saat mendaftar di halaman detail kursus, Anda mendapatkan lembar pelacakan seluruh modul kursus tersebut. Setiap kali menandai modul selesai, progres persentase Anda diperbarui seketika dan disimpan secara persisten di sesi belajar Anda.",
   },
 ];
 
@@ -1579,32 +1592,35 @@ export function BelajarHome({
         </div>
       </section>
 
-      {/* AI for the work you do— and the career you want (Coursera Banner) */}
+      {/* AI for the work you do— and the career you want (Coursera Split Banner) */}
       <section aria-labelledby="ai-banner-heading" className="bg-white py-12">
         <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
           <div
-            className="relative overflow-hidden rounded-3xl p-6 sm:p-9 lg:p-11 shadow-lg"
+            className="relative overflow-hidden rounded-3xl p-6 sm:p-8 lg:p-9 shadow-xl"
             style={{
               background:
-                "linear-gradient(86deg, rgb(0, 96, 235) 3.56%, rgb(135, 184, 255) 40.71%, rgb(126, 216, 116) 96.44%)",
+                "linear-gradient(90deg, #0056D2 0%, #0070F3 25%, #00A6B4 60%, #68CF7A 100%)",
             }}
           >
-            {/* Top Row: Title + Filter Tabs */}
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-              <div className="max-w-xl">
-                <h2
-                  id="ai-banner-heading"
-                  className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-white leading-tight"
-                >
-                  AI for the work you do— and the career you want
-                </h2>
-                <p className="mt-2.5 text-sm sm:text-base text-white/95 leading-relaxed">
-                  Choose your field. Learn the workflows, judgment and tools reshaping it.
-                </p>
-                <div className="mt-5">
+            <div className="flex flex-col gap-8 lg:flex-row lg:items-stretch lg:gap-8">
+              {/* Left Column: Heading, Subtitle, CTA Button */}
+              <div className="flex flex-col justify-between lg:w-[260px] xl:w-[280px] shrink-0">
+                <div>
+                  <h2
+                    id="ai-banner-heading"
+                    className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white leading-[1.18]"
+                  >
+                    AI for the work you do— and the career you want
+                  </h2>
+                  <p className="mt-3 text-sm text-white/95 leading-relaxed">
+                    Choose your field. Learn the workflows, judgment and tools reshaping it.
+                  </p>
+                </div>
+
+                <div className="mt-6 lg:mt-auto pt-2">
                   <Link
                     href="/explore/most-popular-courses"
-                    className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-xs sm:text-sm font-bold text-[#0056D2] shadow-sm transition-all hover:bg-blue-50 active:scale-95"
+                    className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-bold text-[#0056D2] shadow-xs transition-colors hover:bg-blue-50 active:scale-95"
                   >
                     <span>Explore programs</span>
                     <span>→</span>
@@ -1612,82 +1628,89 @@ export function BelajarHome({
                 </div>
               </div>
 
-              {/* Tabs */}
-              <div className="flex flex-wrap gap-2 lg:max-w-md lg:justify-end">
-                {ROLE_TABS.map((r) => (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => setRole(r)}
-                    aria-pressed={role === r}
-                    className={cn(
-                      "cursor-pointer rounded-full px-4 py-2 text-xs sm:text-sm font-semibold transition-all active:scale-95 shadow-2xs",
-                      role === r
-                        ? "bg-[#1f1f1f] text-white shadow-sm"
-                        : "bg-white text-gray-800 hover:bg-gray-100"
-                    )}
-                  >
-                    {r}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* 4 Cards Grid */}
-            <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {(AI_BANNER_DATA[role] ?? AI_BANNER_DATA["AI Engineer"]).map((card) => (
-                <Link
-                  key={card.title}
-                  href={card.href}
-                  className="group flex flex-col justify-between overflow-hidden rounded-2xl bg-white p-3.5 shadow-md transition-all duration-200 hover:-translate-y-1 hover:shadow-xl active:scale-[0.98]"
-                >
-                  <div>
-                    <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-gray-100">
-                      <Image
-                        src={card.thumbnail}
-                        alt={card.title}
-                        fill
-                        sizes="(max-width: 640px) 100vw, 25vw"
-                        className="object-cover transition-transform duration-300 group-hover:scale-105"
-                        unoptimized
-                      />
-                    </div>
-
-                    <div className="mt-3 flex items-center gap-1.5">
-                      <div className="relative size-4 shrink-0 overflow-hidden">
-                        <Image
-                          src={card.partnerLogo}
-                          alt={card.partner}
-                          fill
-                          sizes="16px"
-                          className="object-contain"
-                          unoptimized
-                        />
-                      </div>
-                      <span className="truncate text-xs font-normal text-[#4B5563]">
-                        {card.partner}
-                      </span>
-                    </div>
-
-                    <h3
-                      className="mt-1 line-clamp-2 text-xs sm:text-sm font-bold text-[#111827] leading-snug group-hover:text-[#0056D2] transition-colors"
-                      title={card.title}
+              {/* Right Column: Single Row Tabs + 4 Cards Grid directly underneath */}
+              <div className="flex flex-1 flex-col min-w-0">
+                {/* Tabs — single horizontal row, aligned with cards */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-1.5 scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex-nowrap">
+                  {ROLE_TABS.map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setRole(r)}
+                      aria-pressed={role === r}
+                      className={cn(
+                        "cursor-pointer shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all active:scale-95 shadow-2xs whitespace-nowrap",
+                        role === r
+                          ? "bg-[#1E1E1E] text-white shadow-sm"
+                          : "bg-white text-[#1E1E1E] hover:bg-gray-100"
+                      )}
                     >
-                      {card.title}
-                    </h3>
-                  </div>
+                      {r}
+                    </button>
+                  ))}
+                </div>
 
-                  <div className="mt-3 border-t border-gray-100 pt-2.5">
-                    <div className="flex items-center gap-1 text-xs text-[#4B5563]">
-                      <Star className="size-3 fill-amber-500 text-amber-500 shrink-0 inline-block" />
-                      <span className="font-semibold text-gray-900">{card.rating}</span>
-                      <span>({card.reviews})</span>
-                      <span className="text-gray-300">·</span>
-                      <span className="truncate">{card.type}</span>
-                    </div>
-                  </div>
-                </Link>
-              ))}
+                {/* 4 Cards Grid directly underneath the tabs */}
+                <div className="mt-4 grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4 flex-1">
+                  {(AI_BANNER_DATA[role] ?? AI_BANNER_DATA["AI Engineer"]).map((card) => (
+                    <Link
+                      key={card.title}
+                      href={card.href}
+                      className="group flex flex-col justify-between overflow-hidden rounded-2xl bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg active:scale-[0.98]"
+                    >
+                      <div>
+                        {/* Inset thumbnail with 16:9 aspect ratio */}
+                        <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl bg-gray-100">
+                          <Image
+                            src={card.thumbnail}
+                            alt={card.title}
+                            fill
+                            sizes="(max-width: 640px) 100vw, 20vw"
+                            className="object-cover transition-transform duration-300 group-hover:scale-105"
+                            unoptimized
+                          />
+                        </div>
+
+                        {/* Partner Logo + Name */}
+                        <div className="mt-2.5 flex items-center gap-1.5">
+                          <div className="relative size-4 shrink-0 overflow-hidden">
+                            <Image
+                              src={card.partnerLogo}
+                              alt={card.partner}
+                              fill
+                              sizes="16px"
+                              className="object-contain"
+                              unoptimized
+                            />
+                          </div>
+                          <span className="truncate text-xs font-medium text-gray-700">
+                            {card.partner}
+                          </span>
+                        </div>
+
+                        {/* Course Title */}
+                        <h3
+                          className="mt-1 line-clamp-2 text-xs sm:text-[13px] font-bold text-[#111111] leading-snug group-hover:text-[#0056D2] transition-colors min-h-[34px]"
+                          title={card.title}
+                        >
+                          {card.title}
+                        </h3>
+                      </div>
+
+                      {/* Divider & Rating Metadata */}
+                      <div className="mt-2.5 border-t border-gray-100 pt-2">
+                        <div className="flex items-center gap-1 text-[11px] text-gray-700">
+                          <span className="text-gray-900 font-bold">★</span>
+                          <span className="font-semibold text-gray-900">{card.rating}</span>
+                          <span>({card.reviews})</span>
+                          <span className="text-gray-400">·</span>
+                          <span className="truncate text-gray-600">{card.type}</span>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>

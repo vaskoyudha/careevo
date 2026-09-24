@@ -1,4 +1,22 @@
-import type { Course, CourseStats, CreateCourseInput, UpdateCourseInput } from "@/types/course";
+import type {
+  BlokHalaman,
+  BlokInput,
+  Course,
+  CourseStats,
+  CreateCourseInput,
+  CreateHalamanInput,
+  CreateMateriInput,
+  CreateModulInput,
+  Halaman,
+  Materi,
+  Modul,
+  UpdateCourseInput,
+  UpdateHalamanInput,
+  UpdateMateriInput,
+  UpdateModulInput,
+} from "@/types/course";
+import { muatCourses, simpanCourses } from "./storage";
+import { judulHalamanOtomatis, normalisasiHalamanLama } from "./halaman";
 
 export const INITIAL_COURSES: Course[] = [
   {
@@ -180,8 +198,68 @@ export function slugify(text: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-// In-process memory store for fast, deterministic runtime execution
+/**
+ * Cache in-memory di atas `storage.ts`.
+ *
+ * Disk adalah sumber kebenaran; `coursesState` hanyalah salinan agar pembacaan
+ * tetap sinkron-cepat. Cache dihidrasi sekali secara lazy pada akses pertama.
+ * `resetCourses()` menandai cache sudah terhidrasi supaya test tetap berjalan
+ * murni in-memory tanpa menyentuh disk.
+ */
 let coursesState: Course[] = [...INITIAL_COURSES];
+let sudahHidrasi = false;
+/**
+ * Dimatikan oleh `resetCourses()`. Test berjalan sepenuhnya in-memory — sama
+ * seperti sebelum store punya disk — sehingga tidak ada test yang menulis
+ * `data/courses.json` milik mesin pengembang.
+ */
+let pakaiDisk = true;
+
+async function pastikanTermuat(): Promise<void> {
+  if (sudahHidrasi) return;
+  sudahHidrasi = true;
+  const dariDisk = await muatCourses();
+  if (dariDisk !== null) {
+    // Materi `teks` dari versi sebelumnya dipromosikan menjadi halaman
+    // berformat sekali di sini, bukan disebar ke setiap pemanggil. Hasilnya
+    // ikut tersimpan pada penulisan berikutnya (migrasi malas).
+    coursesState = dariDisk.map(normalisasiHalamanLama);
+  }
+}
+
+/** Tulis cache ke disk. No-op dalam mode uji (setelah `resetCourses()`). */
+async function simpan(): Promise<void> {
+  if (!pakaiDisk) return;
+  await simpanCourses(coursesState);
+}
+
+function idBaru(prefix: string): string {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+}
+
+/**
+ * Urutkan berdasarkan `urutan` lalu nomori ulang 1..n.
+ *
+ * Dipakai saat **membaca**: berkas di disk bisa saja tidak rapi, jadi urutan
+ * ditentukan oleh field `urutan`.
+ */
+function rapikanUrutan(modul: Modul[]): Modul[] {
+  return [...modul]
+    .sort((a, b) => a.urutan - b.urutan)
+    .map((item, index) => ({ ...item, urutan: index + 1 }));
+}
+
+/**
+ * Nomori ulang 1..n **mengikuti posisi array**, tanpa mengurutkan.
+ *
+ * Ini yang benar setelah mutasi yang mengubah posisi: sesudah menukar dua
+ * elemen, field `urutan` masing-masing masih menyimpan nilai lama. Mengurutkan
+ * berdasarkan nilai basi itu justru membatalkan pertukaran — jadi urutan array
+ * yang dijadikan sumber, lalu `urutan` disesuaikan.
+ */
+function nomoriUlang(modul: Modul[]): Modul[] {
+  return modul.map((item, index) => ({ ...item, urutan: index + 1 }));
+}
 
 export interface CourseFilter {
   track?: string;
@@ -192,6 +270,7 @@ export interface CourseFilter {
 }
 
 export async function listCourses(filter?: CourseFilter): Promise<Course[]> {
+  await pastikanTermuat();
   let result = [...coursesState];
 
   if (!filter) return result;
@@ -227,14 +306,17 @@ export async function listCourses(filter?: CourseFilter): Promise<Course[]> {
 }
 
 export async function getCourseById(id: string): Promise<Course | undefined> {
+  await pastikanTermuat();
   return coursesState.find((c) => c.id === id);
 }
 
 export async function getCourseBySlug(slug: string): Promise<Course | undefined> {
+  await pastikanTermuat();
   return coursesState.find((c) => c.slug === slug);
 }
 
 export async function createCourse(input: CreateCourseInput): Promise<Course> {
+  await pastikanTermuat();
   const now = new Date().toISOString();
   const id = `crs-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
   const cleanSlug = input.slug?.trim() || slugify(input.title);
@@ -268,6 +350,7 @@ export async function createCourse(input: CreateCourseInput): Promise<Course> {
   };
 
   coursesState.unshift(newCourse);
+  await simpan();
   return newCourse;
 }
 
@@ -275,6 +358,7 @@ export async function updateCourse(
   id: string,
   input: UpdateCourseInput,
 ): Promise<Course | null> {
+  await pastikanTermuat();
   const index = coursesState.findIndex((c) => c.id === id);
   if (index === -1) return null;
 
@@ -310,6 +394,7 @@ export async function updateCourse(
     is_free: input.is_free !== undefined ? input.is_free : current.is_free,
     price: input.price !== undefined ? Number(input.price) : current.price,
     status: input.status ?? current.status,
+    cover_image: input.cover_image !== undefined ? input.cover_image : current.cover_image,
     updated_at: now,
   };
 
@@ -318,17 +403,21 @@ export async function updateCourse(
   }
 
   coursesState[index] = updated;
+  await simpan();
   return updated;
 }
 
 export async function deleteCourse(id: string): Promise<boolean> {
+  await pastikanTermuat();
   const index = coursesState.findIndex((c) => c.id === id);
   if (index === -1) return false;
   coursesState.splice(index, 1);
+  await simpan();
   return true;
 }
 
 export async function getCourseStats(): Promise<CourseStats> {
+  await pastikanTermuat();
   const total = coursesState.length;
   const published = coursesState.filter((c) => c.status === "published").length;
   const draft = coursesState.filter((c) => c.status === "draft").length;
@@ -339,6 +428,534 @@ export async function getCourseStats(): Promise<CourseStats> {
   return { total, published, draft, archived, free, paid };
 }
 
+/**
+ * Kembalikan store ke seed in-memory **tanpa menyentuh disk**.
+ *
+ * Dipakai `beforeEach` di test: mematikan penulisan disk untuk sisa proses dan
+ * menandai cache sudah terhidrasi, sehingga test tidak memuat maupun menimpa
+ * `data/courses.json` milik mesin pengembang.
+ */
 export function resetCourses(): void {
   coursesState = [...INITIAL_COURSES];
+  sudahHidrasi = true;
+  pakaiDisk = false;
+}
+
+// ---------------------------------------------------------------------------
+// Modul
+// ---------------------------------------------------------------------------
+
+/** Modul sebuah kursus, sudah terurut. Didahulukan yang benar-benar tersimpan. */
+export async function listModul(courseId: string): Promise<Modul[]> {
+  const kursus = await getCourseById(courseId);
+  if (!kursus?.modul) return [];
+  return rapikanUrutan(kursus.modul);
+}
+
+export async function getModul(courseId: string, modulId: string): Promise<Modul | undefined> {
+  const daftar = await listModul(courseId);
+  return daftar.find((m) => m.id === modulId);
+}
+
+export async function createModul(courseId: string, input: CreateModulInput): Promise<Modul | null> {
+  await pastikanTermuat();
+  const index = coursesState.findIndex((c) => c.id === courseId);
+  if (index === -1) return null;
+
+  const kursus = coursesState[index];
+  const sekarang = kursus.modul ?? [];
+  const now = new Date().toISOString();
+  const modulId = idBaru("mod");
+
+  const modul: Modul = {
+    id: modulId,
+    course_id: courseId,
+    judul: input.judul.trim(),
+    ringkasan: input.ringkasan.trim(),
+    // Store selalu menaruh modul baru di akhir; urutan eksplisit dari
+    // pemanggil diabaikan agar tidak ada celah nomor.
+    urutan: sekarang.length + 1,
+    durasi_min: Number(input.durasi_min) || 0,
+    materi: [],
+    // Halaman awal dibuat sekaligus di sini — satu penulisan untuk modul
+    // beserta halamannya, bukan satu penulisan per halaman.
+    halaman: halamanAwal(courseId, modulId, input.jumlah_halaman ?? 0, now),
+    created_at: now,
+    updated_at: now,
+  };
+
+  coursesState[index] = {
+    ...kursus,
+    modul: [...sekarang, modul],
+    updated_at: now,
+  };
+  await simpan();
+  return modul;
+}
+
+export async function updateModul(
+  courseId: string,
+  modulId: string,
+  input: UpdateModulInput,
+): Promise<Modul | null> {
+  await pastikanTermuat();
+  const index = coursesState.findIndex((c) => c.id === courseId);
+  if (index === -1) return null;
+
+  const kursus = coursesState[index];
+  const daftar = kursus.modul ?? [];
+  const posisi = daftar.findIndex((m) => m.id === modulId);
+  if (posisi === -1) return null;
+
+  const now = new Date().toISOString();
+  const lama = daftar[posisi];
+  const diperbarui: Modul = {
+    ...lama,
+    judul: input.judul !== undefined ? input.judul.trim() : lama.judul,
+    ringkasan: input.ringkasan !== undefined ? input.ringkasan.trim() : lama.ringkasan,
+    durasi_min: input.durasi_min !== undefined ? Number(input.durasi_min) : lama.durasi_min,
+    updated_at: now,
+  };
+
+  const berikut = [...daftar];
+  berikut[posisi] = diperbarui;
+  coursesState[index] = { ...kursus, modul: nomoriUlang(berikut), updated_at: now };
+  await simpan();
+  return diperbarui;
+}
+
+/** Hapus modul beserta seluruh materinya (materi dimiliki modul). */
+export async function deleteModul(courseId: string, modulId: string): Promise<boolean> {
+  await pastikanTermuat();
+  const index = coursesState.findIndex((c) => c.id === courseId);
+  if (index === -1) return false;
+
+  const kursus = coursesState[index];
+  const daftar = kursus.modul ?? [];
+  if (!daftar.some((m) => m.id === modulId)) return false;
+
+  const now = new Date().toISOString();
+  coursesState[index] = {
+    ...kursus,
+    modul: nomoriUlang(daftar.filter((m) => m.id !== modulId)),
+    updated_at: now,
+  };
+  await simpan();
+  return true;
+}
+
+/**
+ * Pindahkan satu modul naik/turun satu posisi, lalu rapikan ulang nomornya.
+ * Mengembalikan daftar terbaru, atau `null` bila kursus/modul tidak ada.
+ */
+export async function geserModul(
+  courseId: string,
+  modulId: string,
+  arah: "naik" | "turun",
+): Promise<Modul[] | null> {
+  await pastikanTermuat();
+  const index = coursesState.findIndex((c) => c.id === courseId);
+  if (index === -1) return null;
+
+  const kursus = coursesState[index];
+  const daftar = rapikanUrutan(kursus.modul ?? []);
+  const posisi = daftar.findIndex((m) => m.id === modulId);
+  if (posisi === -1) return null;
+
+  const tujuan = arah === "naik" ? posisi - 1 : posisi + 1;
+  if (tujuan < 0 || tujuan >= daftar.length) {
+    // Sudah di ujung: bukan error, cukup tidak ada perubahan.
+    return daftar;
+  }
+
+  [daftar[posisi], daftar[tujuan]] = [daftar[tujuan], daftar[posisi]];
+  const now = new Date().toISOString();
+  const hasil = nomoriUlang(daftar);
+  coursesState[index] = { ...kursus, modul: hasil, updated_at: now };
+  await simpan();
+  return hasil;
+}
+
+// ---------------------------------------------------------------------------
+// Materi
+// ---------------------------------------------------------------------------
+
+/** Bentuk bersama sebelum `id`/`urutan`/timestamp ditambahkan store. */
+function materiBaru(
+  modulId: string,
+  courseId: string,
+  urutan: number,
+  input: CreateMateriInput,
+  now: string,
+): Materi {
+  const dasar = {
+    id: idBaru("mat"),
+    modul_id: modulId,
+    course_id: courseId,
+    judul: input.judul.trim(),
+    urutan,
+    created_at: now,
+    updated_at: now,
+  };
+
+  switch (input.tipe) {
+    case "video":
+      return { ...dasar, tipe: "video", url: input.url.trim(), durasi_min: Number(input.durasi_min) || 0 };
+    case "pdf":
+      return {
+        ...dasar,
+        tipe: "pdf",
+        path: input.path.trim(),
+        ukuran_bytes: Number(input.ukuran_bytes) || 0,
+      };
+    case "kuis":
+      return {
+        ...dasar,
+        tipe: "kuis",
+        soal: input.soal,
+        nilai_lulus: Number(input.nilai_lulus) || 0,
+      };
+  }
+}
+
+/** Cari modul di dalam kursus berikut posisinya, atau `null`. */
+function cariModul(
+  kursus: Course,
+  modulId: string,
+): { modul: Modul; posisi: number } | null {
+  const posisi = (kursus.modul ?? []).findIndex((m) => m.id === modulId);
+  if (posisi === -1) return null;
+  return { modul: (kursus.modul ?? [])[posisi], posisi };
+}
+
+export async function listMateri(courseId: string, modulId: string): Promise<Materi[]> {
+  const modul = await getModul(courseId, modulId);
+  if (!modul?.materi) return [];
+  return [...modul.materi].sort((a, b) => a.urutan - b.urutan);
+}
+
+export async function createMateri(
+  courseId: string,
+  modulId: string,
+  input: CreateMateriInput,
+): Promise<Materi | null> {
+  await pastikanTermuat();
+  const index = coursesState.findIndex((c) => c.id === courseId);
+  if (index === -1) return null;
+
+  const kursus = coursesState[index];
+  const ketemu = cariModul(kursus, modulId);
+  if (!ketemu) return null;
+
+  const now = new Date().toISOString();
+  const daftar = kursus.modul ?? [];
+  const materi = materiBaru(modulId, courseId, (ketemu.modul.materi ?? []).length + 1, input, now);
+
+  const berikut = [...daftar];
+  berikut[ketemu.posisi] = {
+    ...ketemu.modul,
+    materi: [...(ketemu.modul.materi ?? []), materi],
+    updated_at: now,
+  };
+  coursesState[index] = { ...kursus, modul: berikut, updated_at: now };
+  await simpan();
+  return materi;
+}
+
+/** Ganti utuh sebuah materi — termasuk `tipe`-nya. */
+export async function updateMateri(
+  courseId: string,
+  modulId: string,
+  materiId: string,
+  input: UpdateMateriInput,
+): Promise<Materi | null> {
+  await pastikanTermuat();
+  const index = coursesState.findIndex((c) => c.id === courseId);
+  if (index === -1) return null;
+
+  const kursus = coursesState[index];
+  const ketemu = cariModul(kursus, modulId);
+  if (!ketemu) return null;
+
+  const materiLama = ketemu.modul.materi ?? [];
+  const posisiMateri = materiLama.findIndex((m) => m.id === materiId);
+  if (posisiMateri === -1) return null;
+
+  const now = new Date().toISOString();
+  const sebelumnya = materiLama[posisiMateri];
+  // Pertahankan id/urutan/timestamp pembuatan; `materiBaru` membuat yang baru.
+  const diganti: Materi = {
+    ...materiBaru(modulId, courseId, sebelumnya.urutan, input, now),
+    id: sebelumnya.id,
+    created_at: sebelumnya.created_at,
+  };
+
+  const materiBerikut = [...materiLama];
+  materiBerikut[posisiMateri] = diganti;
+
+  const daftar = kursus.modul ?? [];
+  const berikut = [...daftar];
+  berikut[ketemu.posisi] = { ...ketemu.modul, materi: materiBerikut, updated_at: now };
+  coursesState[index] = { ...kursus, modul: berikut, updated_at: now };
+  await simpan();
+  return diganti;
+}
+
+export async function deleteMateri(
+  courseId: string,
+  modulId: string,
+  materiId: string,
+): Promise<boolean> {
+  await pastikanTermuat();
+  const index = coursesState.findIndex((c) => c.id === courseId);
+  if (index === -1) return false;
+
+  const kursus = coursesState[index];
+  const ketemu = cariModul(kursus, modulId);
+  if (!ketemu) return false;
+
+  const materiLama = ketemu.modul.materi ?? [];
+  if (!materiLama.some((m) => m.id === materiId)) return false;
+
+  const now = new Date().toISOString();
+  const materiBerikut = materiLama
+    .filter((m) => m.id !== materiId)
+    .map((m, i) => ({ ...m, urutan: i + 1 }));
+
+  const daftar = kursus.modul ?? [];
+  const berikut = [...daftar];
+  berikut[ketemu.posisi] = { ...ketemu.modul, materi: materiBerikut, updated_at: now };
+  coursesState[index] = { ...kursus, modul: berikut, updated_at: now };
+  await simpan();
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// Halaman berformat
+// ---------------------------------------------------------------------------
+//
+// Halaman hidup bersarang di dalam modul (`Modul.halaman`), sama seperti materi:
+// menghapus modul otomatis menghapus halamannya. `urutan` selalu dinormalkan
+// store, jadi pemanggil tidak pernah menentukan nomor.
+
+/**
+ * Beri id pada blok yang belum punya, dan rapikan field tipe.
+ *
+ * Id diberikan di sini — satu-satunya tempat yang memutuskan bentuk id — supaya
+ * blok yang sudah ada mempertahankan id-nya. Itu bukan detail gaya: backlink
+ * `#anchor` diturunkan dari judul heading, tapi `petaSection()` memetakannya
+ * lewat id blok, jadi mengganti id blok akan memutus kaitan itu.
+ */
+function blokTersimpan(blok: BlokInput[] | undefined): BlokHalaman[] {
+  return (blok ?? []).map((item) => ({
+    ...item,
+    id: item.id?.trim() ? item.id.trim() : idBaru("blk"),
+  }));
+}
+
+/** Bentuk `Halaman` lengkap dari input pemanggil. */
+function halamanBaru(
+  courseId: string,
+  modulId: string,
+  urutan: number,
+  input: CreateHalamanInput,
+  now: string,
+): Halaman {
+  return {
+    id: idBaru("hal"),
+    modul_id: modulId,
+    course_id: courseId,
+    judul: input.judul.trim(),
+    urutan,
+    blok: blokTersimpan(input.blok),
+    created_at: now,
+    updated_at: now,
+  };
+}
+
+/** Halaman sebuah modul, terurut menaik. */
+export async function listHalaman(courseId: string, modulId: string): Promise<Halaman[]> {
+  const modul = await getModul(courseId, modulId);
+  if (!modul?.halaman) return [];
+  return [...modul.halaman].sort((a, b) => a.urutan - b.urutan);
+}
+
+export async function getHalaman(
+  courseId: string,
+  modulId: string,
+  halamanId: string,
+): Promise<Halaman | undefined> {
+  const daftar = await listHalaman(courseId, modulId);
+  return daftar.find((h) => h.id === halamanId);
+}
+
+export async function createHalaman(
+  courseId: string,
+  modulId: string,
+  input: CreateHalamanInput,
+): Promise<Halaman | null> {
+  await pastikanTermuat();
+  const index = coursesState.findIndex((c) => c.id === courseId);
+  if (index === -1) return null;
+
+  const kursus = coursesState[index];
+  const ketemu = cariModul(kursus, modulId);
+  if (!ketemu) return null;
+
+  const now = new Date().toISOString();
+  const daftar = kursus.modul ?? [];
+  const halaman = halamanBaru(
+    courseId,
+    modulId,
+    (ketemu.modul.halaman ?? []).length + 1,
+    input,
+    now,
+  );
+
+  const berikut = [...daftar];
+  berikut[ketemu.posisi] = {
+    ...ketemu.modul,
+    halaman: [...(ketemu.modul.halaman ?? []), halaman],
+    updated_at: now,
+  };
+  coursesState[index] = { ...kursus, modul: berikut, updated_at: now };
+  await simpan();
+  return halaman;
+}
+
+/** Ganti utuh isi sebuah halaman. Id dan waktu pembuatan dipertahankan. */
+export async function updateHalaman(
+  courseId: string,
+  modulId: string,
+  halamanId: string,
+  input: UpdateHalamanInput,
+): Promise<Halaman | null> {
+  await pastikanTermuat();
+  const index = coursesState.findIndex((c) => c.id === courseId);
+  if (index === -1) return null;
+
+  const kursus = coursesState[index];
+  const ketemu = cariModul(kursus, modulId);
+  if (!ketemu) return null;
+
+  const lama = ketemu.modul.halaman ?? [];
+  const posisi = lama.findIndex((h) => h.id === halamanId);
+  if (posisi === -1) return null;
+
+  const now = new Date().toISOString();
+  const sebelumnya = lama[posisi];
+  const diganti: Halaman = {
+    ...sebelumnya,
+    judul: input.judul.trim(),
+    // `undefined` berarti "jangan sentuh isi" — dipakai saat hanya mengubah
+    // judul, sehingga blok tidak perlu ikut dikirim bolak-balik.
+    blok:
+      input.blok === undefined ? sebelumnya.blok : blokTersimpan(input.blok),
+    updated_at: now,
+  };
+
+  const halamanBerikut = [...lama];
+  halamanBerikut[posisi] = diganti;
+
+  const daftar = kursus.modul ?? [];
+  const berikut = [...daftar];
+  berikut[ketemu.posisi] = { ...ketemu.modul, halaman: halamanBerikut, updated_at: now };
+  coursesState[index] = { ...kursus, modul: berikut, updated_at: now };
+  await simpan();
+  return diganti;
+}
+
+/** Hapus satu halaman beserta isinya, lalu nomori ulang sisanya. */
+export async function deleteHalaman(
+  courseId: string,
+  modulId: string,
+  halamanId: string,
+): Promise<boolean> {
+  await pastikanTermuat();
+  const index = coursesState.findIndex((c) => c.id === courseId);
+  if (index === -1) return false;
+
+  const kursus = coursesState[index];
+  const ketemu = cariModul(kursus, modulId);
+  if (!ketemu) return false;
+
+  const lama = ketemu.modul.halaman ?? [];
+  if (!lama.some((h) => h.id === halamanId)) return false;
+
+  const now = new Date().toISOString();
+  // Nomori ulang mengikuti posisi array — bukan urutan hasil sort, karena
+  // array inilah yang menentukan posisi sebenarnya setelah penghapusan.
+  const halamanBerikut = lama
+    .filter((h) => h.id !== halamanId)
+    .map((h, i) => ({ ...h, urutan: i + 1 }));
+
+  const daftar = kursus.modul ?? [];
+  const berikut = [...daftar];
+  berikut[ketemu.posisi] = { ...ketemu.modul, halaman: halamanBerikut, updated_at: now };
+  coursesState[index] = { ...kursus, modul: berikut, updated_at: now };
+  await simpan();
+  return true;
+}
+
+/**
+ * Tukar satu halaman dengan tetangganya, lalu nomori ulang.
+ *
+ * Sumber urutan adalah **posisi array setelah sort**, bukan field `urutan`:
+ * berkas dari disk bisa tidak rapi, dan bertukar berdasarkan nilai basi justru
+ * membatalkan pertukaran — pelajaran yang sama dengan `geserModul`.
+ * Mengembalikan daftar terbaru, atau `null` bila kursus/modul/halaman tak ada.
+ */
+export async function geserHalaman(
+  courseId: string,
+  modulId: string,
+  halamanId: string,
+  arah: "naik" | "turun",
+): Promise<Halaman[] | null> {
+  await pastikanTermuat();
+  const index = coursesState.findIndex((c) => c.id === courseId);
+  if (index === -1) return null;
+
+  const kursus = coursesState[index];
+  const ketemu = cariModul(kursus, modulId);
+  if (!ketemu) return null;
+
+  const daftar = [...(ketemu.modul.halaman ?? [])].sort((a, b) => a.urutan - b.urutan);
+  const posisi = daftar.findIndex((h) => h.id === halamanId);
+  if (posisi === -1) return null;
+
+  const tujuan = arah === "naik" ? posisi - 1 : posisi + 1;
+  if (tujuan < 0 || tujuan >= daftar.length) {
+    // Sudah di ujung: bukan error, cukup tidak ada perubahan.
+    return daftar;
+  }
+
+  [daftar[posisi], daftar[tujuan]] = [daftar[tujuan], daftar[posisi]];
+  const now = new Date().toISOString();
+  const hasil = daftar.map((h, i) => ({ ...h, urutan: i + 1 }));
+
+  const modulBerikut = [...(kursus.modul ?? [])];
+  modulBerikut[ketemu.posisi] = { ...ketemu.modul, halaman: hasil, updated_at: now };
+  coursesState[index] = { ...kursus, modul: modulBerikut, updated_at: now };
+  await simpan();
+  return hasil;
+}
+
+/** Buat `jumlah` halaman kosong berurutan untuk sebuah modul baru. */
+function halamanAwal(
+  courseId: string,
+  modulId: string,
+  jumlah: number,
+  now: string,
+): Halaman[] {
+  const aman = Math.max(0, Math.floor(Number(jumlah) || 0));
+  return Array.from({ length: aman }, (_, i) => ({
+    id: idBaru("hal"),
+    modul_id: modulId,
+    course_id: courseId,
+    judul: judulHalamanOtomatis(i + 1),
+    urutan: i + 1,
+    blok: [],
+    created_at: now,
+    updated_at: now,
+  }));
 }
