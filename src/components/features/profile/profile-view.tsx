@@ -105,8 +105,8 @@ export function ProfileView({
               />
             </div>
 
-            <div className="flex flex-col gap-4 px-5 pb-6 sm:px-7">
-              <div className="-mt-12 flex flex-wrap items-end justify-between gap-4">
+            <div className="relative flex flex-col gap-4 px-5 pb-6 sm:px-7">
+              <div className="relative z-10 -mt-12 flex flex-wrap items-end justify-between gap-4">
                 <div className="flex items-end gap-4">
                   <div className="relative size-24 shrink-0 overflow-hidden rounded-full border-4 border-white bg-gradient-to-br from-blue-500 to-blue-300 shadow-sm">
                     {avatar ? (
@@ -118,12 +118,12 @@ export function ProfileView({
                       </span>
                     )}
                   </div>
-                  <div className="pb-1">
+                  <div className="min-w-0 pb-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <h1 className="text-2xl font-medium -tracking-[0.6px] text-gray-900">
                         {displayName}
                       </h1>
-                      <span className="inline-flex items-center gap-1 rounded-full border border-white/70 bg-white/55 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-blue-600 uppercase backdrop-blur-sm">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-blue-200/80 bg-blue-500/10 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-blue-600 uppercase">
                         <BadgeCheck className="size-3.5" strokeWidth={2} aria-hidden="true" />
                         {ROLE_LABEL[session.role]}
                       </span>
