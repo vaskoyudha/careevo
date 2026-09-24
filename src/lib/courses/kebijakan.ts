@@ -15,13 +15,13 @@ export const LABEL_ATURAN_BANTUAN: Record<AturanBantuan, string> = {
 };
 
 export const LABEL_ATURAN_PENGAWASAN: Record<AturanPengawasan, string> = {
-  wajib: "Pengerjaan wajib di dalam sesi terverifikasi (kamera)",
+  wajib: "Pengerjaan wajib di dalam sesi terverifikasi (kamera bagian dari rancangan)",
   opsional: "Sesi terverifikasi opsional",
 };
 
 export const PESAN_POLICY: Record<AturanPengawasan, string> = {
   wajib:
-    "Pengerjaan kegiatan ini hanya bisa diselesaikan di dalam sesi terverifikasi. Kamera dan pencatatan kejadian aktif selama sesi, sesuai persetujuanmu.",
+    "Pengerjaan kegiatan ini hanya bisa diselesaikan di dalam sesi terverifikasi. Pencatatan kejadian (pindah tab dan fokus yang hilang) aktif selama sesi; kamera dirancang aktif di dalam sesi terverifikasi yang kamu setujui, tetapi belum berjalan di aplikasi ini.",
   opsional:
     "Kamu boleh mengerjakan tanpa sesi terverifikasi, tetapi hasilnya tidak dihitung sebagai bukti kompetensi terverifikasi.",
 };

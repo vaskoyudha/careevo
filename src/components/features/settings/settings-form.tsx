@@ -61,7 +61,8 @@ export function SettingsForm({ nama, email, username }: { nama: string; email: s
           <span>Izinkan perekaman artefak proses (snapshot, prompt log) untuk sesi ini</span>
         </Label>
         <p className="caption muted">
-          Kamera hanya aktif selama sesi terverifikasi yang kamu setujui, tidak pernah di luarnya.
+          Kamera dirancang hanya aktif di dalam sesi terverifikasi yang kamu setujui, dan tidak
+          pernah menyala di luarnya.
           Hari ini pencatatan terbatas pada kejadian sesi — pindah tab, fokus, dan awal/akhir sesi;
           pengaktifan kamera adalah bagian dari rancangan sesi terverifikasi dan belum berjalan di
           aplikasi ini. Tidak ada rekaman tuts, tidak ada geolokasi, dan tidak ada deteksi identitas:
