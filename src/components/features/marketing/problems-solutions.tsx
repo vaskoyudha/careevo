@@ -23,7 +23,7 @@ const PROBLEMS: ProblemItem[] = [
     problemTitle: "Banjir Portofolio AI yang Seragam",
     problemDescription:
       "Kode makin mudah disalin dalam hitungan detik. Rekruter dibanjiri repo GitHub identik dan mulai meragukan keaslian kode di CV pelamar.",
-    solutionShort: "Attestation kriptografis HMAC-SHA256 untuk memverifikasi proses pengerjaan asli; kamera hanya aktif selama sesi terverifikasi yang kamu setujui.",
+    solutionShort: "Attestation kriptografis HMAC-SHA256 untuk memverifikasi proses pengerjaan asli; kamera dirancang hanya aktif di dalam sesi terverifikasi yang kamu setujui, dan belum berjalan di aplikasi ini.",
     solutionTitle: "Bukti Alur Kerja Kriptografis (HMAC-SHA256)",
     solutionDescription:
       "Alur pengerjaan dan komitmen belajarmu terekam otomatis dan ditandatangani secara kriptografis. Rekruter cukup membuka satu tautan publik untuk memverifikasi keaslian karya tanpa merekam ketukan tombol, tanpa geolokasi, dan tanpa deteksi identitas.",

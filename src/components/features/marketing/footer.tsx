@@ -43,8 +43,8 @@ export function MarketingFooter() {
                 <p className="text-base text-gray-500 lg:pr-10">
                   Jembatan terverifikasi dari course ke pekerjaan pertama.
                   Proses belajar terekam, hasil ditandatangani, loker diaudit.
-                  Kamera hanya aktif selama sesi terverifikasi yang kamu
-                  setujui, tanpa deteksi identitas.
+                  Kamera dirancang aktif di dalam sesi terverifikasi yang kamu
+                  setujui, dan belum berjalan di aplikasi ini — tanpa deteksi identitas.
                 </p>
               </div>
             </div>
