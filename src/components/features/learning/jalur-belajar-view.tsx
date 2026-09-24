@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { hitungProgres } from "@/lib/courses/kurikulum";
 import type { PathModule, PersonalizedPath } from "@/lib/learning/personalized-path";
@@ -18,9 +19,11 @@ const MODULE_STATUS_STYLE: Record<PathModule["status"], string> = {
 export function JalurBelajarView({
   path,
   profile,
+  chat,
 }: {
   readonly path: PersonalizedPath;
   readonly profile: OnboardingProfile;
+  readonly chat?: ReactNode;
 }) {
   const completedCount = path.modules.filter(
     (module) => module.status === "completed",
@@ -160,6 +163,8 @@ export function JalurBelajarView({
             </Link>
           </aside>
         </div>
+
+        {chat ? <div className="mt-10 min-w-0">{chat}</div> : null}
 
         {path.course ? (
           <section aria-labelledby="judul-daftar-modul" className="mt-10 min-w-0">
