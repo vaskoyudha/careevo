@@ -236,7 +236,7 @@ git commit -m "feat(learning): kebijakan course + checkpoint materi (pure types)
 
 **Interfaces:**
 - Consumes: `AturanBantuan`, `AturanPengawasan`, `CheckpointMateri` (Task 1).
-- Produces: `KonteksAkses`; `KeputusanAkses` = `{ tipe: "bebas" } | { tipe: "perlu_sesi"; pesan: string } | { tipe: "ditolak"; pesan: string }`; `checkpointEfektif(modul, kebijakan): CheckpointMateri`; `putuskanAkses(konteks): KeputusanAkses`; `KATEGORI_TUTOR_BLOKIR: string[]`; `kategoriDiblokir(kategori, kebijakan): boolean`; `KJenisKejadian`; `klasifikasiKejadian(jenis, visibilitas): "kejadian" | "celah"`.
+- Produces: `KonteksAkses`; `KeputusanAkses` = `{ tipe: "bebas" } | { tipe: "perlu_sesi"; pesan: string } | { tipe: "ditolak"; pesan: string }`; `checkpointEfektif(modul): CheckpointMateri` (satu argumen — kebijakan tidak dibutuhkan untuk memutuskan checkpoint); `putuskanAkses(konteks): KeputusanAkses`; `KATEGORI_TUTOR_BLOKIR: string[]`; `kategoriDiblokir(kategori, kebijakan): boolean`; `KJenisKejadian`; `klasifikasiKejadian(jenis, visibilitas): "kejadian" | "celah"`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1100,7 +1100,7 @@ export async function selesaikanMateriAction(input: {
   const target = modul.find((m) => m.id === input.modulId);
   if (!target) return { ok: false, error: "Modul tidak ditemukan pada kurikulum saat ini." };
 
-  const checkpoint = checkpointEfektif(target, kebijakan);
+  const checkpoint = checkpointEfektif(target);
   const bukti = input.bukti
     ? await buktikanSesi({
         courseId: input.courseId,
