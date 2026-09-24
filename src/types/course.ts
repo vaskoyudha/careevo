@@ -208,6 +208,11 @@ export interface CreateModulInput {
    * `undefined`/`0` berarti modul dibuat tanpa halaman.
    */
   jumlah_halaman?: number;
+  /**
+   * Aturan pengerjaan modul. Kosong = store memakai default aman
+   * (`{ mode: "materi", batas_waktu_menit: 30 }`).
+   */
+  checkpoint?: CheckpointMateri;
 }
 
 /**

@@ -15,7 +15,7 @@
 
 // `import type` hilang saat kompilasi, jadi ini tidak menarik runtime apa pun
 // ke bundel klien — aman dipakai di berkas yang juga diimpor komponen klien.
-import type { Halaman, Materi } from "@/types/course";
+import type { CheckpointMateri, Halaman, Materi } from "@/types/course";
 
 export interface ModulKursus {
   id: string;
@@ -37,6 +37,12 @@ export interface ModulKursus {
    * ditulis admin, jadi tidak ada prosa yang bisa dihalaman-kan.
    */
   halaman?: Halaman[];
+  /**
+   * Aturan pengerjaan modul. Diteruskan dari modul tersimpan supaya gerbang
+   * learner tidak diam-diam jatuh ke default ketika modul punya checkpoint
+   * sendiri. Modul turunan tidak punya checkpoint.
+   */
+  checkpoint?: CheckpointMateri;
 }
 
 export interface SumberModul {
