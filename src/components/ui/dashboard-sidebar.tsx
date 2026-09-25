@@ -18,6 +18,7 @@ import {
   BookOpen,
   ListChecks,
   UserRound,
+  BarChart3,
 } from "lucide-react";
 
 export type SidebarNavItem = {
@@ -55,6 +56,7 @@ const STAFF_GROUPS: SidebarNavGroup[] = [
     items: [
       { href: "/review", title: "Review", icon: ClipboardCheck },
       { href: "/audit", title: "Audit", icon: ShieldCheck },
+      { href: "/performa", title: "Laporan Performa", icon: BarChart3 },
     ],
   },
 ];

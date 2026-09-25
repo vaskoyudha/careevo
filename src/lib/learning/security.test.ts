@@ -45,6 +45,11 @@ const BERKAS_SESI = path.join(ROOT, "src/components/features/learning/course-ses
 const BERKAS_CHAT_ACTION = path.join(ROOT, "src/actions/learning-chat.ts");
 const BERKAS_CHAT_UI = path.join(ROOT, "src/components/features/learning/study-chat.tsx");
 const BERKAS_SKOR = path.join(ROOT, "src/actions/performa.ts");
+const BERKAS_LAPORAN = path.join(
+  ROOT,
+  "src/components/features/performa/performa-tabel.tsx",
+);
+const BERKAS_DAFTAR_LAPORAN = path.join(ROOT, "src/app/(verifikator)/performa/page.tsx");
 
 describe("gerbang UI sesi terverifikasi", () => {
   it("halaman kursus selalu menawarkan cara memulai sesi", () => {
@@ -102,5 +107,25 @@ describe("pencatatan skor kuis", () => {
     // exactly why the learner path needs pinning. Dropping it here would make
     // quiz scores stop being recorded with no error anywhere.
     expect(readFileSync(BERKAS_DETAIL, "utf8")).toContain("catat={{ courseId: kursus.id, modulId: m.id }}");
+  });
+});
+
+describe("laporan performa tidak mengklaim lebih dari yang dilakukan", () => {
+  it("menyatakan bahwa skor kuis dilaporkan klien", () => {
+    const isi = readFileSync(BERKAS_LAPORAN, "utf8");
+    expect(isi).toContain("PERINGATAN_LAPORAN");
+    expect(isi).toContain("dilaporkan klien");
+  });
+
+  it("menyatakan kejadian integritas bukan dasar penilaian", () => {
+    const isi = readFileSync(BERKAS_LAPORAN, "utf8");
+    expect(isi).toContain("bukan dasar penilaian");
+    expect(isi).toContain("tidak mengurangi skor");
+  });
+
+  it("halaman daftar tetap memeriksa sesi sendiri", () => {
+    // The role gate comes from the `(verifikator)` layout; this page checks on
+    // its own too so moving it elsewhere cannot silently open it.
+    expect(readFileSync(BERKAS_DAFTAR_LAPORAN, "utf8")).toContain("getSession");
   });
 });
