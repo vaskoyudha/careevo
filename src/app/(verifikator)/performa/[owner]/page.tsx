@@ -5,7 +5,7 @@ import { getSession } from "@/lib/auth/session";
 import { AppShell } from "@/components/ui/app-shell";
 import { PageHead } from "@/components/ui/page-head";
 import { PeringatanPembelajaran } from "@/components/features/performa/performa-belajar";
-import { bacaPerforma } from "@/lib/performa/store";
+import { LABEL_SUMBER, bacaPerforma } from "@/lib/performa/store";
 
 export const metadata: Metadata = {
   title: "Detail Belajar",
@@ -64,7 +64,7 @@ export default async function PerformaDetailPage({
                     <li className="list-app-row" key={s.modul_id}>
                       <span className="row-title">{s.modul_id}</span>
                       <span className="text-xs text-muted-foreground">
-                        selesai · {s.at}
+                        selesai {LABEL_SUMBER[s.sumber]} · {s.at}
                       </span>
                     </li>
                   ))}

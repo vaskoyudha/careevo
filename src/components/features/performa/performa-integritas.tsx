@@ -37,8 +37,6 @@ export function IntegritasTabel({ baris }: { baris: BarisIntegritas[] }) {
             <th className="p-3">Peserta</th>
             <th className="p-3">Sesi</th>
             <th className="p-3">Kejadian / celah</th>
-            <th className="p-3">Modul terverifikasi</th>
-            <th className="p-3">Pembelajaran</th>
           </tr>
         </thead>
         <tbody>
@@ -52,6 +50,15 @@ export function IntegritasTabel({ baris }: { baris: BarisIntegritas[] }) {
                   {b.nama}
                 </Link>
                 <p className="text-xs text-muted-foreground">{b.owner}</p>
+                {/* Navigasi ke laporan lain, bukan datanya. Diletakkan di sel
+                    nama supaya tidak menyisakan kolom khusus yang isinya cuma
+                    tautan. */}
+                <Link
+                  className="text-xs underline"
+                  href={`/performa/${encodeURIComponent(b.owner)}`}
+                >
+                  Lihat belajar
+                </Link>
               </td>
               <td className="p-3">
                 {b.sesi}
@@ -64,18 +71,6 @@ export function IntegritasTabel({ baris }: { baris: BarisIntegritas[] }) {
               <td className="p-3">
                 {b.kejadian} / {b.celah}
                 <p className="text-xs text-muted-foreground">kamera: tidak ada</p>
-              </td>
-              <td className="p-3">
-                {b.terverifikasi} / {b.selesai}
-              </td>
-              {/* Pintu ke laporan lain, bukan datanya. */}
-              <td className="p-3">
-                <Link
-                  className="underline"
-                  href={`/performa/${encodeURIComponent(b.owner)}`}
-                >
-                  Lihat belajar
-                </Link>
               </td>
             </tr>
           ))}

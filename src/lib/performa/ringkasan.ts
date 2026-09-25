@@ -16,6 +16,15 @@ export interface BarisPembelajaran {
   /** Total modul tercatat selesai, apa pun jalurnya. */
   selesai: number;
   /**
+   * Berapa di antaranya yang diselesaikan lewat gerbang sesi terverifikasi.
+   *
+   * Angka ini **ikut** di laporan belajar, bukan di laporan integritas: ia hanya
+   * bermakna sebagai bagian dari penyebutnya. "3 dari 10" terpisah dari "10" akan
+   * dibaca sebagai proporsi, dan proporsi itulah yang membuat orang menghitung
+   * sendiri antara kedua laporan.
+   */
+  terverifikasi: number;
+  /**
    * Rata-rata skor kuis, atau `null` bila belum ada nilai.
    *
    * `null` bukan `0`: "belum ada data" dan "nilai nol" adalah dua klaim berbeda,
@@ -32,6 +41,10 @@ export function barisPembelajaran(catatan: RecordPerforma[]): BarisPembelajaran[
         owner: record.owner,
         nama: record.nama,
         selesai: record.kursus.reduce((n, k) => n + k.selesai.length, 0),
+        terverifikasi: record.kursus.reduce(
+          (n, k) => n + k.selesai.filter((s) => s.sumber === "terverifikasi").length,
+          0,
+        ),
         rataRataKuis:
           nilai.length === 0
             ? null
@@ -48,63 +61,37 @@ export interface BarisIntegritas {
   kejadian: number;
   celah: number;
   kedaluwarsa: number;
-  /**
-   * Modul yang diselesaikan lewat gerbang sesi terverifikasi.
-   *
-   * Angka ini hidup di laporan integritas, bukan laporan belajar: ia menyebut
-   * **jalur** penyelesaian, bukan hasil belajar. Menaruhnya di sebelah skor
-   * belajar hanya mengajak orang menghitung antara keduanya.
-   */
-  terverifikasi: number;
-  /** Total modul tercatat selesai, dipakai sebagai penyebut rasio. */
-  selesai: number;
 }
 
 /**
- * Gabungkan catatan performa dengan run sesi.
+ * Baris laporan integritas.
  *
- * Pemilik dari **kedua** sumber dimasukkan, bukan hanya yang punya catatan:
- * peserta yang punya sesi tapi nol modul selesai justru bukti paling berharga
- * bahwa pengumpulan datanya bermasalah, dan dia tidak boleh hilang dari daftar.
+ * Sumbernya **hanya** ringkasan sesi. Fungsi ini menerima peta nama, bukan
+ * `RecordPerforma[]`, karena nama adalah identitas sedangkan yang lain adalah
+ * metrik — dan tidak ada metrik belajar yang boleh masuk ke sini.
  *
- * Kalau nama belum diketahui (hanya ada run), email dipakai apa adanya.
+ * Dulu parameternya catatan performa dan barisnya membawa `selesai` serta
+ * `terverifikasi`. Angka itu menampilkan "3 / 10" di laporan integritas:
+ * `selesai` adalah hasil belajar, dan `3` dibanding `10` di halaman sebelah
+ * cukup untuk membuat orang menarik kesimpulan sendiri. Komentarnya sendiri yang
+ * memperingatkan hal itu, sementara kodenya melakukannya.
+ *
+ * Owners pun hanya diambil dari peta sesi. Pemilik yang belum punya sesi tidak
+ * punya apa pun untuk dilaporkan di sini, dan menyertakannya berarti tabel
+ * temuan menampilkan ketiadaan data seolah-olah ia data.
  */
 export function barisIntegritas(
-  catatan: RecordPerforma[],
+  nama: ReadonlyMap<string, string>,
   integritas: Map<string, RingkasanIntegritas>,
 ): BarisIntegritas[] {
-  const baris = new Map<string, BarisIntegritas>();
-
-  for (const record of catatan) {
-    const isi = integritas.get(record.owner);
-    baris.set(record.owner, {
-      owner: record.owner,
-      nama: record.nama,
-      sesi: isi?.sesi ?? 0,
-      kejadian: isi?.kejadian ?? 0,
-      celah: isi?.celah ?? 0,
-      kedaluwarsa: isi?.kedaluwarsa ?? 0,
-      terverifikasi: record.kursus.reduce(
-        (n, k) => n + k.selesai.filter((s) => s.sumber === "terverifikasi").length,
-        0,
-      ),
-      selesai: record.kursus.reduce((n, k) => n + k.selesai.length, 0),
-    });
-  }
-
-  for (const [owner, isi] of integritas) {
-    if (baris.has(owner)) continue;
-    baris.set(owner, {
+  return [...integritas.entries()]
+    .map(([owner, isi]) => ({
       owner,
-      nama: owner,
+      nama: nama.get(owner) ?? owner,
       sesi: isi.sesi,
       kejadian: isi.kejadian,
       celah: isi.celah,
       kedaluwarsa: isi.kedaluwarsa,
-      terverifikasi: 0,
-      selesai: 0,
-    });
-  }
-
-  return [...baris.values()].sort((a, b) => a.nama.localeCompare(b.nama, "id"));
+    }))
+    .sort((a, b) => a.nama.localeCompare(b.nama, "id"));
 }

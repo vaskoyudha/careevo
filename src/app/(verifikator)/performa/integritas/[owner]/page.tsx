@@ -33,15 +33,20 @@ export default async function IntegritasDetailPage({
   const owner = decodeURIComponent(segmen);
 
   const [catatan, runs] = await Promise.all([bacaPerforma(owner), listRun()]);
-  // `barisIntegritas` menggabungkan catatan dan run, jadi pemilik yang hanya
-  // punya sesi — tanpa satu pun modul selesai — tetap punya baris. Kalau dia
-  // tidak ada di salah satu pun, `find` mengembalikan undefined dan 404 benar.
-  const baris = barisIntegritas(catatan ? [catatan] : [], ringkasIntegritasByOwner(runs));
+  // Peta nama, bukan catatan performa: yang dibutuhkan di halaman ini hanya nama
+  // untuk ditampilkan. Modul selesai dan nilai kuis tidak pernah ikut.
+  const baris = barisIntegritas(
+    catatan ? new Map([[catatan.owner, catatan.nama]]) : new Map(),
+    ringkasIntegritasByOwner(runs.filter((r) => r.owner === owner)),
+  );
   const target = baris.find((b) => b.owner === owner);
+  // 404 kalau tidak ada satu pun sesi. Halaman ini melaporkan tentang sesi, jadi
+  // pemilik tanpa sesi tidak punya apa yang bisa ditampilkan di sini.
   if (!target) notFound();
 
   const sesi = ringkasIntegritasByOwner(runs.filter((r) => r.owner === owner)).get(owner);
   const daftarPersetujuan = (sesi?.daftar ?? []).map((s) => s.persetujuan);
+  const izin = gabungPersetujuan(daftarPersetujuan);
 
   return (
     <AppShell session={session} current="/performa/integritas">
@@ -79,16 +84,9 @@ export default async function IntegritasDetailPage({
               <span className="text-xs text-muted-foreground">{target.kedaluwarsa}</span>
             </li>
             <li className="list-app-row">
-              <span className="row-title">Modul lewat sesi terverifikasi</span>
-              <span className="text-xs text-muted-foreground">
-                {target.terverifikasi} / {target.selesai}
-              </span>
-            </li>
-            <li className="list-app-row">
               <span className="row-title">Persetujuan kamera</span>
               <span className="text-xs text-muted-foreground">
-                {gabungPersetujuan(daftarPersetujuan).label} —{" "}
-                {gabungPersetujuan(daftarPersetujuan).detail}
+                {izin.label} — {izin.detail}
               </span>
             </li>
           </ul>
