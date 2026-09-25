@@ -74,9 +74,9 @@ secret kosong:
   `node_modules/next/dist/server/lib/router-utils/instrumentation-globals.external.js`
   menyimpan promise yang **reject**; `next-server.js` menangkapnya dua kali hanya untuk
   `console.error`, lalu melemparnya lagi per request sehingga request handler membalas 500.
-  `router-server.js` meng-`await` initialize render server, dan bila itu melempar, ia
-  menutup listener beforeReady dan `process.exit(1)` — tetapi pada deployment salah secret
-  jalur itu tidak tercapai.
+  Jalur render server juga meng-`await` inisialisasi, tetapi observasi deployment salah
+  secret menunjukkan jalur ini tidak menghentikan proses; perilaku yang dapat dijadikan
+  kontrak operasional adalah penolakan HTTP 500 pada seluruh route aplikasi.
 
 Konsekuensinya untuk operasi: kelas kegagalan ini adalah **fail-closed (500/no routes
 served)**, bukan fail-fast process-exit. Artinya (a) platform yang mengharapkan exit-code
