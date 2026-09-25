@@ -55,7 +55,12 @@ export function StudyChat({ initialSnapshot, context }: StudyChatProps) {
 
   const submitMessage = useCallback(async (previous: StudyChatActionState, formData: FormData) => {
     const next = await kirimStudyChatAction(previous, formData);
-    if (next.status === "success" || next.status === "unavailable" || next.status === "invalid_model_output") {
+    if (
+      next.status === "success" ||
+      next.status === "unavailable" ||
+      next.status === "invalid_model_output" ||
+      next.status === "policy_denied"
+    ) {
       setMessage("");
     }
     return next;
@@ -75,7 +80,10 @@ export function StudyChat({ initialSnapshot, context }: StudyChatProps) {
     INITIAL_APPROVAL_STATE,
   );
   const displayedSnapshot =
-    sendState.status === "success" || sendState.status === "unavailable" || sendState.status === "invalid_model_output"
+    sendState.status === "success" ||
+    sendState.status === "unavailable" ||
+    sendState.status === "invalid_model_output" ||
+    sendState.status === "policy_denied"
       ? sendState.snapshot
       : initialSnapshot;
   const storedProposal = displayedSnapshot.pendingProposal;

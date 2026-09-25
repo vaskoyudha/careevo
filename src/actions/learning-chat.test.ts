@@ -6,6 +6,7 @@ import type { ModulKursus } from "@/lib/courses/kurikulum";
 import type { Pendaftaran } from "@/lib/courses/enrollment";
 import type { OnboardingProfile } from "@/lib/onboarding/types";
 import type { PersonalizedPath } from "@/lib/learning/personalized-path";
+import { kebijakanDefault } from "@/lib/courses/kebijakan";
 import type {
   StudyChatMessage,
   StudyChatSnapshot,
@@ -29,6 +30,7 @@ const mocks = vi.hoisted(() => ({
   cariPendaftaran: vi.fn(),
   pendaftaranPenuh: vi.fn(),
   daftarKursus: vi.fn(),
+  getCourseById: vi.fn(),
   revalidatePath: vi.fn(),
 }));
 
@@ -41,6 +43,9 @@ vi.mock("@/lib/courses/enrollment", () => ({
   pendaftaranPenuh: mocks.pendaftaranPenuh,
   daftarKursus: mocks.daftarKursus,
 }));
+// The course store is mocked so the policy gate can load `kebijakan` without
+// reading the real `data/courses.json` from disk during tests.
+vi.mock("@/lib/courses/store", () => ({ getCourseById: mocks.getCourseById }));
 vi.mock("@/lib/learning/personalized-path", () => ({
   bangunJalurPersonalisasi: mocks.bangunJalurPersonalisasi,
 }));
@@ -198,6 +203,17 @@ function setCoursePath(course: EntriKatalog | null = COURSE): void {
   });
 }
 
+/**
+ * Course as the store returns it. `EntriKatalog` deliberately carries no
+ * `kebijakan`, so the policy gate has to load the course itself.
+ */
+function setKebijakanCourse(aturanBantuan: "bebas" | "bertutor" | "tanpa_ai") {
+  mocks.getCourseById.mockResolvedValue({
+    id: COURSE.id,
+    kebijakan: { ...kebijakanDefault(), aturan_bantuan: aturanBantuan },
+  });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   storedSnapshot = { version: 1, messages: [] };
@@ -239,6 +255,7 @@ beforeEach(() => {
     reply: REPLY_WITHOUT_PATH,
   } satisfies StudyReplyResult);
   mocks.daftarKursus.mockResolvedValue([]);
+  mocks.getCourseById.mockResolvedValue(undefined);
 });
 
 describe("kirimStudyChatAction", () => {
@@ -274,6 +291,37 @@ describe("kirimStudyChatAction", () => {
     expect(mocks.getProfile).not.toHaveBeenCalled();
     expect(mocks.appendStudyMessage).not.toHaveBeenCalled();
     expect(mocks.generateStudyReply).not.toHaveBeenCalled();
+  });
+
+  it("refuses the tutor when the course bans AI help, before persisting or calling the provider", async () => {
+    // Given: a course whose help rule closes academic assistance.
+    setKebijakanCourse("tanpa_ai");
+
+    // When: the learner asks for help anyway.
+    const result = await kirimStudyChatAction({ status: "idle" }, messageForm("Tolong kerjakan ini."));
+
+    // Then: the request is refused, and the refusal is total — the model is
+    // never called (calling it and discarding the answer still burns quota and
+    // still produces the forbidden help), and the rejected text never lands in
+    // the transcript as evidence of a suppressed request.
+    expect(result.status).toBe("policy_denied");
+    expect(mocks.generateStudyReply).not.toHaveBeenCalled();
+    expect(mocks.appendStudyMessage).not.toHaveBeenCalled();
+    if (result.status !== "policy_denied") return;
+    expect(result.message).toContain("melarang");
+    expect(result.snapshot.messages).toHaveLength(0);
+  });
+
+  it("still serves the tutor when the course help rule allows it", async () => {
+    // Given: a course that permits the Careevo tutor.
+    setKebijakanCourse("bertutor");
+
+    // When: the learner asks a normal question.
+    const result = await kirimStudyChatAction({ status: "idle" }, messageForm("What is a server component?"));
+
+    // Then: the gate is transparent and behaviour is unchanged.
+    expect(result).toMatchObject({ status: "success" });
+    expect(mocks.generateStudyReply).toHaveBeenCalled();
   });
 
   it("appends server metadata and passes only safe profile/path context to Gemini", async () => {

@@ -3,6 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth/session";
 import { katalogBelajar, type EntriKatalog } from "@/lib/courses/katalog";
+import { getCourseById } from "@/lib/courses/store";
+import { kebijakanDefault } from "@/lib/courses/kebijakan";
+import { putuskanAkses } from "@/lib/learning/akses";
 import {
   cariPendaftaran,
   daftarKursus,
@@ -184,6 +187,33 @@ export async function kirimStudyChatAction(
   const context = await loadPathContext(owner);
   if (!context) {
     return { status: "invalid_input", message: "Profil belajar belum lengkap." };
+  }
+
+  // Gerbang aturan bantuan course. Dipasang SEBELUM `appendStudyMessage`:
+  // pesan yang ditolak tidak boleh masuk ke transkrip, dan model tidak boleh
+  // dipanggil sama sekali — memanggil lalu membuang jawaban tetap membakar kuota
+  // dan tetap menghasilkan bantuan yang dilarang.
+  //
+  // Tanpa konteks course tidak ada kebijakan yang berlaku, jadi tutor tetap
+  // dilayani seperti sebelumnya. `context.course` diturunkan dari profil +
+  // pendaftaran, bukan dari formulir, jadi peserta tidak bisa mengecualikan
+  // dirinya lewat pesan yang ia kirim.
+  if (context.course) {
+    const kursus = await getCourseById(context.course.id);
+    const keputusan = putuskanAkses({
+      jenisKegiatan: "bantuan_akademik",
+      kebijakan: kursus?.kebijakan ?? kebijakanDefault(),
+      // `bantuan_akademik` tidak bergantung bukti sesi — mesin akses tidak
+      // membacanya untuk kegiatan ini, jadi nilainya sengaja tidak menebak.
+      adaBuktiSesi: false,
+    });
+    if (keputusan.tipe === "ditolak") {
+      return {
+        status: "policy_denied",
+        message: keputusan.pesan,
+        snapshot: await readStudyChatSnapshot(owner),
+      };
+    }
   }
 
   const learnerMessage = messageFor(message, "user", context);

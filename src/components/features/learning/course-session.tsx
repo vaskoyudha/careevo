@@ -5,6 +5,7 @@ import { mulaiSesiAction, catatKejadianAction, akhiriSesiAction } from "@/action
 import {
   klasifikasiKejadian,
   putuskanAkses,
+  wajibSesiTerverifikasi,
   type JenisKegiatan,
   type KJenisKejadian,
   type KeputusanAkses,
@@ -337,6 +338,57 @@ export function CourseSessionIndicator() {
       >
         Akhiri sesi
       </button>
+    </div>
+  );
+}
+
+/**
+ * Ajakan memulai sesi — pasangan `CourseSessionIndicator`.
+ *
+ * Tanpa komponen ini ada jalan buntu. Indikator hanya muncul **setelah** sesi
+ * berjalan, dan `CourseSessionGate` (satu-satunya tombol "Mulai sesi" yang lain)
+ * hanya dirender di dalam panel modul yang punya lampiran. Modul turunan selalu
+ * kosong (`punyaIsi` false di `detail-kursus.tsx`), jadi di seluruh kursus stok
+ * tidak ada satu pun tombol untuk memulai sesi — sementara penyelesaian `materi`
+ * di course `wajib` selalu ditolak server tanpa bukti. Hasilnya: tombol "Tandai
+ * selesai" tampil lima kali dan tidak ada satu pun cara memenuhinya.
+ *
+ * Sesinya berlaku untuk seluruh course (`mulaiSesiAction(courseId)`), bukan per
+ * modul, jadi ajakan ini memang letaknya di tingkat course — supaya selalu
+ * terjangkau, bukan hanya ketika satu modul kebetulan punya lampiran.
+ *
+ * Copy hanya menyebut pencatatan kejadian: kamera memang belum diminta di sini.
+ * Menulis "kamera aktif" sebelum `getUserMedia` benar-benar dipanggil adalah
+ * indikator yang berbohong tentang apa yang dipantau.
+ */
+export function CourseSessionPrompt() {
+  const { status, error, kebijakan, mulai } = useCourseSession();
+  // Course `opsional` tidak butuh sesi, jadi tidak ada yang perlu diajak.
+  if (!wajibSesiTerverifikasi(kebijakan)) return null;
+  // `menyiapkan`/`gagal`/`diakhiri` tetap dirender: tombol perlu menampilkan
+  // "Menyiapkan sesi…" dan pesan galat, serta setelah sesi diakhiri peserta
+  // harus bisa memulai lagi. Hanya sesi yang sedang berjalan yang diwakili
+  // indikator — keduanya tidak pernah tampil bersamaan.
+  if (status === "aktif") return null;
+  return (
+    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+      <p className="text-sm font-semibold text-amber-900">
+        Course ini mewajibkan sesi terverifikasi untuk menyelesaikan materi.
+      </p>
+      <p className="mt-1.5 text-xs text-amber-800">
+        Sesi ini mencatat kejadian integritas (pindah tab dan fokus yang hilang) selama berjalan.
+        Permintaan akses kamera belum aktif; setelah tersedia, sesi terverifikasi juga memerlukan
+        persetujuan kameramu.
+      </p>
+      <button
+        type="button"
+        onClick={() => void mulai()}
+        disabled={status === "menyiapkan"}
+        className="mt-3 cursor-pointer rounded-full bg-[#0056D2] px-4 py-2 text-xs font-semibold text-white disabled:opacity-60"
+      >
+        {status === "menyiapkan" ? "Menyiapkan sesi…" : "Mulai sesi terverifikasi"}
+      </button>
+      {error ? <p className="mt-2 text-xs text-red-700">{error}</p> : null}
     </div>
   );
 }

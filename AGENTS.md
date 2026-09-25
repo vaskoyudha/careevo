@@ -40,6 +40,7 @@ A skill with invalid frontmatter fails silently, so `npm run skills:check` is th
 - Test environment is `node`, with no jsdom or browser test runner — tests cover pure logic only (e.g. `src/lib/scoring`, `src/lib/attestation`, `src/lib/resume`, `src/app/smoke.test.ts`).
 - The file-based resume store's test points `CAREERS_DATA_DIR` at a temp dir **before** importing the module, so it never touches the repo's real `.data/`.
 - `@/` alias maps to `src/` in both `tsconfig.json` and `vitest.config.mts`; keep them in sync.
+- `vitest.config.mts` sets `CAREEVO_PERFORMA_DIR` to a fresh temp dir on every run. It cannot be set inside `src/actions/enrollment.test.ts` because that file uses static imports, so the env has to be in place before the store module loads. Test files that need isolation from parallel siblings override it again in `beforeEach` — `tempatPerforma()` reads the env per call, so that works despite static imports.
 
 ## Architecture
 
@@ -53,6 +54,7 @@ A skill with invalid frontmatter fails silently, so `npm run skills:check` is th
   - **Signed cookies** (`src/lib/auth`, `src/lib/onboarding`, `src/lib/profile`) — small, tamper-evident JSON; `next/headers` is mocked in tests. The editable public profile (`src/lib/profile`) fits here because it is only a name, a bio and two downscaled images.
   - **`data/courses.json`** (`src/lib/courses/storage.ts`) — courses/modules/materials (and formatted prose pages), written to disk with uploads under `public/uploads/`. See the curriculum section below.
   - **File-based resume store** (`src/lib/resume`) — the LinkedIn-style resume (work/projects/education/skills/certifications, about + contact, and uploaded CV/portfolio PDFs). Unbounded in size, so it is written under `.data/` (gitignored) as JSON + files, **not** a cookie: a payload that big would silently exceed the ~4KB cookie limit and lose data with no error. Owner dirs are keyed by `sha256(email)` so a username can never traverse the tree; file names are `path.basename`-checked. Writes to `process.cwd()` fail on a read-only serverless FS — set `CAREERS_DATA_DIR` to a writable path there. Uploaded files are served publicly via `GET /p/[username]/berkas/[slot]` (product decision: a candidate shares their CV), and validated server-side (MIME + `%PDF-` magic bytes + 5MB cap) in `validasiBerkas`.
+  - **File-based performance store** (`src/lib/performa/`) — server-side records the staff dashboard reads: a mirror of module completion plus which path completed it (`terverifikasi` vs `informal`), quiz scores **as reported by the client**, and a direct read of `.data/sessions/` for integrity. Server-only; no `dangerouslySetInnerHTML`. It exists for exactly one reason: a verifikator must be able to read across learners, and the `ls_enroll` cookie can only be read by its owner. Two things must not drift: the mirror is written from `tandaiModul` (the single writer of `selesai_modul`) so the two cannot diverge, and integrity is read from `.data/sessions/` rather than copied, so there stays one source of truth. Directory redirectable via `CAREEVO_PERFORMA_DIR`.
 
 ## Navigation — navbar contract (do not regress)
 
