@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState, useMemo, useState } from "react";
 import { decideReview, type ReviewState } from "@/actions/review";
 import { hitungSkorKarya, type RubricCriterion } from "@/lib/scoring/karya";
@@ -146,11 +145,6 @@ export function ReviewForm({ submission, username }: { submission: SubmissionFix
       {state.ok ? (
         <div className="alert alert-ok" style={{ marginTop: "1rem" }} role="status">
           <p style={{ margin: 0 }}>{state.message}</p>
-          {state.token ? (
-            <p style={{ margin: "0.5rem 0 0" }}>
-              Verifikasi publik: <Link href={`/verify/${state.token}`}>buka halaman /verify</Link>
-            </p>
-          ) : null}
         </div>
       ) : null}
     </form>

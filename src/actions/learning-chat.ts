@@ -31,6 +31,7 @@ import {
 } from "@/lib/learning/chat-types";
 import { validateStudyPathProposal } from "@/lib/learning/path-proposal";
 import { generateStudyReply } from "@/lib/agents/study-chat/gemini";
+import { cekBatasiAksi } from "@/lib/rate-limit/next";
 import type {
   StudyPromptInput,
   StudyReplyFailureReason,
@@ -175,6 +176,24 @@ export async function kirimStudyChatAction(
   const session = await getSession();
   if (!session) {
     return { status: "unauthenticated", message: "Masuk dulu untuk membuka tutor." };
+  }
+
+  // Dibatasi SEBELUM validasi pesan dan SEBELUM `generateStudyReply`, jadi
+  // pesan cacat maupun pesan wajar sama-sama dihitung — memvalidasi lebih dulu
+  // akan membuka celah menghindari batas dengan request yang selalu ditolak.
+  // Principal = email sesi; tanpa itu satu akun dapat berpindah IP.
+  //
+  // Ditolak dengan `unavailable`/`rate_limited` (state yang sudah ada) dan
+  // snapshot asli, bukan snapshot kosong: transkrip yang sudah dimiliki peserta
+  // tidak boleh hilang hanya karena ia menembus batas.
+  const batas = await cekBatasiAksi("studyChat", { principal: session.email });
+  if (batas) {
+    return {
+      status: "unavailable",
+      reason: "rate_limited",
+      message: batas.gagal.pesan,
+      snapshot: await readStudyChatSnapshot(session.email),
+    };
   }
 
   const rawMessage = formData.get("message");

@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -174,7 +174,7 @@ export async function simpanBerkas(
       .map((f) => rm(path.join(dir, f), { force: true })),
   );
 
-  const nama = `${slot}-${Date.now()}.pdf`;
+  const nama = `${slot}-${Date.now()}-${randomBytes(4).toString("hex")}.pdf`;
   await writeFile(safeJoin(dir, nama), bytes);
 
   return {

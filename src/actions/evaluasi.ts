@@ -21,6 +21,7 @@ import { ambilLokerById } from "@/lib/jobs/cache";
 import { profile } from "@/lib/fixtures";
 import { evaluasiLoker, type JenisGagal } from "@/lib/agents/evaluasi/evaluasi";
 import type { HasilEvaluasi } from "@/lib/agents/evaluasi/skema";
+import { cekBatasiAksi } from "@/lib/rate-limit/next";
 
 export interface EvaluasiState {
   ok: boolean;
@@ -35,6 +36,14 @@ export async function nilaiLokerAction(jobId: string): Promise<EvaluasiState> {
   const session = await getSession();
   if (!session) {
     return { ok: false, alasan: "gagal", pesan: "Sesi tidak ditemukan." };
+  }
+
+  // Dibatasi SETELAH sesi (agar principal tersedia) dan SEBELUM `evaluasiLoker`:
+  // satu panggilan adalah 30–60 detik dan berbiaya, jadi inilah titik termurah
+  // untuk menolak. Principal = email sesi, bukan `jobId` dari klien.
+  const batas = await cekBatasiAksi("evaluasi", { principal: session.email });
+  if (batas) {
+    return { ok: false, alasan: "gagal", pesan: batas.gagal.pesan };
   }
 
   const job = await ambilLokerById(jobId);
