@@ -4,13 +4,11 @@ import { notFound } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { AppShell } from "@/components/ui/app-shell";
 import { PageHead } from "@/components/ui/page-head";
-import { PeringatanLaporan } from "@/components/features/performa/performa-tabel";
+import { PeringatanPembelajaran } from "@/components/features/performa/performa-belajar";
 import { bacaPerforma } from "@/lib/performa/store";
-import { ringkasIntegritasByOwner } from "@/lib/performa/integritas";
-import { listRun } from "@/lib/learning/session";
 
 export const metadata: Metadata = {
-  title: "Detail Performa",
+  title: "Detail Belajar",
 };
 
 export default async function PerformaDetailPage({
@@ -22,17 +20,11 @@ export default async function PerformaDetailPage({
   if (!session) return null;
 
   const { owner: segmen } = await params;
-  // Segmen rute arrives **URL-encoded**: `%40` untuk `@` masuk ke sini apa
-  // adanya. Tanpa decode, hash berkas tidak pernah cocok untuk email mana pun
-  // dan setiap halaman detail peserta jadi 404 — tes HTTP langsung yang
-  // menemukan ini, bukan typecheck.
+  // Segmen rute arrives URL-encoded (`%40` untuk `@`); tanpa decode, hash berkas
+  // tidak pernah cocok untuk email mana pun.
   const owner = decodeURIComponent(segmen);
-  const [record, runs] = await Promise.all([bacaPerforma(owner), listRun()]);
+  const record = await bacaPerforma(owner);
   if (!record) notFound();
-
-  const daftarSesi =
-    ringkasIntegritasByOwner(runs.filter((r) => r.owner === record.owner)).get(record.owner)
-      ?.daftar ?? [];
 
   return (
     <AppShell session={session} current="/performa">
@@ -41,14 +33,21 @@ export default async function PerformaDetailPage({
         title={record.nama}
         lead={record.owner}
         actions={
-          <Link className="text-sm underline" href="/performa">
-            Kembali ke daftar
-          </Link>
+          <div className="flex flex-wrap gap-3 text-sm">
+            <Link className="underline" href="/performa">
+              Kembali ke daftar
+            </Link>
+            {/* Pintu ke laporan lain, bukan datanya: halaman ini sengaja tidak
+                memuat satu pun catatan integritas. */}
+            <Link className="underline" href={`/performa/integritas/${encodeURIComponent(record.owner)}`}>
+              Lihat integritas
+            </Link>
+          </div>
         }
       />
 
       <div className="space-y-4">
-        <PeringatanLaporan />
+        <PeringatanPembelajaran />
 
         <section className="card" aria-labelledby="performa-kursus">
           <h2 className="card-title" id="performa-kursus">
@@ -65,7 +64,7 @@ export default async function PerformaDetailPage({
                     <li className="list-app-row" key={s.modul_id}>
                       <span className="row-title">{s.modul_id}</span>
                       <span className="text-xs text-muted-foreground">
-                        {s.sumber} · {s.at}
+                        selesai · {s.at}
                       </span>
                     </li>
                   ))}
@@ -82,26 +81,6 @@ export default async function PerformaDetailPage({
                 </ul>
               </div>
             ))
-          )}
-        </section>
-
-        <section className="card" aria-labelledby="performa-sesi">
-          <h2 className="card-title" id="performa-sesi">
-            Riwayat sesi
-          </h2>
-          {daftarSesi.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Belum ada sesi tercatat.</p>
-          ) : (
-            <ul className="list-app">
-              {daftarSesi.map((s) => (
-                <li className="list-app-row" key={s.run_id}>
-                  <span className="row-title">{s.course_id}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {s.status} · {s.kejadian} kejadian · {s.celah} celah · {s.mulai_at}
-                  </span>
-                </li>
-              ))}
-            </ul>
           )}
         </section>
       </div>
