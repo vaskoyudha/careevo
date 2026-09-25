@@ -471,6 +471,7 @@ bagian dari pekerjaan Fase 0):
 | `DEMO_MODE` | Opt-in akun demo (harus `1` **dan** `NODE_ENV=development`); jangan pernah diisi di deployment publik | Tidak |
 | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | Counter rate limit | Ya, bila rate limit aktif |
 | `CAREEVO_TRUST_PROXY_HEADERS` | Percayai `X-Forwarded-Host` untuk cek Origin; **hanya** di belakang reverse proxy tepercaya yang menimpanya — jangan pernah diaktifkan bila app dijangkau langsung | Tidak |
+| `CAREEVO_TRUST_REAL_IP_HEADER` | Percayai header `x-real-ip` untuk keying rate limit; **hanya** di belakang proxy yang menimpanya — jangan aktifkan bila klien dapat menyuntik header | Tidak |
 | `CAREEVO_ALLOW_MISSING_ORIGIN` | Izinkan POST tanpa header `Origin` (klien non-browser/dev); jangan diaktifkan di deployment publik | Tidak |
 | `GEMINI_API_KEY`, `GEMINI_MODEL` | Evaluasi AI opsional | Tidak; ketiadaannya adalah state yang sah |
 | `CAREEVO_DATA_DIR`, `CAREERS_DATA_DIR`, `CAREERS_SESSION_DIR`, `CAREEVO_PERFORMA_DIR` | Pengalihan direktori data | Hanya di test |
