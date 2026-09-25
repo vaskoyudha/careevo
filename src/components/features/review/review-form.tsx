@@ -81,11 +81,11 @@ export function ReviewForm({ submission, username }: { submission: SubmissionFix
         </div>
       ))}
 
-      <div className="field" style={{ marginTop: "1rem" }}>
+      <div className="field mt-5">
         <label htmlFor="r-reason">Alasan (wajib)</label>
         <Textarea
           id="r-reason"
-          rows={3}
+          rows={4}
           value={reason}
           onChange={(event) => setReason(event.target.value)}
           placeholder="Jelaskan dasar keputusan. Tidak ada silent reject."
@@ -93,7 +93,11 @@ export function ReviewForm({ submission, username }: { submission: SubmissionFix
         />
       </div>
 
-      <div className="editor-toolbar" style={{ marginBottom: "1rem" }}>
+      <div
+        className="editor-toolbar mt-4"
+        role="group"
+        aria-label="Keputusan review"
+      >
         <Button
           type="button"
           variant="ghost"
@@ -123,7 +127,13 @@ export function ReviewForm({ submission, username }: { submission: SubmissionFix
         </Button>
       </div>
 
-      <Button className="btn-primary" variant="brand" size="pill" type="submit" disabled={pending}>
+      {/* `variant="ocean"` memakai `--primary` (#0a3d62), warna utama
+          dashboard, dan warna yang sama dengan `.tab-btn.is-active` di atas —
+          jadi tombol utama dan segmen pilihan dalam satu form tidak lagi
+          berlomba warna. `btn-primary` sengaja dibuang: kelas itu juga hijau
+          (`--leaf`) dan berhadapan dengan variant, jadi siapa yang menang
+          bergantung urutan stylesheet. */}
+      <Button variant="ocean" size="pill" type="submit" disabled={pending}>
         {pending ? "Menyimpan..." : `Kirim keputusan: ${decision}`}
       </Button>
 
