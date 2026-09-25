@@ -32,7 +32,10 @@ const mocks = vi.hoisted(() => ({
   daftarKursus: vi.fn(),
   getCourseById: vi.fn(),
   revalidatePath: vi.fn(),
+  cekBatasiAksi: vi.fn(),
 }));
+
+vi.mock("@/lib/rate-limit/next", () => ({ cekBatasiAksi: mocks.cekBatasiAksi }));
 
 vi.mock("@/lib/auth/session", () => ({ getSession: mocks.getSession }));
 vi.mock("@/lib/onboarding/store", () => ({ getProfile: mocks.getProfile }));
@@ -256,6 +259,7 @@ beforeEach(() => {
   } satisfies StudyReplyResult);
   mocks.daftarKursus.mockResolvedValue([]);
   mocks.getCourseById.mockResolvedValue(undefined);
+  mocks.cekBatasiAksi.mockResolvedValue(null);
 });
 
 describe("kirimStudyChatAction", () => {
@@ -289,6 +293,26 @@ describe("kirimStudyChatAction", () => {
     // Then: no owner store or provider is touched.
     expect(result).toMatchObject({ status: "invalid_input" });
     expect(mocks.getProfile).not.toHaveBeenCalled();
+    expect(mocks.appendStudyMessage).not.toHaveBeenCalled();
+    expect(mocks.generateStudyReply).not.toHaveBeenCalled();
+  });
+
+  it("refuses a rate-limited message before validation, persistence, or the provider", async () => {
+    // Given: the shared limiter denies this principal.
+    mocks.cekBatasiAksi.mockResolvedValue({
+      gagal: { pesan: "Batas terlampaui." },
+    });
+
+    // When: the learner sends a normal message.
+    const result = await kirimStudyChatAction({ status: "idle" }, messageForm("Jelaskan closures"));
+
+    // Then: the check runs under the authenticated principal, and nothing is
+    // persisted or billed — the rejected turn must not land in the transcript.
+    expect(mocks.cekBatasiAksi).toHaveBeenCalledWith("studyChat", { principal: SESSION.email });
+    expect(result).toMatchObject({ status: "unavailable", reason: "rate_limited" });
+    if (result.status !== "unavailable") return;
+    // The learner's existing transcript is preserved, not blanked.
+    expect(result.snapshot.messages).toHaveLength(0);
     expect(mocks.appendStudyMessage).not.toHaveBeenCalled();
     expect(mocks.generateStudyReply).not.toHaveBeenCalled();
   });

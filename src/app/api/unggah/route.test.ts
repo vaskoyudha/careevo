@@ -23,7 +23,7 @@ import type { SessionPayload } from "@/lib/auth/types";
  * Route handler unggah — diuji adversarial di transport, bukan sebagai unit
  * internal.
  *
- * Dua properti keamanan yang dijaga di sini:
+ * Tiga properti keamanan yang dijaga di sini:
  *
  * 1. **Origin divalidasi sebelum apa pun.** Route handler tidak mendapat
  *    perlindungan CSRF bawaan Next.js, jadi ia memeriksa Origin sendiri.
@@ -32,6 +32,11 @@ import type { SessionPayload } from "@/lib/auth/types";
  * 2. **`subjekId` tidak dipercaya.** Ia harus milik kursus yang disebut,
  *    mengikuti resolver modul efektif sehingga kursus bermodul turunan tetap
  *    menerima id lamanya (`${courseId}-m1`).
+ * 3. **Pembatas dijalankan sebelum body dibaca.** Handler ini menampung seluruh
+ *    body multipart ke memori, jadi urutannya adalah properti keamanan: gerbang
+ *    sesi, gerbang peran, dan pembatas harus selesai sebelum `formData()`
+ *    menyentuh body. Penolakan yang tetap membaca body lebih dulu tidak
+ *    melindungi apa pun.
  *
  * Penulisan berkas di-mock supaya test tidak menyentuh `public/uploads/`.
  */
@@ -40,6 +45,14 @@ vi.mock("node:fs/promises", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:fs/promises")>();
   return { ...actual, mkdir: vi.fn(async () => undefined), writeFile: vi.fn(async () => undefined) };
 });
+
+// Hanya modul pembatas yang di-mock. Sisanya (store kursus, origin, resolver
+// modul) tetap nyata supaya suite di bawah benar-benar menguji perilakunya.
+const mocks = vi.hoisted(() => ({ batasiRequestMasuk: vi.fn() }));
+
+vi.mock("@/lib/rate-limit/next", () => ({
+  batasiRequestMasuk: mocks.batasiRequestMasuk,
+}));
 
 const COURSE_ID = "crs-1";
 const ASAL = "http://localhost:3000";
@@ -85,6 +98,21 @@ function permintaan(opsi: OpsiPermintaan = {}): Request {
   return new Request(URL_UNGGAH, { method: "POST", body: form, headers });
 }
 
+/**
+ * Permintaan yang bodynya **tidak dapat dibaca**. Setiap jalur yang mencapai
+ * `formData()` akan melempar, sehingga "tidak melempar" menjadi bukti bahwa
+ * handler berhenti lebih dulu.
+ */
+function permintaanTanpaBody(): Request {
+  const req = permintaan();
+  Object.defineProperty(req, "formData", {
+    value: () => {
+      throw new Error("body tidak boleh dibaca");
+    },
+  });
+  return req;
+}
+
 async function bacaJson(res: Response): Promise<{ ok: boolean; error?: string; path?: string }> {
   return (await res.json()) as { ok: boolean; error?: string; path?: string };
 }
@@ -95,6 +123,7 @@ describe("POST /api/unggah — validasi Origin", () => {
     vi.restoreAllMocks();
     delete process.env[ENV_IZINKAN_TANPA_ORIGIN];
     delete process.env[ENV_PERCAYA_X_FORWARDED_HOST];
+    mocks.batasiRequestMasuk.mockResolvedValue(null);
     vi.spyOn(sessionModule, "getSession").mockResolvedValue(adminSession);
   });
 
@@ -228,6 +257,7 @@ describe("POST /api/unggah — gerbang akses", () => {
   beforeEach(() => {
     resetCourses();
     vi.restoreAllMocks();
+    mocks.batasiRequestMasuk.mockResolvedValue(null);
   });
 
   it("menolak tanpa sesi", async () => {
@@ -248,6 +278,7 @@ describe("POST /api/unggah — otorisasi course dan subjek", () => {
   beforeEach(() => {
     resetCourses();
     vi.restoreAllMocks();
+    mocks.batasiRequestMasuk.mockResolvedValue(null);
     vi.spyOn(sessionModule, "getSession").mockResolvedValue(adminSession);
   });
 
@@ -332,5 +363,54 @@ describe("POST /api/unggah — otorisasi course dan subjek", () => {
     expect(subjekMilikCourse(modulResolved, materi!.id)).toBe(true);
     expect(subjekMilikCourse(modulResolved, halaman!.id)).toBe(true);
     expect(subjekMilikCourse(modulResolved, "asing-1")).toBe(false);
+  });
+});
+
+describe("POST /api/unggah — pembatas permintaan", () => {
+  beforeEach(() => {
+    resetCourses();
+    vi.restoreAllMocks();
+    mocks.batasiRequestMasuk.mockResolvedValue(null);
+    vi.spyOn(sessionModule, "getSession").mockResolvedValue(adminSession);
+  });
+
+  it("memakai principal email sesi, bukan nilai dari klien", async () => {
+    const res = await POST(permintaan());
+    expect(res.status).toBe(200);
+
+    // Principal berasal dari sesi yang sudah divalidasi; memakai `courseId` atau
+    // `subjekId` kiriman klien akan memberi penyerang cara memilih bucket sendiri.
+    expect(mocks.batasiRequestMasuk).toHaveBeenCalledWith(
+      expect.anything(),
+      "unggahCourse",
+      { tambahan: `unggah:${adminSession.email}` },
+    );
+  });
+
+  it("membalas 429 tanpa membaca body saat dibatasi", async () => {
+    mocks.batasiRequestMasuk.mockResolvedValue(
+      new Response(JSON.stringify({ ok: false, error: "Terlalu banyak permintaan." }), {
+        status: 429,
+        headers: { "Retry-After": "30" },
+      }),
+    );
+
+    // `permintaanTanpaBody()` melempar bila body dibaca, jadi 429 membuktikan
+    // penolakan terjadi sebelum buffer 8 MB dialokasikan.
+    const res = await POST(permintaanTanpaBody());
+
+    expect(res.status).toBe(429);
+    expect(res.headers.get("Retry-After")).toBe("30");
+  });
+
+  it("tidak menghitung permintaan yang sudah ditolak Origin atau sesi", async () => {
+    // Lintas origin: ditolak lebih dulu, jadi pembatas tidak dijalankan sama sekali.
+    await POST(permintaan({ origin: "https://jahat.example" }));
+    expect(mocks.batasiRequestMasuk).not.toHaveBeenCalled();
+
+    // Tanpa sesi: sama — tidak ada principal yang jujur untuk dijadikan kunci.
+    vi.spyOn(sessionModule, "getSession").mockResolvedValue(null);
+    await POST(permintaan());
+    expect(mocks.batasiRequestMasuk).not.toHaveBeenCalled();
   });
 });

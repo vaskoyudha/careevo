@@ -12,6 +12,7 @@ import { isDemoEmail } from "@/lib/auth/demo-accounts";
 import { demoAccountsAllowed } from "@/lib/config/environment";
 import { addStoredUser, hashPassword, isEmailTaken } from "@/lib/auth/user-store";
 import { landingFor } from "@/lib/auth/landing";
+import { cekBatasiAksi } from "@/lib/rate-limit/next";
 import type { AuthFormState } from "@/lib/auth/types";
 
 function fieldErrors(error: z.ZodError): Record<string, string> {
@@ -31,6 +32,19 @@ export async function loginAction(
 ): Promise<AuthFormState> {
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
+
+  // Dibatasi SEBELUM validasi dan SEBELUM `authenticate()`: percobaan kredensial
+  // yang buruk bentuknya pun tetap harus dihitung, kalau tidak penyerang dapat
+  // memakai request cacat untuk menghindari batas sambil tetap menebak.
+  //
+  // Email sengaja TIDAK dipakai sebagai principal di sini. Nilainya datang dari
+  // klien, jadi memasukkannya ke kunci akan memberi penyerang cara mengunci akun
+  // korban dari jarak jauh dengan menghabiskan bucket atas nama email itu.
+  // Untuk login, satu-satunya kunci yang jujur adalah IP tepercaya.
+  const batas = await cekBatasiAksi("login");
+  if (batas) {
+    return { ok: false, message: batas.gagal.pesan, errors: {}, values: { email } };
+  }
 
   const parsed = loginSchema.safeParse({ email, password });
   if (!parsed.success) {
@@ -73,6 +87,22 @@ export async function registerAction(
     consent: formData.get("consent") === "on",
     role: "user",
   };
+
+  // Sama seperti login: batas dihitung atas IP tepercaya, bukan atas email/nama
+  // yang dikirim klien. Tanpa ini, pendaftaran akun massal dari satu sumber tidak
+  // tertahan sama sekali.
+  const batas = await cekBatasiAksi("signup");
+  if (batas) {
+    return {
+      ok: false,
+      message: batas.gagal.pesan,
+      errors: {},
+      // `role` tidak ikut: ia sengaja bukan lagi bagian dari nilai form publik
+      // (lihat catatan di atas `raw`), jadi mengembalikannya di sini akan
+      // menghidupkan kembali field yang justru sedang dihapus.
+      values: { email: raw.email, nama: raw.nama, username: raw.username },
+    };
+  }
 
   const parsed = registerSchema.safeParse(raw);
   if (!parsed.success) {

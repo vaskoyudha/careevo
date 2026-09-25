@@ -7,6 +7,7 @@ import { slugify } from "@/lib/courses/store";
 import { modulUntuk } from "@/lib/courses/modul-resolver";
 import type { ModulKursus } from "@/lib/courses/kurikulum";
 import { originDiizinkan, PESAN_ORIGIN_DITOLAK } from "@/lib/http/origin";
+import { batasiRequestMasuk } from "@/lib/rate-limit/next";
 
 /**
  * POST /api/unggah — unggah berkas materi/kursus (gambar atau PDF).
@@ -140,6 +141,16 @@ export async function POST(request: Request): Promise<Response> {
   if (!isStaffRole(sesi.role)) {
     return galat(403, "Hanya verifikator atau admin yang boleh mengunggah berkas.");
   }
+
+  // Dihitung SETELAH sesi dan peran dipastikan, dan SEBELUM `formData()`:
+  // endpoint ini membuffer seluruh body ke memori, jadi menolak lebih awal
+  // adalah satu-satunya cara batas ini juga melindungi heap. Bucket kedua per
+  // principal ditambahkan supaya satu akun staff tidak bisa memakai banyak IP,
+  // dan sebaliknya staff di belakang NAT bersama tidak saling mengunci.
+  const batas = await batasiRequestMasuk(request, "unggahCourse", {
+    tambahan: `unggah:${sesi.email}`,
+  });
+  if (batas) return batas;
 
   // Tolak berdasarkan Content-Length SEBELUM `formData()` dipanggil. Batas 8 MB
   // di bawah tidak menolong di sini: `formData()` sudah membaca habis dan
