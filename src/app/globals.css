@@ -1818,7 +1818,8 @@ body {
 }
 
 .field input,
-.field select {
+.field select,
+.field textarea {
   width: 100%;
   min-height: 44px;
   padding: 0.6rem 0.85rem;
@@ -1832,13 +1833,25 @@ body {
   transition: border-color 180ms ease-out, box-shadow 180ms ease-out, background-color 180ms ease-out;
 }
 
+.field textarea {
+  /* `Textarea` hanya membawa `px-3 py-2` utility, yang lebih rapat dari
+     `0.6rem 0.85rem` di atas. Akibatnya textarea di dalam `.field` terlihat
+     lebih kecil dan lebih tipis daripada input di sebelahnya — termasuk di
+     form review, pada field "Alasan (wajib)". */
+  min-height: 88px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
 .field input:hover,
-.field select:hover {
+.field select:hover,
+.field textarea:hover {
   border-color: var(--spray);
 }
 
 .field input:focus,
-.field select:focus {
+.field select:focus,
+.field textarea:focus {
   outline: none;
   background: #fff;
   border-color: var(--aqua);
@@ -1846,7 +1859,8 @@ body {
 }
 
 .field input[aria-invalid="true"],
-.field select[aria-invalid="true"] {
+.field select[aria-invalid="true"],
+.field textarea[aria-invalid="true"] {
   border-color: var(--danger);
   box-shadow: 0 0 0 3px rgba(228, 87, 46, 0.18);
 }
