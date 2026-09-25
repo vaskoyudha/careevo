@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { KejadianIntegritas, SessionRun } from "@/lib/learning/session";
-import { ringkasIntegritasByOwner } from "./integritas";
+import { ringkasIntegritasByOwner, temuanSesi } from "./integritas";
 
 function kejadian(
   jenis: KejadianIntegritas["jenis"],
   jenis_klasifikasi: KejadianIntegritas["jenis_klasifikasi"],
+  at = "2026-09-25T10:05:00.000Z",
 ): KejadianIntegritas {
-  return { at: "2026-09-25T10:05:00.000Z", jenis, jenis_klasifikasi, visibilitas: "hidden" };
+  return { at, jenis, jenis_klasifikasi, visibilitas: "hidden" };
 }
 
 function run(partial: Partial<SessionRun> & Pick<SessionRun, "id" | "owner">): SessionRun {
@@ -69,5 +70,72 @@ describe("ringkasIntegritasByOwner", () => {
 
   it("mengembalikan peta kosong untuk tanpa run", () => {
     expect(ringkasIntegritasByOwner([]).size).toBe(0);
+  });
+});
+
+describe("temuanSesi", () => {
+  const cari = (daftar: ReturnType<typeof temuanSesi>, kode: string) =>
+    daftar.find((t) => t.kode === kode);
+
+  it("selalu melaporkan bahwa tidak ada rekaman kamera", () => {
+    // Bukan sekadar opsional: kamera tidak pernah diminta, jadi "tidak ada
+    // yang bisa ditinjau" adalah fakta, bukan ketiadaan data.
+    const t = cari(temuanSesi(run({ id: "s1", owner: "a@x.test" })), "kamera_tidak_aktif");
+    expect(t?.label).toBe("Tidak ada rekaman kamera");
+  });
+
+  it("menghitung keluar tab dan menyebut apa yang tidak diketahui", () => {
+    const daftar = temuanSesi(
+      run({
+        id: "s1",
+        owner: "a@x.test",
+        kejadian: [
+          kejadian("pindah_tab", "kejadian", "2026-09-25T10:05:00.000Z"),
+          kejadian("pindah_tab", "kejadian", "2026-09-25T10:09:00.000Z"),
+          kejadian("pindah_tab", "kejadian", "2026-09-25T10:12:00.000Z"),
+        ],
+      }),
+    );
+    const t = cari(daftar, "pindah_tab");
+    expect(t?.label).toBe("Keluar tab 3×");
+    // Kalimat singkat yang jujur: data ini tidak bisa membedakan dokumentasi
+    // dari bantuan AI, dan itu harus tertulis, bukan disembunyikan.
+    expect(t?.detail).toContain("Tidak diketahui");
+  });
+
+  it("memisahkan celah pengawasan dari kejadian biasa", () => {
+    const daftar = temuanSesi(
+      run({
+        id: "s1",
+        owner: "a@x.test",
+        kejadian: [
+          kejadian("pindah_tab", "kejadian"),
+          kejadian("kamera_gagal", "celah"),
+        ],
+      }),
+    );
+    expect(cari(daftar, "celah_pengawasan")?.label).toBe("Celah pengawasan 1×");
+  });
+
+  it("menyatakan sesi yang dibiarkan kedaluwarsa", () => {
+    const t = cari(
+      temuanSesi(run({ id: "s1", owner: "a@x.test", status: "kedaluwarsa" })),
+      "kedaluwarsa",
+    );
+    expect(t?.detail).toContain("batas waktu");
+  });
+
+  it("tidak pernah memakai kata yang menyatakan bersalah", () => {
+    // Vulgarities ini yang paling penting: laporan integritas menyatakan fakta
+    // tentang rekaman, bukan vonis. Menuduh di sini berarti menaikkan bukti
+    // yang tidak pernah ada, dan mengikat diri pada janji yang tidak dibuat.
+    const semua = [
+      ...temuanSesi(run({ id: "a", owner: "o@x.test", kejadian: [kejadian("pindah_tab", "kejadian")] })),
+      ...temuanSesi(run({ id: "b", owner: "o@x.test", status: "kedaluwarsa" })),
+    ];
+    const teks = semua.map((t) => `${t.label} ${t.detail}`).join(" ").toLowerCase();
+    for (const kata of ["curang", "menyalin", "mencontek", "penyalahgunaan", "bersalah"]) {
+      expect(teks).not.toContain(kata);
+    }
   });
 });
