@@ -13,6 +13,7 @@
  */
 export interface EnvironmentLike {
   NODE_ENV?: string | undefined;
+  DEMO_MODE?: string | undefined;
 }
 
 /**
@@ -28,10 +29,26 @@ export function isProductionRuntime(env: EnvironmentLike = process.env): boolean
 }
 
 /**
- * Demo accounts (fixed password, fixture profile) must exist only on a
- * development/demo machine. On staging and production the login path must not
- * accept them and no page may advertise their password.
+ * Demo accounts (fixed password, fixture profile) are a local convenience with
+ * a published credential, so they are gated by **two independent conditions**
+ * and fail closed unless both hold:
+ *
+ * 1. `NODE_ENV` is exactly `"development"`. Checked positively rather than as
+ *    `!== "production"`: `"test"`, `"staging"`, an empty value, or any custom
+ *    name must all be refused, not merely the one string production uses.
+ * 2. `DEMO_MODE` is exactly `"1"` — a positive, explicit opt-in. Absent or any
+ *    other value means no demo, so simply running `npm run dev` on a machine
+ *    that never set the flag does not expose the published password or accept
+ *    those logins.
+ *
+ * The previous `!isProductionRuntime(env)` gate failed open: anything that was
+ * not exactly `production` — including a dev box, a test run, or a
+ * misconfigured staging deploy with the wrong `NODE_ENV` — served the demo
+ * accounts. Now the default for every environment is "no demo".
+ *
+ * `DEMO_MODE` must never be set on a publicly reachable deployment; it exists
+ * for `npm run dev` and for an isolated demo machine with demo data.
  */
 export function demoAccountsAllowed(env: EnvironmentLike = process.env): boolean {
-  return !isProductionRuntime(env);
+  return env.NODE_ENV === "development" && env.DEMO_MODE === "1";
 }

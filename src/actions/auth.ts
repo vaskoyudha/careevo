@@ -41,8 +41,9 @@ export async function loginAction(
   if (!user) {
     return {
       ok: false,
-      // Only mention demo accounts where they actually work; elsewhere it would
-      // send people looking for credentials the server now rejects.
+      // Only mention demo accounts where they actually work (development with
+      // `DEMO_MODE=1`); elsewhere it would send people looking for credentials
+      // the server now rejects.
       message: demoAccountsAllowed()
         ? "Email atau password salah. Gunakan akun demo, atau daftar dulu."
         : "Email atau password salah. Cek kembali, atau daftar dulu.",

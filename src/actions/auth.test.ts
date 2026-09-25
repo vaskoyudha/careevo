@@ -135,8 +135,9 @@ describe("loginAction — demo account gate", () => {
     vi.unstubAllEnvs();
   });
 
-  it("menerima akun demo di luar production", async () => {
+  it("menerima akun demo di development dengan DEMO_MODE=1", async () => {
     vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("DEMO_MODE", "1");
 
     try {
       await loginAction({ ok: false }, formData({ email: "admin@careevo.test", password: "careevo" }));
@@ -148,8 +149,24 @@ describe("loginAction — demo account gate", () => {
     expect(sesiTersimpan()?.role).toBe("admin");
   });
 
+  it("menolak akun demo di development biasa tanpa opt-in DEMO_MODE", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("DEMO_MODE", "");
+
+    const res = await loginAction(
+      { ok: false },
+      formData({ email: "admin@careevo.test", password: "careevo" }),
+    );
+
+    // Fail-closed: `npm run dev` tanpa flag tidak menerima kredensial yang
+    // dipublikasikan di repositori.
+    expect(res.ok).toBe(false);
+    expect(jar.has("ls_session")).toBe(false);
+  });
+
   it("menolak akun demo di production walau password benar", async () => {
     vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("DEMO_MODE", "1");
 
     const res = await loginAction(
       { ok: false },
@@ -163,6 +180,7 @@ describe("loginAction — demo account gate", () => {
 
   it("tidak menyarankan akun demo saat login gagal di production", async () => {
     vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("DEMO_MODE", "1");
 
     const res = await loginAction(
       { ok: false },
@@ -175,8 +193,22 @@ describe("loginAction — demo account gate", () => {
     expect(res.message).not.toContain("demo");
   });
 
-  it("tetap menyebut akun demo saat login gagal di development", async () => {
+  it("tidak menyarankan akun demo di development tanpa opt-in", async () => {
     vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("DEMO_MODE", "");
+
+    const res = await loginAction(
+      { ok: false },
+      formData({ email: "salah@contoh.test", password: "apa-saja-panjang" }),
+    );
+
+    expect(res.ok).toBe(false);
+    expect(res.message).not.toContain("demo");
+  });
+
+  it("tetap menyebut akun demo saat login gagal di development dengan DEMO_MODE=1", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("DEMO_MODE", "1");
 
     const res = await loginAction(
       { ok: false },
