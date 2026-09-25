@@ -8,6 +8,7 @@ import { PeringatanIntegritas } from "@/components/features/performa/performa-in
 import { bacaPerforma } from "@/lib/performa/store";
 import {
   LABEL_KEJADIAN,
+  gabungPersetujuan,
   ringkasIntegritasByOwner,
   temuanSesi,
 } from "@/lib/performa/integritas";
@@ -40,6 +41,7 @@ export default async function IntegritasDetailPage({
   if (!target) notFound();
 
   const sesi = ringkasIntegritasByOwner(runs.filter((r) => r.owner === owner)).get(owner);
+  const daftarPersetujuan = (sesi?.daftar ?? []).map((s) => s.persetujuan);
 
   return (
     <AppShell session={session} current="/performa/integritas">
@@ -83,9 +85,10 @@ export default async function IntegritasDetailPage({
               </span>
             </li>
             <li className="list-app-row">
-              <span className="row-title">Kamera</span>
+              <span className="row-title">Persetujuan kamera</span>
               <span className="text-xs text-muted-foreground">
-                tidak ada data — belum ada permintaan akses kamera
+                {gabungPersetujuan(daftarPersetujuan).label} —{" "}
+                {gabungPersetujuan(daftarPersetujuan).detail}
               </span>
             </li>
           </ul>
@@ -105,10 +108,30 @@ export default async function IntegritasDetailPage({
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
                       <span className="text-sm font-semibold">{s.course_id}</span>
                       <span className="text-xs text-muted-foreground">
-                        {s.status} · {s.mulai_at}
-                        {s.berakhir_at ? ` → ${s.berakhir_at}` : ""}
+                        {s.status} ·{" "}
+                        {s.durasiMenit === null
+                          ? "berjalan"
+                          : `${s.durasiMenit} menit`}{" "}
+                        · {s.mulai_at}
                       </span>
                     </div>
+
+                    <ul className="mt-2 space-y-1">
+                      <li className="text-sm">
+                        <span className="font-medium">Persetujuan kamera:</span>{" "}
+                        <span className="text-muted-foreground">
+                          {s.persetujuan.label} — {s.persetujuan.detail}
+                        </span>
+                      </li>
+                      <li className="text-sm">
+                        <span className="font-medium">Ditutup peserta:</span>{" "}
+                        <span className="text-muted-foreground">
+                          {s.ditutupPeserta
+                            ? "ya, sesi ditutup sendiri"
+                            : "tidak, berakhir sendiri lewat batas waktu"}
+                        </span>
+                      </li>
+                    </ul>
 
                     {temuan.length > 0 ? (
                       <ul className="mt-2 space-y-1">
@@ -116,6 +139,19 @@ export default async function IntegritasDetailPage({
                           <li key={t.kode} className="text-sm">
                             <span className="font-medium">{t.label}</span>{" "}
                             <span className="text-muted-foreground">{t.detail}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+
+                    {s.perJenis.length > 0 ? (
+                      <ul className="mt-2 flex flex-wrap gap-2">
+                        {s.perJenis.map((p) => (
+                          <li
+                            key={p.jenis}
+                            className="rounded-full border border-border px-2 py-0.5 text-xs"
+                          >
+                            {p.label} {p.jumlah}×
                           </li>
                         ))}
                       </ul>

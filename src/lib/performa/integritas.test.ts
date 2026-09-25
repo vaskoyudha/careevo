@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { KejadianIntegritas, SessionRun } from "@/lib/learning/session";
-import { ringkasIntegritasByOwner, temuanSesi } from "./integritas";
+import { ringkasIntegritasByOwner, statusPersetujuan, durasiMenit, temuanSesi } from "./integritas";
 
 function kejadian(
   jenis: KejadianIntegritas["jenis"],
@@ -77,11 +77,12 @@ describe("temuanSesi", () => {
   const cari = (daftar: ReturnType<typeof temuanSesi>, kode: string) =>
     daftar.find((t) => t.kode === kode);
 
-  it("selalu melaporkan bahwa tidak ada rekaman kamera", () => {
-    // Bukan sekadar opsional: kamera tidak pernah diminta, jadi "tidak ada
-    // yang bisa ditinjau" adalah fakta, bukan ketiadaan data.
+  it("menyatakan kamera belum diminta, bukan menuduh peserta", () => {
+    // "Tidak ada rekaman kamera" menyiratkan ada efforts yang gagal.
+    // "Belum diminta" menyebut penyebabnya: produk belum pernah meminta.
     const t = cari(temuanSesi(run({ id: "s1", owner: "a@x.test" })), "kamera_tidak_aktif");
-    expect(t?.label).toBe("Tidak ada rekaman kamera");
+    expect(t?.label).toBe("Belum diminta");
+    expect(t?.detail).toContain("bukan pilihan peserta");
   });
 
   it("menghitung keluar tab dan menyebut apa yang tidak diketahui", () => {
@@ -126,9 +127,9 @@ describe("temuanSesi", () => {
   });
 
   it("tidak pernah memakai kata yang menyatakan bersalah", () => {
-    // Vulgarities ini yang paling penting: laporan integritas menyatakan fakta
-    // tentang rekaman, bukan vonis. Menuduh di sini berarti menaikkan bukti
-    // yang tidak pernah ada, dan mengikat diri pada janji yang tidak dibuat.
+    // Ini yang paling penting: laporan integritas menyatakan fakta tentang
+    // rekaman, bukan vonis. Menuduh di sini berarti menaikkan bukti yang tidak
+    // pernah ada, dan mengikat diri pada janji yang tidak dibuat.
     const semua = [
       ...temuanSesi(run({ id: "a", owner: "o@x.test", kejadian: [kejadian("pindah_tab", "kejadian")] })),
       ...temuanSesi(run({ id: "b", owner: "o@x.test", status: "kedaluwarsa" })),
@@ -137,5 +138,71 @@ describe("temuanSesi", () => {
     for (const kata of ["curang", "menyalin", "mencontek", "penyalahgunaan", "bersalah"]) {
       expect(teks).not.toContain(kata);
     }
+  });
+
+  it("tidak menyalahkan peserta ketika kamera memang tidak pernah diminta", () => {
+    // Tidak adanya kamera adalah kelemahan produk. Kalau laporan menulis
+    // "peserta tidak menyalakan kamera", ia menuduh orang atas fitur yang
+    // memang tidak ada.
+    const t = temuanSesi(run({ id: "s1", owner: "o@x.test" })).find(
+      (x) => x.kode === "kamera_tidak_aktif",
+    );
+    expect(t?.detail).not.toMatch(/tidak menyalakan|tidak mengaktifkan/);
+  });
+});
+
+describe("statusPersetujuan", () => {
+  it("berstatus belum diminta dan penyebabnya produk", () => {
+    const s = statusPersetujuan(run({ id: "s1", owner: "o@x.test" }));
+    expect(s.status).toBe("belum_diminta");
+    expect(s.penyebab).toBe("produk");
+    expect(s.label).toBe("Belum diminta");
+  });
+
+  it("membedakan kamera yang gagal dari kamera yang tidak pernah diminta", () => {
+    // Dua kondisi yang tadinya terlihat sama di laporan, padahal satu berarti
+    // tidak ada sinyal sama sekali dan satunya berarti ada gangguan teknis.
+    const gagal = statusPersetujuan(
+      run({ id: "s1", owner: "o@x.test", kejadian: [kejadian("kamera_gagal", "celah")] }),
+    );
+    expect(gagal.status).toBe("diminta_gagal");
+    expect(gagal.penyebab).toBe("peramban");
+  });
+
+  it("mencatat persetujuan yang diberikan lalu kamera berhenti", () => {
+    const s = statusPersetujuan(
+      run({
+        id: "s1",
+        owner: "o@x.test",
+        kejadian: [kejadian("kamera_mulai", "kejadian"), kejadian("kamera_berhenti", "celah")],
+      }),
+    );
+    expect(s.status).toBe("disetujui_berhenti");
+    expect(s.penyebab).toBe("peramban");
+  });
+
+  it("mencatat persetujuan yang masih berjalan", () => {
+    const s = statusPersetujuan(
+      run({ id: "s1", owner: "o@x.test", kejadian: [kejadian("kamera_mulai", "kejadian")] }),
+    );
+    expect(s.status).toBe("disetujui_aktif");
+  });
+});
+
+describe("durasiMenit", () => {
+  const mulai = "2026-09-25T10:00:00.000Z";
+
+  it("menghitung selisih menit mulai dan berakhir", () => {
+    const run1 = run({ id: "s1", owner: "o@x.test", mulai_at: mulai, berakhir_at: "2026-09-25T10:47:00.000Z" });
+    expect(durasiMenit(run1)).toBe(47);
+  });
+
+  it("mengembalikan null untuk sesi yang masih berjalan", () => {
+    expect(durasiMenit(run({ id: "s1", owner: "o@x.test", mulai_at: mulai }))).toBeNull();
+  });
+
+  it("mengembalikan null untuk waktu yang tidak bisa diparse", () => {
+    const rusak = run({ id: "s1", owner: "o@x.test", mulai_at: "bukan tanggal", berakhir_at: "juga bukan" });
+    expect(durasiMenit(rusak)).toBeNull();
   });
 });
