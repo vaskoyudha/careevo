@@ -23,15 +23,12 @@ function Field({
   label,
   hint,
   error,
-  floating = true,
   children,
 }: {
   id: string;
   label: string;
   hint?: string;
   error?: string;
-  /** Text inputs float/fade the label; selects keep it inline as a prefix. */
-  floating?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -40,13 +37,11 @@ function Field({
         htmlFor={id}
         className={cn(
           "auth-field group relative flex h-11 items-center rounded-[8px] border border-black/20 bg-white px-4 text-base leading-none transition-colors",
-          !floating && "gap-4",
         )}
       >
         <span
           className={cn(
-            "auth-field-label pointer-events-none text-black",
-            floating ? "absolute" : "shrink-0",
+            "auth-field-label pointer-events-none absolute text-black",
           )}
         >
           {label}
@@ -168,31 +163,19 @@ export function AuthForm({
         </Field>
 
         {isDaftar ? (
-          <Field id="role" label="Daftar sebagai" error={errors.role} floating={false}>
-            <select
-              id="role"
-              name="role"
-              defaultValue={state.values?.role ?? "user"}
-              className="min-w-0 flex-1 truncate bg-transparent text-base text-black outline-none focus:outline-none focus-visible:outline-none"
-              aria-invalid={errors.role ? true : undefined}
-              aria-describedby={errors.role ? "role-error" : undefined}
-            >
-              <option value="user">Pencari kerja</option>
-              <option value="verifikator">Verifikator</option>
-            </select>
-          </Field>
+          <div className="space-y-3 pt-6 text-xs leading-4 text-black/30 sm:text-[13px]">
+            <p className="text-black/45">
+              Pendaftaran publik membuat akun pencari kerja. Akun verifikator diterbitkan lewat
+              undangan admin.
+            </p>
+            <CheckboxLine>
+              <span className="text-black/55">
+                Saya menyetujui pemrosesan data sesuai UU PDP (wajib).
+              </span>
+            </CheckboxLine>
+          </div>
         ) : null}
       </div>
-
-      {isDaftar ? (
-        <div className="space-y-3 pt-6 text-xs leading-4 text-black/30 sm:text-[13px]">
-          <CheckboxLine>
-            <span className="text-black/55">
-              Saya menyetujui pemrosesan data sesuai UU PDP (wajib).
-            </span>
-          </CheckboxLine>
-        </div>
-      ) : null}
 
       <button
         type="submit"

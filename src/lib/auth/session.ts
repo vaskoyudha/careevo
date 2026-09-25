@@ -8,44 +8,14 @@ import {
   type SessionUser,
 } from "./types";
 import { findStoredUser, hashPassword } from "./user-store";
-
-export const ROLE = {
-  USER: "user",
-  VERIFIKATOR: "verifikator",
-  ADMIN: "admin",
-} as const satisfies Record<string, Role>;
+import { findDemoAccount } from "./demo-accounts";
 
 export type { Role, SessionPayload, SessionUser };
 
 export const COOKIE_NAME = "ls_session";
-export const DEMO_PASSWORD = "careevo";
 
 const SESSION_SECRET = process.env.SESSION_SECRET ?? "dev-session-secret-careevo";
 const SESSION_MAX_AGE = 60 * 60 * 8;
-
-export const DEMO_ACCOUNTS: DemoAccount[] = [
-  {
-    email: "user@careevo.test",
-    nama: "Raka Pratama",
-    username: "raka",
-    role: ROLE.USER,
-    password: DEMO_PASSWORD,
-  },
-  {
-    email: "verifikator@careevo.test",
-    nama: "Dewi Larasati",
-    username: "dewi",
-    role: ROLE.VERIFIKATOR,
-    password: DEMO_PASSWORD,
-  },
-  {
-    email: "admin@careevo.test",
-    nama: "Admin Careevo",
-    username: "admin",
-    role: ROLE.ADMIN,
-    password: DEMO_PASSWORD,
-  },
-];
 
 function sign(body: string): string {
   return createHmac("sha256", SESSION_SECRET).update(body).digest("base64url");
@@ -114,9 +84,10 @@ export async function authenticate(
 ): Promise<SessionUser | null> {
   const normalized = email.trim().toLowerCase();
 
-  const account = DEMO_ACCOUNTS.find(
-    (item) => item.email.toLowerCase() === normalized,
-  );
+  // `findDemoAccount` returns nothing outside development/demo, so a demo email
+  // on staging/production falls through to the registered-user path instead of
+  // being accepted with the published demo password.
+  const account = findDemoAccount(normalized);
   if (account) {
     if (!safeEqual(account.password, password)) return null;
     return toSessionUser(account);
@@ -132,11 +103,6 @@ export async function authenticate(
     username: stored.username,
     role: stored.role,
   };
-}
-
-export function isDemoEmail(email: string): boolean {
-  const normalized = email.trim().toLowerCase();
-  return DEMO_ACCOUNTS.some((item) => item.email.toLowerCase() === normalized);
 }
 
 export async function createSession(user: SessionUser): Promise<void> {
