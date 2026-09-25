@@ -56,3 +56,6 @@ next-env.d.ts
 # berkas unggahan runtime (cover kursus, PDF materi)
 /public/uploads/
 
+# dokumen kerja proposal lomba (lokal, tidak dipublikasikan di repositori)
+/pendahuluan.md
+
