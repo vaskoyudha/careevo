@@ -27,6 +27,20 @@ vi.mock("next/headers", () => ({
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
+/**
+ * Pembatas di-mock di sini karena modul `next/headers` di atas hanya menyediakan
+ * `cookies`, sedangkan `cekBatasiAksi()` memanggil `headers()`. Yang diuji bukan
+ * algoritma Redis-nya (itu di `src/lib/rate-limit/`), melainkan **urutan dan
+ * akibat** penolakan: apa yang tidak ditulis saat pembatas berkata tidak.
+ *
+ * Default `vi.fn()` mengembalikan `undefined`, yang oleh aksi diperlakukan
+ * sebagai "boleh lanjut" — jadi suite lama di bawah tetap berjalan tanpa
+ * menyebut pembatas sama sekali.
+ */
+const mocks = vi.hoisted(() => ({ cekBatasiAksi: vi.fn() }));
+
+vi.mock("@/lib/rate-limit/next", () => ({ cekBatasiAksi: mocks.cekBatasiAksi }));
+
 function formData(fields: Record<string, string>): FormData {
   const data = new FormData();
   for (const [key, value] of Object.entries(fields)) data.append(key, value);
@@ -216,5 +230,105 @@ describe("loginAction — demo account gate", () => {
     );
 
     expect(res.message).toContain("demo");
+  });
+});
+
+/**
+ * Pembatas rate limit pada permukaan kredensial.
+ *
+ * Properti yang diuji bukan besaran limit, melainkan dua hal:
+ *
+ * 1. **Kuncinya jujur.** Login dan signup hanya dihitung atas IP tepercaya.
+ *    Email/nama dari `FormData` sengaja TIDAK menjadi principal: nilai kiriman
+ *    klien akan memberi penyerang cara menghabiskan bucket atas nama akun korban
+ *    dan mengunci orang lain dari jarak jauh.
+ * 2. **Penolakannya total.** Saat dibatasi, tidak ada akun yang ditulis dan
+ *    tidak ada sesi yang dibuat — memeriksa batas setelah `addStoredUser` berarti
+ *    pendaftaran massal tetap terjadi, hanya jawabannya yang berubah.
+ */
+describe("pembatas pada login dan signup", () => {
+  beforeEach(() => {
+    jar.clear();
+    vi.restoreAllMocks();
+    mocks.cekBatasiAksi.mockReset();
+    // Default: boleh lanjut. Test di bawah menimpanya untuk kasus penolakan.
+    mocks.cekBatasiAksi.mockResolvedValue(null);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("login dihitung atas IP saja — email kiriman klien tidak menjadi kunci", async () => {
+    await loginAction(
+      { ok: false },
+      formData({ email: "korban@contoh.test", password: "apa-saja-panjang" }),
+    );
+
+    // Satu argumen saja: tidak ada principal. Kalau suatu saat email ikut
+    // dikirim sebagai principal, assertion ini gagal sebelum celahnya dipakai.
+    expect(mocks.cekBatasiAksi).toHaveBeenCalledWith("login");
+    expect(mocks.cekBatasiAksi.mock.calls[0]).toHaveLength(1);
+  });
+
+  it("signup dihitung atas IP saja", async () => {
+    // Pendaftaran yang berhasil berakhir dengan `redirect`, yang melempar
+    // `NEXT_REDIRECT` — bukan kegagalan, melainkan cara kerja action ini.
+    await jalankanRegistered(formData(PENDAFTARAN));
+
+    expect(mocks.cekBatasiAksi).toHaveBeenCalledWith("signup");
+    expect(mocks.cekBatasiAksi.mock.calls[0]).toHaveLength(1);
+  });
+
+  it("login yang dibatasi tidak menulis sesi walau kredensialnya benar", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    mocks.cekBatasiAksi.mockResolvedValue({ gagal: { pesan: "Terlalu banyak percobaan." } });
+
+    const res = await loginAction(
+      { ok: false },
+      formData({ email: "user@careevo.test", password: "careevo" }),
+    );
+
+    expect(res.ok).toBe(false);
+    expect(res.message).toBe("Terlalu banyak percobaan.");
+    // Akun demo dengan password benar pun tidak boleh menghasilkan sesi.
+    expect(jar.has("ls_session")).toBe(false);
+  });
+
+  it("signup yang dibatasi tidak menulis akun maupun sesi", async () => {
+    mocks.cekBatasiAksi.mockResolvedValue({ gagal: { pesan: "Terlalu banyak percobaan." } });
+
+    const res = await registerAction({ ok: false }, formData(PENDAFTARAN));
+
+    expect(res.ok).toBe(false);
+    expect(res.message).toBe("Terlalu banyak percobaan.");
+    // Pendaftaran massal dicegah tepat di sini: tidak ada baris user yang ditulis.
+    expect(penggunaTersimpan()).toHaveLength(0);
+    expect(jar.has("ls_session")).toBe(false);
+  });
+
+  it("hanya mengirim pesan ke state klien, tanpa detail internal pembatas", async () => {
+    mocks.cekBatasiAksi.mockResolvedValue({ gagal: { pesan: "Terlalu banyak percobaan." } });
+
+    const res = await loginAction(
+      { ok: false },
+      formData({ email: "siapa@contoh.test", password: "apa-saja-panjang" }),
+    );
+
+    // Limit, sisa kuota, dan timestamp reset tidak punya tempat di payload klien.
+    const dikirim = JSON.stringify(res);
+    expect(dikirim).not.toContain("retryAfter");
+    expect(dikirim).not.toContain("resetMs");
+    expect(dikirim).not.toContain("limit");
+  });
+
+  it("membatasi sebelum validasi bentuk, sehingga request cacat tetap dihitung", async () => {
+    // Pesan kosong pasti gagal validasi; bila validasi dijalankan lebih dulu,
+    // penyerang dapat mengirim request selalu-invalid untuk menghindari batas.
+    mocks.cekBatasiAksi.mockResolvedValue({ gagal: { pesan: "Terlalu banyak percobaan." } });
+
+    await loginAction({ ok: false }, formData({ email: "", password: "" }));
+
+    expect(mocks.cekBatasiAksi).toHaveBeenCalledTimes(1);
   });
 });
