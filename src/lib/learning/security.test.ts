@@ -45,14 +45,26 @@ const BERKAS_SESI = path.join(ROOT, "src/components/features/learning/course-ses
 const BERKAS_CHAT_ACTION = path.join(ROOT, "src/actions/learning-chat.ts");
 const BERKAS_CHAT_UI = path.join(ROOT, "src/components/features/learning/study-chat.tsx");
 const BERKAS_SKOR = path.join(ROOT, "src/actions/performa.ts");
-const BERKAS_LAPORAN = path.join(
+const BERKAS_LAPORAN_BELAJAR = path.join(
   ROOT,
-  "src/components/features/performa/performa-tabel.tsx",
+  "src/components/features/performa/performa-belajar.tsx",
+);
+const BERKAS_LAPORAN_INTEGRITAS = path.join(
+  ROOT,
+  "src/components/features/performa/performa-integritas.tsx",
 );
 const BERKAS_DAFTAR_LAPORAN = path.join(ROOT, "src/app/(verifikator)/performa/page.tsx");
 const BERKAS_DETAIL_LAPORAN = path.join(
   ROOT,
   "src/app/(verifikator)/performa/[owner]/page.tsx",
+);
+const BERKAS_DAFTAR_INTEGRITAS = path.join(
+  ROOT,
+  "src/app/(verifikator)/performa/integritas/page.tsx",
+);
+const BERKAS_DETAIL_INTEGRITAS = path.join(
+  ROOT,
+  "src/app/(verifikator)/performa/integritas/[owner]/page.tsx",
 );
 
 describe("gerbang UI sesi terverifikasi", () => {
@@ -115,30 +127,65 @@ describe("pencatatan skor kuis", () => {
 });
 
 describe("laporan performa tidak mengklaim lebih dari yang dilakukan", () => {
-  it("menyatakan bahwa skor kuis dilaporkan klien", () => {
-    const isi = readFileSync(BERKAS_LAPORAN, "utf8");
-    expect(isi).toContain("PERINGATAN_LAPORAN");
+  it("laporan belajar menyatakan skor kuis dilaporkan klien", () => {
+    const isi = readFileSync(BERKAS_LAPORAN_BELAJAR, "utf8");
+    expect(isi).toContain("PERINGATAN_PEMBELAJARAN");
     expect(isi).toContain("dilaporkan klien");
   });
 
-  it("menyatakan kejadian integritas bukan dasar penilaian", () => {
-    const isi = readFileSync(BERKAS_LAPORAN, "utf8");
+  it("laporan integritas menyatakan kejadian bukan dasar penilaian", () => {
+    const isi = readFileSync(BERKAS_LAPORAN_INTEGRITAS, "utf8");
+    expect(isi).toContain("PERINGATAN_INTEGRITAS");
     expect(isi).toContain("bukan dasar penilaian");
     expect(isi).toContain("tidak mengurangi skor");
   });
 
-  it("halaman daftar tetap memeriksa sesi sendiri", () => {
-    // The role gate comes from the `(verifikator)` layout; this page checks on
-    // its own too so moving it elsewhere cannot silently open it.
-    expect(readFileSync(BERKAS_DAFTAR_LAPORAN, "utf8")).toContain("getSession");
+  it("laporan integritas menyatakan tidak ada data kamera", () => {
+    // Kolom kamera kosong akan salah dibaca sebagai "sesi bersih" kalau tidak
+    // dijelaskan. claiming "tidak ada yang dicatat" adalah satu-satunya klaim
+    // yang benar saat ini.
+    expect(readFileSync(BERKAS_LAPORAN_INTEGRITAS, "utf8")).toContain("tidak ada");
   });
 
-  it("halaman detail mendekode segmen rute sebelum mencari berkas", () => {
+  it("kedua halaman daftar tetap memeriksa sesi sendiri", () => {
+    // The role gate comes from the `(verifikator)` layout; these pages check on
+    // their own too so moving them cannot silently open learner records.
+    expect(readFileSync(BERKAS_DAFTAR_LAPORAN, "utf8")).toContain("getSession");
+    expect(readFileSync(BERKAS_DAFTAR_INTEGRITAS, "utf8")).toContain("getSession");
+  });
+
+  it("kedua halaman detail mendekode segmen rute sebelum mencari berkas", () => {
     // Route params arrive URL-encoded in this Next version. The store keys files
     // by a hash of the email, so an undecoded `user%40careevo.test` silently
     // misses every record and every learner detail page 404s. Only a live HTTP
     // probe found this one; typecheck and unit tests both stayed green.
-    const isi = readFileSync(BERKAS_DETAIL_LAPORAN, "utf8");
-    expect(isi).toContain("decodeURIComponent(segmen)");
+    expect(readFileSync(BERKAS_DETAIL_LAPORAN, "utf8")).toContain("decodeURIComponent(segmen)");
+    expect(readFileSync(BERKAS_DETAIL_INTEGRITAS, "utf8")).toContain("decodeURIComponent(segmen)");
+  });
+});
+
+describe("laporan belajar dan laporan integritas tidak bercampur", () => {
+  it("halaman belajar tidak membaca data sesi sama sekali", () => {
+    // Pemisahan ini bukan aturan tampilan: kalau halaman belajar masih
+    // mengimpor `listRun`, datanya bisa bocor kembali ke sana.
+    for (const f of [BERKAS_DAFTAR_LAPORAN, BERKAS_DETAIL_LAPORAN, BERKAS_LAPORAN_BELAJAR]) {
+      const isi = readFileSync(f, "utf8");
+      expect(isi).not.toContain("listRun");
+      expect(isi).not.toContain("ringkasIntegritasByOwner");
+      expect(isi).not.toContain("kejadian");
+    }
+  });
+
+  it("tabel belajar tidak menampilkan kolom integritas", () => {
+    const isi = readFileSync(BERKAS_LAPORAN_BELAJAR, "utf8");
+    expect(isi).not.toContain("Kejadian / celah");
+    expect(isi).not.toContain("kedaluwarsa");
+  });
+
+  it("kedua tabel saling menaut, bukan saling menggandakan data", () => {
+    // Tautan silang harus ada supaya "pemilik ini punya sesi tapi nol modul"
+    // tetap bisa dicari dari kedua sisi.
+    expect(readFileSync(BERKAS_LAPORAN_BELAJAR, "utf8")).toContain("/performa/integritas/");
+    expect(readFileSync(BERKAS_LAPORAN_INTEGRITAS, "utf8")).toContain("/performa/${encodeURIComponent");
   });
 });
