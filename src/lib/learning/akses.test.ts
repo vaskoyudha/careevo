@@ -43,6 +43,16 @@ describe("putuskanAkses", () => {
     expect(putuskanAkses({ jenisKegiatan: "kuis", kebijakan: kebijakan(), adaBuktiSesi: true }).tipe).toBe("bebas");
   });
 
+  // Sisi lain dari kasus di atas, dan yang diandalkan gerbang kuis di
+  // `detail-kursus.tsx`: asesmen belum boleh dirender sebelum sesi berjalan.
+  // Tanpa ini, menampilkan kuis selalu `bebas` hanyalah pilihan tampilan yang
+  // tidak terikat mesin keputusan.
+  it("requires a session for a quiz when no proof exists yet", () => {
+    const hasil = putuskanAkses({ jenisKegiatan: "kuis", kebijakan: kebijakan(), adaBuktiSesi: false });
+    expect(hasil.tipe).toBe("perlu_sesi");
+    if (hasil.tipe === "perlu_sesi") expect(hasil.pesan).toContain("sesi terverifikasi");
+  });
+
   it("rejects academic chatbot help under the no-AI rule", () => {
     const hasil = putuskanAkses({ jenisKegiatan: "bantuan_akademik", kebijakan: kebijakan({ aturan_bantuan: "tanpa_ai" }), adaBuktiSesi: true });
     expect(hasil.tipe).toBe("ditolak");

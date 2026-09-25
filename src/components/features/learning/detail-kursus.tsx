@@ -13,6 +13,7 @@ import { HalamanView } from "./halaman-view";
 import {
   CourseSessionGate,
   CourseSessionIndicator,
+  CourseSessionPrompt,
   CourseSessionProvider,
   useCourseSession,
 } from "./course-session";
@@ -149,6 +150,15 @@ function RuangBelajar({
    */
   const { boleh, kebijakan, bukti } = useCourseSession();
   const keputusanLampiran = boleh("materi");
+  /**
+   * Keputusan untuk kuis — mesin yang sama, jenis kegiatan berbeda.
+   *
+   * Kuis adalah asesmen, jadi ia ikut digerbangi seperti lampiran. Tanpa ini
+   * peserta bisa mengerjakan asesmen course `wajib` tanpa satu pun sesi
+   * berjalan, padahal cakupan anti-curang mencakup materi, kuis, dan proyek.
+   * Prosa (`halaman`) sengaja tetap bebas — membaca bukan penyelesaian.
+   */
+  const keputusanKuis = boleh("kuis");
   /**
    * Apakah course ini mewajibkan penyelesaian lewat sesi terverifikasi.
    *
@@ -323,6 +333,12 @@ function RuangBelajar({
               {terdaftar ? "" : " · daftar untuk menyimpan progres"}
             </p>
             <div className="mb-4">
+              {/* Ajakan mendahului indikator. Keduanya tidak pernah tampil
+                  bersamaan — prompt hilang begitu sesi `aktif` — jadi peserta
+                  di course `wajib` selalu punya satu titik masuk untuk memulai
+                  sesi, termasuk di kursus yang modulnya tidak punya lampiran
+                  (di sanalah `CourseSessionGate` tidak pernah ikut terender). */}
+              <CourseSessionPrompt />
               <CourseSessionIndicator />
               {/* Panel kejadian tepat di bawah indikator: indikator menjawab
                   "sesi saya berjalan?", panel menjawab "apa yang tercatat?".
@@ -439,9 +455,17 @@ function RuangBelajar({
                             <p className="text-[11px] font-semibold tracking-wider text-gray-500 uppercase">
                               Kuis
                             </p>
-                            {daftarKuis.map((kuis) => (
-                              <KuisView key={kuis.id} kuis={kuis} />
-                            ))}
+                            {/* Gerbang yang sama dengan lampiran: soal tidak
+                                dirender sebelum sesi terverifikasi tersedia.
+                                Pesan diambil apa adanya dari `putuskanAkses`
+                                supaya copy tidak menyimpang dari mesin akses. */}
+                            {keputusanKuis.tipe === "bebas" ? (
+                              daftarKuis.map((kuis) => (
+                                <KuisView key={kuis.id} kuis={kuis} />
+                              ))
+                            ) : (
+                              <CourseSessionGate pesan={keputusanKuis.pesan} />
+                            )}
                           </div>
                         ) : null}
 

@@ -33,3 +33,36 @@ describe("keamanan jalur ujian", () => {
     expect(isi).toMatch(/run\.owner\s*!==\s*session\.email/);
   });
 });
+
+// Gerbang UI tidak bisa diuji dengan render di repo ini (Vitest hanya memuat
+// `src/**/*.test.ts`, tanpa jsdom), jadi propertinya dijaga dari teks sumber —
+// pendekatan yang sama dengan pemerikasan di atas. Yang dijaga bukan gaya
+// penulisan, melainkan dua cara gerbang ini hilang diam-diam saat panel
+// disunting: ajakan sesi dihapus dari halaman, atau kuis kembali dirender apa
+// adanya tanpa keputusan akses.
+const BERKAS_DETAIL = path.join(ROOT, "src/components/features/learning/detail-kursus.tsx");
+const BERKAS_SESI = path.join(ROOT, "src/components/features/learning/course-session.tsx");
+
+describe("gerbang UI sesi terverifikasi", () => {
+  it("halaman kursus selalu menawarkan cara memulai sesi", () => {
+    // Modul turunan tidak punya lampiran, sehingga `CourseSessionGate` (tombol
+    // "Mulai sesi" yang satunya lagi) tidak pernah ikut terender di sana. Tanpa
+    // ajakan tingkat-course ini, tombol "Tandai selesai" tampil tanpa ada satu
+    // pun cara memenuhi syaratnya — penyelesaian mustahil, tapi tetap tertolak
+    // server.
+    expect(readFileSync(BERKAS_DETAIL, "utf8")).toContain("<CourseSessionPrompt />");
+    // Ajakan itu harus benar-benar memulai sesi, bukan sekadar label mati.
+    expect(readFileSync(BERKAS_SESI, "utf8")).toMatch(
+      /export function CourseSessionPrompt[\s\S]*?void mulai\(\)/,
+    );
+  });
+
+  it("kuis hanya dirender setelah keputusan akses mengizinkan", () => {
+    const isi = readFileSync(BERKAS_DETAIL, "utf8");
+    // Membuang kedua penanda ini mengembalikan kuis ke render tanpa sesi.
+    expect(isi).toContain('keputusanKuis.tipe === "bebas"');
+    expect(isi).toContain("<CourseSessionGate pesan={keputusanKuis.pesan} />");
+    // Tepat satu tempat merender kuis di ruang belajar — dan itu di cabang `bebas`.
+    expect(isi.match(/<KuisView/g) ?? []).toHaveLength(1);
+  });
+});
