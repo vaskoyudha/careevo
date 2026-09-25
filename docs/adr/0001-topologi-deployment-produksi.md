@@ -237,6 +237,10 @@ basi akan menolak request yang sah. Setelah restore, counter dimulai dari nol.
    bertanda tangan lama.** Rotasi wajib disertai rencana invalidasi, bukan hanya penggantian
    nilai (rencana §4 butir 1). Untuk `ATTESTATION_SECRET`, rotasi berarti token lama gagal
    verifikasi kecuali ada `key_version` dan kunci lama dipertahankan untuk verifikasi.
+   **Runbook ini belum ada dan dicatat sebagai blocker (B11), bukan pekerjaan yang selesai.**
+   Yang berlaku sekarang: satu `SESSION_SECRET` menandatangani tujuh permukaan sekaligus
+   (§11.2, checklist A2), jadi rotasinya memutus semuanya serentak — keputusan sadar untuk
+   M0, sekaligus blast radius yang harus disadari sebelum menyentuh nilainya.
 
 ---
 
@@ -453,8 +457,9 @@ Server Action, bukan Route Handler.
 ### 11.2 Environment
 
 Hari ini repo berjalan **tanpa `.env`** karena semua secret punya fallback dev. Setelah
-Fase 0, production gagal start bila secret kosong/known/terlalu pendek, sementara
-development dan test tetap eksplisit.
+Fase 0, production **menolak melayani** bila secret kosong/known/terlalu pendek, sementara
+development dan test tetap eksplisit. Perhatikan bentuk kegagalannya: lihat §11.6 — **bukan**
+process exit.
 
 Variabel yang dibutuhkan (nama saja — ADR ini tidak membuat `.env.example`; berkas itu
 bagian dari pekerjaan Fase 0):
@@ -463,12 +468,19 @@ bagian dari pekerjaan Fase 0):
 |---|---|---|
 | `SESSION_SECRET` | Sesi, cookie legacy, store user/onboarding/profil | Ya, eksplisit |
 | `ATTESTATION_SECRET` | Tanda tangan attestation | Ya, eksplisit |
+| `DEMO_MODE` | Opt-in akun demo (harus `1` **dan** `NODE_ENV=development`); jangan pernah diisi di deployment publik | Tidak |
 | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | Counter rate limit | Ya, bila rate limit aktif |
 | `GEMINI_API_KEY`, `GEMINI_MODEL` | Evaluasi AI opsional | Tidak; ketiadaannya adalah state yang sah |
 | `CAREEVO_DATA_DIR`, `CAREERS_DATA_DIR`, `CAREERS_SESSION_DIR`, `CAREEVO_PERFORMA_DIR` | Pengalihan direktori data | Hanya di test |
 
 Dev default tidak dihapus dari kode; yang berubah adalah production menolaknya. Jangan
 menghapus fallback tanpa memastikan dev dan test masih bisa dijalankan.
+
+**Akun demo fail-closed.** Gate demo adalah `NODE_ENV === "development"` **dan**
+`DEMO_MODE === "1"`, bukan `!production`. Konsekuensi yang disengaja: `npm run dev` biasa
+**tidak** lagi menampilkan atau menerima akun demo; set `DEMO_MODE=1` untuk memakainya.
+`DEMO_MODE` tidak boleh diisi di staging/production dalam kondisi apa pun
+(`docs/security-release-checklist.md` B2).
 
 ### 11.3 Menjalankan
 
@@ -496,7 +508,9 @@ menghapus fallback tanpa memastikan dev dan test masih bisa dijalankan.
   Invarian UI diuji lewat pemeriksaan sumber statis, bukan render.
 - **Environment variable yang dibaca di top level modul** (`const SESSION_SECRET =
   process.env.SESSION_SECRET ?? ...`) dievaluasi saat modul dimuat, bukan saat request.
-  Validasi fail-fast harus berjalan sebelum titik itu, bukan di dalam handler.
+  Validasi harus berjalan sebelum titik itu, bukan di dalam handler. Validasi yang ada
+  dipanggil dari `src/instrumentation.ts` (`register()`), yang dijalankan Next sekali saat
+  instance server dibuat dan diselesaikan sebelum server siap menerima request.
 
 ### 11.5 Paritas instance Next.js di VPS
 
@@ -528,6 +542,43 @@ teoretis:
 Catatan: di Vercel ketiganya ditangani platform. Yang menjadi blocker adalah saat instance
 kedua muncul di luar Vercel. Ini sebabnya butir ini masuk checklist rilis sebagai gerbang
 sebelum VPS melayani trafik — bukan sekarang, dan bukan sebagai pekerjaan opsional.
+
+### 11.6 Bentuk kegagalan secret produksi: fail-closed, bukan process exit
+
+Ini dikoreksi terhadap perilaku nyata `next start` (Next 16.3.5), bukan disimpulkan dari
+niat kode. Selama ini "production gagal start" ditulis seolah proses akan keluar dengan
+kode galat. Yang terjadi dengan `NODE_ENV=production` dan kedua secret kosong:
+
+- Proses **tetap hidup** dan mencetak `✓ Ready in …`, lalu
+  `Failed to prepare server Error [SecretConfigError] …` dan satu `unhandledRejection`.
+  Tidak ada `process.exit`.
+- **Setiap route membalas HTTP 500 `Internal Server Error`**: `/`, `/masuk`, `/kerja`,
+  `/loker`, `/verify/<token>`, `POST /api/unggah`. Halaman aplikasi tidak ada yang dilayani.
+  Route statis `/_next/static/…` tetap 404 biasa karena tidak memasuki kode aplikasi.
+- Dengan secret yang sah, server melayani `200` seperti biasa.
+
+Sebabnya ada di Next: `ensureInstrumentationRegistered()`
+(`node_modules/next/dist/server/lib/router-utils/instrumentation-globals.external.js`)
+menyimpan promise yang reject; `next-server.js` menangkapnya dua kali hanya untuk
+`console.error` lalu melemparnya lagi per request, sehingga request handler membalas 500.
+Jalur `process.exit(1)` di `router-server.js` hanya berlaku bila initialize render server
+gagal secara langsung — pada deployment salah secret, jalur itu tidak tercapai.
+
+Konsekuensi operasional yang harus dipegang:
+
+1. **Health-check memeriksa status HTTP, bukan liveness proses.** Instance salah secret
+   tampak "hidup" bagi orchestrator, jadi probe yang hanya memeriksa port/pid akan
+   melaporkannya sehat sementara semua halaman 500.
+2. **Platform yang menandai deployment buruk dari exit-code tidak akan melihatnya.**
+   Deployment itu tidak pernah "gagal"; ia hanya melayani 500 sampai dihentikan manual.
+3. **Pesan `SecretConfigError` hanya ada di log server**, tidak sampai ke pengguna — yang
+   terkirim adalah halaman 500 bawaan. Debug dari log, bukan dari respons.
+
+Istilah yang dipakai di dokumen lain dan di sini: **fail-closed (500/no routes served)**.
+Kata "fail-fast" hanya boleh dipakai untuk waktu validasinya (sebelum request pertama),
+bukan untuk bentuk kegagalannya. Mengubahnya menjadi process-exit sungguhan adalah
+pekerjaan terpisah yang belum dilakukan — bila diinginkan, ia butuh memanggil
+`verifikasiKonfigurasiSecret()` di bin/entrypoint startup, bukan hanya di instrumentation.
 
 ---
 
@@ -568,10 +619,11 @@ Daftar yang dapat dicentang ada di `docs/security-release-checklist.md`.
 | B4 | **VPS nginx: header trusted proxy** — asal request diverifikasi sebelum header IP dibaca (§8.1, §9.2) | Sebelum VPS melayani trafik |
 | B5 | **VPS nginx: rate limit di lapisan proxy** sebagai pertahanan berlapis, selaras kebijakan §10.4 | Sebelum VPS melayani trafik |
 | B6 | **Mekanisme trust boundary** §8.2 dipilih dan diimplementasikan | Sebelum VPS melayani trafik |
-| B7 | **Semua secret production di-set eksplisit** dan server gagal start bila kosong/known/pendek | (M0) |
+| B7 | **Semua secret production di-set eksplisit**; server menolak melayani (500/no routes) bila kosong/known/pendek (§11.6) | (M0) |
 | B8 | **Rate limit shared Upstash aktif** untuk login, daftar, upload, verify publik, dan aksi AI (§10) | (M0) |
 | B9 | **Bentuk respons 429** untuk login/daftar diputuskan dan diimplementasikan (§10.2) | (M0) |
 | B10 | **`docs/security-release-checklist.md` ditandatangani** oleh owner selain pengerjanya | (M0) |
+| B11 | **Runbook rotasi + invalidasi secret** ditulis, termasuk `key_version` attestation dan perlakuan cookie berumur panjang. Satu `SESSION_SECRET` masih dipakai tujuh permukaan; ini keputusan sementara, bukan yang sudah selesai (checklist A2) | Sebelum rotasi pertama di production |
 
 **Yang harus terjadi berikutnya**
 

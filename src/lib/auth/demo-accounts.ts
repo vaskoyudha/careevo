@@ -42,13 +42,16 @@ export function isDemoEmail(email: string): boolean {
 }
 
 /**
- * Demo accounts are a development affordance only.
+ * Demo accounts are a local development affordance only.
  *
- * A demo account carries a fixed password and a fixture profile, so on staging
- * or production it is a public backdoor rather than a convenience. Returns the
- * entry only when the runtime may serve demo logins; `undefined` otherwise, so
- * callers fail closed. The environment is read per call (not at module load) so
- * tests can stub `NODE_ENV` without import-order games.
+ * A demo account carries a fixed password and a fixture profile, so anywhere
+ * other than a development machine with an explicit opt-in it is a public
+ * backdoor rather than a convenience. `demoAccountsAllowed` requires both
+ * `NODE_ENV === "development"` **and** `DEMO_MODE === "1"`, so a plain
+ * `npm run dev` — and every non-development environment — refuses the demo
+ * logins. Returns the entry only when that gate opens; `undefined` otherwise,
+ * so callers fail closed. The environment is read per call (not at module load)
+ * so tests can stub it without import-order games.
  */
 export function findDemoAccount(
   email: string,

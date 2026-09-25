@@ -94,7 +94,7 @@ describe("decideReview — staff gate", () => {
     expect(res).not.toHaveProperty("token");
   });
 
-  it("menerima verifikator untuk keputusan yang tercatat", async () => {
+  it("menerima verifikator untuk keputusan non-approve dan tidak mengklaim tersimpan", async () => {
     vi.spyOn(sessionModule, "getSession").mockResolvedValue(sesi("verifikator"));
 
     const res = await decideReview(
@@ -103,9 +103,13 @@ describe("decideReview — staff gate", () => {
     );
 
     expect(res.ok).toBe(true);
+    // Pesan tidak boleh mengklaim audit log/database terisi: `logAudit` masih
+    // stub dan belum ada store review sebelum Fase 3.
+    expect(res.message).not.toMatch(/tercatat di audit log/i);
+    expect(res.message).toMatch(/belum tersimpan/i);
   });
 
-  it("menerima admin untuk keputusan yang tercatat", async () => {
+  it("menerima admin untuk keputusan non-approve dan tidak mengklaim tersimpan", async () => {
     vi.spyOn(sessionModule, "getSession").mockResolvedValue(sesi("admin"));
 
     const res = await decideReview(
@@ -114,6 +118,8 @@ describe("decideReview — staff gate", () => {
     );
 
     expect(res.ok).toBe(true);
+    expect(res.message).not.toMatch(/tercatat di audit log/i);
+    expect(res.message).toMatch(/belum tersimpan/i);
   });
 
   it("menolak keputusan yang tidak sah meski staff", async () => {

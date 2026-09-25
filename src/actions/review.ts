@@ -26,7 +26,20 @@ export interface ReviewState {
  * payload from it — not re-adding these fields.
  */
 const PESAN_TERBIT_NONAKTIF =
-  "Keputusan tersimpan, tetapi penerbitan attestation belum aktif: menunggu layanan review sisi server (Fase 3). Tidak ada credential yang dibuat.";
+  "Keputusan diterima, tetapi penerbitan attestation belum aktif: menunggu layanan review sisi server (Fase 3). Tidak ada credential yang dibuat, dan belum ada yang tersimpan.";
+
+/**
+ * The honest counterpart of the line above for non-approval decisions.
+ *
+ * This action validates the decision and returns it, but persists **nothing**:
+ * `logAudit` is still an unimplemented stub (`src/lib/audit/logger.ts`) and
+ * there is no review store before Fase 3. The previous copy said "Alasan
+ * tercatat di audit log", which claimed a write that never happens — a
+ * verifikator would read that as a completed record. Say what is true instead:
+ * the decision is accepted for this response only, and nothing was stored.
+ */
+const PESAN_BELUM_TERSIMPAN =
+  "Belum ada yang tersimpan: layanan review sisi server (Fase 3) belum ada, jadi keputusan ini tidak masuk audit log maupun database.";
 
 const DECISION_LABEL: Record<string, string> = {
   approved: "disetujui",
@@ -64,6 +77,6 @@ export async function decideReview(
   return {
     ok: true,
     decision,
-    message: `Submission ${DECISION_LABEL[decision] ?? decision}. Alasan tercatat di audit log.`,
+    message: `Submission ${DECISION_LABEL[decision] ?? decision} (belum tersimpan). ${PESAN_BELUM_TERSIMPAN}`,
   };
 }

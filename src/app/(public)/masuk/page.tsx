@@ -21,9 +21,9 @@ export default async function MasukPage({
   const session = await getSession();
   if (session) redirect(await landingFor(session.role, session.email));
 
-  // Demo credentials are never advertised on staging/production; the accounts
-  // are also rejected by `authenticate` there, so printing the password would
-  // only mislead visitors.
+  // Demo credentials are shown only on a development machine that opted in
+  // with `DEMO_MODE=1`; the accounts are also rejected by `authenticate`
+  // everywhere else, so printing the password would only mislead visitors.
   if (!demoAccountsAllowed()) {
     return (
       <AuthSectionTwo title="Masuk ke akun Careevo">
