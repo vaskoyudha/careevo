@@ -1,4 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { daftarKursusAction, tandaiModulAction } from "./enrollment";
 import { createModul, resetCourses, updateCourse } from "@/lib/courses/store";
 import {
@@ -102,6 +105,9 @@ describe("enrollment actions", () => {
     jar.clear();
     vi.clearAllMocks();
     vi.spyOn(sessionModule, "getSession").mockResolvedValue(sesi);
+    // Direktori per test: env global dari `vitest.config.mts` juga dipakai test
+    // toko yang berjalan paralel, dan `tandaiModul` sekarang menulis ke sana.
+    process.env.CAREEVO_PERFORMA_DIR = mkdtempSync(path.join(tmpdir(), "careevo-performa-enroll-"));
   });
 
   it("menolak bila belum masuk", async () => {
@@ -464,5 +470,34 @@ describe("enrollment actions", () => {
 
     expect(result.ok).toBe(false);
     expect(result.error).toContain("50");
+  });
+
+  // Cermin ke toko performa: `tandaiModul` akan menulis ke cookie dan ke
+  // `.data/` sekaligus, jadi test ini juga menguji bahwa tidak ada test yang
+  // sampai menyentuh `.data/` repo.
+  it("mencerminkan penyelesaian ke toko performa dengan sumber informal", async () => {
+    setelKebijakan(KURSUS_OPSIONAL, "opsional");
+    const modul = await modulMateriBaru(KURSUS_OPSIONAL);
+    await daftarKursus(KURSUS_OPSIONAL, KURSUS_OPSIONAL, sesi.email);
+    await tandaiModulAction(KURSUS_OPSIONAL, modul.id);
+
+    const { bacaPerforma } = await import("@/lib/performa/store");
+    const record = await bacaPerforma(sesi.email);
+    const selesai = record?.kursus.find((k) => k.course_id === KURSUS_OPSIONAL)?.selesai ?? [];
+    expect(selesai).toHaveLength(1);
+    expect(selesai[0].sumber).toBe("informal");
+  });
+
+  it("melepas cermin ketika peserta membatalkan penandaan", async () => {
+    setelKebijakan(KURSUS_OPSIONAL, "opsional");
+    const modul = await modulMateriBaru(KURSUS_OPSIONAL);
+    await daftarKursus(KURSUS_OPSIONAL, KURSUS_OPSIONAL, sesi.email);
+    await tandaiModulAction(KURSUS_OPSIONAL, modul.id);
+    await tandaiModulAction(KURSUS_OPSIONAL, modul.id);
+
+    const { bacaPerforma } = await import("@/lib/performa/store");
+    const record = await bacaPerforma(sesi.email);
+    const selesai = record?.kursus.find((k) => k.course_id === KURSUS_OPSIONAL)?.selesai ?? [];
+    expect(selesai).toHaveLength(0);
   });
 });

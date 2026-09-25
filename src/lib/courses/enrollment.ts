@@ -1,6 +1,8 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { normalizeOwner } from "@/lib/auth/types";
+import { catatPenyelesaian, type SumberPenyelesaian } from "@/lib/performa/store";
+import { getCourseById } from "./store";
 
 /**
  * Pendaftaran kursus per peramban — pola yang sama seperti `ls_users`
@@ -129,20 +131,46 @@ export async function daftarKursus(
   return daftar;
 }
 
-/** Tandai/batalkan satu modul selesai; mengembalikan entri terbaru. */
+/**
+ * Tandai/batalkan satu modul selesai; mengembalikan entri terbaru.
+ *
+ * `sumber` mencatat **jalur** penyelesaian, bukan hanya hasilnya. Tanpa itu,
+ * dashboard tidak bisa membedakan modul yang lolos gerbang sesi terverifikasi
+ * dari modul yang peserta tandai sendiri — dan perbedaan itu justru yang
+ * membuat laporan ini berguna bagi verifikator.
+ *
+ * Cermin ke toko performa ditulis di sini, di **satu-satunya** penulis
+ * `selesai_modul`, supaya cermin dan cookie tidak bisa berbeda: dua pemanggil
+ * yang menulis ke dua tempat bisa selalu berbeda pada salah satunya saja.
+ */
 export async function tandaiModul(
   courseId: string,
   modulId: string,
   owner: string,
+  sumber: SumberPenyelesaian = "informal",
+  nama: string = "",
 ): Promise<Pendaftaran | null> {
   const daftar = await baca();
   const entri = daftar.find(
     (item) => item.course_id === courseId && milikPemilik(item, owner),
   );
   if (!entri) return null;
-  entri.selesai_modul = entri.selesai_modul.includes(modulId)
-    ? entri.selesai_modul.filter((id) => id !== modulId)
-    : [...entri.selesai_modul, modulId];
+  const baruDitandai = !entri.selesai_modul.includes(modulId);
+  entri.selesai_modul = baruDitandai
+    ? [...entri.selesai_modul, modulId]
+    : entri.selesai_modul.filter((id) => id !== modulId);
   await tulis(daftar);
+
+  const kursus = await getCourseById(courseId);
+  await catatPenyelesaian({
+    owner,
+    nama,
+    courseId,
+    judulKursus: kursus?.title ?? courseId,
+    modulId,
+    sumber,
+    batal: !baruDitandai,
+  });
+
   return entri;
 }

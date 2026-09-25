@@ -277,7 +277,7 @@ export async function selesaikanMateriAction(input: {
   // hanya boleh **menambah** penyelesaian, tidak pernah membatalkannya —
   // pembatalan tetap milik jalur informal `tandaiModulAction`.
   if (!(pendaftaran.selesai_modul ?? []).includes(input.modulId)) {
-    await tandaiModul(kursus.id, input.modulId, session.email);
+    await tandaiModul(kursus.id, input.modulId, session.email, "terverifikasi", session.nama);
   }
 
   // Revalidasi disamakan dengan `tandaiModulAction` (`/belajar` dan halaman
