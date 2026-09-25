@@ -38,6 +38,7 @@ export {
   bacaTanggalScan,
   type InboxJob,
 } from "./inbox";
+export { bacaRiwayatScan, HEADER_SCAN_RUNS, type RiwayatScan } from "./scan-runs";
 export {
   renderLaporan,
   simpanEvaluasi,
