@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
+import { simpanNilaiKuisAction } from "@/actions/performa";
 import { cn } from "@/lib/utils";
 import type { Kuis } from "@/types/course";
 
@@ -13,14 +14,30 @@ import type { Kuis } from "@/types/course";
  * pratinjau admin supaya yang dilihat admin saat menyusun sama persis dengan
  * yang dilihat peserta.
  *
- * Penilaian terjadi di klien dan tidak dikirim ke mana pun. Ini disengaja untuk
- * prototipe ini: menyimpan hasil per peserta berarti mengubah bentuk cookie
- * `ls_enroll`, dan itu keputusan produk tersendiri (lihat catatan di
- * AGENTS.md). Karena jawaban benar ikut terkirim ke perender, kuis ini alat
- * latihan, bukan alat ujian yang tahan curang — dan komentar ini ada supaya
- * batas itu tidak terlupakan saat kuis dipakai untuk sertifikasi.
+ * Penilaian terjadi di peramban lalu **dikirim ke server sebagai catatan** —
+ * bukan sebagai nilai terverifikasi. Kunci jawaban ikut terkirim ke perender,
+ * jadi peramban yang menghitung juga bisa memalsukannya; server memvalidasi
+ * bentuk angkanya saja. Skor seperti ini **wajib** dilabeli "dilaporkan klien"
+ * di mana pun ia ditampilkan, dan kuis tetap alat latihan — bukan ujian yang
+ * tahan curang.
+ *
+ * `catat` sengaja satu objek, bukan dua string terpisah: satu kuis bisa
+ * terpasang di beberapa modul sekaligus, jadi catatan skor tidak boleh bisa
+ * terkirim dengan moduleId tertinggal. Bentuk satu objek membuat "terlalu lupa
+ * modulId" mustahil secara tipe.
+ *
+ * Absen = pratinjau admin. Admin yang memeriksa kunci jawaban bukan peserta yang
+ * mengerjakan kuis, jadi tidak ada yang perlu dicatat.
  */
-export function KuisView({ kuis, className }: { kuis: Kuis; className?: string }) {
+export function KuisView({
+  kuis,
+  catat,
+  className,
+}: {
+  kuis: Kuis;
+  catat?: { courseId: string; modulId: string };
+  className?: string;
+}) {
   const [jawaban, setJawaban] = useState<Record<string, number>>({});
   const [nilai, setNilai] = useState<number | null>(null);
 
@@ -112,7 +129,21 @@ export function KuisView({ kuis, className }: { kuis: Kuis; className?: string }
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <button
           type="button"
-          onClick={() => setNilai(nilaiSekarang())}
+          onClick={() => {
+            const hasil = nilaiSekarang();
+            setNilai(hasil);
+            // Fire-and-forget: kegagalan penyimpanan tidak boleh memblokir
+            // latihan. Peserta tetap melihat nilainya; yang hilang hanya catatan
+            // untuk staf.
+            if (!catat) return;
+            void simpanNilaiKuisAction({
+              courseId: catat.courseId,
+              modulId: catat.modulId,
+              kuisId: kuis.id,
+              nilai: hasil,
+              totalSoal: soal.length,
+            }).catch(() => undefined);
+          }}
           disabled={terjawab < soal.length}
           className="cursor-pointer rounded-full bg-[#0056D2] px-4 py-2 text-xs font-semibold text-white hover:bg-[#00419e] disabled:cursor-not-allowed disabled:opacity-60"
         >

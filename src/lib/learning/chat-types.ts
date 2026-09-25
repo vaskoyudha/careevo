@@ -51,6 +51,18 @@ export type StudyChatActionState =
       snapshot: StudyChatSnapshot;
     }
   | {
+      /**
+       * Course policy closed academic assistance (`aturan_bantuan: "tanpa_ai"`).
+       *
+       * The snapshot is returned **unchanged**: the rejected message must not
+       * appear in the transcript. Callers treat this like the other snapshot
+       * states — read the snapshot, show the message.
+       */
+      status: "policy_denied";
+      message: string;
+      snapshot: StudyChatSnapshot;
+    }
+  | {
       status: "success";
       message: string;
       snapshot: StudyChatSnapshot;
