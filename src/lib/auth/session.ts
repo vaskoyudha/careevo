@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
+import { bacaSecret } from "@/lib/config/secrets";
 import {
   isRole,
   type DemoAccount,
@@ -14,11 +15,12 @@ export type { Role, SessionPayload, SessionUser };
 
 export const COOKIE_NAME = "ls_session";
 
-const SESSION_SECRET = process.env.SESSION_SECRET ?? "dev-session-secret-careevo";
 const SESSION_MAX_AGE = 60 * 60 * 8;
 
 function sign(body: string): string {
-  return createHmac("sha256", SESSION_SECRET).update(body).digest("base64url");
+  return createHmac("sha256", bacaSecret("SESSION_SECRET"))
+    .update(body)
+    .digest("base64url");
 }
 
 function safeEqual(a: string, b: string): boolean {

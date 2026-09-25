@@ -1,6 +1,7 @@
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { bacaSecret } from "@/lib/config/secrets";
 import { klasifikasiKejadian, type KJenisKejadian } from "./akses";
 
 /**
@@ -20,8 +21,6 @@ import { klasifikasiKejadian, type KJenisKejadian } from "./akses";
  * Direktori bisa dialihkan lewat `CAREERS_SESSION_DIR` supaya test tidak
  * menyentuh `.data/` milik repo.
  */
-
-const SESSION_SECRET = process.env.SESSION_SECRET ?? "dev-session-secret-careevo";
 
 /** Batas sesi ketika course tidak punya modul yang menetapkan angka sendiri. */
 export const BATAS_SESI_BAWAAN_MENIT = 30;
@@ -66,7 +65,9 @@ export interface BuktiSesi {
 }
 
 function tanda(isi: string): string {
-  return createHmac("sha256", SESSION_SECRET).update(isi).digest("base64url");
+  return createHmac("sha256", bacaSecret("SESSION_SECRET"))
+    .update(isi)
+    .digest("base64url");
 }
 
 /** Perbandingan waktu-tetap; panjang berbeda langsung ditolak (syarat timingSafeEqual). */

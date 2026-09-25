@@ -1,3 +1,4 @@
+import { bacaSecret } from "@/lib/config/secrets";
 import { signPayload, type AttestationPayload } from "./sign";
 
 export const ATTESTATION_MAX_AGE_DAYS = 365;
@@ -10,7 +11,7 @@ export interface DecodedAttestation {
 }
 
 export function getAttestationSecret(): string {
-  return process.env.ATTESTATION_SECRET ?? "dev-attestation-secret";
+  return bacaSecret("ATTESTATION_SECRET");
 }
 
 export function encodeToken(
