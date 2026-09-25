@@ -123,8 +123,12 @@ function galat(status: number, error: string): Response {
 export async function POST(request: Request): Promise<Response> {
   // Validasi Origin lebih dulu — sebelum body disentuh sama sekali. Route
   // handler tidak mendapat perlindungan CSRF bawaan Next.js (itu hanya untuk
-  // Server Action), jadi inilah lapisan yang menggantikannya. Lihat
-  // `@/lib/http/origin`.
+  // Server Action), jadi ia memeriksa sendiri. Ini SATU lapisan di antara
+  // beberapa (cookie SameSite=Lax + gerbang sesi staff di bawah), bukan
+  // satu-satunya pertahanan. Kebijakannya fail-closed: Origin yang absen
+  // ditolak kecuali `CAREEVO_ALLOW_MISSING_ORIGIN` diisi eksplisit, dan
+  // `X-Forwarded-Host` tidak dipercaya kecuali
+  // `CAREEVO_TRUST_PROXY_HEADERS` diisi. Lihat `@/lib/http/origin`.
   if (!originDiizinkan(request)) {
     return galat(403, PESAN_ORIGIN_DITOLAK);
   }
