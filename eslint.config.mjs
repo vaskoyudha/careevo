@@ -11,6 +11,11 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "mockup/**",
+    // Artefak operasional — bukan kode aplikasi. Tanpa ini `eslint` (tanpa
+    // argumen, dipakai `npm run lint`) menyapu build worktree subagent dan
+    // scratch plugin Remember, sehingga gerbang lint menjadi tidak terbaca.
+    ".claude/**",
+    ".remember/**",
   ]),
 ]);
 

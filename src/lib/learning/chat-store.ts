@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { normalizeOwner } from "@/lib/auth/types";
+import { bacaSecret } from "@/lib/config/secrets";
 import {
   MAX_STUDY_CHAT_MESSAGES,
   MAX_STUDY_MESSAGE_CHARS,
@@ -14,8 +15,6 @@ import {
   type StudyPathProposal,
 } from "./chat-types";
 
-const STUDY_CHAT_SECRET =
-  process.env.SESSION_SECRET ?? "dev-session-secret-careevo";
 const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
 
 function emptySnapshot(): StudyChatSnapshot {
@@ -106,7 +105,9 @@ function isEnvelope(value: unknown): value is StudyChatEnvelope {
 }
 
 function sign(body: string): string {
-  return createHmac("sha256", STUDY_CHAT_SECRET).update(body).digest("base64url");
+  return createHmac("sha256", bacaSecret("SESSION_SECRET"))
+    .update(body)
+    .digest("base64url");
 }
 
 function safeEqual(actual: string, expected: string): boolean {

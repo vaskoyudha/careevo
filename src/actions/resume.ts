@@ -20,6 +20,7 @@ import {
   type Sertifikasi,
   type Slot,
 } from "@/lib/resume/types";
+import { cekBatasiAksi } from "@/lib/rate-limit/next";
 
 export interface ResumeFormState {
   ok: boolean;
@@ -266,6 +267,12 @@ export async function unggahBerkasAction(
 ): Promise<ResumeFormState> {
   const ctx = await resumePemanggil();
   if (!ctx) return GAGAL("Sesi berakhir. Masuk ulang dulu.");
+
+  // Dibatasi SEBELUM `file.arrayBuffer()`: pembacaan body adalah bagian mahal
+  // dari action ini, dan email sesi dipakai sebagai principal stabil sehingga
+  // batas tidak bisa dihindari dengan berpindah IP.
+  const batas = await cekBatasiAksi("unggahResume", { principal: ctx.owner });
+  if (batas) return GAGAL(batas.gagal.pesan);
 
   const slot = brs(formData.get("slot")) as Slot;
   if (slot !== "cv" && slot !== "portofolio") return GAGAL("Jenis berkas tidak dikenal.");
