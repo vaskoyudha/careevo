@@ -41,6 +41,16 @@ export async function GET(
     status: 200,
     headers: {
       "Content-Type": "application/pdf",
+      // Defence in depth. `aturanKeamanan()` di next.config.ts sudah memasang
+      // nosniff untuk seluruh path, tetapi ini satu-satunya endpoint publik
+      // tanpa autentikasi yang memantulkan berkas unggahan satu pengguna ke
+      // pengguna lain — persis kasus yang disebut docs Next 16 untuk header
+      // ini. Menuliskannya di sini membuat jaminan itu tetap ada walau aturan
+      // global nanti diubah, dan mendokumentasikan mengapa endpoint ini
+      // membutuhkannya. `validasiBerkas` (dipakai `src/actions/resume.ts`)
+      // sudah menolak berkas yang magic bytes-nya bukan `%PDF-`, tapi
+      // sniffing-lah yang membuat `Content-Type` di atas benar-benar mengikat.
+      "X-Content-Type-Options": "nosniff",
       "Content-Length": String(bytes.byteLength),
       "Content-Disposition": `${unduh ? "attachment" : "inline"}; filename="${safeName}"`,
       // No caching of user files in shared caches.
