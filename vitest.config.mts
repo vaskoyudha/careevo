@@ -22,6 +22,14 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.ts"],
+    // Test integrasi database **dikecualikan** di sini, bukan sekadar tidak
+    // ada: `include` di atas cocok dengan `*.integration.test.ts` (akhiran
+    // `.test.ts`-nya sama), dan tanpa pengecualian ini `npm test` akan
+    // menuntut PostgreSQL hidup di mesin yang cuma ingin menjalankan test unit.
+    // Berkas itu dijalankan oleh `npm run test:db` lewat
+    // `vitest.integration.config.mts`; sufiks `.integration.test.ts` adalah
+    // kontrak yang menjaga pemisahan ini.
+    exclude: ["src/**/*.integration.test.ts"],
     env: { CAREEVO_PERFORMA_DIR: PERFORMA_DIR },
   },
 });

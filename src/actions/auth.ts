@@ -1,16 +1,22 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { z } from "zod";
 import { loginSchema, registerSchema } from "@/lib/validation/auth";
 import {
-  authenticate,
-  createSession,
+  authenticatePengguna,
+  daftarPengguna,
+  keluarSession,
+  terbitkanSesi,
+} from "@/lib/auth/auth-service";
+import {
+  bacaTokenSesi,
   destroySession,
+  pasangCookieSesi,
 } from "@/lib/auth/session";
 import { isDemoEmail } from "@/lib/auth/demo-accounts";
 import { demoAccountsAllowed } from "@/lib/config/environment";
-import { addStoredUser, hashPassword, isEmailTaken } from "@/lib/auth/user-store";
 import { landingFor } from "@/lib/auth/landing";
 import { cekBatasiAksi } from "@/lib/rate-limit/next";
 import type { AuthFormState } from "@/lib/auth/types";
@@ -26,6 +32,34 @@ function fieldErrors(error: z.ZodError): Record<string, string> {
   return result;
 }
 
+/**
+ * Metadata request yang disimpan bersama baris sesi.
+ *
+ * `userAgent` dan prefix IP berguna untuk menampilkan "perangkat yang masuk" dan
+ * mendeteksi anomali. Yang disimpan **hanya prefix**, bukan alamat penuh: cukup
+ * untuk mendeteksi, tanpa menyimpan PII yang tidak dibutuhkan.
+ *
+ * Kegagalan membaca header tidak boleh menggagalkan login — ia hanya metadata.
+ * Di luar lifecycle request Next.js (mis. unit test) `headers()` melempar, dan
+ * itu bukan alasan menolak kredensial yang benar.
+ */
+async function konteksRequest(): Promise<{ userAgent?: string; ipPrefix?: string }> {
+  try {
+    const h = await headers();
+    const ua = h.get("user-agent");
+    // `x-forwarded-for` dipakai hanya untuk **prefix** yang tidak dipakai
+    // sebagai kunci keamanan apa pun; nilainya dapat diisi klien, jadi jangan
+    // pernah memperlakukannya sebagai identitas.
+    const ip = h.get("x-vercel-forwarded-for") ?? h.get("x-forwarded-for");
+    return {
+      userAgent: ua?.slice(0, 300) ?? undefined,
+      ipPrefix: ip?.split(",")[0]?.trim().slice(0, 64) || undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
 export async function loginAction(
   _prev: AuthFormState,
   formData: FormData,
@@ -33,9 +67,10 @@ export async function loginAction(
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
 
-  // Dibatasi SEBELUM validasi dan SEBELUM `authenticate()`: percobaan kredensial
-  // yang buruk bentuknya pun tetap harus dihitung, kalau tidak penyerang dapat
-  // memakai request cacat untuk menghindari batas sambil tetap menebak.
+  // Dibatasi SEBELUM validasi dan SEBELUM verifikasi kredensial: percobaan
+  // kredensial yang buruk bentuknya pun tetap harus dihitung, kalau tidak
+  // penyerang dapat memakai request cacat untuk menghindari batas sambil tetap
+  // menebak.
   //
   // Email sengaja TIDAK dipakai sebagai principal di sini. Nilainya datang dari
   // klien, jadi memasukkannya ke kunci akan memberi penyerang cara mengunci akun
@@ -51,8 +86,17 @@ export async function loginAction(
     return { ok: false, errors: fieldErrors(parsed.error), values: { email } };
   }
 
-  const user = await authenticate(parsed.data.email, parsed.data.password);
-  if (!user) {
+  // Akun demo hanya diteruskan sebagai izin bila environment memang
+  // mengizinkannya. `authenticatePengguna` memakai `findDemoAccount`, yang
+  // sendiri fail-closed; flag ini hanya memastikan keputusan itu diambil di
+  // satu tempat yang terlihat.
+  const { hasil, token } = await authenticatePengguna({
+    email: parsed.data.email,
+    password: parsed.data.password,
+    izinkanDemo: demoAccountsAllowed(),
+  });
+
+  if (!hasil.ok || !token) {
     return {
       ok: false,
       // Only mention demo accounts where they actually work (development with
@@ -66,8 +110,8 @@ export async function loginAction(
     };
   }
 
-  await createSession(user);
-  redirect(await landingFor(user.role, user.email));
+  await pasangCookieSesi(token);
+  redirect(await landingFor(hasil.principal.role, hasil.principal.email));
 }
 
 export async function registerAction(
@@ -113,7 +157,7 @@ export async function registerAction(
     };
   }
 
-  const { email, nama, username, role, password } = parsed.data;
+  const { email, nama, username, password } = parsed.data;
 
   if (isDemoEmail(email)) {
     return {
@@ -123,26 +167,41 @@ export async function registerAction(
     };
   }
 
-  if (await isEmailTaken(email)) {
+  // Pendaftaran menulis `users` + `user_credentials` + `user_roles` dalam satu
+  // transaksi di dalam service. Keunikan email/username ditegakkan unique index
+  // di database; hasil `alasan` di bawah hanya untuk memilih pesan yang tepat.
+  const hasil = await daftarPengguna({ nama, username, email, password });
+
+  if (!hasil.ok) {
+    if (hasil.alasan === "email_dipakai") {
+      return {
+        ok: false,
+        errors: { email: "Email sudah terdaftar. Silakan masuk." },
+        values: { email, nama, username },
+      };
+    }
     return {
       ok: false,
-      errors: { email: "Email sudah terdaftar. Silakan masuk." },
+      errors: { username: "Username sudah dipakai. Coba yang lain." },
       values: { email, nama, username },
     };
   }
 
-  await addStoredUser({
-    email,
-    nama,
-    username,
-    role,
-    passwordHash: hashPassword(password),
-  });
-  await createSession({ email, nama, username, role });
-  redirect(await landingFor(role, email));
+  const token = await terbitkanSesi(hasil.principal, await konteksRequest());
+  await pasangCookieSesi(token);
+  redirect(await landingFor(hasil.principal.role, hasil.principal.email));
 }
 
+/**
+ * Logout. Urutannya penting: **cabut di database lebih dulu**, baru hapus cookie.
+ *
+ * Membalik urutannya menghasilkan window di mana cookie sudah hilang dari
+ * peramban tetapi tokennya masih sah — cukup bagi siapa pun yang sempat
+ * menyalinnya untuk tetap masuk.
+ */
 export async function logoutAction(): Promise<void> {
+  const token = await bacaTokenSesi();
+  if (token) await keluarSession(token);
   await destroySession();
   redirect("/masuk");
 }

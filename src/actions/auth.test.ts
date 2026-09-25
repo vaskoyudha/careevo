@@ -1,14 +1,21 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { loginAction, registerAction } from "./auth";
-import type { StoredUser } from "@/lib/auth/user-store";
+import type { SessionPrincipal } from "@/lib/auth/principal";
 
 /**
  * The auth actions are Server Actions: POST endpoints, reachable by anyone who
  * can send the request regardless of what the UI renders. These tests drive them
  * the way an attacker would — a hand-built `FormData`, and a direct call — and
- * assert the outcome that actually matters (which role got persisted), not just
- * the returned state.
+ * assert the *decision* the action makes (which input reaches the service, and
+ * what it refuses before the service is ever called).
+ *
+ * `registerAction`/`loginAction` now delegate to the database-backed
+ * `auth-service`. That service is mocked here: this file tests the action's
+ * *boundary* (role never read from `FormData`, rate limit counted before
+ * validation, demo messaging gated on environment), not the database. The
+ * database behaviour — email/username uniqueness, concurrent signup, session
+ * revocation — lives in `src/lib/auth/auth-service.integration.test.ts`.
  */
 
 const { jar } = vi.hoisted(() => ({ jar: new Map<string, string>() }));
@@ -23,44 +30,49 @@ vi.mock("next/headers", () => ({
       jar.set(name, value);
     },
   }),
+  headers: async () => new Headers(),
 }));
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 /**
- * Pembatas di-mock di sini karena modul `next/headers` di atas hanya menyediakan
- * `cookies`, sedangkan `cekBatasiAksi()` memanggil `headers()`. Yang diuji bukan
- * algoritma Redis-nya (itu di `src/lib/rate-limit/`), melainkan **urutan dan
- * akibat** penolakan: apa yang tidak ditulis saat pembatas berkata tidak.
- *
- * Default `vi.fn()` mengembalikan `undefined`, yang oleh aksi diperlakukan
- * sebagai "boleh lanjut" — jadi suite lama di bawah tetap berjalan tanpa
- * menyebut pembatas sama sekali.
+ * Pembatas di-mock karena yang diuji bukan algoritma Redis-nya (itu di
+ * `src/lib/rate-limit/`), melainkan **urutan** penolakan: request cacat pun
+ * tetap harus dihitung sebelum validasi, dan email kiriman klien tidak boleh
+ * menjadi kunci.
  */
-const mocks = vi.hoisted(() => ({ cekBatasiAksi: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  cekBatasiAksi: vi.fn(),
+  daftarPengguna: vi.fn(),
+  authenticatePengguna: vi.fn(),
+  terbitkanSesi: vi.fn(),
+  pasangCookieSesi: vi.fn(),
+  destroySession: vi.fn(),
+  bacaTokenSesi: vi.fn(),
+  landingFor: vi.fn(),
+}));
 
 vi.mock("@/lib/rate-limit/next", () => ({ cekBatasiAksi: mocks.cekBatasiAksi }));
+
+vi.mock("@/lib/auth/auth-service", () => ({
+  daftarPengguna: mocks.daftarPengguna,
+  authenticatePengguna: mocks.authenticatePengguna,
+  terbitkanSesi: mocks.terbitkanSesi,
+  keluarSession: vi.fn(),
+}));
+
+vi.mock("@/lib/auth/session", () => ({
+  pasangCookieSesi: mocks.pasangCookieSesi,
+  destroySession: mocks.destroySession,
+  bacaTokenSesi: mocks.bacaTokenSesi,
+}));
+
+vi.mock("@/lib/auth/landing", () => ({ landingFor: mocks.landingFor }));
 
 function formData(fields: Record<string, string>): FormData {
   const data = new FormData();
   for (const [key, value] of Object.entries(fields)) data.append(key, value);
   return data;
-}
-
-/** Minimal signed-cookie decoder: enough to read what the action persisted. */
-function bacaCookiePayload<T>(name: string): T | null {
-  const raw = jar.get(name);
-  if (!raw) return null;
-  const body = raw.split(".")[0];
-  return JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as T;
-}
-
-function penggunaTersimpan(): StoredUser[] {
-  return bacaCookiePayload<StoredUser[]>("ls_users") ?? [];
-}
-
-function sesiTersimpan(): { role: string; email: string } | null {
-  return bacaCookiePayload<{ role: string; email: string }>("ls_session");
 }
 
 /** `registerAction` ends in `redirect`, which throws by design. */
@@ -74,6 +86,18 @@ async function jalankanRegistered(form: FormData): Promise<void> {
   }
 }
 
+function principal(roles: string[] = ["user"]): SessionPrincipal {
+  return {
+    userId: "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+    roles: roles as SessionPrincipal["roles"],
+    role: roles.includes("admin") ? "admin" : roles.includes("verifikator") ? "verifikator" : "user",
+    nama: "Rina Wati",
+    email: "rina@contoh.test",
+    username: "rinawati",
+    iat: 1_700_000_000_000,
+  };
+}
+
 const PENDAFTARAN = {
   nama: "Rina Wati",
   username: "rinawati",
@@ -82,52 +106,53 @@ const PENDAFTARAN = {
   consent: "on",
 };
 
+beforeEach(() => {
+  jar.clear();
+  vi.restoreAllMocks();
+  mocks.cekBatasiAksi.mockReset().mockResolvedValue(null);
+  mocks.daftarPengguna.mockReset();
+  mocks.authenticatePengguna.mockReset();
+  mocks.terbitkanSesi.mockReset().mockResolvedValue("token-opaque");
+  mocks.pasangCookieSesi.mockReset();
+  mocks.destroySession.mockReset();
+  mocks.bacaTokenSesi.mockReset().mockResolvedValue(null);
+  mocks.landingFor.mockReset().mockResolvedValue("/dashboard");
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+
 describe("registerAction — role containment", () => {
-  beforeEach(() => {
-    jar.clear();
-    vi.restoreAllMocks();
-  });
+  it("mendelegasikan ke service tanpa membawa role sama sekali", async () => {
+    mocks.daftarPengguna.mockResolvedValue({ ok: true, principal: principal(["user"]) });
 
-  afterEach(() => {
-    vi.unstubAllEnvs();
-  });
-
-  it("membuat akun learner dari form biasa", async () => {
     await jalankanRegistered(formData(PENDAFTARAN));
 
-    expect(penggunaTersimpan()).toHaveLength(1);
-    expect(penggunaTersimpan()[0].role).toBe("user");
-    expect(sesiTersimpan()?.role).toBe("user");
+    expect(mocks.daftarPengguna).toHaveBeenCalledTimes(1);
+    // Nilai role dari FormData tidak pernah sampai ke service: `daftarPengguna`
+    // hanya menerima { nama, username, email, password }, dan peran defaultnya
+    // (learner) ditetapkan service — bukan dibaca dari browser.
+    expect(mocks.daftarPengguna.mock.calls[0][0]).not.toHaveProperty("role");
+    expect(mocks.terbitkanSesi).toHaveBeenCalled();
+    expect(mocks.pasangCookieSesi).toHaveBeenCalledWith("token-opaque");
   });
 
-  it("mengabaikan field role yang dimodifikasi dan tetap membuat learner", async () => {
-    // Serangan yang sebenarnya: kirim `role=verifikator` seperti yang dulu
-    // disediakan form. Server Action tidak boleh memercayai FormData.
-    await jalankanRegistered(
-      formData({ ...PENDAFTARAN, role: "verifikator" }),
-    );
+  it("mengabaikan field role yang dimodifikasi — service tetap dipanggil tanpa role", async () => {
+    mocks.daftarPengguna.mockResolvedValue({ ok: true, principal: principal(["user"]) });
 
-    expect(penggunaTersimpan()).toHaveLength(1);
-    expect(penggunaTersimpan()[0].role).toBe("user");
-    expect(sesiTersimpan()?.role).toBe("user");
-  });
-
-  it("menolak juga saat role admin dipaksakan", async () => {
+    // Serangan yang sebenarnya: kirim `role=verifikator`/`admin` di FormData.
+    // Server Action tidak boleh memercayainya.
+    await jalankanRegistered(formData({ ...PENDAFTARAN, role: "verifikator" }));
     await jalankanRegistered(formData({ ...PENDAFTARAN, role: "admin" }));
-    expect(penggunaTersimpan()[0]?.role).toBe("user");
+
+    expect(mocks.daftarPengguna).toHaveBeenCalledTimes(2);
+    for (const call of mocks.daftarPengguna.mock.calls) {
+      expect(call[0]).not.toHaveProperty("role");
+    }
   });
 
-  it("tidak menulis akun staff ketika FormData role dikirim berulang", async () => {
-    const form = formData(PENDAFTARAN);
-    form.append("role", "verifikator");
-    form.append("role", "admin");
-
-    await jalankanRegistered(form);
-
-    expect(penggunaTersimpan().every((user) => user.role === "user")).toBe(true);
-  });
-
-  it("menolak email akun demo", async () => {
+  it("menolak email akun demo sebelum menyentuh service", async () => {
     const res = await registerAction(
       { ok: false },
       formData({ ...PENDAFTARAN, email: "admin@careevo.test" }),
@@ -135,23 +160,29 @@ describe("registerAction — role containment", () => {
 
     expect(res.ok).toBe(false);
     expect(res.errors?.email).toContain("demo");
-    expect(penggunaTersimpan()).toHaveLength(0);
+    expect(mocks.daftarPengguna).not.toHaveBeenCalled();
+  });
+
+  it("memetakan alasan email_dipakai menjadi pesan email", async () => {
+    mocks.daftarPengguna.mockResolvedValue({ ok: false, alasan: "email_dipakai" });
+
+    const res = await registerAction({ ok: false }, formData(PENDAFTARAN));
+
+    expect(res.ok).toBe(false);
+    expect(res.errors?.email).toContain("Email sudah terdaftar");
+    expect(mocks.pasangCookieSesi).not.toHaveBeenCalled();
   });
 });
 
-describe("loginAction — demo account gate", () => {
-  beforeEach(() => {
-    jar.clear();
-    vi.restoreAllMocks();
-  });
-
-  afterEach(() => {
-    vi.unstubAllEnvs();
-  });
-
-  it("menerima akun demo di development dengan DEMO_MODE=1", async () => {
+describe("loginAction — delegasi dan pesan demo", () => {
+  it("meneruskan izinkanDemo sesuai environment dan memasang cookie saat berhasil", async () => {
     vi.stubEnv("NODE_ENV", "development");
     vi.stubEnv("DEMO_MODE", "1");
+    mocks.authenticatePengguna.mockResolvedValue({
+      hasil: { ok: true, principal: principal(["admin"]) },
+      token: "token-demo",
+      demo: true,
+    });
 
     try {
       await loginAction({ ok: false }, formData({ email: "admin@careevo.test", password: "careevo" }));
@@ -160,69 +191,58 @@ describe("loginAction — demo account gate", () => {
       if (!isRedirectError(error)) throw error;
     }
 
-    expect(sesiTersimpan()?.role).toBe("admin");
+    expect(mocks.authenticatePengguna).toHaveBeenCalledWith(
+      expect.objectContaining({ izinkanDemo: true }),
+    );
+    expect(mocks.pasangCookieSesi).toHaveBeenCalledWith("token-demo");
   });
 
-  it("menolak akun demo di development biasa tanpa opt-in DEMO_MODE", async () => {
+  it("meneruskan izinkanDemo=false di luar opt-in demo", async () => {
     vi.stubEnv("NODE_ENV", "development");
     vi.stubEnv("DEMO_MODE", "");
+    mocks.authenticatePengguna.mockResolvedValue({
+      hasil: { ok: false, alasan: "kredensial_salah" },
+      demo: false,
+    });
 
     const res = await loginAction(
       { ok: false },
-      formData({ email: "admin@careevo.test", password: "careevo" }),
+      formData({ email: "salah@contoh.test", password: "apa-saja-panjang" }),
     );
 
-    // Fail-closed: `npm run dev` tanpa flag tidak menerima kredensial yang
-    // dipublikasikan di repositori.
-    expect(res.ok).toBe(false);
-    expect(jar.has("ls_session")).toBe(false);
-  });
-
-  it("menolak akun demo di production walau password benar", async () => {
-    vi.stubEnv("NODE_ENV", "production");
-    vi.stubEnv("DEMO_MODE", "1");
-
-    const res = await loginAction(
-      { ok: false },
-      formData({ email: "admin@careevo.test", password: "careevo" }),
+    expect(mocks.authenticatePengguna).toHaveBeenCalledWith(
+      expect.objectContaining({ izinkanDemo: false }),
     );
-
     expect(res.ok).toBe(false);
-    // Tidak ada sesi yang ditulis: akun demo bukan jalan masuk di staging/produksi.
-    expect(jar.has("ls_session")).toBe(false);
   });
 
   it("tidak menyarankan akun demo saat login gagal di production", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("DEMO_MODE", "1");
+    mocks.authenticatePengguna.mockResolvedValue({
+      hasil: { ok: false, alasan: "kredensial_salah" },
+      demo: false,
+    });
 
     const res = await loginAction(
       { ok: false },
       formData({ email: "salah@contoh.test", password: "apa-saja-panjang" }),
     );
 
+    expect(res.ok).toBe(false);
     // Pesan error tidak boleh mengarahkan orang ke kredensial yang justru
-    // ditolak server.
-    expect(res.ok).toBe(false);
+    // ditolak server, sekalipun DEMO_MODE diisi.
     expect(res.message).not.toContain("demo");
-  });
-
-  it("tidak menyarankan akun demo di development tanpa opt-in", async () => {
-    vi.stubEnv("NODE_ENV", "development");
-    vi.stubEnv("DEMO_MODE", "");
-
-    const res = await loginAction(
-      { ok: false },
-      formData({ email: "salah@contoh.test", password: "apa-saja-panjang" }),
-    );
-
-    expect(res.ok).toBe(false);
-    expect(res.message).not.toContain("demo");
+    expect(mocks.pasangCookieSesi).not.toHaveBeenCalled();
   });
 
   it("tetap menyebut akun demo saat login gagal di development dengan DEMO_MODE=1", async () => {
     vi.stubEnv("NODE_ENV", "development");
     vi.stubEnv("DEMO_MODE", "1");
+    mocks.authenticatePengguna.mockResolvedValue({
+      hasil: { ok: false, alasan: "kredensial_salah" },
+      demo: false,
+    });
 
     const res = await loginAction(
       { ok: false },
@@ -242,24 +262,17 @@ describe("loginAction — demo account gate", () => {
  *    Email/nama dari `FormData` sengaja TIDAK menjadi principal: nilai kiriman
  *    klien akan memberi penyerang cara menghabiskan bucket atas nama akun korban
  *    dan mengunci orang lain dari jarak jauh.
- * 2. **Penolakannya total.** Saat dibatasi, tidak ada akun yang ditulis dan
- *    tidak ada sesi yang dibuat — memeriksa batas setelah `addStoredUser` berarti
- *    pendaftaran massal tetap terjadi, hanya jawabannya yang berubah.
+ * 2. **Penolakannya total.** Saat dibatasi, tidak ada service yang dipanggil —
+ *    memeriksa batas setelah `daftarPengguna` berarti pendaftaran massal tetap
+ *    terjadi, hanya jawabannya yang berubah.
  */
 describe("pembatas pada login dan signup", () => {
-  beforeEach(() => {
-    jar.clear();
-    vi.restoreAllMocks();
-    mocks.cekBatasiAksi.mockReset();
-    // Default: boleh lanjut. Test di bawah menimpanya untuk kasus penolakan.
-    mocks.cekBatasiAksi.mockResolvedValue(null);
-  });
-
-  afterEach(() => {
-    vi.unstubAllEnvs();
-  });
-
   it("login dihitung atas IP saja — email kiriman klien tidak menjadi kunci", async () => {
+    mocks.authenticatePengguna.mockResolvedValue({
+      hasil: { ok: false, alasan: "kredensial_salah" },
+      demo: false,
+    });
+
     await loginAction(
       { ok: false },
       formData({ email: "korban@contoh.test", password: "apa-saja-panjang" }),
@@ -272,8 +285,8 @@ describe("pembatas pada login dan signup", () => {
   });
 
   it("signup dihitung atas IP saja", async () => {
-    // Pendaftaran yang berhasil berakhir dengan `redirect`, yang melempar
-    // `NEXT_REDIRECT` — bukan kegagalan, melainkan cara kerja action ini.
+    mocks.daftarPengguna.mockResolvedValue({ ok: true, principal: principal(["user"]) });
+
     await jalankanRegistered(formData(PENDAFTARAN));
 
     expect(mocks.cekBatasiAksi).toHaveBeenCalledWith("signup");
@@ -291,7 +304,8 @@ describe("pembatas pada login dan signup", () => {
 
     expect(res.ok).toBe(false);
     expect(res.message).toBe("Terlalu banyak percobaan.");
-    // Akun demo dengan password benar pun tidak boleh menghasilkan sesi.
+    // Service tidak boleh dipanggil sama sekali saat dibatasi.
+    expect(mocks.authenticatePengguna).not.toHaveBeenCalled();
     expect(jar.has("ls_session")).toBe(false);
   });
 
@@ -302,8 +316,7 @@ describe("pembatas pada login dan signup", () => {
 
     expect(res.ok).toBe(false);
     expect(res.message).toBe("Terlalu banyak percobaan.");
-    // Pendaftaran massal dicegah tepat di sini: tidak ada baris user yang ditulis.
-    expect(penggunaTersimpan()).toHaveLength(0);
+    expect(mocks.daftarPengguna).not.toHaveBeenCalled();
     expect(jar.has("ls_session")).toBe(false);
   });
 

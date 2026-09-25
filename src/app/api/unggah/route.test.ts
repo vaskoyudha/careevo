@@ -17,7 +17,7 @@ import {
   resetCourses,
 } from "@/lib/courses/store";
 import { modulUntuk } from "@/lib/courses/modul-resolver";
-import type { SessionPayload } from "@/lib/auth/types";
+import { principalUji } from "@/lib/auth/test-principal";
 
 /**
  * Route handler unggah — diuji adversarial di transport, bukan sebagai unit
@@ -58,15 +58,24 @@ const COURSE_ID = "crs-1";
 const ASAL = "http://localhost:3000";
 const URL_UNGGAH = `${ASAL}/api/unggah`;
 
-const adminSession: SessionPayload = {
+const adminSession = principalUji({
   email: "admin@careevo.test",
   nama: "Admin Careevo",
   username: "admin",
   role: "admin",
-  iat: Math.floor(Date.now() / 1000),
-};
+});
 
-const userSession: SessionPayload = { ...adminSession, role: "user", username: "normal" };
+/**
+ * Principal learner: `roles`/`role` harus ikut berubah, bukan cuma `role`.
+ * `principalUji` menurunkan `role` dari `roles`, jadi override di sini tidak
+ * bisa meninggalkan objek yang mengaku admin di satu field dan user di field lain.
+ */
+const userSession = principalUji({
+  email: "user@careevo.test",
+  nama: "Normal User",
+  username: "normal",
+  role: "user",
+});
 
 function berkasPng(): File {
   return new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], "sampul.png", {
