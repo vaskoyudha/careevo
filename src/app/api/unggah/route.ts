@@ -4,6 +4,9 @@ import path from "node:path";
 import { isStaffRole } from "@/lib/auth/roles";
 import { getSession } from "@/lib/auth/session";
 import { slugify } from "@/lib/courses/store";
+import { modulUntuk } from "@/lib/courses/modul-resolver";
+import type { ModulKursus } from "@/lib/courses/kurikulum";
+import { originDiizinkan, PESAN_ORIGIN_DITOLAK } from "@/lib/http/origin";
 
 /**
  * POST /api/unggah — unggah berkas materi/kursus (gambar atau PDF).
@@ -87,6 +90,28 @@ function bacaTeks(nilai: FormDataEntryValue | null): string {
 }
 
 /**
+ * Subjek unggahan harus benar-benar milik kursus yang disebut.
+ *
+ * Subjek adalah id modul (dipakai editor halaman untuk halaman baru), id
+ * materi, atau id halaman — lihat pemanggil `UnggahBerkas`. Modul di sini
+ * berasal dari resolver efektif (`modulUntuk`), jadi kursus yang masih memakai
+ * modul turunan (`${courseId}-m1`…) juga menerima id modulnya, bukan hanya
+ * kursus yang sudah punya modul tersimpan.
+ *
+ * Tanpa pemeriksaan ini, `subjekId` apa pun diterima dan langsung dipakai
+ * sebagai segmen path — seorang staff bisa menaruh berkas di bawah kursus mana
+ * pun hanya dengan menebak/menyebut id subjek asing.
+ */
+export function subjekMilikCourse(modul: ModulKursus[], subjekId: string): boolean {
+  for (const m of modul) {
+    if (m.id === subjekId) return true;
+    if ((m.materi ?? []).some((mat) => mat.id === subjekId)) return true;
+    if ((m.halaman ?? []).some((hal) => hal.id === subjekId)) return true;
+  }
+  return false;
+}
+
+/**
  * Bentuk respons galat, seragam dengan `CourseActionState` / `ModulActionState`
  * (`{ ok: false, error }`) supaya pemanggil klien hanya perlu tahu satu kontrak
  * untuk unggahan dan untuk Server Action.
@@ -96,6 +121,14 @@ function galat(status: number, error: string): Response {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  // Validasi Origin lebih dulu — sebelum body disentuh sama sekali. Route
+  // handler tidak mendapat perlindungan CSRF bawaan Next.js (itu hanya untuk
+  // Server Action), jadi inilah lapisan yang menggantikannya. Lihat
+  // `@/lib/http/origin`.
+  if (!originDiizinkan(request)) {
+    return galat(403, PESAN_ORIGIN_DITOLAK);
+  }
+
   const sesi = await getSession();
   if (!sesi) {
     return galat(401, "Sesi tidak ditemukan. Silakan masuk terlebih dahulu.");
@@ -138,6 +171,18 @@ export async function POST(request: Request): Promise<Response> {
 
   // `subjek` diterima sebagai alias agar pemanggil lama tidak langsung rusak.
   const subjekId = bacaTeks(form.get("subjekId")) || bacaTeks(form.get("subjek"));
+
+  // Resolusi modul kursus sekali di sini: dipakai untuk membuktikan kursusnya
+  // ada sekaligus memvalidasi `subjekId`. `modulUntuk` adalah resolver tunggal
+  // (stored menang, selain itu turunan), jadi derived module tetap diterima.
+  const modul = await modulUntuk(courseId);
+  if (modul.length === 0) {
+    return galat(404, `Kursus '${courseId}' tidak ditemukan.`);
+  }
+
+  if (subjekId && !subjekMilikCourse(modul, subjekId)) {
+    return galat(404, `Subjek '${subjekId}' tidak ditemukan pada kursus ini.`);
+  }
 
   const ekstensi = ekstensiUntukMime(berkas.type);
   if (!ekstensi) {
