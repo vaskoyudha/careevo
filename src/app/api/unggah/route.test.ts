@@ -1,7 +1,15 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { POST, subjekMilikCourse } from "./route";
 import * as sessionModule from "@/lib/auth/session";
-import { originDiizinkan, hostPermintaan } from "@/lib/http/origin";
+import {
+  originDiizinkan,
+  hostPermintaan,
+  izinkanTanpaOriginDariEnv,
+  percayaXForwardedHostDariEnv,
+  ENV_IZINKAN_TANPA_ORIGIN,
+  ENV_PERCAYA_X_FORWARDED_HOST,
+  type OriginEnvironment,
+} from "@/lib/http/origin";
 import {
   createModul,
   createMateri,
@@ -85,7 +93,14 @@ describe("POST /api/unggah — validasi Origin", () => {
   beforeEach(() => {
     resetCourses();
     vi.restoreAllMocks();
+    delete process.env[ENV_IZINKAN_TANPA_ORIGIN];
+    delete process.env[ENV_PERCAYA_X_FORWARDED_HOST];
     vi.spyOn(sessionModule, "getSession").mockResolvedValue(adminSession);
+  });
+
+  afterEach(() => {
+    delete process.env[ENV_IZINKAN_TANPA_ORIGIN];
+    delete process.env[ENV_PERCAYA_X_FORWARDED_HOST];
   });
 
   it("menolak permintaan lintas origin", async () => {
@@ -111,7 +126,14 @@ describe("POST /api/unggah — validasi Origin", () => {
     expect(res.status).toBe(200);
   });
 
-  it("menerima klien tanpa Origin di luar production (test/curl)", async () => {
+  it("menolak klien tanpa Origin secara default (fail-closed), walau ada sesi staff", async () => {
+    const res = await POST(permintaan({ origin: null }));
+    expect(res.status).toBe(403);
+    expect((await bacaJson(res)).error).toContain("Origin");
+  });
+
+  it("menerima klien tanpa Origin hanya bila CAREEVO_ALLOW_MISSING_ORIGIN diisi eksplisit", async () => {
+    process.env[ENV_IZINKAN_TANPA_ORIGIN] = "1";
     const res = await POST(permintaan({ origin: null }));
     expect(res.status).toBe(200);
   });
@@ -119,6 +141,30 @@ describe("POST /api/unggah — validasi Origin", () => {
   it("menolak permintaan yang Origin-nya bukan http/https", async () => {
     const res = await POST(permintaan({ origin: "ftp://localhost:3000" }));
     expect(res.status).toBe(403);
+  });
+
+  it("TIDAK mempercayai X-Forwarded-Host dari klien: origin yang cocok dengan XFH palsu tetap ditolak", async () => {
+    const res = await POST(
+      permintaan({
+        origin: "https://jahat.example",
+        headers: { "x-forwarded-host": "jahat.example" },
+      }),
+    );
+    // Host permintaan sebenarnya localhost:3000 (dari URL), bukan XFH.
+    expect(res.status).toBe(403);
+  });
+
+  it("memakai X-Forwarded-Host hanya setelah CAREEVO_TRUST_PROXY_HEADERS diisi eksplisit", async () => {
+    const headers = { origin: "https://publik.example", "x-forwarded-host": "publik.example" };
+
+    // Default: header diabaikan → host localhost:3000 → lintas origin.
+    const ditolak = await POST(permintaan({ headers }));
+    expect(ditolak.status).toBe(403);
+
+    // Di belakang proxy tepercaya yang diakui eksplisit: host diteruskan dipakai.
+    process.env[ENV_PERCAYA_X_FORWARDED_HOST] = "1";
+    const diterima = await POST(permintaan({ headers }));
+    expect(diterima.status).toBe(200);
   });
 });
 
@@ -132,23 +178,49 @@ describe("originDiizinkan — kebijakan helper", () => {
     ).toBe(false);
   });
 
-  it("absen Origin ditolak bila izinkanTanpaOrigin dimatikan (mode production)", () => {
+  it("absen Origin ditolak secara default dan hanya diterima bila diizinkan eksplisit", () => {
     expect(originDiizinkan(permintaan({ origin: null }), { izinkanTanpaOrigin: false })).toBe(false);
     expect(originDiizinkan(permintaan({ origin: null }), { izinkanTanpaOrigin: true })).toBe(true);
   });
 
-  it("membandingkan terhadap X-Forwarded-Host lebih dulu", () => {
-    const req = permintaan({ origin: "https://publik.example", headers: {} });
-    // Host dari URL permintaan adalah localhost:3000 → lintas origin.
-    expect(hostPermintaan(req)).toBe("localhost:3000");
-    expect(originDiizinkan(req)).toBe(false);
+  it("absen Origin ditolak tanpa opsi apa pun (fail-closed, bukan dari NODE_ENV)", () => {
+    // process.env di test bukan production; tanpa izin eksplisit tetap ditolak.
+    expect(originDiizinkan(permintaan({ origin: null }))).toBe(false);
+  });
 
-    // Di belakang proxy, host yang diteruskan adalah yang dibandingkan.
-    const diProxy = new Request(URL_UNGGAH, {
+  it("env CAREEVO_ALLOW_MISSING_ORIGIN adalah satu-satunya saklar absennya Origin", () => {
+    const kosong: OriginEnvironment = {};
+    expect(izinkanTanpaOriginDariEnv(kosong)).toBe(false);
+    expect(izinkanTanpaOriginDariEnv({ [ENV_IZINKAN_TANPA_ORIGIN]: "0" })).toBe(false);
+    expect(izinkanTanpaOriginDariEnv({ [ENV_IZINKAN_TANPA_ORIGIN]: "false" })).toBe(false);
+    expect(izinkanTanpaOriginDariEnv({ [ENV_IZINKAN_TANPA_ORIGIN]: "1" })).toBe(true);
+    expect(izinkanTanpaOriginDariEnv({ [ENV_IZINKAN_TANPA_ORIGIN]: "true" })).toBe(true);
+  });
+
+  it("hostPermintaan mengabaikan X-Forwarded-Host secara default", () => {
+    const req = new Request(URL_UNGGAH, {
+      method: "POST",
+      headers: { origin: ASAL, "x-forwarded-host": "jahat.example" },
+    });
+    // XFH palsu tidak dipakai: host dari URL permintaan.
+    expect(hostPermintaan(req)).toBe("localhost:3000");
+    // Setelah kepercayaan eksplisit, XFH dipakai.
+    expect(hostPermintaan(req, { percayaXForwardedHost: true })).toBe("jahat.example");
+  });
+
+  it("env CAREEVO_TRUST_PROXY_HEADERS adalah saklar kepercayaan X-Forwarded-Host", () => {
+    expect(percayaXForwardedHostDariEnv({})).toBe(false);
+    expect(percayaXForwardedHostDariEnv({ [ENV_PERCAYA_X_FORWARDED_HOST]: "0" })).toBe(false);
+    expect(percayaXForwardedHostDariEnv({ [ENV_PERCAYA_X_FORWARDED_HOST]: "1" })).toBe(true);
+  });
+
+  it("origin cocok dengan X-Forwarded-Host hanya bila proxy dipercaya", () => {
+    const req = new Request(URL_UNGGAH, {
       method: "POST",
       headers: { origin: "https://publik.example", "x-forwarded-host": "publik.example" },
     });
-    expect(originDiizinkan(diProxy)).toBe(true);
+    expect(originDiizinkan(req)).toBe(false);
+    expect(originDiizinkan(req, { percayaXForwardedHost: true })).toBe(true);
   });
 });
 
