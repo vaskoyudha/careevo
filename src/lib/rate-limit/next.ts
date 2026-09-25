@@ -80,8 +80,10 @@ function responsDari(
  *
  * Menerima apa pun yang punya `headers` — `NextRequest` (Proxy) maupun `Request`
  * (Route Handler) — sehingga satu jalur pengecekan dipakai di keduanya. IP diambil
- * dari header request; pada Vercel nilainya disetel di edge dan tidak dapat
- * ditimpa klien.
+ * dari header request oleh `ipTercepat()`: pada Vercel
+ * `x-vercel-forwarded-for` disetel di edge dan tidak dapat ditimpa klien,
+ * sedangkan `x-real-ip` (bukan header Vercel) hanya dibaca bila
+ * `CAREEVO_TRUST_REAL_IP_HEADER=1` diisi eksplisit — lihat `./identitas.ts`.
  *
  * @returns `null` bila boleh lanjut, atau `Response` siap-kirim.
  */

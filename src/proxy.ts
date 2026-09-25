@@ -26,7 +26,9 @@
  * ## IP
  * Vercel menyetel `x-vercel-forwarded-for` di edge dan header itu tidak dapat
  * ditimpa, jadi IP yang dipakai di sini adalah IP tepercaya, bukan nilai yang
- * dikirim klien lewat `x-forwarded-for`. Rinciannya di `src/lib/rate-limit/identitas.ts`.
+ * dikirim klien lewat `x-forwarded-for`. Alternatif `x-real-ip` hanya dibaca bila
+ * `CAREEVO_TRUST_REAL_IP_HEADER=1` diisi eksplisit; rinciannya di
+ * `src/lib/rate-limit/identitas.ts`.
  */
 
 import type { NextRequest } from "next/server";
