@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { BarisPembelajaran } from "@/lib/performa/ringkasan";
+import { LABEL_SUMBER } from "@/lib/performa/store";
 
 /**
  * Peringatan laporan **pembelajaran**.
@@ -47,7 +48,16 @@ export function PembelajaranTabel({ baris }: { baris: BarisPembelajaran[] }) {
                 </Link>
                 <p className="text-xs text-muted-foreground">{b.owner}</p>
               </td>
-              <td className="p-3">{b.selesai}</td>
+              <td className="p-3">
+                {b.selesai}
+                {/* Jalur penyelesaian hidup di sini, di sebelah penyebutnya.
+                    Di laporan integritas angkanya tampil sebagai "3 / 10" —
+                    terpisah dari penyebut, angka itu langsung dibaca sebagai
+                    proporsi. */}
+                <p className="text-xs text-muted-foreground">
+                  {b.terverifikasi} {LABEL_SUMBER.terverifikasi}
+                </p>
+              </td>
               <td className="p-3">
                 {b.rataRataKuis === null ? "—" : `${b.rataRataKuis}/100`}
                 <p className="text-xs text-muted-foreground">dilaporkan klien</p>

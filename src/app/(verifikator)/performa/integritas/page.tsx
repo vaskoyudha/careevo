@@ -22,7 +22,10 @@ export default async function PerformaIntegritasPage() {
   if (!session) return null;
 
   const [catatan, runs] = await Promise.all([indeksPerforma(), listRun()]);
-  const baris = barisIntegritas(catatan, ringkasIntegritasByOwner(runs));
+  // Hanya nama yang diambil dari catatan performa. Modul selesai dan nilai kuis
+  // sengaja tidak ikut: laporan ini menampilkan fakta sesi saja.
+  const nama = new Map(catatan.map((r) => [r.owner, r.nama]));
+  const baris = barisIntegritas(nama, ringkasIntegritasByOwner(runs));
 
   return (
     <AppShell session={session} current="/performa/integritas">

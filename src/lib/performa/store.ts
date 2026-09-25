@@ -19,6 +19,17 @@ export type SumberPenyelesaian = "terverifikasi" | "informal";
 /** Selalu `"klien"` di pass ini: penilaian server adalah pekerjaan terpisah. */
 export type SumberSkor = "klien";
 
+/**
+ * Cara menyebut jalur penyelesaian dalam satu kalimat.
+ *
+ * Satu definisi untuk daftar dan detail: kalau dua tempat menulis rumusan
+ * sendiri, keduanya bebas berbeda dan yang berbeda akaniat diam-diam.
+ */
+export const LABEL_SUMBER: Record<SumberPenyelesaian, string> = {
+  terverifikasi: "lewat sesi terverifikasi",
+  informal: "tanpa sesi terverifikasi",
+};
+
 export interface PenyelesaianModul {
   modul_id: string;
   at: string;
