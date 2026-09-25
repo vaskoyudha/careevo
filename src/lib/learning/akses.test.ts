@@ -6,6 +6,7 @@ import {
   checkpointTerverifikasi,
   kategoriDiblokir,
   klasifikasiKejadian,
+  lewatBatas,
   putuskanAkses,
   wajibSesiTerverifikasi,
 } from "./akses";
@@ -115,5 +116,30 @@ describe("klasifikasiKejadian", () => {
     expect(klasifikasiKejadian("pindah_tab", "hidden")).toBe("kejadian");
     expect(klasifikasiKejadian("kamera_berhenti", null)).toBe("celah");
     expect(klasifikasiKejadian("fokus_hilang", "visible")).toBe("kejadian");
+  });
+});
+
+describe("lewatBatas", () => {
+  const MULAI = "2026-09-25T10:00:00.000Z";
+  const menit = (n: number) => Date.parse(MULAI) + n * 60_000;
+
+  it("is not elapsed while still inside the window", () => {
+    expect(lewatBatas(MULAI, 30, menit(29))).toBe(false);
+  });
+
+  it("is not elapsed exactly on the last minute", () => {
+    // The comparison is strict, so finishing on the final minute is never
+    // punished over a millisecond of clock skew. This pins that decision.
+    expect(lewatBatas(MULAI, 30, menit(30))).toBe(false);
+  });
+
+  it("is elapsed once the window is overrun", () => {
+    expect(lewatBatas(MULAI, 30, menit(31))).toBe(true);
+  });
+
+  it("treats an unparseable start time as elapsed", () => {
+    // Fail closed: evidence that cannot be audited must not count as still
+    // valid, otherwise a corrupt `mulai_at` grants an unbounded window.
+    expect(lewatBatas("bukan tanggal", 30, menit(1))).toBe(true);
   });
 });

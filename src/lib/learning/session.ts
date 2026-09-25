@@ -23,6 +23,9 @@ import { klasifikasiKejadian, type KJenisKejadian } from "./akses";
 
 const SESSION_SECRET = process.env.SESSION_SECRET ?? "dev-session-secret-careevo";
 
+/** Batas sesi ketika course tidak punya modul yang menetapkan angka sendiri. */
+export const BATAS_SESI_BAWAAN_MENIT = 30;
+
 /** Direktori sesi aktif; dihitung per panggilan agar override test ikut terbaca. */
 export function tempatSesi(): string {
   return process.env.CAREERS_SESSION_DIR ?? path.join(process.cwd(), ".data", "sessions");
@@ -45,6 +48,12 @@ export interface SessionRun {
   policy_version: number;
   status: StatusRun;
   mulai_at: string;
+  /**
+   * Batas masa berlaku, ISO. **Opsional** supaya berkas run yang ditulis
+   * sebelum field ini ada tidak ikut dianggap korup — `kedaluwarsa()` sudah
+   * menurunkannya ke batas bawaan.
+   */
+  berlaku_hingga?: string;
   berakhir_at: string | null;
   alasan_akhir?: string;
   kejadian: KejadianIntegritas[];
@@ -165,6 +174,41 @@ async function tulisRun(run: SessionRun): Promise<void> {
   await rename(sementara, tujuan);
 }
 
+/**
+ * Apakah sebuah run sudah melewati masa berlakunya.
+ *
+ * Run tanpa `berlaku_hingga` (berkas lama) dihitung dari `mulai_at` + batas
+ * bawaan. Nilai yang tidak bisa diparse dianggap kedaluwarsa — gagal-tertutup,
+ * bukan gagal-terbuka.
+ */
+export function kedaluwarsa(
+  run: Pick<SessionRun, "mulai_at" | "berlaku_hingga">,
+  now: number = Date.now(),
+): boolean {
+  const mulai = Date.parse(run.mulai_at);
+  if (!Number.isFinite(mulai)) return true;
+  const akhir = run.berlaku_hingga
+    ? Date.parse(run.berlaku_hingga)
+    : mulai + BATAS_SESI_BAWAAN_MENIT * 60_000;
+  if (!Number.isFinite(akhir)) return true;
+  return now >= akhir;
+}
+
+/** Tutup run sebagai kedaluwarsa; idempoten seperti `akhiriRun`. */
+export async function tandaiKedaluwarsa(id: string): Promise<SessionRun | null> {
+  const run = await ambilRun(id);
+  if (!run) return null;
+  if (run.status !== "aktif") return run;
+  const berikut: SessionRun = {
+    ...run,
+    status: "kedaluwarsa",
+    berakhir_at: new Date().toISOString(),
+    alasan_akhir: "kedaluwarsa_waktu",
+  };
+  await tulisRun(berikut);
+  return berikut;
+}
+
 export async function ambilRun(id: string): Promise<SessionRun | null> {
   let mentah: string;
   try {
@@ -184,14 +228,25 @@ export async function mulaiRun(input: {
   courseId: string;
   owner: string;
   policyVersion: number;
+  /**
+   * Menit sejak mulai sampai run kedaluwarsa. Default 30.
+   *
+   * Nilainya berasal dari `batas_waktu_menit` checkpoint modul — lihat
+   * `mulaiSesiAction`. Field itu sudah ada di model dan sudah dijelaskan
+   * artinya, jadi inilah pembaca pertamanya.
+   */
+  batasMenit?: number;
 }): Promise<SessionRun> {
+  const mulai = new Date();
+  const batasMenit = input.batasMenit ?? BATAS_SESI_BAWAAN_MENIT;
   const run: SessionRun = {
     id: `sesi-${randomUUID()}`,
     course_id: input.courseId,
     owner: input.owner.trim().toLowerCase(),
     policy_version: input.policyVersion,
     status: "aktif",
-    mulai_at: new Date().toISOString(),
+    mulai_at: mulai.toISOString(),
+    berlaku_hingga: new Date(mulai.getTime() + batasMenit * 60_000).toISOString(),
     berakhir_at: null,
     kejadian: [],
   };
@@ -266,11 +321,18 @@ export async function buktikanSesi(input: {
   if (!id) return null;
   const run = await ambilRun(id);
   if (!run || run.status !== "aktif") return null;
+  // Menulis statusnya bukan kosmetik: `cariRunAktif` melewatkan run non-aktif,
+  // sehingga run yang lewat batas membersihkan dirinya sendiri dan tidak lagi
+  // memblokir run berikutnya yang dibuat peserta yang sama.
+  if (kedaluwarsa(run)) {
+    await tandaiKedaluwarsa(id);
+    return null;
+  }
   return run;
 }
 
 /** Cari sesi aktif milik seorang peserta untuk sebuah course. */
-async function cariRunAktif(input: { courseId: string; owner: string }): Promise<string | null> {
+export async function cariRunAktif(input: { courseId: string; owner: string }): Promise<string | null> {
   let berkas: string[];
   try {
     berkas = await readdir(tempatSesi());
@@ -287,4 +349,21 @@ async function cariRunAktif(input: { courseId: string; owner: string }): Promise
     return run.id;
   }
   return null;
+}
+
+/** Semua run tersimpan — pembacaan lintas-pemilik untuk dashboard staf. */
+export async function listRun(): Promise<SessionRun[]> {
+  let berkas: string[];
+  try {
+    berkas = await readdir(tempatSesi());
+  } catch {
+    return [];
+  }
+  const hasil: SessionRun[] = [];
+  for (const nama of berkas) {
+    if (!nama.endsWith(".json")) continue;
+    const run = await ambilRun(nama.replace(/\.json$/, ""));
+    if (run) hasil.push(run);
+  }
+  return hasil;
 }
