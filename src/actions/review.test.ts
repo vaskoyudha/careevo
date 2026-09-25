@@ -1,7 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { decideReview } from "./review";
 import * as sessionModule from "@/lib/auth/session";
-import type { SessionPayload } from "@/lib/auth/types";
+import { principalUji } from "@/lib/auth/test-principal";
+import type { Role } from "@/lib/auth/types";
 
 /**
  * `decideReview` used to issue HMAC attestations from fields the browser sent
@@ -27,14 +28,8 @@ vi.mock("next/headers", () => ({
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
-function sesi(role: SessionPayload["role"]): SessionPayload {
-  return {
-    email: `${role}@careevo.test`,
-    nama: role,
-    username: role,
-    role,
-    iat: Math.floor(Date.now() / 1000),
-  };
+function sesi(role: Role) {
+  return principalUji({ email: `${role}@careevo.test`, role, nama: role, username: role });
 }
 
 function formData(fields: Record<string, string>): FormData {

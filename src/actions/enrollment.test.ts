@@ -15,7 +15,7 @@ import {
 import { PESAN_POLICY } from "@/lib/courses/kebijakan";
 import * as sessionModule from "@/lib/auth/session";
 import * as cacheModule from "next/cache";
-import type { SessionPayload } from "@/lib/auth/types";
+import { principalUji } from "@/lib/auth/test-principal";
 
 const { jar } = vi.hoisted(() => ({ jar: new Map<string, string>() }));
 
@@ -33,13 +33,12 @@ vi.mock("next/headers", () => ({
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
-const sesi: SessionPayload = {
+const sesi = principalUji({
   email: "user@careevo.test",
   nama: "Raka Pratama",
   username: "raka",
   role: "user",
-  iat: Math.floor(Date.now() / 1000),
-};
+});
 
 /** Kursus yang dipakai untuk menguji kebijakan `opsional`. */
 const KURSUS_OPSIONAL = "crs-4";
@@ -73,8 +72,15 @@ async function setelKebijakan(courseId: string, aturanPengawasan: "wajib" | "ops
 const OWNER_A = "a@careevo.test";
 const OWNER_B = "b@careevo.test";
 
-function sesiUntuk(email: string): SessionPayload {
-  return { ...sesi, email };
+/**
+ * Principal dengan email berbeda, `userId` ikut berbeda.
+ *
+ * `principalUji` menurunkan `userId` dari email, jadi dua pemilik berbeda di
+ * test lintas-owner benar-benar punya id yang berbeda — bukan id yang sama
+ * dengan email yang diganti.
+ */
+function sesiUntuk(email: string) {
+  return principalUji({ email, nama: "Raka Pratama", username: "raka", role: "user" });
 }
 
 function buatPendaftaran(

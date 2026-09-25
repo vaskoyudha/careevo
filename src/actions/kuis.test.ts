@@ -9,7 +9,7 @@ import {
 } from "./kuis";
 import { createModul, getModul, listKuis, resetCourses } from "@/lib/courses/store";
 import * as sessionModule from "@/lib/auth/session";
-import type { SessionPayload } from "@/lib/auth/types";
+import { principalUji } from "@/lib/auth/test-principal";
 import type { SoalKuis } from "@/types/course";
 
 /**
@@ -21,21 +21,19 @@ import type { SoalKuis } from "@/types/course";
  * JSON rusak tidak boleh menutup action dengan exception.
  */
 
-const adminSession: SessionPayload = {
+const adminSession = principalUji({
   email: "admin@careevo.test",
   nama: "Admin Careevo",
   username: "admin",
   role: "admin",
-  iat: Math.floor(Date.now() / 1000),
-};
+});
 
-const userSession: SessionPayload = {
+const userSession = principalUji({
   email: "user@careevo.test",
   nama: "Normal User",
   username: "normal",
   role: "user",
-  iat: Math.floor(Date.now() / 1000),
-};
+});
 
 const COURSE_ID = "crs-1";
 const KOSONG = { ok: false };
