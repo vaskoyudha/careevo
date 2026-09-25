@@ -1,4 +1,5 @@
 import { mkdtempSync, rmSync } from "node:fs";
+import { readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -58,7 +59,7 @@ const cacheModule = await import("next/cache");
 // `mulaiRun` dipakai untuk menyiapkan sesi milik pengguna **lain**: kepemilikan
 // hanya bisa diuji dengan run nyata yang ownernya bukan pemanggil, sebab run
 // tak dikenal berhenti di cabang "tidak ditemukan" sebelum owner dibandingkan.
-const { ambilRun, mulaiRun } = await import("@/lib/learning/session");
+const { ambilRun, mulaiRun, tempatSesi } = await import("@/lib/learning/session");
 
 afterAll(() => rmSync(DIR, { recursive: true, force: true }));
 
@@ -72,6 +73,19 @@ function selesaiModul(courseId: string): string[] {
     (item) => item.course_id === courseId,
   );
   return entri?.selesai_modul ?? [];
+}
+
+/**
+ * Mundurkan `mulai_at` sebuah run supaya batas waktu bisa diuji tanpa menunggu.
+ *
+ * Batas dihitung dari jam sesi, jadi memperlambat sesi itu satu-satunya cara
+ * mengujinya tanpa memalsukan jam sistem atau menunggu satu jam nyata.
+ */
+async function mundurkanSesi(runId: string, milidetik: number) {
+  const berkas = path.join(tempatSesi(), `${runId}.json`);
+  const isi = JSON.parse(await readFile(berkas, "utf8")) as { mulai_at: string };
+  isi.mulai_at = new Date(Date.parse(isi.mulai_at) - milidetik).toISOString();
+  await writeFile(berkas, `${JSON.stringify(isi, null, 2)}\n`, "utf8");
 }
 
 // Store kursus bisa menghidrasi `data/courses.json` milik mesin pengembang;
@@ -99,6 +113,18 @@ describe("mulaiSesiAction", () => {
     // Pesan implementasi memakai huruf besar ("Daftar kursus ini dulu..."),
     // jadi pencocokan dilakukan tanpa peduli huruf besar/kecil.
     expect(hasil.error?.toLowerCase()).toContain("daftar");
+  });
+
+  it("melanjutkan run yang masih aktif, bukan membuat run kedua", async () => {
+    await daftarKursus("crs-1", "crs-1", sesi.email);
+    const pertama = await mulaiSesiAction("crs-1");
+    const kedua = await mulaiSesiAction("crs-1");
+    expect(pertama.ok).toBe(true);
+    expect(kedua.ok).toBe(true);
+    // Run ganda muncul dari alur normal: status sesi hanya hidup di state
+    // React, jadi memuat ulang halaman kursus membuat "Mulai sesi" tampil lagi
+    // — dan mengkliknya melahirkan run kedua.
+    expect(kedua.runId).toBe(pertama.runId);
   });
 });
 
@@ -156,6 +182,46 @@ describe("selesaikanMateriAction", () => {
       bukti: mulai.bukti ?? "",
     });
     expect(hasil.ok).toBe(true);
+  });
+
+  it("menolak penyelesaian yang sudah melewati batas waktu checkpoint", async () => {
+    // Dua modul dengan batas berbeda adalah syarat test ini. Batas sesi memakai
+    // **maksimum** course (60 menit), sedangkan batas modul target 5 menit.
+    // Memundurkan 10 menit membuat sesi masih sah tetapi modul target sudah
+    // lewat — persis perbedaan antara dua mekanisme yang harus dibuktikan.
+    //
+    // Kalau course hanya punya modul turunan, keduanya sama-sama 30 menit dan
+    // test ini tidak bisa memisahkannya: `mulai_at` yang dimundurkan ikut
+    // membuat sesi kedaluwarsa, sehingga aksi menolak dengan pesan "perlu sesi"
+    // alih-alih "batas waktu".
+    const cepat = await createModul("crs-2", {
+      judul: "Modul Cepat",
+      ringkasan: "Batas 5 menit.",
+      durasi_min: 5,
+      checkpoint: { mode: "materi", batas_waktu_menit: 5 },
+    });
+    await createModul("crs-2", {
+      judul: "Modul Panjang",
+      ringkasan: "Batas 60 menit.",
+      durasi_min: 60,
+      checkpoint: { mode: "materi", batas_waktu_menit: 60 },
+    });
+    await daftarKursus("crs-2", "crs-2", sesi.email);
+
+    const mulai = await mulaiSesiAction("crs-2");
+    const sebelum = selesaiModul("crs-2");
+    await mundurkanSesi(mulai.runId!, 10 * 60_000);
+
+    const hasil = await selesaikanMateriAction({
+      courseId: "crs-2",
+      modulId: cepat!.id,
+      bukti: mulai.bukti ?? "",
+    });
+    expect(hasil.ok).toBe(false);
+    expect(hasil.error).toContain("batas waktu");
+    // Penolakan tidak boleh menulis apa pun. `tandaiModul` adalah toggle, jadi
+    // penolakan yang tanpa sengaja menulis akan menghapus centang yang ada.
+    expect(selesaiModul("crs-2")).toEqual(sebelum);
   });
 });
 

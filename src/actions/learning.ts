@@ -8,17 +8,22 @@ import { modulUntukSumber } from "@/lib/courses/modul-resolver";
 import {
   JENIS_KEJADIAN_SAH,
   checkpointEfektif,
+  lewatBatas,
   putuskanAkses,
   wajibSesiTerverifikasi,
   type KJenisKejadian,
 } from "@/lib/learning/akses";
 import {
+  BATAS_SESI_BAWAAN_MENIT,
   akhiriRun,
   ambilRun,
   buktiBaru,
   buktikanSesi,
+  cariRunAktif,
   catatKejadian,
+  kedaluwarsa,
   mulaiRun,
+  tandaiKedaluwarsa,
   type SessionRun,
 } from "@/lib/learning/session";
 import { kebijakanDefault } from "@/lib/courses/kebijakan";
@@ -71,12 +76,43 @@ export async function mulaiSesiAction(courseId: string): Promise<SesiActionState
   if (!pendaftaran) return { ok: false, error: "Daftar kursus ini dulu sebelum memulai sesi." };
 
   const kebijakan = kebijakanKursus(kursus);
-  const run = await mulaiRun({
-    courseId,
-    owner: session.email,
-    policyVersion: kebijakan.versi,
+
+  // Sesi berlaku untuk seluruh course, sedangkan `batas_waktu_menit` terikat
+  // per modul. Maka angka course diambil **maksimum**nya: kalau dipakai
+  // minimum, satu modul berlimit 5 menit akan membuat sesi modul 30 menit ikut
+  // kedaluwarsa — membiarkan bukti mati hanya karena ada modul lain.
+  const modul = await modulUntukSumber({
+    id: kursus.id,
+    title: kursus.title,
+    tags: kursus.tags,
+    duration_min: kursus.duration_min,
+    url: kursus.url,
   });
-  await catatKejadian({ runId: run.id, jenis: "sesi_dimulai", visibilitas: "visible" });
+  const batasMenit =
+    modul.length === 0
+      ? BATAS_SESI_BAWAAN_MENIT
+      : Math.max(...modul.map((m) => checkpointEfektif(m).batas_waktu_menit));
+
+  // Satu course = satu run aktif. `mulaiSesiAction` berjalan setiap kali peserta
+  // menekan tombol, dan status sesi hanya hidup di state React — memuat ulang
+  // halaman membuat tombol itu muncul lagi. Tanpa cabang lanjutkan di sini,
+  // tiap muat ulang melahirkan run duplikat, lalu `cariRunAktif` memilih run
+  // secara acak berdasarkan urutan `readdir`.
+  const eksistingId = await cariRunAktif({ courseId, owner: session.email });
+  let run = eksistingId ? await ambilRun(eksistingId) : null;
+  if (run && kedaluwarsa(run)) {
+    await tandaiKedaluwarsa(run.id);
+    run = null;
+  }
+  if (!run) {
+    run = await mulaiRun({
+      courseId,
+      owner: session.email,
+      policyVersion: kebijakan.versi,
+      batasMenit,
+    });
+    await catatKejadian({ runId: run.id, jenis: "sesi_dimulai", visibilitas: "visible" });
+  }
 
   return {
     ok: true,
@@ -192,6 +228,22 @@ export async function selesaikanMateriAction(input: {
   // akses: `perlu_sesi` untuk peserta tanpa bukti, `ditolak` untuk larangan.
   if (keputusan.tipe === "perlu_sesi") return { ok: false, error: keputusan.pesan };
   if (keputusan.tipe === "ditolak") return { ok: false, error: keputusan.pesan };
+
+  // Batas per modul ditegakkan terpisah dari masa berlaku sesi.
+  // `batas_waktu_menit` punya makna yang sudah didokumentasikan ("batas waktu
+  // mengerjakan/menyelesaikan"), jadi tidak boleh tetap jadi field yang ditulis
+  // lalu tidak pernah dibaca.
+  //
+  // Batas ini bisa dilewati dengan memulai sesi baru — tetapi itu terlihat
+  // jelas: run lama ditutup dan run baru tercatat. Itu pemecatan yang terlihat,
+  // bukan pemalsuan tersembunyi, dan konsisten dengan posisi spesifikasi bahwa
+  // kontrol memperkuat bukti tanpa menjanjikannya.
+  if (bukti && lewatBatas(bukti.mulai_at, checkpoint.batas_waktu_menit)) {
+    return {
+      ok: false,
+      error: "Sesi ini sudah melewati batas waktu pengerjaan. Mulai sesi baru untuk mencoba kembali.",
+    };
+  }
 
   // Mulai dari sini keputusannya `bebas`: sesi terverifikasi sah, atau kursus
   // `opsional` yang memang tidak menuntutnya. Baru di titik ini penyimpanan
