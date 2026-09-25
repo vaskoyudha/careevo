@@ -253,6 +253,56 @@ audit_events (buat schema sekarang; isi penuh dimulai Fase 3)
 
 **Prioritas:** P0. Ini harus selesai sebelum Fase 3 menerbitkan attestation atau Fase 4 menerima file production; Fase 5 hanya melengkapi operasi dan observability menyeluruh.
 
+### Utang dari review Fase 1 — wajib ditutup sebelum deploy produksi
+
+Review independen Fase 1 (PR #12) menemukan empat utang **important** yang bukan
+blocker merge, tetapi harus ditutup sebelum deployment produksi pertama — sebagian
+di antaranya (rotasi sesi, penerbit-sesi tanpa verifikasi) menjadi celah otorisasi
+bila dibiarkan. Tutup di Fase 1A (atau PR perbaikan terpisah) sebelum Fase 3
+menerbitkan attestation.
+
+1. **Rotasi sesi saat login belum jalan.** `loginAction` memanggil
+   `authenticatePengguna` tanpa `sessionLamaId`, sehingga `rotasiSession`
+   (`src/lib/auth/session-repository.ts`) tidak pernah menandai `rotated_at` dan
+   token perangkat lama tetap sah sampai `expires_at`. Ini tidak memenuhi plan
+   §5 butir 4 ("rotasi token pada login"). Perbaikan: teruskan `sessionLamaId`
+   dari sesi aktif ke `masukPengguna`, dan buat `cariSessionAktifByTokenHash`
+   menolak sesi yang `rotated_at`-nya sudah terisi (lihat utang #5).
+2. **Hapus penerbit-sesi tanpa verifikasi.** `terbitkanSessionUntukPrincipal`
+   (`auth-service.ts`) dan `createSession` (`session.ts`) menerbitkan sesi tanpa
+   membuktikan verifikasi apa pun dan kini nol pemanggil. Signature-nya hanya
+   meminta `userId` biasa, sehingga pemanggil fase berikutnya bisa tanpa sengaja
+   menerbitkan sesi untuk user mana pun. Hapus keduanya sampai ada call site yang
+   benar-benar terverifikasi (login/registrasi/redeem sudah lewat `terbitkanSesi`).
+3. **Patok parameter Argon2id dengan test.** `password.ts` mengklaim nilai
+   `Algorithm.Argon2id` + parameter OWASP "dipatok `npm test`", tetapi
+   `password.test.ts` tidak ada. Tambahkan test yang menegaskan algoritma
+   (`$argon2id$`) dan parameter hash, supaya perubahan tak sengaja (Argon2i, atau
+   memory/time yang lebih lemah) menggagalkan suite.
+4. **Bootstrap admin terdokumentasi.** Tidak ada jalur provisioning admin pertama
+   pada database produksi yang baru dimigrasikan — `gateAdmin()` tidak pernah bisa
+   lulus, sehingga `buatUndanganAction`/`beriRoleAction` unreachable dan staff
+   tidak bisa di-provisioning lewat produk. Tambahkan seed/CLI terdokumentasi
+   (INSERT SQL atau script operator) yang tidak aktif otomatis di produksi
+   (plan §5 butir 8).
+
+Utang **minor** (tutup saat menyentuh area terkait; bukan prasyarat M1A):
+
+5. Filter `rotated_at` di `cariSessionAktifByTokenHash` — sekali rotasi #1 jalan.
+6. Pembaca `password_changed_at` belum ada — sesi lama tetap sah setelah ganti
+   password; tambahkan pencabutan saat alur reset password dibuat.
+7. `z.email().trim().toLowerCase()` di `src/actions/staff.ts` menormalkan (bukan
+   menolak) masukan berspasi; selaraskan dengan `z.email()` polos di
+   `src/lib/validation/auth.ts`.
+8. Tiga call site otorisasi masih memakai `isStaffRole(session.role)` (field
+   kompatibilitas): `(verifikator)/layout.tsx`, `api/unggah/route.ts`,
+   `actions/review.ts` — migrasikan ke `gateStaff()` berbasis `roles`.
+9. `test-principal.ts` memakai `iat` dalam detik; produksi milidetik.
+10. Sisa cutover: `user-store.ts` mati (`ls_users` tidak lagi dibaca/ditulis),
+    `roleSchema` nol pemanggil, normalisasi email tidak seragam.
+11. Tidak ada rollback migration (plan §5 butir 8 memintanya) — tambahkan
+    runbook rollback/forward di `docs/local-db.md`.
+
 ### Schema dan kontrak minimum
 
 ```text
