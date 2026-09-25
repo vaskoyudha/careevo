@@ -306,8 +306,11 @@ describe("owner-scoped study chat store", () => {
   });
 
   it("marks the cookie secure in production", async () => {
-    // Given
+    // Given — the cookie `secure` flag is the only production concern here, so
+    // a valid production secret is set: without it the signer would (correctly)
+    // refuse to run in production and this test would fail for the wrong reason.
     vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("SESSION_SECRET", "s".repeat(48));
 
     // When
     await appendStudyMessage("a@careevo.test", message());

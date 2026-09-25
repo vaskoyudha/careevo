@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { normalizeOwner } from "@/lib/auth/types";
+import { bacaSecret } from "@/lib/config/secrets";
 import {
   isEditableProfile,
   PROFILE_VERSION,
@@ -20,11 +21,12 @@ import {
  * (`getEditableProfile` / `saveEditableProfile` / `clearEditableProfile`).
  */
 export const PUBLIC_PROFILE_COOKIE = "ls_public_profile";
-const PROFILE_SECRET = process.env.SESSION_SECRET ?? "dev-session-secret-careevo";
 const PROFILE_MAX_AGE = 60 * 60 * 24 * 180; // ~6 months
 
 function sign(body: string): string {
-  return createHmac("sha256", PROFILE_SECRET).update(body).digest("base64url");
+  return createHmac("sha256", bacaSecret("SESSION_SECRET"))
+    .update(body)
+    .digest("base64url");
 }
 
 function safeEqual(a: string, b: string): boolean {

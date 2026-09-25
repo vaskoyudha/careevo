@@ -1,10 +1,9 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
+import { bacaSecret } from "@/lib/config/secrets";
 import { isRole, type Role } from "./types";
 
 export const USERS_COOKIE = "ls_users";
-const USER_STORE_SECRET =
-  process.env.SESSION_SECRET ?? "dev-session-secret-careevo";
 const USERS_MAX_AGE = 60 * 60 * 24 * 30;
 const MAX_USERS = 20;
 
@@ -21,7 +20,9 @@ export function hashPassword(password: string): string {
 }
 
 function sign(body: string): string {
-  return createHmac("sha256", USER_STORE_SECRET).update(body).digest("base64url");
+  return createHmac("sha256", bacaSecret("SESSION_SECRET"))
+    .update(body)
+    .digest("base64url");
 }
 
 function safeEqual(a: string, b: string): boolean {

@@ -32,6 +32,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# Template env boleh di-commit: ia hanya memuat nama variabel dan cara
+# membuat nilainya, tanpa satu pun secret sungguhan.
+!.env.example
 
 # vercel
 .vercel

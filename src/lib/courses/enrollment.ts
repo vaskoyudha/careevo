@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { normalizeOwner } from "@/lib/auth/types";
+import { bacaSecret } from "@/lib/config/secrets";
 import { catatPenyelesaian, type SumberPenyelesaian } from "@/lib/performa/store";
 import { getCourseById } from "./store";
 
@@ -12,7 +13,6 @@ import { getCourseById } from "./store";
  * pembacaan yang membutuhkan owner.
  */
 export const ENROLL_COOKIE = "ls_enroll";
-const ENROLL_SECRET = process.env.SESSION_SECRET ?? "dev-session-secret-careevo";
 const ENROLL_MAX_AGE = 60 * 60 * 24 * 90;
 const MAX_ENROLL = 50;
 
@@ -25,7 +25,9 @@ export interface Pendaftaran {
 }
 
 function sign(body: string): string {
-  return createHmac("sha256", ENROLL_SECRET).update(body).digest("base64url");
+  return createHmac("sha256", bacaSecret("SESSION_SECRET"))
+    .update(body)
+    .digest("base64url");
 }
 
 function safeEqual(a: string, b: string): boolean {

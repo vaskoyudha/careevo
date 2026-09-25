@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
+import { SECRET_DEV } from "@/lib/config/secrets";
 
 const DIR = mkdtempSync(path.join(tmpdir(), "careevo-sesi-"));
 process.env.CAREERS_SESSION_DIR = DIR;
@@ -47,7 +48,7 @@ describe("bukti sesi", () => {
     // destructuring akan membaca `versi` = 9 dari kolom ketiga, padahal versi
     // yang sebenarnya dimaksud adalah 1 di kolom keempat.
     const terpalsu = ["crs-1", "a@b.test\u00019", "1"].join("\u0001");
-    const signature = createHmac("sha256", process.env.SESSION_SECRET ?? "dev-session-secret-careevo")
+    const signature = createHmac("sha256", SECRET_DEV.SESSION_SECRET)
       .update(terpalsu)
       .digest("base64url");
     const token = `${Buffer.from(terpalsu, "utf8").toString("base64url")}.${signature}`;
