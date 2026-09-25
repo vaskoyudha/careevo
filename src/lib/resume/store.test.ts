@@ -91,7 +91,7 @@ describe("resume store", () => {
   it("stores and reads an uploaded file", async () => {
     const bytes = new Uint8Array([37, 80, 68, 70]); // "%PDF"
     const meta = await simpanBerkas(OWNER, "cv", "CV Raka.pdf", bytes);
-    expect(meta.nama).toMatch(/^cv-\d+\.pdf$/);
+    expect(meta.nama).toMatch(/^cv-\d+-[0-9a-f]+\.pdf$/);
     expect(meta.namaAsli).toBe("CV Raka.pdf");
     expect(meta.ukuran).toBe(4);
 
