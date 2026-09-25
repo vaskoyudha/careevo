@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { landingFor } from "@/lib/auth/landing";
+import { demoAccountsAllowed } from "@/lib/config/environment";
 import AuthSectionTwo from "@/components/ui/auth-section-2";
 import { AuthForm } from "@/components/features/auth/auth-form";
-import { DEMO_ACCOUNTS, DEMO_PASSWORD } from "@/lib/auth/session";
+import { DEMO_ACCOUNTS, DEMO_PASSWORD } from "@/lib/auth/demo-accounts";
 
 export const metadata: Metadata = {
   title: "Masuk",
@@ -19,6 +20,17 @@ export default async function MasukPage({
   // Already signed in? No reason to show the login form again.
   const session = await getSession();
   if (session) redirect(await landingFor(session.role, session.email));
+
+  // Demo credentials are never advertised on staging/production; the accounts
+  // are also rejected by `authenticate` there, so printing the password would
+  // only mislead visitors.
+  if (!demoAccountsAllowed()) {
+    return (
+      <AuthSectionTwo title="Masuk ke akun Careevo">
+        <AuthForm mode="masuk" />
+      </AuthSectionTwo>
+    );
+  }
 
   const { email } = await searchParams;
   const prefill = DEMO_ACCOUNTS.some((account) => account.email === email) ? email : undefined;

@@ -7,8 +7,9 @@ import {
   authenticate,
   createSession,
   destroySession,
-  isDemoEmail,
 } from "@/lib/auth/session";
+import { isDemoEmail } from "@/lib/auth/demo-accounts";
+import { demoAccountsAllowed } from "@/lib/config/environment";
 import { addStoredUser, hashPassword, isEmailTaken } from "@/lib/auth/user-store";
 import { landingFor } from "@/lib/auth/landing";
 import type { AuthFormState } from "@/lib/auth/types";
@@ -40,8 +41,11 @@ export async function loginAction(
   if (!user) {
     return {
       ok: false,
-      message:
-        "Email atau password salah. Gunakan akun demo, atau daftar dulu.",
+      // Only mention demo accounts where they actually work; elsewhere it would
+      // send people looking for credentials the server now rejects.
+      message: demoAccountsAllowed()
+        ? "Email atau password salah. Gunakan akun demo, atau daftar dulu."
+        : "Email atau password salah. Cek kembali, atau daftar dulu.",
       errors: {},
       values: { email },
     };
@@ -55,13 +59,18 @@ export async function registerAction(
   _prev: AuthFormState,
   formData: FormData,
 ): Promise<AuthFormState> {
+  // `role` deliberately does NOT come from `FormData`. Public registration always
+  // mints a learner: a tampered field, a hand-built multipart body, or a direct
+  // `registerAction(...)` call must not be able to produce a staff account. The
+  // field is still passed so the schema validates it explicitly (and so a future
+  // edit cannot quietly start reading it from the browser again).
   const raw = {
     nama: String(formData.get("nama") ?? ""),
     username: String(formData.get("username") ?? ""),
     email: String(formData.get("email") ?? ""),
     password: String(formData.get("password") ?? ""),
     consent: formData.get("consent") === "on",
-    role: String(formData.get("role") ?? "user"),
+    role: "user",
   };
 
   const parsed = registerSchema.safeParse(raw);
@@ -69,7 +78,7 @@ export async function registerAction(
     return {
       ok: false,
       errors: fieldErrors(parsed.error),
-      values: { email: raw.email, nama: raw.nama, username: raw.username, role: raw.role },
+      values: { email: raw.email, nama: raw.nama, username: raw.username },
     };
   }
 
@@ -79,7 +88,7 @@ export async function registerAction(
     return {
       ok: false,
       errors: { email: "Email ini dipakai akun demo. Silakan masuk langsung." },
-      values: { email, nama, username, role },
+      values: { email, nama, username },
     };
   }
 
@@ -87,7 +96,7 @@ export async function registerAction(
     return {
       ok: false,
       errors: { email: "Email sudah terdaftar. Silakan masuk." },
-      values: { email, nama, username, role },
+      values: { email, nama, username },
     };
   }
 
