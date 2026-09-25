@@ -461,7 +461,11 @@ function RuangBelajar({
                                 supaya copy tidak menyimpang dari mesin akses. */}
                             {keputusanKuis.tipe === "bebas" ? (
                               daftarKuis.map((kuis) => (
-                                <KuisView key={kuis.id} kuis={kuis} />
+                                <KuisView
+                                  key={kuis.id}
+                                  kuis={kuis}
+                                  catat={{ courseId: kursus.id, modulId: m.id }}
+                                />
                               ))
                             ) : (
                               <CourseSessionGate pesan={keputusanKuis.pesan} />

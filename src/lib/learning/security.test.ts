@@ -44,6 +44,7 @@ const BERKAS_DETAIL = path.join(ROOT, "src/components/features/learning/detail-k
 const BERKAS_SESI = path.join(ROOT, "src/components/features/learning/course-session.tsx");
 const BERKAS_CHAT_ACTION = path.join(ROOT, "src/actions/learning-chat.ts");
 const BERKAS_CHAT_UI = path.join(ROOT, "src/components/features/learning/study-chat.tsx");
+const BERKAS_SKOR = path.join(ROOT, "src/actions/performa.ts");
 
 describe("gerbang UI sesi terverifikasi", () => {
   it("halaman kursus selalu menawarkan cara memulai sesi", () => {
@@ -86,5 +87,20 @@ describe("gerbang aturan bantuan pada tutor", () => {
     // menangkapnya — jadi jumlahnya dipatok.
     const isi = readFileSync(BERKAS_CHAT_UI, "utf8");
     expect(isi.match(/"policy_denied"/g) ?? []).toHaveLength(2);
+  });
+});
+
+describe("pencatatan skor kuis", () => {
+  it("aksi penyimpanan nilai tidak pernah menyebut kunci jawaban", () => {
+    // Whole-file scan, comments included: the answer key must not travel on the
+    // new path either.
+    expect(readFileSync(BERKAS_SKOR, "utf8")).not.toContain("jawaban_benar");
+  });
+
+  it("halaman kursus tetap meneruskan konteks pencatatan", () => {
+    // `catat` is optional so the admin previews compile without it — which is
+    // exactly why the learner path needs pinning. Dropping it here would make
+    // quiz scores stop being recorded with no error anywhere.
+    expect(readFileSync(BERKAS_DETAIL, "utf8")).toContain("catat={{ courseId: kursus.id, modulId: m.id }}");
   });
 });
