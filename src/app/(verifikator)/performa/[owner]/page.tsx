@@ -21,7 +21,12 @@ export default async function PerformaDetailPage({
   const session = await getSession();
   if (!session) return null;
 
-  const { owner } = await params;
+  const { owner: segmen } = await params;
+  // Segmen rute arrives **URL-encoded**: `%40` untuk `@` masuk ke sini apa
+  // adanya. Tanpa decode, hash berkas tidak pernah cocok untuk email mana pun
+  // dan setiap halaman detail peserta jadi 404 — tes HTTP langsung yang
+  // menemukan ini, bukan typecheck.
+  const owner = decodeURIComponent(segmen);
   const [record, runs] = await Promise.all([bacaPerforma(owner), listRun()]);
   if (!record) notFound();
 

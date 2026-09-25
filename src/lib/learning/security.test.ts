@@ -50,6 +50,10 @@ const BERKAS_LAPORAN = path.join(
   "src/components/features/performa/performa-tabel.tsx",
 );
 const BERKAS_DAFTAR_LAPORAN = path.join(ROOT, "src/app/(verifikator)/performa/page.tsx");
+const BERKAS_DETAIL_LAPORAN = path.join(
+  ROOT,
+  "src/app/(verifikator)/performa/[owner]/page.tsx",
+);
 
 describe("gerbang UI sesi terverifikasi", () => {
   it("halaman kursus selalu menawarkan cara memulai sesi", () => {
@@ -127,5 +131,14 @@ describe("laporan performa tidak mengklaim lebih dari yang dilakukan", () => {
     // The role gate comes from the `(verifikator)` layout; this page checks on
     // its own too so moving it elsewhere cannot silently open it.
     expect(readFileSync(BERKAS_DAFTAR_LAPORAN, "utf8")).toContain("getSession");
+  });
+
+  it("halaman detail mendekode segmen rute sebelum mencari berkas", () => {
+    // Route params arrive URL-encoded in this Next version. The store keys files
+    // by a hash of the email, so an undecoded `user%40careevo.test` silently
+    // misses every record and every learner detail page 404s. Only a live HTTP
+    // probe found this one; typecheck and unit tests both stayed green.
+    const isi = readFileSync(BERKAS_DETAIL_LAPORAN, "utf8");
+    expect(isi).toContain("decodeURIComponent(segmen)");
   });
 });
