@@ -133,18 +133,39 @@ describe("laporan performa tidak mengklaim lebih dari yang dilakukan", () => {
     expect(isi).toContain("dilaporkan klien");
   });
 
-  it("laporan integritas menyatakan kejadian bukan dasar penilaian", () => {
+  it("laporan integritas menyatakan catatan bukan pelanggaran", () => {
     const isi = readFileSync(BERKAS_LAPORAN_INTEGRITAS, "utf8");
     expect(isi).toContain("PERINGATAN_INTEGRITAS");
-    expect(isi).toContain("bukan dasar penilaian");
-    expect(isi).toContain("tidak mengurangi skor");
+    // Batasnya: data ini hanya catatan pengamatan, jadi laporan tidak boleh
+    // menyebut sesuatu sebagai pelanggaran maupun menyatakan angka ini
+    // memengaruhi nilai siapa pun.
+    expect(isi).toContain("bukan pelanggaran");
+    expect(isi).toContain("Tidak diketahui");
   });
 
-  it("laporan integritas menyatakan tidak ada data kamera", () => {
+  it("laporan integritas menyatakan bahwa tidak ada rekaman kamera", () => {
     // Kolom kamera kosong akan salah dibaca sebagai "sesi bersih" kalau tidak
-    // dijelaskan. claiming "tidak ada yang dicatat" adalah satu-satunya klaim
-    // yang benar saat ini.
-    expect(readFileSync(BERKAS_LAPORAN_INTEGRITAS, "utf8")).toContain("tidak ada");
+    // dijelaskan. "Tidak ada yang dicatat" adalah satu-satunya klaim benar
+    // saat ini — kamera tidak pernah diminta.
+    const isi = readFileSync(BERKAS_LAPORAN_INTEGRITAS, "utf8");
+    expect(isi).toContain("Tidak ada rekaman kamera");
+    expect(isi).toContain("tidak menurunkan skor");
+  });
+
+  it("peringatan integritas tetap pendek dan tidak bertele-tele", () => {
+    // Laporan ini dibaca orang yang sedang menilai. Kalimat panjang di situ
+    // hanya menunda keputusan, dan disclaimer yang panjang justru membuat orang
+    // berhenti membacanya.
+    const isi = readFileSync(BERKAS_LAPORAN_INTEGRITAS, "utf8");
+    const blok = isi.match(/PERINGATAN_INTEGRITAS\s*=\s*\[([\s\S]*?)\]\s*as const/);
+    expect(blok).not.toBeNull();
+    const baris = [...(blok![1].matchAll(/"([^"]+)"/g))].map((m) => m[1]);
+    expect(baris.length).toBeGreaterThanOrEqual(3);
+    for (const b of baris) {
+      expect(b.length).toBeLessThanOrEqual(110);
+      // Bukan paragraf: paling dua kalimat pendek per baris.
+      expect(b.split(". ").length).toBeLessThanOrEqual(2);
+    }
   });
 
   it("kedua halaman daftar tetap memeriksa sesi sendiri", () => {

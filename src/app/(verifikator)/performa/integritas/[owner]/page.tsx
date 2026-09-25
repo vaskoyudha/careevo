@@ -6,7 +6,11 @@ import { AppShell } from "@/components/ui/app-shell";
 import { PageHead } from "@/components/ui/page-head";
 import { PeringatanIntegritas } from "@/components/features/performa/performa-integritas";
 import { bacaPerforma } from "@/lib/performa/store";
-import { ringkasIntegritasByOwner } from "@/lib/performa/integritas";
+import {
+  LABEL_KEJADIAN,
+  ringkasIntegritasByOwner,
+  temuanSesi,
+} from "@/lib/performa/integritas";
 import { barisIntegritas } from "@/lib/performa/ringkasan";
 import { listRun } from "@/lib/learning/session";
 
@@ -92,15 +96,49 @@ export default async function IntegritasDetailPage({
             Riwayat sesi
           </h2>
           {sesi && sesi.daftar.length > 0 ? (
-            <ul className="list-app">
-              {sesi.daftar.map((s) => (
-                <li className="list-app-row" key={s.run_id}>
-                  <span className="row-title">{s.course_id}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {s.status} · {s.kejadian} kejadian · {s.celah} celah · {s.mulai_at}
-                  </span>
-                </li>
-              ))}
+            <ul className="space-y-4">
+              {sesi.daftar.map((s) => {
+                const run = runs.find((r) => r.id === s.run_id);
+                const temuan = run ? temuanSesi(run) : [];
+                return (
+                  <li key={s.run_id} className="rounded-xl border border-border p-3">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <span className="text-sm font-semibold">{s.course_id}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {s.status} · {s.mulai_at}
+                        {s.berakhir_at ? ` → ${s.berakhir_at}` : ""}
+                      </span>
+                    </div>
+
+                    {temuan.length > 0 ? (
+                      <ul className="mt-2 space-y-1">
+                        {temuan.map((t) => (
+                          <li key={t.kode} className="text-sm">
+                            <span className="font-medium">{t.label}</span>{" "}
+                            <span className="text-muted-foreground">{t.detail}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+
+                    {s.catatan.length > 0 ? (
+                      <details className="mt-2">
+                        <summary className="cursor-pointer text-xs text-muted-foreground">
+                          Lihat {s.catatan.length} catatan
+                        </summary>
+                        <ol className="mt-2 space-y-1">
+                          {s.catatan.map((k, i) => (
+                            <li key={`${k.at}-${i}`} className="text-xs text-muted-foreground">
+                              {k.at} · {LABEL_KEJADIAN[k.jenis]} · {k.jenis_klasifikasi}
+                              {k.detail ? ` · ${k.detail}` : ""}
+                            </li>
+                          ))}
+                        </ol>
+                      </details>
+                    ) : null}
+                  </li>
+                );
+              })}
             </ul>
           ) : (
             <p className="text-sm text-muted-foreground">Belum ada sesi tercatat.</p>

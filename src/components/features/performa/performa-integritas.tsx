@@ -4,16 +4,18 @@ import type { BarisIntegritas } from "@/lib/performa/ringkasan";
 /**
  * Peringatan laporan **integritas**.
  *
- * Tiga klaim di sini tidak boleh dibuang saat halaman ini disunting:
- * kejadian adalah konteks dan bukan vonis, web dan kamera tidak menjamin
- * bebas bantuan, dan tidak ada data kamera sama sekali yang terkumpul. Yang
- * ketiga penting karena tabel ini menampilkan kolom kamera — pemerhati bisa
- * salah baca "kosong" sebagai "bersih".
+ * Tiga baris, bukan paragraf. Semuanya singkat karena laporan ini dibaca orang
+ * yang sedang menilai — kalimat panjang di situ hanya delaying keputusan.
+ *
+ * Bentuknya penting: setiap baris menyatakan **apa yang tercatat** dan
+ * **apa yang tidak diketahui**. Baris terakhir adalah batasnya — data yang ada
+ * tidak bisa membedakan dokumentasi dari bantuan AI, jadi laporan ini tidak
+ * pernah menyatakan seseorang melakukan curang. Penilaian itu milik manusia.
  */
 export const PERINGATAN_INTEGRITAS = [
-  "Kejadian integritas adalah konteks, bukan dasar penilaian: catatan ini tidak mengurangi skor, kelulusan, atau reputasi siapa pun.",
-  "Tidak ada video maupun rekaman kamera yang terkumpul. Kolom kamera kosong berarti tidak ada yang dicatat, bukan berarti sesi bersih.",
-  "Web dan kamera tidak dapat menjamin bebas bantuan AI, joki, atau perangkat kedua.",
+  "Tidak ada rekaman kamera. Kamera tidak pernah diminta.",
+  "Ini catatan, bukan pelanggaran. Tidak diketahui apa yang dibuka saat keluar tab.",
+  "Angka ini tidak menurunkan skor, kelulusan, atau reputasi.",
 ] as const;
 
 export function PeringatanIntegritas() {
