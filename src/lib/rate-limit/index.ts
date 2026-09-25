@@ -20,10 +20,15 @@
  *     pernah dipilih di produksi.
  *
  * ## Dua mode kegagalan yang dibedakan dengan sengaja
- *   1. **Redis tidak dikonfigurasi** (`UPSTASH_REDIS_REST_*` kosong) → startup
- *      produksi gagal lewat `assertRateLimitSiapProduksi()` (dipanggil dari
- *      `instrumentation.ts`) dan panggilan per-request melempar. Ini kegagalan
- *      deployment yang harus terlihat sebelum menerima traffic.
+ *   1. **Redis tidak dikonfigurasi** (`UPSTASH_REDIS_REST_*` kosong atau URL
+ *      malformasi) → startup produksi gagal lewat `assertRateLimitSiapProduksi()`
+ *      (dipanggil dari `instrumentation.ts`). Panggilan per-request tidak
+ *      melempar keluar: `resolvePembatas()` dipanggil di dalam `try` di
+ *      `batasiPermintaan()`, sehingga kegagalan konstruksi tunduk pada
+ *      `failOpen` kebijakan yang sama seperti kegagalan koneksi — fail-open
+ *      diloloskan dengan catatan log, fail-closed menjadi 503. Gerbang startup
+ *      tetap menjadi pertahanan utamanya; per-request adalah jaring pengaman
+ *      agar satu kebijakan yang salah tidak menjatuhkan seluruh permukaan.
  *   2. **Redis tidak dapat dihubungi saat request** → ditangani per kebijakan
  *      lewat `failOpen`. Kebijakan yang gagal-tertutup mengembalikan `gagal`
  *      (pemanggil membalas 503); yang gagal-terbuka meloloskan request dan
@@ -36,6 +41,7 @@ import {
   identifierUntuk,
   type NamaKebijakan,
 } from "./kebijakan";
+import { ENV_PERCAYA_X_REAL_IP } from "./identitas";
 import type {
   HasilBatasi,
   KonteksPembatasan,
@@ -47,7 +53,7 @@ import { checkUpstashEnv, createUpstashLimiter, pesanEnvUpstash } from "./upstas
 export type { HasilBatasi, KonteksPembatasan, Pembatas } from "./contract";
 export { AMBANG, NAMA_KEBIJAKAN, identifierUntuk } from "./kebijakan";
 export type { NamaKebijakan, SpesifikasiKebijakan } from "./kebijakan";
-export { ipTercepat } from "./identitas";
+export { ENV_PERCAYA_X_REAL_IP, ipTercepat } from "./identitas";
 
 /**
  * Hasil satu pemeriksaan penjagaan.
@@ -141,12 +147,17 @@ export function resolvePembatas(nama: NamaKebijakan): Pembatas {
  * @param nama kebijakan dari `AMBANG`.
  * @param konteks IP tepercaya / principal / kunci kebijakan. Turunkan IP dengan
  *   `ipTercepat()` dari header request, bukan dengan membaca cookie atau body.
- * @param pembatas override untuk test; default dari `resolvePembatas()`.
+ * @param pembatas override untuk test. Bila tidak diisi, `resolvePembatas(nama)`
+ *   dipanggil **di dalam** `try`: konstruksi pembatas produksi dapat melempar
+ *   (env Upstash hilang/malformasi, `new Redis` gagal), dan kegagalan itu harus
+ *   tunduk pada `failOpen` kebijakan yang sama — bukan melempar keluar dari
+ *   fungsi ini. Kebijakan fail-open lalu meloloskan dengan catatan log, dan
+ *   fail-closed membalas 503 lewat `gagal`.
  */
 export async function batasiPermintaan(
   nama: NamaKebijakan,
   konteks: KonteksPembatasan,
-  pembatas: Pembatas = resolvePembatas(nama),
+  pembatas?: Pembatas,
 ): Promise<HasilPenjagaan> {
   const spesifikasi = AMBANG[nama];
   const identifiers = identifierUntuk(nama, konteks);
@@ -160,19 +171,26 @@ export async function batasiPermintaan(
     // dengan catatan yang keras dan eksplisit; pada topologi yang ditetapkan
     // (Vercel di depan) kasus ini tidak terjadi karena Vercel selalu menyetel
     // `x-vercel-forwarded-for`.
-    console.error(
+    const pesan =
       `[rate-limit] ${nama}: IP tepercaya tidak dapat ditentukan (tidak ada ` +
-        `x-vercel-forwarded-for / x-real-ip). Kebijakan tidak dapat ditegakkan ` +
-        `untuk request ini. Pastikan deployment berada di belakang proxy yang ` +
-        `menyetel header tersebut.`,
-    );
+      `x-vercel-forwarded-for, dan x-real-ip hanya dibaca bila ` +
+      `${ENV_PERCAYA_X_REAL_IP}=1). Kebijakan tidak dapat ditegakkan untuk ` +
+      `request ini. Pastikan deployment berada di belakang proxy yang menyetel ` +
+      `header tersebut.`;
+    // Tidak ada bucket sama sekali, jadi tidak ada Redis yang perlu dihubungi —
+    // identitas yang hilang selalu berarti "tidak dapat dibatasi", bukan "Redis
+    // mati", sehingga keputusan ini tidak boleh bergantung pada `failOpen`.
+    console.error(pesan);
     return { tipe: "lolos", hasil: [] };
   }
 
   try {
+    // Konstruksi di dalam `try`: lihat docstring. Override test dihormati apa
+    // adanya, sehingga test tidak perlu menyentuh env Upstash.
+    const dipakai = pembatas ?? resolvePembatas(nama);
     const hasil: HasilBatasi[] = [];
     for (const identifier of identifiers) {
-      const keputusan = await pembatas.batasi(identifier);
+      const keputusan = await dipakai.batasi(identifier);
       hasil.push(keputusan);
       if (!keputusan.sukses) return { tipe: "dibatasi", hasil: keputusan };
     }

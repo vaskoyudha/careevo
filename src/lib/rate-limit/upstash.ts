@@ -21,7 +21,7 @@
  * backend, dan yang lebih buruk: ia terlihat seperti enforcement yang bekerja.
  * Karena itu `createUpstashLimiter()` **melempar** bila env Upstash tidak ada.
  * Kegagalan Redis saat request berjalan ditangani pemanggil lewat `failOpen`
- * (`./guard.ts`), bukan di sini.
+ * (`./index.ts`, `batasiPermintaan()`), bukan di sini.
  */
 
 import { Ratelimit } from "@upstash/ratelimit";
@@ -52,26 +52,88 @@ export interface UpstashEnv {
   readonly token: string;
 }
 
+/**
+ * Bentuk minimal lingkungan yang dibaca berkas ini.
+ *
+ * Sengaja berupa peta, bukan properti bernama, agar `process.env` (bertipe index
+ * signature) dapat dioper langsung — pola yang sama dipakai
+ * `@/lib/http/origin`. Parameter ini juga yang membuat validasi URL dapat diuji
+ * secara adversarial tanpa mengubah `process.env` global (test berjalan paralel
+ * dalam satu proses, jadi menulis env di test adalah sumber kerapuhan).
+ */
+export type LingkunganUpstash = Readonly<Record<string, string | undefined>>;
+
 export interface UpstashEnvCheck {
   readonly ok: boolean;
-  /** Nama variabel yang hilang — pesan galat menyebut ini agar dapat diperbaiki. */
+  /**
+   * Nama variabel yang hilang — pesan galat menyebut ini agar dapat diperbaiki.
+   * Variabel yang ada tetapi nilainya tidak sah (mis. URL malformasi) juga
+   * dilaporkan di sini: dari sudut pandang pemanggil keduanya sama-sama "tidak
+   * dapat dipakai sebagai kredensial".
+   */
   readonly missing: string[];
+}
+
+/**
+ * Nama variabel yang nilainya ada tetapi tidak dapat dipakai.
+ *
+ * Dipisahkan dari `missing` supaya pesan galat dapat membedakan "belum diisi"
+ * dari "diisi tetapi salah" — keduanya menggagalkan start, tetapi hanya yang
+ * kedua sering terlewat saat diperiksa manusia (env tampak terisi).
+ */
+export const VAR_MALFORMASI = {
+  url: "UPSTASH_REDIS_REST_URL (bukan URL http/https yang valid)",
+} as const;
+
+/**
+ * URL Redis REST harus benar-benar HTTP(S) yang dapat di-parse.
+ *
+ * Mengapa tidak cukup "ada isinya": `new Redis({ url })` dari `@upstash/redis`
+ * tidak melempar saat dibangun dengan URL malformasi — konstruksi klien baru
+ * gagal saat request pertama. Tanpa validasi di sini, `checkUpstashEnv()` akan
+ * melaporkan `ok: true` untuk `UPSTASH_REDIS_REST_URL=redis://x` atau
+ * `=not a url`, sehingga `assertRateLimitSiapProduksi()` meloloskan boot dan
+ * seluruh kebijakan fail-closed baru ketahuan rusak saat melayani traffic —
+ * tepat kegagalan yang seharusnya dicegah gerbang startup ini.
+ *
+ * Skema dibatasi `http:`/`https:` karena endpoint Redis REST adalah REST API
+ * HTTP; `redis://` adalah alamat protokol Redis mentah yang tidak pernah
+ * dilayani `@upstash/redis`.
+ */
+function urlUpstashValid(nilai: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(nilai);
+  } catch {
+    return false;
+  }
+  return url.protocol === "http:" || url.protocol === "https:";
 }
 
 /**
  * Cek env Upstash **tanpa melempar**, supaya pemanggil dapat memilih fail-fast
  * atau fail-open. Nilai di-trim dan hanya string non-kosong yang dihitung ada.
  *
+ * URL yang ada tetapi malformasi (tidak dapat di-parse, atau berskema selain
+ * http/https) dihitung tidak ada. Tanpa pemeriksaan itu, gerbang startup akan
+ * meloloskan boot dengan kredensial yang pasti gagal saat request pertama —
+ * lihat `urlUpstashValid()`.
+ *
  * `Redis.fromEnv()` juga menerima fallback Vercel KV (`KV_REST_API_URL` /
  * `KV_REST_API_TOKEN`); sengaja **tidak** dipakai di sini karena `fromEnv` akan
  * diam-diam memakai instance Redis lain bila kedua pasangan itu ada, dan
  * penghitung guard lalu tidak lagi satu bucket di semua permukaan.
+ *
+ * @param env default `process.env`; test dapat memberi peta sendiri.
  */
-export function checkUpstashEnv(): UpstashEnvCheck {
-  const url = (process.env.UPSTASH_REDIS_REST_URL ?? "").trim();
-  const token = (process.env.UPSTASH_REDIS_REST_TOKEN ?? "").trim();
+export function checkUpstashEnv(
+  env: LingkunganUpstash = process.env,
+): UpstashEnvCheck {
+  const url = (env.UPSTASH_REDIS_REST_URL ?? "").trim();
+  const token = (env.UPSTASH_REDIS_REST_TOKEN ?? "").trim();
   const missing: string[] = [];
   if (!url) missing.push("UPSTASH_REDIS_REST_URL");
+  else if (!urlUpstashValid(url)) missing.push(VAR_MALFORMASI.url);
   if (!token) missing.push("UPSTASH_REDIS_REST_TOKEN");
   return { ok: missing.length === 0, missing };
 }
@@ -79,7 +141,7 @@ export function checkUpstashEnv(): UpstashEnvCheck {
 /** Pesan galat yang menyebut tindakan perbaikan, bukan sekadar "tidak valid". */
 export function pesanEnvUpstash(missing: readonly string[]): string {
   return [
-    `Rate limiting produksi membutuhkan Upstash Redis, tetapi variabel berikut tidak diisi: ${missing.join(", ")}.`,
+    `Rate limiting produksi membutuhkan Upstash Redis, tetapi variabel berikut tidak diisi atau tidak valid: ${missing.join(", ")}.`,
     "Renderer Vercel dan backend VPS harus memakai database Redis yang SAMA agar batasnya benar-benar shared.",
     "Isi nilai dari konsol Upstash pada environment yang sesuai (Vercel: Project Settings → Environment Variables).",
     "Rate limiting TIDAK akan turun ke penghitung in-memory: itu akan tampak seperti proteksi yang bekerja sementara justru menghapusnya.",
@@ -108,14 +170,18 @@ export function createUpstashLimiter(
     redis,
     prefix: `${PREFIX}:${penandaLingkungan()}:${nama}`,
     limiter: Ratelimit.slidingWindow(spesifikasi.limit, spesifikasi.window),
-    // `ephemeralCache: false` adalah pengaman lintas-instance yang halus.
-    // Bila cache memori dinyalakan, sebuah identifier yang baru saja diblokir
-    // tidak akan memanggil Redis sama sekali, sehingga hitungan di server lain
-    // (VPS worker, instance Vercel lain) berhenti sinkron dan limit efektif
-    // menjadi lebih longgar dari yang dinegosiasikan. `false` mematikan jalur
-    // itu; melihat dist/index.mjs, `!== false` adalah satu-satunya nilai yang
-    // mematikan cache config, dan jalur `{}` (cache tanpa hitungan) memang tidak
-    // pernah memblokir, jadi perilakunya setara.
+    // `ephemeralCache: false` mematikan cache blokir lokal, dan itu pengaman
+    // lintas-instance: bila cache dinyalakan, sebuah identifier yang baru saja
+    // diblokir tidak akan memanggil Redis sama sekali, sehingga hitungan di
+    // server lain (VPS worker, instance Vercel lain) berhenti sinkron dan limit
+    // efektif menjadi lebih longgar dari yang dinegosiasikan.
+    //
+    // Di `dist/index.mjs` (Ratelimit constructor) hanya ada dua cabang:
+    // `instanceof Map` (pakai Map yang diberikan) dan `=== void 0` (buat Map
+    // baru). Nilai `false` tidak cocok dengan keduanya, sehingga `ctx.cache`
+    // tetap `undefined` dan seluruh jalur `ctx.cache.isBlocked` / `blockUntil`
+    // dilewati. Artinya cache tidak "setara nonaktif" — ia benar-benar tidak ada,
+    // dan setiap `limit()` memanggil Redis.
     ephemeralCache: false,
     analytics: false,
     timeout: TIMEOUT_MS,

@@ -20,8 +20,13 @@ import {
   resetMemori,
   setJamMemori,
 } from "./memori";
-import { ipTercepat } from "./identitas";
-import { checkUpstashEnv, createUpstashLimiter, PREFIX } from "./upstash";
+import { ipTercepat, percayaXRealIpDariEnv, ENV_PERCAYA_X_REAL_IP } from "./identitas";
+import {
+  checkUpstashEnv,
+  createUpstashLimiter,
+  PREFIX,
+  VAR_MALFORMASI,
+} from "./upstash";
 import type { HasilBatasi, Pembatas } from "./contract";
 
 /** Header semudah mungkin dibuat tanpa `Headers`, supaya `ipTercepat` tetap murni diuji. */
@@ -136,6 +141,7 @@ describe("ipTercepat", () => {
     expect(
       ipTercepat(
         header({ "x-vercel-forwarded-for": "9.9.9.9", "x-real-ip": "1.1.1.1" }),
+        { percayaXRealIp: true },
       ),
     ).toBe("9.9.9.9");
   });
@@ -144,11 +150,56 @@ describe("ipTercepat", () => {
     // Inti proteksi: bila header yang dapat dipalsukan dipakai, setiap request
     // dapat memakai bucket baru dan rate limiting mati tanpa terlihat.
     expect(ipTercepat(header({ "x-forwarded-for": "6.6.6.6" }))).toBeNull();
+    expect(
+      ipTercepat(header({ "x-forwarded-for": "6.6.6.6" }), { percayaXRealIp: true }),
+    ).toBeNull();
+  });
+
+  it("mengabaikan x-real-ip secara default — header itu bukan milik Vercel", () => {
+    // Adversarial: pada deployment yang tidak berada di belakang proxy yang
+    // menormalkan header ini, klien dapat mengirimnya sendiri dan setiap request
+    // akan mendapat bucket baru. Karena itu ia mati kecuali dinyatakan eksplisit.
+    expect(ipTercepat(header({ "x-real-ip": "1.1.1.1" }))).toBeNull();
+  });
+
+  it("membaca x-real-ip hanya setelah opt-in eksplisit", () => {
+    expect(
+      ipTercepat(header({ "x-real-ip": "1.1.1.1" }), { percayaXRealIp: true }),
+    ).toBe("1.1.1.1");
+  });
+
+  it("env CAREEVO_TRUST_REAL_IP_HEADER adalah satu-satunya saklar x-real-ip", () => {
+    // Pola opt-in yang sama dengan `CAREEVO_TRUST_PROXY_HEADERS` di
+    // `@/lib/http/origin`: positif eksplisit, bukan disimpulkan dari NODE_ENV.
+    expect(percayaXRealIpDariEnv({})).toBe(false);
+    expect(percayaXRealIpDariEnv({ [ENV_PERCAYA_X_REAL_IP]: "0" })).toBe(false);
+    expect(percayaXRealIpDariEnv({ [ENV_PERCAYA_X_REAL_IP]: "false" })).toBe(false);
+    expect(percayaXRealIpDariEnv({ [ENV_PERCAYA_X_REAL_IP]: "1" })).toBe(true);
+    expect(percayaXRealIpDariEnv({ [ENV_PERCAYA_X_REAL_IP]: "true" })).toBe(true);
+    expect(percayaXRealIpDariEnv({ [ENV_PERCAYA_X_REAL_IP]: "TRUE" })).toBe(true);
+  });
+
+  it("mematikan x-real-ip pada pemanggilan default (env proses tidak diisi)", () => {
+    // Pemanggilan tanpa argumen kedua harus membaca env, dan default repo ini
+    // adalah mati. Var di-stub ke `undefined` lebih dulu supaya test tidak
+    // bergantung pada shell pengembang yang kebetulan mengekspornya.
+    vi.stubEnv(ENV_PERCAYA_X_REAL_IP, undefined);
+    try {
+      expect(percayaXRealIpDariEnv()).toBe(false);
+      // Inilah yang membuat `next.ts` aman tanpa opsi tambahan: jalur produksi
+      // tidak membaca header yang bukan milik Vercel.
+      expect(ipTercepat(header({ "x-real-ip": "1.1.1.1" }))).toBeNull();
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("mengambil entri paling kanan dari daftar", () => {
     expect(
       ipTercepat(header({ "x-vercel-forwarded-for": "1.1.1.1, 2.2.2.2" })),
+    ).toBe("2.2.2.2");
+    expect(
+      ipTercepat(header({ "x-real-ip": "1.1.1.1, 2.2.2.2" }), { percayaXRealIp: true }),
     ).toBe("2.2.2.2");
   });
 
@@ -160,6 +211,11 @@ describe("ipTercepat", () => {
     ["ganda titik", "1..2.3.4"],
   ])("menolak nilai %s", (_label, nilai) => {
     expect(ipTercepat(header({ "x-vercel-forwarded-for": nilai }))).toBeNull();
+    // Nilai buruk ditolak juga pada header opt-in: kepercayaan pada sumbernya
+    // tidak berarti bentuknya boleh apa saja.
+    expect(
+      ipTercepat(header({ "x-real-ip": nilai }), { percayaXRealIp: true }),
+    ).toBeNull();
   });
 
   it("menerima IPv6 dan IPv4-in-IPv6", () => {
@@ -173,6 +229,16 @@ describe("ipTercepat", () => {
 
   it("mengembalikan null saat tidak ada header tepercaya", () => {
     expect(ipTercepat(header({}))).toBeNull();
+    expect(ipTercepat(header({}), { percayaXRealIp: true })).toBeNull();
+  });
+
+  it("jatuh ke x-real-ip hanya bila x-vercel-forwarded-for tidak ada, dan setelah opt-in", () => {
+    const h = header({ "x-vercel-forwarded-for": "bukan-ip", "x-real-ip": "1.1.1.1" });
+    // Header Vercel ada tetapi bentuknya tidak sah → tidak menggugurkan opt-in
+    // untuk header kedua; kandidat yang sah berikutnya dipakai.
+    expect(ipTercepat(h, { percayaXRealIp: true })).toBe("1.1.1.1");
+    // Tanpa opt-in, header Vercel yang tidak sah berhenti di situ.
+    expect(ipTercepat(h)).toBeNull();
   });
 });
 
@@ -256,6 +322,56 @@ describe("batasiPermintaan", () => {
   });
 });
 
+/**
+ * Kegagalan **konstruksi** pembatas, tanpa override.
+ *
+ * Cacat yang diperbaiki: `resolvePembatas(nama)` dulu menjadi nilai default
+ * parameter, sehingga ia dievaluasi **sebelum** badan fungsi — dan sebelum
+ * `try`. Di produksi, env Upstash yang hilang/malformasi membuat
+ * `createUpstashLimiter()` melempar keluar dari `batasiPermintaan()` alih-alih
+ * diubah menjadi `gagal`/`lolos` sesuai `failOpen`. Akibatnya kebijakan
+ * fail-open ikut menjatuhkan request dengan error tak tertangani, padahal
+ * kontraknya adalah meloloskan dengan catatan. Test ini memanggil tanpa argumen
+ * ketiga supaya jalur `resolvePembatas()` benar-benar dijalankan.
+ */
+describe("batasiPermintaan — kegagalan konstruksi pembatas", () => {
+  beforeEach(() => {
+    vi.stubEnv("NODE_ENV", "production");
+    // Produksi tanpa kredensial: konstruksi pasti gagal, dan tidak ada fallback
+    // memori yang menyamarkan hasilnya.
+    vi.stubEnv("UPSTASH_REDIS_REST_URL", undefined);
+    vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", undefined);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("mengubah kegagalan konstruksi menjadi 'gagal' untuk kebijakan fail-closed", async () => {
+    const salah = vi.spyOn(console, "error").mockImplementation(() => {});
+    const keputusan = await batasiPermintaan("login", { ip: "1.2.3.4" });
+    salah.mockRestore();
+
+    // Bukan lemparan: kebijakan fail-closed harus berakhir 503 lewat `gagal`.
+    expect(keputusan.tipe).toBe("gagal");
+    if (keputusan.tipe !== "gagal") return;
+    expect(keputusan.pesan).toContain("login");
+    // Pesannya menunjuk penyebab sebenarnya (env Upstash), bukan "koneksi ditolak".
+    expect(keputusan.pesan).toMatch(/Upstash/i);
+  });
+
+  it("meloloskan dengan catatan log untuk kebijakan fail-open, bukan melempar", async () => {
+    const salah = vi.spyOn(console, "error").mockImplementation(() => {});
+    const keputusan = await batasiPermintaan("unggahCourse", { ip: "1.2.3.4" });
+    const catatan = salah.mock.calls.flat().join(" ");
+    salah.mockRestore();
+
+    expect(keputusan.tipe).toBe("lolos");
+    expect(catatan).toContain("fail-open");
+    expect(catatan).toContain("unggahCourse");
+  });
+});
+
 describe("assertRateLimitSiapProduksi", () => {
   const lengkap: KeadaanRateLimit["upstash"] = { ok: true, missing: [] };
   const kosong: KeadaanRateLimit["upstash"] = {
@@ -276,6 +392,26 @@ describe("assertRateLimitSiapProduksi", () => {
     expect(() =>
       assertRateLimitSiapProduksi({ nodeEnv: "production", nextPhase: undefined, upstash: kosong }),
     ).toThrow(/UPSTASH_REDIS_REST_URL[\s\S]*UPSTASH_REDIS_REST_TOKEN/);
+  });
+
+  it("menolak boot produksi saat env terisi URL malformasi", () => {
+    // Gerbang startup adalah tempat cacat ini dicegah: URL yang salah bentuk
+    // membuat `createUpstashLimiter()` gagal pada request pertama, jadi
+    // meloloskan boot berarti menerima traffic dengan pembatas yang pasti mati.
+    for (const url of ["bukan url", "redis://localhost:6379", "ftp://x.test"]) {
+      const upstash = checkUpstashEnv({
+        UPSTASH_REDIS_REST_URL: url,
+        UPSTASH_REDIS_REST_TOKEN: "token",
+      });
+      expect(upstash.ok, `${url} seharusnya ditolak`).toBe(false);
+      expect(() =>
+        assertRateLimitSiapProduksi({
+          nodeEnv: "production",
+          nextPhase: undefined,
+          upstash,
+        }),
+      ).toThrow(/tidak valid/);
+    }
   });
 
   it("tidak menuntut kredensial saat fase build", () => {
@@ -299,10 +435,67 @@ describe("assertRateLimitSiapProduksi", () => {
 
 describe("adapter Upstash", () => {
   it("melaporkan variabel yang hilang tanpa melempar", () => {
-    const cek = checkUpstashEnv();
-    // Di lingkungan test tidak ada kredensial; yang penting bentuk laporannya.
+    const cek = checkUpstashEnv({});
+    // Yang penting bentuk laporannya: kedua variabel disebut, bukan undefined.
+    expect(cek.ok).toBe(false);
     expect(cek.missing).toContain("UPSTASH_REDIS_REST_URL");
     expect(cek.missing).toContain("UPSTASH_REDIS_REST_TOKEN");
+  });
+
+  it("menerima env lengkap dengan URL http/https", () => {
+    expect(
+      checkUpstashEnv({
+        UPSTASH_REDIS_REST_URL: "https://contoh.upstash.io",
+        UPSTASH_REDIS_REST_TOKEN: "token",
+      }),
+    ).toEqual({ ok: true, missing: [] });
+    // http: juga sah (mis. Upstash self-hosted/proxy internal).
+    expect(
+      checkUpstashEnv({
+        UPSTASH_REDIS_REST_URL: "http://127.0.0.1:8080",
+        UPSTASH_REDIS_REST_TOKEN: "token",
+      }).ok,
+    ).toBe(true);
+  });
+
+  it.each([
+    ["tidak dapat di-parse", "bukan url"],
+    ["protokol redis mentah", "redis://localhost:6379"],
+    ["skema lain", "ftp://contoh.upstash.io"],
+    ["host kosong", "https://"],
+    ["relatif tanpa host", "/v1/redis"],
+  ])("menolak URL %s meski variabelnya terisi", (_label, url) => {
+    // Ini cacat yang diperbaiki: `checkUpstashEnv()` lama hanya mengecek
+    // "non-kosong", sehingga `assertRateLimitSiapProduksi()` meloloskan boot
+    // dengan URL yang pasti gagal saat request pertama — dan seluruh kebijakan
+    // fail-closed baru ketahuan rusak setelah menerima traffic. Gerbang startup
+    // justru ada untuk mencegah tepat kegagalan itu.
+    const cek = checkUpstashEnv({
+      UPSTASH_REDIS_REST_URL: url,
+      UPSTASH_REDIS_REST_TOKEN: "token",
+    });
+    expect(cek.ok).toBe(false);
+    expect(cek.missing).toContain(VAR_MALFORMASI.url);
+    // Token yang sah tidak ikut dilaporkan — pesannya harus menunjuk URL saja.
+    expect(cek.missing).not.toContain("UPSTASH_REDIS_REST_TOKEN");
+  });
+
+  it("memangkas spasi sebelum memvalidasi (nilai env sering terbawa newline)", () => {
+    expect(
+      checkUpstashEnv({
+        UPSTASH_REDIS_REST_URL: "  https://contoh.upstash.io\n",
+        UPSTASH_REDIS_REST_TOKEN: " token ",
+      }).ok,
+    ).toBe(true);
+  });
+
+  it("menganggap URL berisi spasi saja sebagai hilang, bukan malformasi", () => {
+    const cek = checkUpstashEnv({
+      UPSTASH_REDIS_REST_URL: "   ",
+      UPSTASH_REDIS_REST_TOKEN: "token",
+    });
+    expect(cek.missing).toContain("UPSTASH_REDIS_REST_URL");
+    expect(cek.missing).not.toContain(VAR_MALFORMASI.url);
   });
 
   it("melempar saat produksi tanpa env — tidak ada fallback ke memori", () => {
@@ -314,6 +507,15 @@ describe("adapter Upstash", () => {
         missing: ["UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"],
       }),
     ).toThrow(/UPSTASH_REDIS_REST_URL/);
+  });
+
+  it("melempar saat env hanya berisi URL malformasi", () => {
+    expect(() =>
+      createUpstashLimiter("login", {
+        ok: false,
+        missing: [VAR_MALFORMASI.url],
+      }),
+    ).toThrow(/tidak valid/);
   });
 
   it("menerjemahkan timeout Redis menjadi error, bukan 'boleh lewat'", () => {
