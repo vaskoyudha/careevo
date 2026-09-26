@@ -65,6 +65,17 @@ A skill with invalid frontmatter fails **silently** — `npm run skills:check` i
 
 ## Architecture
 
+- **Label jalur di laporan diturunkan, bukan disimpan.** `completion_path` tetap
+  dua nilai (`terverifikasi`/`informal`, CHECK di `schema.ts:473`); label empat
+  nilai dihitung di `src/lib/performa/jalur-selesai.ts`. Jangan
+  "menyederhanakan" dengan menambah nilai kolom baru.
+- **`wajib_kamera` ditegakkan server dari `kamera_mulai`, bukan dari boolean
+  klien.** Dua gerbang: `selesaikanMateriAction` (cabang `perlu_kamera` dari
+  `putuskanAkses`) dan `selesaikanModulKuisVerified` (kode `perlu_kamera`).
+- **`module_progress.evidence_id` berisi dua jenis id.** Jalur materi mengisi
+  `learning_runs.id`, jalur kuis mengisi `quiz_attempts.id`. Apa pun yang memetakan
+  bukti ke run harus memeriksa jenisnya lebih dulu, bukan menganggap id yang
+  tidak ditemukan di peta run berarti "tidak ada kamera".
 
 
 ## Navigation — navbar contract (do not regress)
