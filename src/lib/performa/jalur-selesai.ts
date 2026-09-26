@@ -16,13 +16,19 @@
  *   `kamera_mulai`. Ketiadaan kejadian inilah yang diketahui, bukan "kamera
  *   pasti mati": `kamera_mulai` adalah sinyal yang dilaporkan peramban
  *   (`ASAL_SINYAL.kamera`), jadi tidak adanya laporan bukan bukti negatif.
- * - `terverifikasi_tanpa_bukti_kamera` — `evidence_id` bukan id run (jalur kuis
- *   menyimpannya sebagai `quiz_attempts.id`) atau tidak ada sama sekali.
- *   Jalurnya sah, tetapi **tidak ada run yang bisa ditelusuri** untuk bicara apa
- *   pun soal kamera. Label ini sengaja tidak menyebut "kamera menyala"
- *   walaupun `wajib_kamera` membuat kamera wajib: yang terverifikasi saat
- *   penyelesaian adalah kelulusan asesmen, bukan kehadiran kamera, dan laporan
- *   hanya boleh menyatakan yang ada di baris yang tersimpan.
+ * - `terverifikasi_tanpa_bukti_kamera` — label untuk "saya tidak bisa menelusuri
+ *   run ini", dan itu punya **tiga** sebab yang pemanggil harus bedakan, bukan
+ *   satu: (1) `evidence_id` berisi `quiz_attempts.id` — jalur kuis memang begitu,
+ *   dan id itu memang tidak pernah menjadi id run; (2) `evidence_id` tidak ada
+ *   sama sekali, misalnya baris lama yang ditulis sebelum bukti dicatat; (3)
+ *   `evidence_id` **adalah** id run yang benar, tetapi tidak ada di peta
+ *   `kameraMulai` yang diberikan pemanggil. Ketiganya berakhir di label yang sama
+ *   bukan karena ketiganya setara, melainkan karena satu-satunya yang boleh
+ *   dinyatakan modul ini adalah apa yang ada di tangannya: yang bisa ia katakan
+ *   adalah "tidak bisa ditelusuri", tidak "tidak ada run". Jalurnya sah, dan
+ *   label ini sengaja tidak menyebut "kamera menyala" walaupun `wajib_kamera`
+ *   membuat kamera wajib — yang terverifikasi saat penyelesaian adalah kelulusan
+ *   asesmen, bukan kehadiran kamera.
  * - `informal` — tidak ada bukti sesi yang sah. Tidak pernah dinaikkan, apa pun
  *   yang terjadi di run.
  *
@@ -57,7 +63,32 @@ export function jalurDariBukti(input: {
   completionPath: string | null;
   /** `module_progress.evidence_id`: id run **atau** id attempt, atau `null`. */
   evidenceId: string | null;
-  /** `run id` → apakah run itu punya `kamera_mulai`. */
+  /**
+   * `run id` → apakah run itu punya `kamera_mulai`.
+   *
+   * **Prasyarat: peta ini harus menutup setiap run dalam lingkup laporan.**
+   * Modul ini tidak membaca database, jadi peta adalah satu-satunya pandangan
+   * yang ia punya; keanggotaan kunci di sini adalah satu-satunya cara ia
+   * membedakan "run ini tidak punya `kamera_mulai`" dari "run ini tidak bisa
+   * saya telusuri". Maka pemanggil yang menyusun peta dari bacaan **sebagian** —
+   * hanya run yang kebetulan terlihat di satu halaman, atau di satu jendela
+   * tanggal — akan membuat `evidence_id` yang memang id run asli dilaporkan
+   * sebagai `terverifikasi_tanpa_bukti_kamera`, dan kalimat "kamera tidak bisa
+   * ditelusuri ke run" akan berdiri untuk baris yang sebenarnya **bisa**
+   * ditelusuri. Kesalahan seperti itu lebih berbahaya daripada tidak melapor
+   * apa pun, karena ia terbaca seperti temuan, bukan seperti ketiadaan data.
+   *
+   * Karena itu peta yang **dihilangkan** tidak berarti "tanpa kamera", melainkan
+   * "tanpa pandangan": peta kosong dan tanpa peta adalah dua masukan berbeda yang
+   * sengaja diberi label berbeda. `new Map()` berarti "peta ini memang begitu",
+   * sehingga bukti yang tidak ada di dalamnya menjadi
+   * `terverifikasi_tanpa_bukti_kamera`. `undefined` berarti "saya tidak punya
+   * peta", dan tanpa peta tidak ada yang boleh disalahkan atas kamera, sehingga
+   * turun ke `terverifikasi` ("kamera tidak tercatat"). Tanpa perbedaan itu,
+   * pemanggil yang lupa mengirim peta akan mengubah arti laporan tanpa
+   * meninggalkan jejak apa pun; peta kosong yang eksplisit setidaknya tercatat
+   * sebagai keputusan, sedangkan ketiadaan peta tidak tercatat sama sekali.
+   */
   kameraMulai?: ReadonlyMap<string, boolean>;
 }): JalurTerlihat {
   // Fail-closed: hanya `terverifikasi` yang eksak boleh dinaikkan. Nilai lain —
@@ -70,8 +101,12 @@ export function jalurDariBukti(input: {
   // terverifikasi biasa (kamera tidak tercatat) alih-alih menebak.
   if (!input.kameraMulai) return "terverifikasi";
 
-  // Bukti yang tidak ada di peta run adalah bukti attempt, atau run yang tidak
-  // ada di tangan pemanggil. Keduanya berarti "tidak bisa ditelusuri".
+  // Ketiga sebab label ini muncul sudah dihitung di kontrak modul; di sini
+  // hanya satu syarat yang diuji, yaitu bukti ini ada di peta run atau tidak.
+  // Yang tidak ada di sana berarti modul ini tidak bisa menelusurinya. Bahwa
+  // run itu sebenarnya ada adalah urusan pemanggil — peta yang tidak lengkap
+  // adalah kesalahan pemanggil, bukan keadaan peserta (lihat prasyarat
+  // `kameraMulai`).
   if (!input.evidenceId || !input.kameraMulai.has(input.evidenceId)) {
     return "terverifikasi_tanpa_bukti_kamera";
   }
