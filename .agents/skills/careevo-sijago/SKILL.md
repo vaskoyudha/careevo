@@ -1,0 +1,219 @@
+---
+name: careevo-sijago
+description: >-
+  How to run, configure, verify, and brand AI Mastery — the vendored
+  DeepTutor-derived Next.js app in features/sijago that Careevo frames at
+  /ai-mastery — Careevo's only study chat. Use when a chat turn says "No active
+  LLM model is configured", when adding or switching its model, when a
+  screenshot of the real AI Mastery UI is wanted, when renaming the visible
+  brand, or before restarting any of its processes. Covers the
+  :8001/:8011/:3782/:3790 topology, the model-catalog API, why space-bunny
+  cannot drive it, and the rename split between the user-facing "AI Mastery"
+  name and the internal "sijago" path and "deeptutor" identifiers.
+license: MIT
+metadata:
+  owner: careevo
+  area: sijago
+---
+
+# AI Mastery — the framed DeepTutor app
+
+`features/sijago/` is a **separate Next.js app** (v16.2.3), vendored from
+DeepTutor (Apache-2.0). Careevo does not import it; it frames it in an iframe at
+`/ai-mastery`, owning only the URL, navbar, and session.
+It has its own scripts and gates — see `features/sijago/README.md`. Never lint,
+typecheck, or edit it as if it were Careevo source.
+
+**The brand is AI Mastery; the path is still `features/sijago/`.** That split is
+deliberate (see the rename section below).
+
+`/ai-mastery` is the **only** study chat in Careevo. There used to be a
+hand-rolled re-implementation at `/belajar/tutor` (and a smaller inline chat card
+on `/belajar/jalur`); both were deleted in favour of this one, and their route,
+components, session store, actions and DeepTutor attribution rows went with
+them. AI Mastery is the real DeepTutor-derived UI (3-pane shell, AI-titled
+sessions, ask-hint with Tab-to-complete, Copy/Play-aloud/Regenerate/Delete,
+per-turn "Done · Ns" and token counts). If someone asks for a screenshot of "the
+AI tutor" or "the AI Mastery UI", they mean `http://localhost:3000/ai-mastery`
+(or `:3790/chat` unframed) — there is no second implementation to confuse it
+with. Do not rebuild one.
+
+## Process topology — which port is which
+
+Measured on this repo. Four processes, and the two backends are the trap.
+
+| Port | Process | Role |
+|---|---|---|
+| `:3000` | `next dev` (Careevo) | frames AI Mastery at `/ai-mastery` |
+| `:3790` | AI Mastery `next-server`, serving `.next/standalone` | the framed frontend |
+| `:3782` | `deeptutor start` frontend | DeepTutor's own UI (not AI Mastery) |
+| `:8001` | `deeptutor start` backend, `deeptutor.service` | installed deeptutor 1.6.9, workspace `/home/vyns` |
+| `:8011` | bare `python3 -m uvicorn deeptutor.api.main:app --port 8011`, cwd `/home/vyns/Documents/github/DeepTutor-main` | the checkout, "current protocol" — **this is the one AI Mastery uses** |
+
+**AI Mastery (`:3790`) talks to `:8011`, not `:8001`.** The deciding fact is the
+framed app *server's* env, not the backend's:
+
+```bash
+P=$(ss -ltnp | grep ':3790' | grep -oP 'pid=\K[0-9]+' | head -1)
+tr '\0' '\n' < /proc/$P/environ | grep DEEPTUTOR_API_BASE_URL
+# → http://127.0.0.1:8011
+```
+
+`:8011` has **no supervisor** — it was started detached (parent is PID 1). Killing
+it leaves it down; there is no systemd unit to bring it back. `deeptutor.service`
+(`systemctl --user`) only runs `:8001`/`:3782`. Confirm supervision before any
+restart: `systemctl --user list-units | grep deeptutor` shows one unit, which
+is *not* :8011.
+
+## Model catalog — the "No active LLM model is configured" runbook
+
+AI Mastery's model list is **not** Careevo's `CAREERVO_LLM_*` env. It lives in a
+`model_catalog.json` under the backend's runtime home (cwd, or `DEEPTUTOR_HOME`):
+
+- `:8001` → `/home/vyns/data/user/settings/model_catalog.json`
+- `:8011` → `/home/vyns/Documents/github/DeepTutor-main/data/user/settings/model_catalog.json`
+
+API (v1.6.3+; the old `/api/v1/settings/...` is 404):
+
+```bash
+BASE=http://127.0.0.1:8011/api/settings
+curl "$BASE/catalog"        # GET — secrets read back as "***"
+# edit, then:
+curl -X PUT "$BASE/catalog" -d '{"catalog":{...}}' -H 'content-type: application/json'
+curl -X POST "$BASE/apply"  -d '{"catalog":{...}}' -H 'content-type: application/json'
+```
+
+Facts that cost time to learn:
+
+- **`GET` redacts `api_key` as `"***"`, but `PUT` restores the real key** from the
+  stored catalog before saving — so round-tripping a read catalog is safe. Verify
+  the file on disk, not the GET response: if the file holds a literal `"***"`,
+  the restore failed and every call 401s.
+- `services.llm` shape: `{ active_profile_id, active_model_id, profiles: [] }`.
+  A profile is `{ id, name, binding:"openai", base_url, api_key, models:[
+  { id, name, model, context_window, context_window_source:"manual" } ] }`.
+- `deeptutor start` **resolves the active profile into process env
+  (`OPENAI_BASE_URL`, `OPENAI_API_KEY`) at boot**. A long-running process does not
+  re-read the file. For `:8001` (systemd) restart the unit; for `:8011` `POST
+  /apply` usually suffices, but if the error persists, check the process env:
+  `tr '\0' '\n' < /proc/<pid>/environ | grep OPENAI`. A dead `OPENAI_BASE_URL`
+  (e.g. `:20129` OmniRoute not listening) outranks a correct catalog.
+
+Debug chain, in order, when a turn says "No active LLM model is configured":
+
+1. Confirm which backend the frontend points at (the `DEEPTUTOR_API_BASE_URL`
+   probe above). Configuring the wrong backend's catalog is the classic miss.
+2. Read that backend's catalog. `profiles: []` / `active_*_id: null` is the
+   root cause — add a profile.
+3. Check the backend process env for a stale `OPENAI_BASE_URL` pin.
+4. `journalctl --user -u deeptutor.service` covers only `:8001`; `:8011` has no
+   journal, so probe the process and the file directly.
+
+## Model choice — non-agentic or it fails
+
+9Router is on `127.0.0.1:20128` (key in `~/.9router/db/data.sqlite`, table
+`apiKeys`). `o2a/space-bunny-free` is an **agentic** model: on a chat turn it
+answers with a tool call instead of prose, the backend logs
+`LLM returned empty response`, and the UI reports the misleading
+"No active LLM model is configured". Use a non-agentic model —
+`ag/gemini-3.7-flash-high` is proven in this profile. This matches Careevo's
+`.env.local` ("a non-agentic model matters") and the `loker-evaluasi` skill.
+
+The embedding model is configured separately in the same catalog
+(`services.embedding`). Without one, every answer appends "no embedding model is
+currently selected… knowledge-base search and indexing are disabled". That is
+expected, not a defect.
+
+## Verifying the framed UI in a browser
+
+The framed app is cross-origin (`:3200` parent, `:3790` child), so plain
+`page.evaluate` cannot reach it. Use `frameLocator`:
+
+```js
+const fl = page.frameLocator('iframe');
+await fl.locator('textarea').first().fill("...");
+await fl.locator('button:has(svg.lucide-arrow-up)').first().click();
+const inner = page.frames().find(f => f.url().includes('3790'));
+```
+
+- First send on `/chat` navigates to `/chat/unified_<ts>_<hex>` and creates the
+  session. The sidebar entry appears before the transcript does — that is the
+  optimistic create, not proof the turn landed.
+- **Hydration race:** after `page.goto`, wait ~10–12 s before interacting or the
+  turn is silently dropped (the WebSocket is not up yet). A reload-then-immediate
+  send produces a new session with an empty transcript and nothing in the backend
+  log.
+- Turn completion: poll for the stop button to disappear
+  (`button:has(svg.lucide-square)`), then for the text to lose
+  `Reasoning…` / `Loading the full trace`. Text-stability alone is not enough —
+  a streaming pause looks stable.
+- The transcript scrolls in the deepest `div` where
+  `scrollHeight > clientHeight + 200`; scroll it before screenshotting the newest
+  turn.
+- The active tab can drift to `/onboarding/demo` or `/loker/inbox` between calls;
+  check `browser_tabs({action:"list"})` before concluding a click missed. See the
+  `careevo-browser-verify` skill for the general discipline.
+
+## Brand rename — the split that matters
+
+Two renames have happened here, in sequence. Both followed the same rule:
+**rename what a user can see, leave the identifiers alone.**
+
+1. `DeepTutor` → `Careevo` across `app/ components/ features/ hooks/ lib/ shared/
+   context/ tests/ scripts/ next.config.js` and `locales/{en,zh,fr,uk}/app.json`
+   (flat JSON).
+2. `Careevo`/`SiJago` → **`AI Mastery`** for the product's own name. In Careevo
+   that is the navbar link (`AiMasteryLink`), the route `/ai-mastery`, the page
+   title, and `AI_MASTERY_WEB_URL`. In the framed app it is the `<title>` in
+   `app/layout.tsx`, the logo `alt`/`aria-label` in `components/layout/AppShell.tsx`
+   and `components/sidebar/SidebarShell.tsx`, and the chat status line
+   (`const name = agentName?.trim() || "AI Mastery"` in
+   `features/chat/trace/TracePresentation.tsx`).
+
+**Do not rename** (renaming breaks the app or upstream diffing):
+
+- the `features/sijago/` **directory**, the `sijago-web` package name, the
+  `careevo-sijago` skill id, and `.env` keys already spelled `SIJAGO_*` in
+  example files. A path is a checkout location, not a brand. Careevo's own
+  `src/components/features/ai-mastery/` *was* renamed, because that tree is
+  Careevo source, not vendored.
+- lowercase `deeptutor` identifiers: storage keys (`deeptutor-theme`,
+  `deeptutor.sidebar.*`), event names (`deeptutor:workspace-switch`), cookie /
+  header names (`deeptutor_session`, `x-deeptutor-frontend-host`), Python module
+  and pip references (`deeptutor.api.main`, `deeptutor[parse-docling]`), build
+  dir `.next-deeptutor/`.
+- `https://github.com/HKUDS/DeepTutor` and the `e.g. HKUDS/DeepTutor` placeholder
+  — upstream references, kept on purpose.
+- `vendor/` and `contracts/` — upstream-vendored and generated; `contracts:check`
+  fails if they change.
+
+A bulk rename script must skip lines matching `HKUDS/DeepTutor|github\.com/HKUDS`
+and skip `node_modules`, `.next`, `dist`, `vendor`, `contracts`.
+
+**`Careevo` inside `features/sijago/` is ambiguous — do not bulk-replace it.**
+Some occurrences are the framed app's own brand (rename them), but others mean
+the *host* application and must stay "Careevo" — e.g. the comment in
+`components/ThemeScript.tsx` ("framed inside Careevo, whose chrome is always
+light") and copy like "Use a folder path on the machine running Careevo" (that
+is the Python backend's machine). Read each hit; a blind `Careevo`→`AI Mastery`
+produces nonsense like "the machine running AI Mastery".
+
+Known consequence of the first rename: the Settings → About/update **text** says
+Careevo while the update machinery still points at HKUDS/DeepTutor releases.
+The README's old note ("leave About as DeepTutor") is superseded by the rename
+instruction; record this mismatch rather than silently "fixing" the update URL.
+
+### Gates and the serving trap
+
+Validate with the app's own gates, all of which must be green after a rename:
+
+```bash
+cd features/sijago
+npm run typecheck && npm run test:unit && npm run i18n:check \
+  && npm run contracts:check && npm run build
+```
+
+`:3790` serves from **`.next/standalone`** — a prebuilt production bundle. Source
+edits are **not live** until the standalone bundle is rebuilt and the `:3790`
+server restarted. A screenshot that still shows "DeepTutor" after a rename is
+usually this, not a failed edit.

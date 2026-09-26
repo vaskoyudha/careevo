@@ -46,10 +46,37 @@ product-shape change, not an integration.
 |---|---|---|
 | Trust validator | `src/lib/jobs/trust.ts` | Pure functions, no I/O. Adds the URL/domain axis Careevo lacked. |
 | Filter builders | `src/lib/jobs/filters.ts` | Pure functions. Fixed a real defect: the board filtered on one dimension, by substring. |
+| **`scan.mjs` as the scanner** | `src/lib/career-ops/tracker.ts` | See "The scanner was reversed" below. |
 | **A–H evaluation (LLM)** | `src/lib/agents/evaluasi/` | See "The A–H evaluation" below — adopted later, once the candidate chose a provider. |
 | Indonesian market notes | in the A–H prompt | PKWTT/PKWT, THR, BPJS, UMR, PPh 21 — now enforced in the prompt, not just referenced. |
 
 All adopted code carries the MIT notice — see `careevo-attribution`.
+
+## The scanner was reversed
+
+`scan.mjs` was originally on the rejected list: *"3,637 lines, deeply coupled to
+files, YAML, and dedup history. Not a library."* That is a fair description of
+the **file** and the wrong conclusion about the **need**.
+
+The job seeker needs real postings. The scanner actually in use was
+`scan-ats-full.mjs`, the reverse-ATS sweeper over 50k public ATS companies — and
+it is company-list driven, so it found 17 real postings and **kept 0**. It is
+right for a US keyword sweep and wrong for Careevo: no Indonesian provider at
+all. `scan.mjs` is the one with glints/jobstreet and with the per-filter counters
+that can explain a zero.
+
+So the reversal was not "the rejection was wrong" but **"the rejection named the
+wrong artifact"**. Coupling is a reason not to *edit* the engine, not a reason to
+leave the product without a working scanner. It is spawned as a subprocess and
+read through a thin typed layer (`src/lib/career-ops/`), never imported, so the
+coupling stays contained and `engine/` stays read-only.
+
+Measured on the seeded config: 14,111 postings found, **422 added**, one board
+reachable. The same user on the old scanner saw nothing.
+
+**Operating it is documented in `career-ops-engine`** — the exit-code rule, the
+append race, and which file answers which question. This skill records the
+decision; that one records the behaviour.
 
 ## The A–H evaluation (adopted after initial deferral)
 
@@ -96,7 +123,7 @@ it is a regression: the real score comes from `evaluasiLoker`, and it is 1–5, 
 | Rejected | Reason |
 |---|---|
 | **Block G (their scam check)** | Replacing `auditLoker` with it would trade deterministic, testable rules for an untestable prompt — and it has **no Indonesian scam rules**. Careevo is ahead here; do not regress. |
-| **`scan.mjs` core** | 3,637 lines, deeply coupled to files, YAML, and dedup history. Not a library. |
+| **`scan.mjs` core** | 3,637 lines, deeply coupled to files, YAML, and dedup history. Not a library. **Superseded — see below.** |
 | **Tracker + `data/applications.md`** | File-canonical data model with a SQLite index. A different architecture entirely. |
 | **PDF/CV generation, Go dashboard** | Out of scope. |
 | **Live Glints/Jobstreet providers** | Deferred, not rejected — see below. |

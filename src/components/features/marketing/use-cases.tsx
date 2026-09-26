@@ -9,21 +9,21 @@ const CASES = [
   {
     title: "Pencari kerja & developer",
     description:
-      "Latihan coding terpandu, bangun kesiapan interview teknis, dan temukan lowongan kerja yang cocok dengan keahlian serta CV kamu.",
+      "Latihan yang ngikutin posisi yang kamu incar, latihan interview, dan loker yang cocok sama isi CV kamu sekarang.",
     image:
       "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1200&q=80",
   },
   {
     title: "Verifikator & mentor",
     description:
-      "Tinjau alur kerja kandidat, uji pemahaman logika, dan jaga standar penilaian kompetensi tetap objektif tanpa bias.",
+      "Lihat alur kerja peserta, uji logikanya, dan nilai pakai rubrik yang sama supaya penilaianmu fair.",
     image:
       "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=1200&q=80",
   },
   {
     title: "Tim rekrutmen",
     description:
-      "Temukan kandidat dengan bukti proses berpikir dan pemecahan masalah nyata, bukan sekadar repo atau CV hasil salinan AI.",
+      "Dapatkan kandidat yang attach rekam jejak kerja dan cara berpikirnya, bukan cuma CV yang bagus di atas kertas.",
     image:
       "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=1200&q=80",
   },
@@ -38,11 +38,12 @@ export function MarketingUseCases() {
         <div className="flex flex-col gap-12 lg:flex-row">
           <Reveal className="lg:w-5/12">
             <h2 className="mb-4 text-5xl font-medium -tracking-[1.9px] text-gray-900 lg:text-6xl">
-              Dibangun untuk tiga peran
+              Tiga jenis orang yang kepake
             </h2>
             <p className="text-base text-gray-500">
-              Semua yang dibutuhkan untuk mengelola proses, bukti, dan
-              kesempatan kerja, dirancang agar jelas dan bisa dipercaya.
+              Yang lagi nyari kerja, yang memeriksa, sama yang merekrut.
+              Masing-masing dapat tampilan yang beda, tapi semuanya pakai rekam
+              jejak yang sama.
             </p>
             <ul className="mt-11 space-y-5">
               {CASES.map((item, index) => (

@@ -243,7 +243,7 @@ export default function MostPopularCoursesPage() {
               <Link
                 key={course.title}
                 href={course.href}
-                className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-[#C1CBDB] bg-white shadow-2xs transition-all duration-200 hover:-translate-y-1 hover:border-gray-400 hover:shadow-md"
+                className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-[#C1CBDB] bg-white shadow-2xs transition-all duration-200 hover:-translate-y-1 hover:border-gray-400 hover:no-underline hover:shadow-md"
               >
                 <div>
                   {/* Thumbnail Container */}
@@ -289,7 +289,6 @@ export default function MostPopularCoursesPage() {
                     {/* Course Title */}
                     <h3
                       className="mt-2 line-clamp-2 text-base font-bold text-[#0D0F12] group-hover:text-[#0056D2] transition-colors leading-snug min-h-[44px]"
-                      title={course.title}
                     >
                       {course.title}
                     </h3>
@@ -415,7 +414,7 @@ export default function MostPopularCoursesPage() {
               <Link
                 key={c.title}
                 href={c.href}
-                className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-[#C1CBDB] bg-white shadow-2xs transition-all duration-200 hover:-translate-y-1 hover:border-gray-400 hover:shadow-md"
+                className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-[#C1CBDB] bg-white shadow-2xs transition-all duration-200 hover:-translate-y-1 hover:border-gray-400 hover:no-underline hover:shadow-md"
               >
                 <div>
                   <div className="relative aspect-[16/9] w-full overflow-hidden bg-gray-100">

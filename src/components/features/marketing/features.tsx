@@ -11,10 +11,11 @@ import {
 import { Reveal } from "./primitives";
 
 /* -------------------------------------------------------------------------
- * Graphic 01: Industry Partners Orbit Diagram (Cal.com style)
- * Clean faint concentric circles, central Careevo pill, square partner tiles.
+ * Graphic 01: Skill Track Coverage Diagram (Cal.com style)
+ * Clean faint concentric circles, central Careevo pill, square skill tiles.
+ * Tiles name skill areas, not third-party companies.
  * ------------------------------------------------------------------------- */
-function IndustryPartnersOrbitGraphic() {
+function SkillTrackOrbitGraphic() {
   return (
     <div className="relative flex h-[230px] sm:h-[240px] w-full items-center justify-center overflow-hidden rounded-2xl border border-gray-100 bg-[#FAFAFA]">
       {/* Concentric faint hairline orbit rings */}
@@ -22,29 +23,26 @@ function IndustryPartnersOrbitGraphic() {
       <div className="absolute size-32 rounded-full border border-gray-200/50" />
       <div className="absolute size-18 rounded-full border border-gray-200/40" />
 
-      {/* Orbit Tile 1: Top-Left (Google) */}
+      {/* Orbit Tile 1: Top-Left (Backend) */}
       <div className="absolute top-4 left-8 flex size-10 items-center justify-center rounded-xl border border-gray-200 bg-white shadow-2xs transition-transform duration-200 hover:scale-105">
-        <svg viewBox="0 0 24 24" className="size-5" aria-label="Google">
-          <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z" />
-          <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.34 24 12 24z" />
-          <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.97 0 12s.45 3.82 1.25 5.42l4.03-3.15z" />
-          <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z" />
-        </svg>
+        <span className="text-[10px] font-semibold tracking-tight text-gray-700">
+          Backend
+        </span>
       </div>
 
-      {/* Orbit Tile 2: Right (IBM) */}
+      {/* Orbit Tile 2: Right (Frontend) */}
       <div className="absolute right-6 top-14 flex size-10 items-center justify-center rounded-xl border border-gray-200 bg-white shadow-2xs transition-transform duration-200 hover:scale-105">
-        <span className="text-xs font-black tracking-tight text-gray-900">IBM</span>
+        <span className="text-[10px] font-semibold tracking-tight text-gray-700">
+          Frontend
+        </span>
       </div>
 
-      {/* Orbit Tile 3: Bottom-Left (Microsoft) */}
+      {/* Orbit Tile 3: Bottom-Left (Data & AI) */}
       <div className="absolute bottom-5 left-14 flex size-10 items-center justify-center rounded-xl border border-gray-200 bg-white shadow-2xs transition-transform duration-200 hover:scale-105">
-        <svg viewBox="0 0 24 24" className="size-4" aria-label="Microsoft">
-          <rect x="1" y="1" width="10" height="10" fill="#F25022" />
-          <rect x="13" y="1" width="10" height="10" fill="#7FBA00" />
-          <rect x="1" y="13" width="10" height="10" fill="#00A4EF" />
-          <rect x="13" y="13" width="10" height="10" fill="#FFB900" />
-        </svg>
+        <span className="text-center text-[10px] font-semibold leading-tight tracking-tight text-gray-700">
+          Data
+          <br />&amp; AI
+        </span>
       </div>
 
       {/* Center Core Pill: Careevo */}
@@ -157,9 +155,9 @@ function VerifiedCertificateGraphic() {
       {/* Floating Bottom Integrity Pill */}
       <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3.5 py-1 text-[11px] text-gray-700 shadow-2xs">
         <Lock className="size-3 text-gray-700" strokeWidth={1.8} />
-        <span className="font-semibold text-gray-900">HMAC-SHA256 Signed</span>
+        <span className="font-semibold text-gray-900">Tanda tangan digital</span>
         <span className="text-gray-300">•</span>
-        <span>Bebas Kecurangan</span>
+        <span>Rekaman kerja tersimpan</span>
       </div>
     </div>
   );
@@ -169,25 +167,25 @@ const CARDS = [
   {
     step: "01",
     id: "kursus",
-    title: "Pilih kursus terverifikasi profesional",
+    title: "Kursus yang kuratornya orang yang kerja di bidangnya",
     description:
-      "Temukan materi dan sertifikasi industri yang sesuai dengan arah kariermu. Kurikulum dirancang bersama praktisi Google, IBM, dan institusi global agar skill yang kamu bangun relevan dengan kebutuhan industri.",
-    graphic: <IndustryPartnersOrbitGraphic />,
+      "Materinya disusun dari lowongan yang baru saja dilamar banyak orang, lalu dijaga praktisi yang memang handles bidang itu. Jadi yang kamu pelajari itu yang perusahaan cari minggu ini, bukan yang masih teori doang.",
+    graphic: <SkillTrackOrbitGraphic />,
   },
   {
     step: "02",
     id: "socrates",
-    title: "Didampingi AI agent sesuai minatmu",
+    title: "Agent-nya nanya, bukan kasih jawaban",
     description:
-      "AI agent mempersonalisasi alur belajarmu, membantumu membedah logika yang buntu, dan menguji pemahaman secara bertahap tanpa jalan pintas atau jawaban instan.",
+      "Kalau kamu mentok di satu soal, dia bakal megang sampai kamu paham sendiri. Latihan ngikutin minat dan waktu luang kamu, bukan ngikutin kurikulum tetap.",
     graphic: <AiAgentPersonalizedGraphic />,
   },
   {
     step: "03",
     id: "sertifikat",
-    title: "Sertifikat dengan bukti progres nyata",
+    title: "Sertifikatmu bawa rekam jejak kerjaan",
     description:
-      "Setiap sertifikat memuat laporan riwayat pengerjaan dan bukti kompetensi autentik. Rekruter mendapat bukti nyata kemampuanmu, terbebas dari kecurangan atau hasil salin-tempel AI.",
+      "Ada tugasnya, ada revisi kamu, ada tesnya. Rekruter cuma perlu buka satu tautan, tanpa install apa pun, buat ngecek itu hasil kerjamu sendiri.",
     graphic: <VerifiedCertificateGraphic />,
   },
 ];
@@ -213,7 +211,8 @@ export function MarketingFeatures() {
 
           <Reveal delay={120}>
             <p className="mt-4 text-base text-gray-500 leading-relaxed max-w-xl mx-auto">
-              Mulai dari kurasi materi industri, bimbingan AI adaptif sesuai minatmu, sampai sertifikat dengan rekam jejak yang membuktikan kemampuan aslimu.
+              Mulai dari materi yang lagi dicari, latihan yang ngikutin minat
+              kamu, sampai sertifikat yang bisa dibuka rekruter.
             </p>
           </Reveal>
 
@@ -223,14 +222,14 @@ export function MarketingFeatures() {
                 href="/daftar"
                 className="inline-flex items-center gap-1.5 rounded-full bg-gray-950 px-5 py-2.5 text-sm font-medium text-white shadow-xs transition hover:bg-gray-800"
               >
-                <span>Coba latihan gratis</span>
+                <span>Cobain challenge gratis</span>
                 <ChevronRight className="size-4 opacity-70" />
               </Link>
               <Link
                 href="/loker"
                 className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-800 shadow-xs transition hover:bg-gray-50"
               >
-                <span>Lihat alur audit</span>
+                <span>Lihat cara cek loker</span>
                 <ChevronRight className="size-4 opacity-70" />
               </Link>
             </div>

@@ -1,5 +1,5 @@
 /**
- * evaluasi.ts — evaluate a loker posting against the candidate profile with Gemini.
+ * evaluasi.ts — evaluate a loker posting against the candidate profile.
  *
  * Adapted from career-ops (MIT), © 2026 Santiago Fernández de Valderrama.
  * Source: gemini-eval.mjs — context assembly, systemInstruction split, the
@@ -8,120 +8,47 @@
  * https://github.com/career-ops-hq/career-ops
  *
  * Divergences from upstream, each deliberate:
- *   - Uses `@google/genai` (the current SDK), not `@google/generative-ai`.
- *     Upstream's SDK last shipped April 2025 and Google has replaced it; porting
- *     onto a dead dependency only defers the problem.
- *   - Constrains output with a `responseSchema` instead of parsing a
- *     `---SCORE_SUMMARY---` regex trailer. A regex over prose fails silently when
- *     the model rephrases; a schema makes that class of bug impossible.
+ *   - Resolves the model through the LLM port (`getLlm`), not `@google/genai`
+ *     directly. Upstream is Gemini-only; Careevo must reach any OpenAI-compatible
+ *     gateway (a local 9Router, vLLM, Ollama) and must never branch on
+ *     `process.env.GEMINI_API_KEY` outside the port — a Gemini key was once the
+ *     only switch, and it left every other model-backed surface on a different
+ *     route. AGENTS.md forbids that branch outright.
  *   - Returns a typed result or a typed failure. Upstream `process.exit(1)`s,
  *     which is correct for a CLI and wrong for a request handler.
+ *   - No `responseSchema`. The schema constraint was real on Gemini, but the
+ *     port cannot express it for every provider, and a schema that silently
+ *     applies to one route and not another is worse than none. The shape is
+ *     enforced in two places that work everywhere instead: the exact key names
+ *     are spelled out in the prompt (`SKEMA_HASIL` in prompt.ts) and
+ *     `validasiHasil` rejects anything that does not validate. See
+ *     "Where the shape is enforced" below.
  *
  * Failure policy (a product decision, not a technical one): when evaluation is
  * unavailable, the caller shows NO score. It never falls back to a heuristic
  * score — a made-up number presented as an evaluation is worse than an absent one.
+ * The port's stub is prose, not a score, so a stubbed port is reported as
+ * `tanpa_kunci` rather than being parsed and rendered as a result.
  */
 
-import { GoogleGenAI, Type } from "@google/genai";
 import type { JobFixture, ProfileFixture } from "@/lib/fixtures";
+import { getLlm, hasLlm } from "@/lib/llm/port";
+import { parseJsonMaybeFenced } from "@/lib/llm/json";
+import { klasifikasiGagal, type JenisGagal } from "@/lib/llm/gagal";
 import { bangunPrompt } from "./prompt";
 import { validasiHasil, type HasilEvaluasi } from "./skema";
 
-/** Model choice. Flash is the free-tier model upstream defaults to. */
-const MODEL = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
+/** Upstream's value: stable enough for a structured evaluation, not degenerate. */
+const SUHU = 0.4;
 
 export type HasilEvaluasiAtauGagal =
   | { ok: true; hasil: HasilEvaluasi }
-  | { ok: false; alasan: JenisGagal; pesan: string };
+  | { ok: false; alasan: JenisGagal; pesan: string; detail?: string };
 
-export type JenisGagal =
-  /** No API key configured — the feature is off, not broken. */
-  | "tanpa_kunci"
-  /** Free-tier quota exhausted, or rate limited. */
-  | "kuota"
-  /** The model returned something that does not match the schema. */
-  | "hasil_tidak_valid"
-  /** Network, auth, or anything else. */
-  | "gagal";
-
-/**
- * JSON schema handed to Gemini so the response is constrained at generation time.
- *
- * `responseMimeType: "application/json"` plus this schema is what removes the
- * prose-parsing problem. It is also why `validasiHasil` still exists: a schema
- * constrains shape, not meaning, so the values are checked independently.
- */
-const SKEMA_RESPONS = {
-  type: Type.OBJECT,
-  properties: {
-    skor_global: { type: Type.NUMBER },
-    dimensi: {
-      type: Type.OBJECT,
-      properties: {
-        match_cv: { type: Type.NUMBER },
-        north_star: { type: Type.NUMBER },
-        kompensasi: { type: Type.NUMBER },
-        budaya: { type: Type.NUMBER },
-        red_flag: { type: Type.NUMBER },
-      },
-      required: ["match_cv", "north_star", "kompensasi", "budaya", "red_flag"],
-    },
-    arketipe: { type: Type.STRING },
-    ringkasan: { type: Type.STRING },
-    kecocokan: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          syarat: { type: Type.STRING },
-          bobot: { type: Type.STRING },
-          bukti: { type: Type.STRING },
-          gap: { type: Type.STRING },
-        },
-        required: ["syarat", "bobot", "bukti", "gap"],
-      },
-    },
-    level: { type: Type.STRING },
-    kompensasi: { type: Type.STRING },
-    personalisasi: { type: Type.ARRAY, items: { type: Type.STRING } },
-    wawancara: { type: Type.ARRAY, items: { type: Type.STRING } },
-    rekomendasi: { type: Type.STRING },
-  },
-  required: [
-    "skor_global",
-    "dimensi",
-    "arketipe",
-    "ringkasan",
-    "kecocokan",
-    "level",
-    "kompensasi",
-    "personalisasi",
-    "wawancara",
-    "rekomendasi",
-  ],
-} as const;
-
-/**
- * Classify a thrown error into a cause the UI can act on.
- *
- * Upstream distinguishes these to print a helpful CLI message; here the
- * distinction drives what the UI says, so the mapping is the load-bearing part.
- * Never include the API key in a message — upstream's `.split(apiKey).join(...)`
- * redaction is the same defence.
- */
-function klasifikasiError(err: unknown): JenisGagal {
-  const pesan = (err instanceof Error ? err.message : String(err)).toLowerCase();
-  if (pesan.includes("quota") || pesan.includes("rate") || pesan.includes("429") || pesan.includes("resource_exhausted")) {
-    return "kuota";
-  }
-  return "gagal";
-}
-
-/** Strip anything key-shaped from a message before it reaches a response. */
-function bersihkanPesan(pesan: string, apiKey: string): string {
-  const tanpaKunci = apiKey ? pesan.split(apiKey).join("[REDACTED]") : pesan;
-  return tanpaKunci.slice(0, 300);
-}
+// The failure classification lives in `@/lib/llm/gagal` now, shared with the
+// other model-backed features. Re-exported here because `actions/evaluasi.ts`
+// and any other importer has always reached for it through this module.
+export type { JenisGagal };
 
 /**
  * Evaluate one posting. Never throws — every failure is a typed result.
@@ -134,8 +61,11 @@ export async function evaluasiLoker(
   job: JobFixture,
   profile: ProfileFixture,
 ): Promise<HasilEvaluasiAtauGagal> {
-  const apiKey = process.env.GEMINI_API_KEY ?? "";
-  if (!apiKey) {
+  const llm = getLlm();
+
+  // The stub answers with prose, so parsing it would be nonsense. Reporting it
+  // as `tanpa_kunci` keeps the failure policy intact: no model, no score.
+  if (!llm.available) {
     return {
       ok: false,
       alasan: "tanpa_kunci",
@@ -145,58 +75,33 @@ export async function evaluasiLoker(
 
   const prompt = bangunPrompt(job, profile);
 
-  try {
-    const ai = new GoogleGenAI({ apiKey });
+  const hasil = await llm.generate(prompt, { json: true, temperature: SUHU, maxTokens: 8192 });
+  if (!hasil.ok) return { ok: false, ...klasifikasiGagal(hasil) };
 
-    const response = await ai.models.generateContent({
-      model: MODEL,
-      contents: prompt,
-      config: {
-        // 0.4 — low enough for a stable structured evaluation, high enough not to
-        // degenerate. Upstream's value.
-        temperature: 0.4,
-        maxOutputTokens: 8192,
-        responseMimeType: "application/json",
-        responseSchema: SKEMA_RESPONS,
-      },
-    });
-
-    const teks = response.text;
-    if (!teks) {
-      return { ok: false, alasan: "hasil_tidak_valid", pesan: "Model tidak mengembalikan isi." };
-    }
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(teks);
-    } catch {
-      return {
-        ok: false,
-        alasan: "hasil_tidak_valid",
-        pesan: "Hasil model bukan JSON yang valid.",
-      };
-    }
-
-    try {
-      return { ok: true, hasil: validasiHasil(parsed) };
-    } catch (err) {
-      return {
-        ok: false,
-        alasan: "hasil_tidak_valid",
-        pesan: err instanceof Error ? err.message : "Hasil model tidak sesuai skema.",
-      };
-    }
-  } catch (err) {
-    const alasan = klasifikasiError(err);
+  // Tolerant parse: a model that wraps the object in a ```json fence, or appends
+  // a sentence after it, has still answered correctly. Reporting that as a
+  // provider fault would be wrong, and it is common on gateway models.
+  const parsed = parseJsonMaybeFenced(hasil.text);
+  if (parsed === null) {
     return {
       ok: false,
-      alasan,
-      pesan: bersihkanPesan(err instanceof Error ? err.message : String(err), apiKey),
+      alasan: "hasil_tidak_valid",
+      pesan: "Balasan model bukan JSON yang bisa dibaca.",
+    };
+  }
+
+  try {
+    return { ok: true, hasil: validasiHasil(parsed) };
+  } catch (err) {
+    return {
+      ok: false,
+      alasan: "hasil_tidak_valid",
+      pesan: err instanceof Error ? err.message : "Hasil model tidak sesuai skema.",
     };
   }
 }
 
 /** Whether the feature is configured at all — lets the UI hide rather than error. */
 export function evaluasiTersedia(): boolean {
-  return Boolean(process.env.GEMINI_API_KEY);
+  return hasLlm();
 }

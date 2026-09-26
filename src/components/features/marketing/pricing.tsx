@@ -17,14 +17,14 @@ type Plan = {
 const PLANS: Plan[] = [
   {
     badge: "Gratis",
-    note: "Untuk mulai belajar",
+    note: "Buat coba-coba dulu",
     monthly: "$0",
     annual: "$0",
     features: [
-      { text: "Akses dashboard", included: true },
       { text: "3 challenge per bulan", included: true },
-      { text: "Badge terverifikasi HMAC", included: true },
-      { text: "Dukungan komunitas", included: true },
+      { text: "Rekam jejak kerja tersimpan", included: true },
+      { text: "Sertifikat yang bisa dibuka publik", included: true },
+      { text: "Komunitas peserta", included: true },
       { text: "Analitik lanjutan", included: false },
     ],
     cta: "Mulai gratis",
@@ -32,14 +32,13 @@ const PLANS: Plan[] = [
   },
   {
     badge: "Peserta",
-    note: "Untuk karier yang serius",
+    note: "Kalau kamu serius nyari kerja",
     monthly: "$19",
     annual: "$15",
     features: [
-      { text: "Challenge tanpa batas", included: true },
-      { text: "Navigator prioritas", included: true },
-      { text: "Halaman verifikasi publik", included: true },
-      { text: "Riwayat submission penuh", included: true },
+      { text: "Challenge tanpa batas bulanan", included: true },
+      { text: "Rekomendasi latihan prioritas", included: true },
+      { text: "Riwayat submission lengkap", included: true },
       { text: "Dukungan standar", included: true },
     ],
     cta: "Pilih paket",
@@ -53,8 +52,8 @@ const PLANS: Plan[] = [
     features: [
       { text: "Semua fitur Peserta", included: true },
       { text: "Kelas privat", included: true },
-      { text: "Review verifikator prioritas", included: true },
-      { text: "Analitik cohort", included: true },
+      { text: "Penilaian oleh verifikator", included: true },
+      { text: "Analitik kelas", included: true },
       { text: "Dukungan prioritas", included: true },
     ],
     cta: "Pilih paket",
@@ -92,8 +91,8 @@ export function MarketingPricing() {
           </Reveal>
           <Reveal delay={80}>
             <p className="mb-9 text-base text-gray-500">
-              Mulai gratis, naik kelas saat butuh, dan skalakan tanpa hambatan.
-              Pilih paket yang paling pas untukmu hari ini.
+              Mulai dari nol, naik kelas kalau butuh. Nggak ada yang
+              dipaksa dulu.
             </p>
           </Reveal>
           <Reveal delay={140}>

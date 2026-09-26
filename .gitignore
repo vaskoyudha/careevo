@@ -46,6 +46,11 @@ next-env.d.ts
 # runtime data (file-based resume store: structured JSON + uploaded CV/portfolio)
 /.data/
 
+# career-ops: /engine/ is the vendored MIT core and IS committed (it is spawned
+# at runtime). This is only the original upstream clone kept for reference —
+# engine/ came from it, but the clone itself is not a Careevo source tree.
+/career-ops/
+
 # playwright mcp tooling artifacts
 /.playwright-mcp/
 
@@ -53,11 +58,23 @@ next-env.d.ts
 /.omo/
 /.omc/
 
+# python bytecode (scripts/generate-hero-backdrop.py is committed; its cache is not)
+__pycache__/
+*.py[cod]
+
 # runtime data store (kursus & kurikulum tersimpan)
 /data/
 
 # berkas unggahan runtime (cover kursus, PDF materi)
 /public/uploads/
+
+# SiJago (the vendored DeepTutor app): source is committed, build/deps are not
+/features/sijago/node_modules/
+/features/sijago/.next/
+/features/sijago/.turbo/
+/features/sijago/dist/
+/features/sijago/test-results/
+/features/sijago/playwright-report/
 
 # dokumen kerja proposal lomba (lokal, tidak dipublikasikan di repositori)
 /pendahuluan.md

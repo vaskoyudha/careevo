@@ -30,5 +30,15 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    "features/sijago",
+    // career-ops: two vendored/upstream trees that are never part of the
+    // Careevo build graph. `engine/` is the verbatim vendored core (orchestrated
+    // via child_process from src/lib/career-ops/); `career-ops/` is the original
+    // upstream clone kept as a reference (its own `web/` app has its own
+    // tsconfig/lint rules). Neither should be type-checked by Careevo's tsc.
+    "career-ops",
+    "engine"
+  ]
 }

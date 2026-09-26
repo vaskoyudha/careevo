@@ -1,5 +1,12 @@
 import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
+
+const interDisplay = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter-display",
+});
 
 export const metadata: Metadata = {
   title: {
@@ -23,7 +30,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="id">
+    <html lang="id" className={interDisplay.variable}>
       <body>{children}</body>
     </html>
   );

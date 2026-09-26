@@ -140,21 +140,17 @@ await checkRoute({
 await checkRoute({ label: "edit mode stays", path: "/onboarding?edit=1", cookie: learnerCookie, status: 200 });
 await checkRoute({ label: "demo public", path: "/onboarding/demo", status: 200 });
 await checkRoute({
-  label: "public login has no study chat",
+  label: "public login has no learner path",
   path: "/masuk",
   status: 200,
-  forbidden: ["data-study-chat"],
+  forbidden: ["data-path-source"],
 });
 await checkRoute({
   label: "recommendation path",
   path: "/belajar/jalur",
   cookie: learnerCookie,
   status: 200,
-  required: [
-    'data-path-source="recommendation"',
-    'data-study-chat="ready"',
-    "Mulai kursus",
-  ],
+  required: ['data-path-source="recommendation"', "Mulai kursus"],
   forbidden: ['data-path-source="active-enrollment"'],
 });
 await checkRoute({
@@ -164,7 +160,6 @@ await checkRoute({
   status: 200,
   required: [
     'data-path-source="active-enrollment"',
-    'data-study-chat="ready"',
     'data-module-status="current"',
     "Lanjutkan belajar",
   ],
@@ -177,6 +172,110 @@ await checkRoute({
   status: 200,
   required: ['data-path-source="recommendation"', "Mulai kursus"],
   forbidden: ['data-path-source="active-enrollment"'],
+});
+
+console.log("\n— mastery path —");
+await checkRoute({
+  label: "mastery index opens",
+  path: "/belajar/mastery",
+  cookie: learnerCookie,
+  status: 200,
+  required: ["Jalur Penguasaan"],
+});
+await checkRoute({
+  label: "mastery needs a session",
+  path: "/belajar/mastery",
+  cookie: undefined,
+  status: 307,
+  location: "/masuk",
+});
+await checkRoute({
+  label: "unknown mastery topic is 404",
+  path: "/belajar/mastery/aaaaaaaaaaaa",
+  cookie: learnerCookie,
+  status: 404,
+});
+await checkRoute({
+  label: "path-escaping mastery id is 404",
+  path: "/belajar/mastery/..%2F..%2Fetc%2Fpasswd",
+  cookie: learnerCookie,
+  status: 404,
+});
+await checkRoute({
+  label: "malformed mastery id is 404",
+  path: "/belajar/mastery/SHORT",
+  cookie: learnerCookie,
+  status: 404,
+});
+
+console.log("\n— books —");
+await checkRoute({
+  label: "book library opens",
+  path: "/belajar/buku",
+  cookie: learnerCookie,
+  status: 200,
+  required: ["Buku"],
+});
+await checkRoute({
+  label: "book library needs a session",
+  path: "/belajar/buku",
+  cookie: undefined,
+  status: 307,
+  location: "/masuk",
+});
+await checkRoute({
+  label: "unknown book is 404",
+  path: "/belajar/buku/aaaaaaaaaaaa",
+  cookie: learnerCookie,
+  status: 404,
+});
+await checkRoute({
+  label: "path-escaping book id is 404",
+  path: "/belajar/buku/..%2F..%2Fetc%2Fpasswd",
+  cookie: learnerCookie,
+  status: 404,
+});
+await checkRoute({
+  label: "malformed book id is 404",
+  path: "/belajar/buku/SHORT",
+  cookie: learnerCookie,
+  status: 404,
+});
+
+console.log("\n— practice quizzes —");
+await checkRoute({
+  label: "latihan index opens",
+  path: "/belajar/latihan",
+  cookie: learnerCookie,
+  status: 200,
+  required: ["Latihan Soal", "Buat latihan baru"],
+});
+await checkRoute({
+  label: "latihan needs a session",
+  path: "/belajar/latihan",
+  cookie: undefined,
+  status: 307,
+  location: "/masuk",
+});
+// 404 rather than 403: a 403 would confirm the id exists, which is the very
+// leak the owner-scoped store exists to prevent.
+await checkRoute({
+  label: "unknown latihan is 404",
+  path: "/belajar/latihan/aaaaaaaaaaaa",
+  cookie: learnerCookie,
+  status: 404,
+});
+await checkRoute({
+  label: "path-escaping latihan id is 404",
+  path: "/belajar/latihan/..%2F..%2Fetc%2Fpasswd",
+  cookie: learnerCookie,
+  status: 404,
+});
+await checkRoute({
+  label: "malformed latihan id is 404",
+  path: "/belajar/latihan/SHORT",
+  cookie: learnerCookie,
+  status: 404,
 });
 
 console.log("\n— profile owned by a different account (same browser) —");

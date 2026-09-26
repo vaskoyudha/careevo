@@ -7,28 +7,28 @@ import { Reveal } from "./primitives";
 
 const FAQS = [
   {
-    q: "Apa itu Careevo dan untuk siapa?",
-    a: "Careevo adalah platform persiapan kerja dan verifikasi kompetensi bagi developer yang ingin membuktikan keahlian nyata di era AI, mulai dari latihan coding, persiapan interview, sampai kurasi lowongan kerja.",
+    q: "Ini buat siapa?",
+    a: "Buat kamu yang lagi nyari kerja dan pengen nunjukin skill-nya, bukan cuma sertifikat. Bisa juga dipakai verifikator dan tim rekrutmen.",
   },
   {
-    q: "Bagaimana Careevo membantu saya lulus interview kerja?",
-    a: "Careevo tidak hanya menguji kode jadi. Melalui Socrates AI, kamu diajak berdiskusi tentang alasan memilih struktur kode tertentu, pengujian sistem, dan trade-off arsitektur, layaknya interview teknis sungguhan.",
+    q: "Bedanya sama ngoding sendiri apa?",
+    a: "Kamu latihan soal yang mirip interview beneran, dan tutor-nya nanya alasan di balik jawabannya. Semua yang kamu kerjakan dicatat, jadi portofoliomu bisa dibuka rekruter lewat satu tautan.",
   },
   {
-    q: "Bagaimana sistem mencocokkan lowongan dengan skill dan CV saya?",
-    a: "Careevo membandingkan keahlian dan CV kamu dengan lowongan kerja yang telah diverifikasi bebas scam oleh Sentinel. Jika ada skill yang belum terpenuhi, Navigator langsung menyarankan task latihan untuk menutup gap tersebut.",
+    q: "Gimana loker dicocokkan sama skill saya?",
+    a: "Kami bandingkan profil dan CV kamu dengan loker yang lolos cek. Kalau ada skill yang belum kamu punya, tutor langsung nyiapin latihan buat nutup celah itu.",
   },
   {
-    q: "Bagaimana verifikasi bukti kerja bekerja?",
-    a: "Setiap proses penyelesaian tugas dan pengujian dicatat otomatis dan ditandatangani secara kriptografis. Rekruter dapat membuka tautan publik untuk memastikan keaslian bukti kerjamu.",
+    q: "Rekam jejak kerja saya bisa dibuka siapa?",
+    a: "Siapa pun yang pegang linknya. Isinya daftar tugas yang kamu kerjakan, revisi, dan hasil tesnya, plus tanda tangan digital yang bikin rekaman itu nggak bisa diubah seenaknya.",
   },
   {
-    q: "Apakah data saya aman dan apa yang direkam?",
-    a: "Ya. Careevo tidak memakai keylogger, tidak merekam geolokasi, dan tidak mendeteksi identitas: kamera tidak dipakai untuk mengenali wajah. Rancangan sesi terverifikasi memang mengaktifkan kamera, tetapi hanya selama sesi terverifikasi yang kamu setujui — kamera tidak pernah menyala di luar sesi itu, dan permintaan akses kamera belum aktif di aplikasi ini. Yang dicatat hari ini hanya perpindahan tab, jendela yang kehilangan fokus, serta awal dan akhir sesi; catatan status kamera berasal dari laporanmu sendiri, dan pencatatan koneksi belum ada. Bukti sesi hanya dilihat peserta dan staf berwenang, dan kamu bisa mengajukan keberatan lewat pengaturan. Identitas di halaman portofolio publik juga terlindungi: yang tampil hanya username.",
+    q: "Data saya direkam apa aja?",
+    a: "Yang dicatat: perpindahan tab, kapan kamu mulai dan selesai belajar, dan jawaban yang kamu ketik. Kamera tidak dipakai, dan halaman portofolio publik hanya menampilkan username. Rinciannya ada di halaman privasi.",
   },
   {
-    q: "Bagaimana loker diaudit agar bebas penipuan?",
-    a: "Agen Sentinel memindai setiap lowongan kerja dari pola permintaan biaya rekrutmen, nomor rekening transfer pribadi, dan usia domain situs sebelum lowongan tersebut ditampilkan.",
+    q: "Bagaimana loker palsu dicek?",
+    a: "Sebelum loker muncul, kami cek apakah ada biaya pendaftaran, nomor rekening pribadi, atau domain yang baru didirikan. Yang muat pola seperti itu nggak ditampilin.",
   },
 ];
 
@@ -64,7 +64,7 @@ export function MarketingFaq() {
                 ))}
               </div>
               <p className="mb-6 text-gray-700">
-                Masih ada pertanyaan? Tim kami siap membantu.
+                Masih ada yang mau ditanyain? Balas aja, tim kami jawab.
               </p>
               <a
                 href="/masuk"
