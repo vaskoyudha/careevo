@@ -73,22 +73,8 @@ export const learnerNavItems: NavItem[] = [
   },
 ];
 
-/**
- * `tone` is the bar's surface, not a colour scheme: the dropdown is portalled
- * and always light, so only the trigger adapts. It is a prop rather than a
- * `.is-winged` descendant selector because the trigger's chevron is an icon
- * with no stable class to hang a rule on, and a wrong guess there is a
- * black-on-black chevron rather than a visible bug.
- */
-export function AccountMenu({
-  session,
-  tone = "light",
-}: {
-  session: SessionPayload;
-  tone?: "light" | "dark";
-}) {
+export function AccountMenu({ session }: { session: SessionPayload }) {
   const [isPending, startTransition] = useTransition();
-  const dark = tone === "dark";
   const roleLabel =
     session.role === "admin"
       ? "Admin"
@@ -101,11 +87,7 @@ export function AccountMenu({
         <button
           type="button"
           aria-label="Buka menu akun"
-          className={`group flex cursor-pointer items-center gap-1 rounded-full p-1 select-none focus-visible:outline-none focus-visible:ring-2 ${
-            dark
-              ? "hover:bg-white/15 focus-visible:ring-white/50"
-              : "hover:bg-white/85 focus-visible:ring-[#0056D2]/40"
-          }`}
+          className="group flex cursor-pointer items-center gap-1 rounded-full p-1 select-none hover:bg-white/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0056D2]/40"
         >
           <span
             className="grid size-8 place-items-center rounded-full bg-[#0056D2] text-xs font-bold text-white uppercase"
@@ -114,9 +96,7 @@ export function AccountMenu({
             {session.nama.charAt(0)}
           </span>
           <ChevronDown
-            className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180 ${
-              dark ? "text-white/75" : "text-black/60"
-            }`}
+            className="h-3.5 w-3.5 shrink-0 text-black/60 transition-transform duration-200 group-data-[state=open]:rotate-180"
             strokeWidth={2}
           />
         </button>
