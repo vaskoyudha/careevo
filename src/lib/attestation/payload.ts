@@ -19,19 +19,13 @@
  * Modul ini **pure**: tidak membaca env, tidak menyentuh database.
  */
 
-import type { AttestationPayload } from "./sign";
+import { canonicalize, type AttestationPayload } from "./sign";
 
 export type { AttestationPayload };
 
-/** String JSON kanonik sebuah payload (kunci terurut). Sama dengan `sign.ts`. */
+/** String JSON kanonik sebuah payload (kunci terurut). Alias `sign.canonicalize`. */
 export function kanonik(payload: AttestationPayload): string {
-  const terurut = Object.keys(payload)
-    .sort()
-    .reduce<Record<string, unknown>>((akumulator, kunci) => {
-      akumulator[kunci] = (payload as unknown as Record<string, unknown>)[kunci];
-      return akumulator;
-    }, {});
-  return JSON.stringify(terurut);
+  return canonicalize(payload);
 }
 
 /**
