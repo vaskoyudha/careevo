@@ -14,6 +14,13 @@ export interface SentinelInput {
   apply_url: string | null;
   company_email: string | null;
   domain_age_days: number | null;
+  /**
+   * Whether the posting names an employer a candidate could verify. Omitted
+   * means "we did not check" — not "unverifiable" — so a caller holding no
+   * listing detail (the job seeker inbox, before enrichment) does not
+   * quarantine its entire board. Only an explicit `false` is a signal.
+   */
+  employer_known?: boolean;
 }
 
 export interface SentinelOutput {
@@ -82,6 +89,13 @@ export function auditLoker(input: SentinelInput): SentinelOutput {
     core.add("domain_baru");
   }
 
+  // An identity signal, not a demand: a posting that names no checkable employer
+  // deserves a look, but it never reached `fee_flags`, because that axis means
+  // "money or data was requested" and an anonymous employer is not a request.
+  if (input.employer_known === false) {
+    core.add("perusahaan_tidak_terverifikasi");
+  }
+
   if (input.apply_url && /\.apk(\?|#|$)/i.test(input.apply_url)) {
     core.add("link_apk");
   }
@@ -128,14 +142,31 @@ export function auditLoker(input: SentinelInput): SentinelOutput {
 }
 
 /**
- * Human-readable label for any Sentinel signal id — fee rule or trust flag.
- * Keeps the detail page from having to know which family a flag came from.
+ * Identity signals: raised by `auditLoker` itself, belonging to neither the fee
+ * rules nor the trust layer. They are still content-family signals and still
+ * reach `flags`.
+ *
+ * This map exists because they would otherwise render as raw snake_case in the
+ * UI — `email_pribadi` and `domain_baru` already did, on the shipped fixtures.
+ * A learner reading "domain_baru" has been told nothing.
+ */
+const LABEL_IDENTITAS: Record<string, string> = {
+  email_pribadi: "Email perusahaan memakai email pribadi",
+  domain_baru: "Domain perusahaan masih baru",
+  perusahaan_tidak_terverifikasi: "Nama perusahaan tidak bisa diverifikasi",
+};
+
+/**
+ * Human-readable label for any Sentinel signal id — fee rule, trust flag or
+ * identity signal. Keeps the detail page from having to know which family a flag
+ * came from.
  *
  * `Object.hasOwn` rather than `in`: `in` walks the prototype chain, so
  * `"toString" in LABEL_KEPERCAYAAN` is true and this would return the inherited
  * `toString` *function* where a string is expected.
  */
 export function labelSinyal(flag: string): string {
+  if (Object.hasOwn(LABEL_IDENTITAS, flag)) return LABEL_IDENTITAS[flag];
   if (Object.hasOwn(LABEL_KEPERCAYAAN, flag)) return LABEL_KEPERCAYAAN[flag];
   return labelAturan(flag);
 }
