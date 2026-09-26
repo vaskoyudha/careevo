@@ -120,7 +120,7 @@ export function ProgramDetailView({ program }: { program: ProgramDetails }) {
               </div>
               <span className="text-sm text-gray-700">
                 Instructor:{" "}
-                <Link href="#instructor" className="font-semibold text-[#0056D2] hover:underline">
+                <Link href="#instructor" className="font-semibold text-[#0056D2]">
                   {program.instructor}
                 </Link>
               </span>
@@ -147,7 +147,7 @@ export function ProgramDetailView({ program }: { program: ProgramDetails }) {
                 Included with <strong className="text-[#00255D] font-bold">careevo PLUS</strong>
               </span>
               <span className="text-gray-400">•</span>
-              <Link href="/careevo-plus" className="font-semibold text-[#0056D2] hover:underline">
+              <Link href="/careevo-plus" className="font-semibold text-[#0056D2]">
                 Learn more
               </Link>
             </div>
@@ -347,7 +347,7 @@ export function ProgramDetailView({ program }: { program: ProgramDetails }) {
                       </div>
                       <Link
                         href="/daftar"
-                        className="text-xs font-bold text-[#0056D2] hover:underline"
+                        className="text-xs font-bold text-[#0056D2]"
                       >
                         Explore course →
                       </Link>

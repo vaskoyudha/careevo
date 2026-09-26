@@ -32,7 +32,7 @@ export function PromoCard() {
 
       <p className="text-[12px] leading-relaxed text-[#48606e]">
         Belajar untuk kerja?{" "}
-        <Link href="/bisnis" className="font-medium text-[#1b6ca8] hover:underline">
+        <Link href="/bisnis" className="font-medium text-[#1b6ca8]">
           Lihat Careevo Bisnis
         </Link>{" "}
         untuk tim.

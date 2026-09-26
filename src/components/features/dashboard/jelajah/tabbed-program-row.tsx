@@ -86,7 +86,7 @@ export function TabbedProgramRow({
           </div>
           <Link
             href={lihatSemuaHref}
-            className="mb-1 shrink-0 text-[13px] font-medium text-[#1b6ca8] hover:underline"
+            className="mb-1 shrink-0 text-[13px] font-medium text-[#1b6ca8]"
           >
             Lihat program populer
           </Link>

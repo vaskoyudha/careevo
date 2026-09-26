@@ -269,7 +269,7 @@ function RuangBelajar({
       <div className="bg-[#f5f7fa]">
         <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
           <nav aria-label="Breadcrumb" className="text-sm text-gray-500">
-            <Link href="/belajar" className="hover:text-[#0056D2] hover:underline">
+            <Link href="/belajar" className="hover:text-[#0056D2]">
               Belajar
             </Link>
             <span aria-hidden="true"> / </span>
@@ -406,7 +406,7 @@ function RuangBelajar({
                                 setModulTerbuka(terbuka ? null : m.id);
                               }}
                               aria-expanded={terbuka}
-                              className="cursor-pointer font-medium text-[#0056D2] hover:underline"
+                              className="cursor-pointer font-medium text-[#0056D2]"
                             >
                               {terbuka ? "Tutup materi" : "Buka materi"}
                             </button>
@@ -415,7 +415,7 @@ function RuangBelajar({
                               href={m.url}
                               target="_blank"
                               rel="noreferrer"
-                              className="font-medium text-[#0056D2] hover:underline"
+                              className="font-medium text-[#0056D2]"
                             >
                               Buka materi ↗
                             </a>
@@ -576,7 +576,7 @@ function RuangBelajar({
                 href={kursus.url}
                 target="_blank"
                 rel="noreferrer"
-                className="mt-3 block text-center text-sm font-medium text-[#0056D2] hover:underline"
+                className="mt-3 block text-center text-sm font-medium text-[#0056D2]"
               >
                 Buka materi eksternal ↗
               </a>

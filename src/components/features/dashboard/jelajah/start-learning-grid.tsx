@@ -32,7 +32,7 @@ export function StartLearningGrid({
           Paling populer, ramah pemula
           <Link
             href="/belajar/jalur"
-            className="inline-flex items-center gap-1 font-medium text-[#1b6ca8] hover:underline"
+            className="inline-flex items-center gap-1 font-medium text-[#1b6ca8]"
           >
             <Pencil className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
             Ubah
@@ -44,7 +44,7 @@ export function StartLearningGrid({
             {topik.map((tag, i) => (
               <span key={tag} className="flex items-center gap-1.5">
                 {i > 0 ? <span aria-hidden="true">|</span> : null}
-                <Link href={`/belajar?q=${encodeURIComponent(tag)}`} className="text-[#1b6ca8] hover:underline">
+                <Link href={`/belajar?q=${encodeURIComponent(tag)}`} className="text-[#1b6ca8]">
                   {tag}
                 </Link>
               </span>

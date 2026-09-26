@@ -145,7 +145,7 @@ export function ProfileView({
                           href={`https://${editable.website.replace(/^https?:\/\//, "")}`}
                           target="_blank"
                           rel="noreferrer noopener"
-                          className="inline-flex items-center gap-1 text-blue-600 hover:underline"
+                          className="inline-flex items-center gap-1 text-blue-600"
                         >
                           <Globe className="size-3.5" strokeWidth={1.75} aria-hidden="true" />
                           {editable.website}
@@ -309,7 +309,7 @@ export function ProfileView({
                   <span className="mt-3 inline-flex w-fit rounded-full border border-blue-200/80 bg-white/70 px-2.5 py-0.5 text-[11px] font-medium text-blue-700 backdrop-blur-sm">
                     {item.tags[0] ?? "Umum"}
                   </span>
-                  <h3 className="mt-2 line-clamp-2 text-sm font-semibold text-gray-900 group-hover:underline">
+                  <h3 className="mt-2 line-clamp-2 text-sm font-semibold text-gray-900">
                     {item.title}
                   </h3>
                   <p className="mt-auto pt-3 text-xs text-gray-500">

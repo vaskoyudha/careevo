@@ -729,7 +729,7 @@ const MASALAH_SOLUSI: MasalahSolusiItem[] = [
     nomor: "03",
     judul: "Portofolio dan sertifikat bisa dibuat AI.",
     masalah:
-      "65% perekrut bilang banjir lamaran hasil AI bikin skill kandidat makin sukar diverifikasi, dan 67% merasa proses rekrutmennya jadi lebih lambat.",
+      "65% manajer perekrutan bilang banjir lamaran hasil AI bikin skill kandidat makin sukar diverifikasi, dan 67% pimpinan HR merasa proses rekrutmennya jadi lebih lambat.",
     sumber: "Robert Half · 2.000+ manajer perekrutan, 2026",
     solusi:
       "Tiap tugas diuji, dicatat, dan ditandatangani digital. Kamu harus bisa mempertanggungjawabkan hasil kerjamu sendiri, dan rekruter bisa mengeceknya dari satu tautan.",

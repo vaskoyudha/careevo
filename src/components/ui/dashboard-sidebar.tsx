@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { logoutAction } from "@/actions/auth";
 import { cn } from "@/lib/utils";
@@ -21,6 +21,8 @@ import {
   UserRound,
   BarChart3,
   ShieldAlert,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 
 export type SidebarNavItem = {
@@ -173,21 +175,151 @@ function NavItem({
   );
 }
 
+/** Icon-only row for the collapsed rail. */
+function RailItem({
+  item,
+  current,
+  onNavigate,
+}: {
+  item: SidebarNavItem;
+  current: string;
+  onNavigate?: () => void;
+}) {
+  const Icon = item.icon;
+  const isActive = isActiveHref(current, item.href);
+
+  return (
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      title={item.title}
+      aria-label={item.title}
+      aria-current={isActive ? "page" : undefined}
+      className={cn(
+        "grid h-9 w-9 shrink-0 place-items-center rounded-xl transition-colors duration-200",
+        isActive
+          ? "bg-[var(--accent)] text-[var(--accent-foreground)] shadow-sm"
+          : "text-muted-foreground hover:bg-[var(--muted)] hover:text-foreground",
+      )}
+    >
+      <Icon className="h-[16px] w-[16px]" strokeWidth={isActive ? 1.9 : 1.6} />
+    </Link>
+  );
+}
+
 export function DashboardSidebar({
   session,
   current,
   mobileOpen = false,
+  collapsed = false,
+  onToggleCollapse,
   onNavigate,
   className,
 }: {
   session: SessionPayload;
   current: string;
   mobileOpen?: boolean;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
   onNavigate?: () => void;
   className?: string;
 }) {
   const staff = isStaffRole(session.role);
   const groups = staff ? STAFF_GROUPS : USER_GROUPS;
+  const homeHref =
+    session.role === "admin" ? "/admin/courses" : staff ? "/review" : "/dashboard";
+  const roleLabel =
+    session.role === "admin"
+      ? "Admin"
+      : session.role === "verifikator"
+        ? "Verifikator"
+        : "Peserta";
+
+  // The rail is a desktop affordance. Below 1024px the sidebar is a drawer that
+  // the navbar hamburger + scrim already own, so the collapse state is ignored
+  // there and the full panel renders.
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const update = () => setIsDesktop(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  const railCollapsed = collapsed && isDesktop;
+
+  if (railCollapsed) {
+    const railItems = groups.flatMap((group) => group.items);
+
+    return (
+      <aside
+        className={cn("dashboard-sidebar-aside", className)}
+        data-open={mobileOpen}
+      >
+        <div className="dashboard-sidebar-panel dashboard-sidebar-rail">
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            aria-label="Buka sidebar"
+            title="Buka sidebar"
+            className="mx-auto mb-2 grid h-9 w-9 shrink-0 place-items-center rounded-[10px] text-muted-foreground transition-colors hover:bg-[var(--muted)] hover:text-foreground"
+          >
+            <PanelLeftOpen className="h-[18px] w-[18px]" strokeWidth={1.6} />
+          </button>
+
+          <Link
+            href={homeHref}
+            onClick={onNavigate}
+            aria-label={session.nama}
+            title={session.nama}
+            className="mx-auto mb-2 grid h-9 w-9 shrink-0 place-items-center rounded-full text-[12px] font-semibold text-white uppercase"
+            style={{
+              background: "var(--brand-grad)",
+              border: "1px solid var(--brand-border)",
+              boxShadow: "var(--brand-shadow)",
+            }}
+          >
+            {session.nama.charAt(0)}
+          </Link>
+
+          <div className="flex w-full flex-1 flex-col items-center gap-1 overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {railItems.map((item) => (
+              <RailItem
+                key={item.href}
+                item={item}
+                current={current}
+                onNavigate={onNavigate}
+              />
+            ))}
+          </div>
+
+          <div className="mt-auto flex w-full flex-col items-center gap-1 border-t border-[var(--border)] pt-3">
+            <RailItem
+              item={{ href: "/profil", title: "Profil", icon: UserRound }}
+              current={current}
+              onNavigate={onNavigate}
+            />
+            <RailItem
+              item={{ href: "/pengaturan", title: "Pengaturan", icon: Settings }}
+              current={current}
+              onNavigate={onNavigate}
+            />
+            <form action={logoutAction}>
+              <button
+                type="submit"
+                aria-label="Keluar"
+                title="Keluar"
+                className="grid h-9 w-9 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-[var(--muted)] hover:text-foreground"
+              >
+                <LogOut className="h-[16px] w-[16px]" strokeWidth={1.6} />
+              </button>
+            </form>
+          </div>
+        </div>
+      </aside>
+    );
+  }
 
   return (
     <aside
@@ -195,36 +327,48 @@ export function DashboardSidebar({
       data-open={mobileOpen}
     >
       <div className="dashboard-sidebar-panel">
-        <Link
-          href={session.role === "admin" ? "/admin/courses" : staff ? "/review" : "/dashboard"}
-          onClick={onNavigate}
-          className="group mb-4 flex items-center justify-between rounded-full border border-[var(--border)] bg-[var(--muted)] px-2.5 py-1.5 transition-colors select-none hover:bg-[var(--accent)]"
-        >
-          <div className="flex items-center gap-2.5">
-            <div
-              className="flex h-8 w-8 items-center justify-center rounded-full text-[13px] font-semibold uppercase text-white"
-              style={{
-                background: "var(--brand-grad)",
-                border: "1px solid var(--brand-border)",
-                boxShadow: "var(--brand-shadow)",
-              }}
-            >
-              {session.nama.charAt(0)}
+        {/* Header: profile card + collapse toggle (desktop only, top-right). */}
+        <div className="mb-4 flex items-center gap-1.5">
+          <Link
+            href={homeHref}
+            onClick={onNavigate}
+            className="group flex min-w-0 flex-1 items-center justify-between rounded-full border border-[var(--border)] bg-[var(--muted)] px-2.5 py-1.5 transition-colors select-none hover:bg-[var(--accent)]"
+          >
+            <div className="flex min-w-0 items-center gap-2.5">
+              <div
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[13px] font-semibold uppercase text-white"
+                style={{
+                  background: "var(--brand-grad)",
+                  border: "1px solid var(--brand-border)",
+                  boxShadow: "var(--brand-shadow)",
+                }}
+              >
+                {session.nama.charAt(0)}
+              </div>
+              <div className="flex min-w-0 flex-col overflow-hidden">
+                <span className="mb-0.5 max-w-[120px] truncate text-[13px] font-medium leading-none text-foreground">
+                  {session.nama}
+                </span>
+                <span className="text-[11px] leading-none text-muted-foreground">
+                  {roleLabel}
+                </span>
+              </div>
             </div>
-            <div className="flex flex-col overflow-hidden">
-              <span className="mb-0.5 max-w-[120px] truncate text-[13px] font-medium leading-none text-foreground">
-                {session.nama}
-              </span>
-              <span className="text-[11px] leading-none text-muted-foreground">
-                {session.role === "admin" ? "Admin" : staff ? "Verifikator" : "Peserta"}
-              </span>
-            </div>
-          </div>
-          <ChevronRight
-            className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-foreground/70"
-            strokeWidth={1.5}
-          />
-        </Link>
+            <ChevronRight
+              className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-foreground/70"
+              strokeWidth={1.5}
+            />
+          </Link>
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            aria-label="Ciutkan sidebar"
+            title="Ciutkan sidebar"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] text-muted-foreground transition-colors hover:bg-[var(--muted)] hover:text-foreground max-lg:hidden"
+          >
+            <PanelLeftClose className="h-[18px] w-[18px]" strokeWidth={1.6} />
+          </button>
+        </div>
 
         <div className="mt-2 flex flex-1 flex-col gap-4 overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {groups.map((group) => (

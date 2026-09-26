@@ -383,7 +383,7 @@ export function CareevoPlusSkills() {
                 </p>
                 <Link
                   href="#paket"
-                  className="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:underline"
+                  className="inline-flex items-center gap-1 text-sm font-semibold text-blue-600"
                 >
                   Hemat 40% sekarang
                   <svg
