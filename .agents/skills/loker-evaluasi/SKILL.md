@@ -1,10 +1,12 @@
 ---
 name: loker-evaluasi
 description: >-
-  The Careevo A–H job evaluation — the LLM (Gemini) scoring that rates a posting
-  against the candidate profile. Use when editing src/lib/agents/evaluasi/, the
-  evaluation prompt, the result schema, the EvaluasiPanel, the nilaiLokerAction
-  server action, GEMINI_API_KEY handling, or when a score is missing or wrong.
+  The Careevo A–H job evaluation — the LLM scoring that rates a posting against
+  the candidate profile, resolved through the LLM port (Gemini or any
+  OpenAI-compatible gateway). Use when editing src/lib/agents/evaluasi/,
+  src/lib/llm/port.ts, the evaluation prompt, the result schema, the
+  EvaluasiPanel, the nilaiLokerAction server action, LLM model/key configuration,
+  or when a score is missing, flaky, or wrong.
 license: MIT
 metadata:
   owner: careevo
@@ -24,8 +26,11 @@ questions and neither substitutes for the other.
 nilaiLokerAction (server action)   ← auth-checked, on-demand
   └─ evaluasiLoker (evaluasi.ts)   ← never throws; returns a typed result
        ├─ bangunPrompt (prompt.ts) ← posting + profile → instruction string
-       └─ Gemini (JSON schema)     ← responseSchema constrains the shape
-            └─ validasiHasil       ← checks the values, not just the shape
+       │                              (spells out the exact JSON key names)
+       └─ getLlm() (lib/llm/port)  ← any provider: Gemini or an
+            │                       OpenAI-compatible gateway (9Router, vLLM)
+            ├─ parseJsonMaybeFenced ← tolerates fences + trailing prose
+            └─ validasiHasil        ← checks the values, the real gate
 ```
 
 Files:
@@ -34,9 +39,53 @@ Files:
 |---|---|
 | `skema.ts` | `HasilEvaluasi` type, `validasiHasil`, `tafsirSkor` (score bands) |
 | `prompt.ts` | `bangunPrompt`, `DIMENSI_SKOR`, `SKEMA_HASIL` |
-| `evaluasi.ts` | `evaluasiLoker`, `evaluasiTersedia`, the Gemini call |
+| `evaluasi.ts` | `evaluasiLoker`, `evaluasiTersedia`, the model call |
+| `src/lib/llm/port.ts` | provider resolution — `getLlm()`, the only place env is read |
 | `src/actions/evaluasi.ts` | the server action |
 | `src/components/features/jobs/evaluasi-panel.tsx` | the UI |
+
+## Provider: read the port, never the env
+
+`evaluasiLoker` resolves through `getLlm()`. **Never branch on
+`process.env.GEMINI_API_KEY` in this directory** — AGENTS.md forbids it, and it
+is what once left the tutor chat on a dead route while the quiz generator, which
+did use the port, worked. `evaluasiTersedia()` is `hasLlm()`.
+
+Three things the port does that this feature depends on:
+
+- **`tools: []` + `tool_choice: "none"`.** A gateway can front an *agentic*
+  model, and that model answers "rate this posting" by emitting a `bash` tool
+  call, leaving content empty. Measured on 9Router: `o2a/space-bunny-free`
+  gave 2/4 valid answers at ~25s; `ag/gemini-3-flash` gave 5/5 at ~4.5s.
+  **Prefer a non-agentic model for this panel** — the port suppresses tools, but
+  an agentic model still diverts often enough to be flaky.
+- **Retries one empty completion.** Empty is a routing artifact, not an answer.
+  A model that returned *text* is never retried, so a parse problem cannot cause
+  a silent double charge.
+- **Tolerant JSON.** `parseJsonMaybeFenced` handles a fenced block and trailing
+  prose. Measured: the model fenced roughly 1 answer in 3.
+
+**If this panel returns `invalid_output` on a model you did not expect to fail,
+suspect `bacaContent` before the model.** 9Router frames its response as SSE
+even when no stream was requested, and it **glues the `[DONE]` sentinel onto the
+JSON with no newline** — `data: {...}data: [DONE]` is one physical line. A parser
+that splits on newlines and drops any line mentioning `[DONE]` therefore discards
+the good frame *with* the sentinel and reports a perfectly good answer as empty.
+`bacaContent` now consumes whole balanced `{...}` objects from each `data:`
+marker, which also means a `data:` inside the model's own content cannot be
+mistaken for a frame boundary. Regression-tested in `port.test.ts`; if you touch
+that function, watch the test fail first.
+
+**Degeneration looks like a parse bug and is not one.** A small free model on
+this prompt will sometimes emit repetition (`GWGWGWGW…` for 20k chars) or an
+unbalanced quote mid-string, which no parser can rescue. Measured on
+`o2a/space-bunny-free`: 2/3 and 1/5 across runs, against 3/3 for
+`ag/gemini-3-flash`. When one model is flaky and another is not, change the
+model — do not keep loosening the parser.
+
+`LLM_FAILURE_MESSAGES` is deliberately neutral ("Layanan AI"), because the port is
+shared — they were once tutor-specific and leaked "Tutor Gemini sedang tidak
+tersedia" onto the job page.
 
 ## The scoring model (career-ops', unchanged)
 
@@ -70,18 +119,26 @@ vs tunjangan, BPJS Kesehatan + Ketenagakerjaan, UMR/UMP/UMK, PPh 21 gross vs net
 These are why the Indonesian modes were used as the source rather than the English
 ones. `prompt.test.ts` asserts each term is present.
 
-## Output: schema, not prose
+## Output: validated JSON, not prose
 
 Upstream asks for Markdown blocks plus a `---SCORE_SUMMARY---` trailer parsed by
 regex. **Do not reintroduce that here.** A regex over prose fails silently when
 the model rephrases — the parse returns nothing and the failure looks like "the
-model had no opinion". Instead:
+model had no opinion". Instead the result is JSON, enforced in two places that
+work on *every* provider:
 
-- Gemini is given a `responseSchema` (`SKEMA_RESPONS` in `evaluasi.ts`) and
-  `responseMimeType: "application/json"`, so the shape is constrained at
-  generation time.
-- `validasiHasil` then checks the **values**. A schema constrains shape, not
-  meaning — a model can emit a well-formed object with a nonsense score.
+- The prompt spells out the exact key names and shape (`SKEMA_HASIL` in
+  `prompt.ts`). This used to be backed by a Gemini `responseSchema`
+  (`SKEMA_RESPONS`), which is gone: the port cannot express a schema for every
+  provider, and a constraint that silently applies to one route and not another
+  is worse than none. Measured on 9Router, `response_format.json_schema` was not
+  honoured either.
+- `validasiHasil` is the real gate and checks the **values**, not just the shape.
+  A model can emit a well-formed object with a nonsense score.
+
+Between them, `parseJsonMaybeFenced` + `validasiHasil` accept what a model
+actually produces — a fenced block, trailing prose, and the exact key names the
+prompt asked for — and reject everything else as `hasil_tidak_valid`.
 
 `validasiHasil` rejects rather than coerces for scalars: a bad `skor_global` fails
 the whole result, because a missing value changes the meaning. List rows are
@@ -103,8 +160,12 @@ fallback**. A plausible number that was not produced by an evaluation is worse
 than a blank, because the candidate cannot tell the difference — which is exactly
 why the old `fit_score` was deleted (see `career-ops-port`).
 
-`tanpa_kunci` means the feature is **off, not broken**: the panel says the key is
-unset and the posting is still fully usable. Do not turn that into an error state.
+`tanpa_kunci` means the feature is **off, not broken**: the panel says no model is
+configured (naming both `GEMINI_API_KEY` and the `CAREERVO_LLM_*` pair) and the
+posting is still fully usable. Do not turn that into an error state. It is also
+what the **stub** reports: the port's stub answers with prose, so parsing it
+would be nonsense, and the failure policy requires no score rather than a fake
+one. `evaluasiLoker` checks `llm.available` before generating for this reason.
 
 ## Security and cost
 
@@ -112,18 +173,24 @@ unset and the posting is still fully usable. Do not turn that into an error stat
   endpoint; it must not rely on the page that rendered it having been gated.
 - It refuses `rejected` postings, so a crafted request cannot spend API budget
   evaluating a known scam.
-- The API key is never echoed: `bersihkanPesan` strips it from error text.
-  Upstream does the same (`.split(apiKey).join('[REDACTED]')`), and a test asserts
-  the key does not appear in a failure message.
+- The API key is never echoed. This used to be `bersihkanPesan` in `evaluasi.ts`,
+  which redacted the key from a thrown SDK error; that function is gone because
+  the SDK call is too. The port never puts the key into a message — a failure
+  carries only an HTTP status and a 300-char slice of the response body — so
+  there is nothing to redact. `evaluasi.test.ts` asserts no failure message
+  mentions a provider name.
 - Evaluation is **on demand, behind a button** — never on page render. It costs
-  money and takes 30–60s; making every page view a paid request would be
-  irresponsible.
+  money and takes 5–60s depending on the route; making every page view a paid
+  request would be irresponsible.
+- The port retries **one** empty completion. That is a routing artifact, not a
+  retryable quality problem, and a model that returned text is never re-called.
 
 ## SDK
 
 `@google/genai` — **not** `@google/generative-ai`. Upstream's SDK last shipped
 April 2025 and Google has superseded it. Porting onto a dead dependency only
-defers the problem.
+defers the problem. It is imported **only** by `GeminiLlm` in
+`src/lib/llm/port.ts`, dynamically, so a compat-only deployment never loads it.
 
 ## Verifying
 
@@ -131,17 +198,31 @@ defers the problem.
 npm run check
 ```
 
-Then, for the paths that need no key:
+`evaluasi.test.ts` covers the no-model case, fenced and prose-suffixed JSON, an
+invalid value set, 429 → `kuota`, and that no failure message names a provider.
+
+For a live run, the useful variable is the **model**, not the key:
 
 ```bash
-# no key → must report tanpa_kunci and expose no score
-GEMINI_API_KEY="" npx tsx -e '...evaluasiLoker(jobs[0], profile)...'
+# a real model on the configured gateway
+set -a && . ./.env.local && set +a
+npx tsx -e 'import("./src/lib/agents/evaluasi/evaluasi").then(async (m) => {
+  const f = await import("./src/lib/fixtures");
+  const job = f.cleanJobs().find(j => j.sentinel_status === "clean");
+  console.log(await m.evaluasiLoker(job, f.profile));
+})'
+
+# a deliberately bad key → must fail cleanly, not crash
+CAREERVO_LLM_API_KEY=bogus npx tsx -e '...same...'
 ```
 
-A fake key is also worth exercising: it proves the request is built correctly
-(reaches the network and fails cleanly) rather than crashing on your own bug. It
-also confirms the key is redacted from the message.
+**Choosing a model is measured, not guessed.** Run the real code path 5x per
+candidate (`bangunPrompt → getLlm → parseJsonMaybeFenced → validasiHasil`) and
+count valid results. On 9Router that is how `ag/gemini-3-flash` was chosen
+(5/5, ~4.5s) over `o2a/space-bunny-free` (2/4, ~25s — an agentic model). The
+`.env.local` comment records the comparison.
 
-**What you cannot verify without a real key:** whether the model returns a
+**What you cannot verify from a fake key:** whether the model returns a
 *sensible* evaluation. Do not claim the feature works end-to-end until someone
-has run it with a live key. Say "not verified" rather than implying otherwise.
+has run it against a live route. Say "not verified" rather than implying
+otherwise.
