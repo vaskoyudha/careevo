@@ -6,6 +6,8 @@ import { PageHead } from "@/components/ui/page-head";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { EvaluasiPanel } from "@/components/features/jobs/evaluasi-panel";
+import { RekomendasiKursusPanel } from "@/components/features/jobs/rekomendasi-kursus-panel";
+import { JalurLokerPanel } from "@/components/features/jobs/jalur-loker-panel";
 import { ambilLokerById } from "@/lib/jobs/cache";
 import { labelSinyal } from "@/lib/agents/sentinel";
 import { TrackerLoker } from "@/components/features/jobs/tracker-loker";
@@ -132,6 +134,39 @@ export default async function LokerDetailPage({
               </h2>
             </div>
             <TrackerLoker job={job} awal={statusLamaran} states={states} />
+          </section>
+        </div>
+
+        {/* Persiapan belajar, bukan bagian dari assessment lowongan: yang di atas
+            menilai, yang di bawah ini membangun. Satu grid, bukan dua, supaya
+            halaman tetap dua kolom di layar lebar. */}
+        <div className="grid-2" style={{ marginTop: "1.25rem" }}>
+          <section className="card" aria-labelledby="kursus-title">
+            <div className="card-head">
+              <div>
+                <h2 className="card-title" id="kursus-title">
+                  Kursus yang cocok
+                </h2>
+                <p className="card-sub">
+                  Dipilih dari katalog berdasarkan syarat lowongan, lalu dijelaskan AI
+                </p>
+              </div>
+            </div>
+            <RekomendasiKursusPanel jobId={job.id} />
+          </section>
+
+          <section className="card" aria-labelledby="jalur-title">
+            <div className="card-head">
+              <div>
+                <h2 className="card-title" id="jalur-title">
+                  Jalur penguasaan
+                </h2>
+                <p className="card-sub">
+                  Disusun AI dari syarat lowongan, dilacak di Jalur Penguasaan
+                </p>
+              </div>
+            </div>
+            <JalurLokerPanel jobId={job.id} />
           </section>
         </div>
     </AppShell>
