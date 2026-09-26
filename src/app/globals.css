@@ -533,7 +533,7 @@ h6 {
      34px rise stays put, which turns the curve into a spike. The narrow path
      is wider and flatter so the slope survives the squeeze. Measured, not
      eyeballed: re-check both if the bar's padding or item count changes. */
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 64' preserveAspectRatio='none'><defs><linearGradient id='g' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='%23ffffff'/><stop offset='0.55' stop-color='%23f4f8fb'/><stop offset='1' stop-color='%23e6eff6'/></linearGradient></defs><path fill='url(%23g)' d='M0 30 C70 14 110 6 180 6 C330 6 400 34 500 34 C600 34 670 6 820 6 C890 6 930 14 1000 30 L1000 50 Q1000 64 982 64 L18 64 Q0 64 0 50 Z'/></svg>");
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 64' preserveAspectRatio='none'><defs><linearGradient id='g' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='%23ffffff'/><stop offset='0.55' stop-color='%23f4f8fb'/><stop offset='1' stop-color='%23e6eff6'/></linearGradient></defs><path fill='url(%23g)' d='M0 4 C30 0 60 0 90 4 C200 12 380 30 500 30 C620 30 800 12 910 4 C940 0 970 0 1000 4 L1000 50 Q1000 64 982 64 L18 64 Q0 64 0 50 Z'/></svg>");
   background-repeat: no-repeat;
   background-size: 100% 100%;
   filter: drop-shadow(0 0 3px rgba(10, 42, 58, 0.28))
@@ -543,7 +543,7 @@ h6 {
 
 @media (min-width: 769px) {
   .chrome.is-winged::before {
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 64' preserveAspectRatio='none'><defs><linearGradient id='g' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='%23ffffff'/><stop offset='0.55' stop-color='%23f4f8fb'/><stop offset='1' stop-color='%23e6eff6'/></linearGradient></defs><path fill='url(%23g)' d='M0 26 C60 8 100 0 170 0 C320 0 400 34 500 34 C600 34 680 0 830 0 C900 0 940 8 1000 26 L1000 46 Q1000 64 982 64 L18 64 Q0 64 0 46 Z'/></svg>");
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 64' preserveAspectRatio='none'><defs><linearGradient id='g' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='%23ffffff'/><stop offset='0.55' stop-color='%23f4f8fb'/><stop offset='1' stop-color='%23e6eff6'/></linearGradient></defs><path fill='url(%23g)' d='M0 4 C30 0 60 0 90 4 C200 16 380 38 500 38 C620 38 800 16 910 4 C940 0 970 0 1000 4 L1000 50 Q1000 64 982 64 L18 64 Q0 64 0 50 Z'/></svg>");
   }
 }
 
