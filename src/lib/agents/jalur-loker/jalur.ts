@@ -17,7 +17,7 @@ import { validasiJalurLoker, type HasilJalurLoker } from "./skema";
  */
 export type HasilJalurAtauGagal =
   | { ok: true; hasil: HasilJalurLoker }
-  | { ok: false; alasan: JenisGagal; pesan: string };
+  | { ok: false; alasan: JenisGagal; pesan: string; detail?: string };
 
 /** Group a job's points under one synthetic module, so ids stay namespaced. */
 export function MODULE_LOKER(jobId: string): string {
