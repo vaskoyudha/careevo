@@ -74,11 +74,49 @@ export async function ubahStatus(
  * `--since` date bounds. `--verify` and `--headed-fallback` are deliberately not
  * passed — they need Playwright, which is separate work.
  */
+
+/**
+ * Scan serialization.
+ *
+ * `scan.mjs` APPENDS to `data/pipeline.md` and APPENDS a row to
+ * `data/scan-runs.tsv`. It is a separate process, so the in-process write chain
+ * that protects `courses.json` cannot reach it, and nothing else serializes two
+ * scans: two of them starting 168ms apart both read the same pre-scan state, both
+ * decide their postings are new, and both append. Measured on a real data root:
+ * 486 rows holding 443 distinct URLs, 29 of them duplicated. The engine's own
+ * dedupe is a read-then-decide, so it only sees the earlier scan's rows once that
+ * scan has committed them.
+ *
+ * Serializing the WHOLE run rather than just the write is what fixes it. A lock
+ * around the append alone would still let both engines decide "new" from the same
+ * snapshot, and would then append in an order neither one chose. Mirrors `antre`
+ * in src/lib/courses/storage.ts.
+ *
+ * This is per process, like the courses cache: two `next start` instances on one
+ * data root can still race. Serializing across processes needs a lock file the
+ * engine respects, which is a change to the vendored engine, not to this layer.
+ */
+let rantaiScan: Promise<unknown> = Promise.resolve();
+
+function antreScan<T>(kerja: () => Promise<T>): Promise<T> {
+  const berikut = rantaiScan.then(kerja);
+  rantaiScan = berikut.catch(() => undefined);
+  return berikut;
+}
+
 export async function jalankanScan(options: {
   /** Relative-age bound in days. Omitted = the engine's own default. */
   since?: number;
   dryRun?: boolean;
   /** Substring filter on a portal/company entry name. */
+  company?: string;
+}): Promise<{ ok: boolean; hasil?: HasilScan; stderr: string }> {
+  return antreScan(() => scanSekarang(options));
+}
+
+async function scanSekarang(options: {
+  since?: number;
+  dryRun?: boolean;
   company?: string;
 }): Promise<{ ok: boolean; hasil?: HasilScan; stderr: string }> {
   const args = ["--json", "--quiet"];

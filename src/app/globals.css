@@ -28,10 +28,29 @@
   --spray: #8FD6E3;
   --foam-line: rgba(191, 230, 239, 0.7);
   --deep-gradient: linear-gradient(160deg, #0A3D62, #124E78 55%, #2A7FB8);
+  /* The single blue "primary action" ramp, taken verbatim from the navbar
+     `Daftar` button. The navbar `Daftar` button, `.grad-btn`, `.btn-primary`
+     and the shadcn `brand` variant all resolve their background, border and
+     shadow from these, so the blue can no longer drift per surface (it had
+     three hand-copied spellings: two in this file, one in Tailwind classes
+     in `hero-financial.tsx`).
+
+     These are the ORIGINAL `Daftar` values and they are kept on purpose: the
+     blue -> pale-blue -> near-white tail (#bfdbfe) IS the look. It is not
+     AA-safe for a white label (about 1.5:1 at the pale end), so this is a
+     known, accepted tradeoff — do not silently re-darken the ramp. If the
+     label ever has to pass contrast, darken the TEXT or add a text shadow;
+     the gradient is the brand. */
+  --brand-grad: linear-gradient(to bottom right, #3b82f6, #60a5fa, #bfdbfe);
+  --brand-grad-hover: linear-gradient(to bottom right, #2563eb, #3b82f6, #93c5fd);
+  --brand-border: #93c5fd;
+  --brand-border-hover: #60a5fa;
+  --brand-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --glass-subtle-bg: rgba(255, 255, 255, 0.40);
   --glass-regular-bg: rgba(255, 255, 255, 0.60);
   --glass-strong-bg: rgba(255, 255, 255, 0.80);
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", "Segoe UI", Roboto, Arial, sans-serif;
+  --font-display: var(--font-inter-display), var(--font);
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --radius-lg: 20px;
   --radius-md: 14px;
@@ -166,7 +185,9 @@ body {
   h1,
   h2,
   h3,
-  h4 {
+  h4,
+  h5,
+  h6 {
     color: var(--ocean-deep);
     margin: 0 0 0.6rem;
     letter-spacing: -0.02em;
@@ -187,6 +208,17 @@ body {
     text-decoration: underline;
     text-underline-offset: 3px;
   }
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-weight: 500;
 }
 
 .muted, p.muted { color: var(--text-secondary); }
@@ -252,13 +284,17 @@ body {
   transform: translateY(-1px);
 }
 
-.btn-primary {
-  background: var(--leaf);
+/* Same ramp as the navbar `Daftar` button and the shadcn `brand` variant, so a
+   primary submit never reads green while the navbar CTA reads blue. */
+.btn-primary,
+.brand-fill {
+  background: var(--brand-grad);
   color: #fff;
-  box-shadow: 0 4px 14px rgba(46, 139, 87, 0.32);
+  box-shadow: var(--brand-shadow);
 }
-.btn-primary:hover {
-  background: var(--leaf-dark);
+.btn-primary:hover,
+.brand-fill:hover {
+  background: var(--brand-grad-hover);
   color: #fff;
 }
 
@@ -356,6 +392,23 @@ body {
   box-shadow: none;
 }
 
+/* `/belajar` opts into the same sticky chrome while letting its hero sit
+   behind the transparent full-width state. The wrapped mobile navbar is
+   taller, so the offset follows the exact breakpoint where `.chrome` wraps. */
+.learner-shell--overlay {
+  --learner-chrome-height: 104px;
+}
+
+.learner-shell--overlay > main {
+  margin-top: calc(-1 * var(--learner-chrome-height));
+}
+
+@media (min-width: 769px) {
+  .learner-shell--overlay {
+    --learner-chrome-height: 60px;
+  }
+}
+
 /* Once scrolled: floating pill */
 .chrome.is-scrolled {
   top: 12px;
@@ -375,6 +428,43 @@ body {
     0 2px 6px rgba(10, 61, 98, 0.06),
     inset 0 1px 0 rgba(255, 255, 255, 0.9),
     inset 0 -1px 0 rgba(191, 230, 239, 0.4);
+}
+
+/* Explore mega dropdown: sekarang fixed full-width (hasil ukur DOM Coursera),
+   jadi aturan lebar lama di bawah tidak boleh mengaturnya lagi. */
+.explore-mega-menu {
+  width: 100%;
+}
+
+/* Rule global di atas (h1..h6 { font-weight: 500 }) ikut kena ke heading
+   menu. Coursera pakai 400, jadi diturunkan khusus di dalam panel. */
+.explore-mega-menu h1,
+.explore-mega-menu h2,
+.explore-mega-menu h3,
+.explore-mega-menu h4,
+.explore-mega-menu h5,
+.explore-mega-menu h6 {
+  font-family: inherit;
+  font-weight: 400;
+}
+
+.explore-scrim {
+  animation: explore-scrim-in 180ms ease-out;
+}
+
+@keyframes explore-scrim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .explore-scrim {
+    animation: none;
+  }
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
@@ -530,7 +620,11 @@ body {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 10px;
+  /* The row is right-aligned, so this is the navbar's own right inset: the last
+     button keeps a deliberate margin from the viewport edge instead of reading
+     as flush against it, in both the transparent and the floating-pill state. */
+  padding-right: 0.4rem;
   flex: 1 1 0;
 }
 
@@ -1725,12 +1819,20 @@ body {
 /* ===== Auth (masuk / daftar) ===== */
 .chrome-btn-text {
   width: auto;
-  padding: 0 1rem;
+  /* Optical right padding. Every one of these gradients runs light → dark toward
+     the lower right, so a geometrically centred label drifts visually toward the
+     heavy end. The extra room on the right pulls it back. The `max-width: 560px`
+     block below collapses this to a symmetric padding on small screens. */
+  padding: 0 1.35rem 0 1rem;
   font-size: 13.5px;
   font-weight: 600;
 }
 
-.chrome-btn-text:not(.chrome-btn-ghost) {
+/* Ocean fill for a text-sized chrome button that names no colour of its own.
+   The `:not(.chrome-btn-brand)` is load-bearing: this selector is specificity
+   (0,2,0) and `.chrome-btn-brand` is only (0,1,0), so without it an element
+   carrying BOTH classes silently rendered ocean here instead of the blue ramp. */
+.chrome-btn-text:not(.chrome-btn-ghost):not(.chrome-btn-brand) {
   background: linear-gradient(135deg, var(--ocean-mid), var(--ocean-deep));
   color: #fff;
   border-color: rgba(255, 255, 255, 0.35);
@@ -1739,7 +1841,7 @@ body {
     inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
-.chrome-btn-text:not(.chrome-btn-ghost):hover {
+.chrome-btn-text:not(.chrome-btn-ghost):not(.chrome-btn-brand):hover {
   color: #fff;
   border-color: rgba(255, 255, 255, 0.5);
 }
@@ -1756,26 +1858,28 @@ body {
   color: var(--ocean-deep);
 }
 
+/* The app's primary action: the navbar `Daftar` button, and the reference for
+   every other primary CTA (see the `--brand-*` tokens). */
 .chrome-btn-brand {
   width: auto;
-  padding: 0 1rem;
+  padding: 0 1.35rem 0 1rem;
   font-size: 13.5px;
   font-weight: 600;
   border-radius: var(--radius);
-  border: 1px solid #93c5fd;
-  background: linear-gradient(to bottom right, #3b82f6, #60a5fa, #bfdbfe);
+  border: 1px solid var(--brand-border);
+  background: var(--brand-grad);
   color: #ffffff;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  box-shadow: var(--brand-shadow);
 }
 
 .chrome-btn-brand:hover {
   color: #ffffff;
-  border-color: #93c5fd;
+  border-color: var(--brand-border);
 }
 
 .chrome-btn-white {
   width: auto;
-  padding: 0 1rem;
+  padding: 0 1.35rem 0 1rem;
   font-size: 13.5px;
   font-weight: 600;
   border-radius: var(--radius);
@@ -1793,17 +1897,19 @@ body {
   box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.08);
 }
 
+/* The marketing/profile primary CTA. Shares the navbar `Daftar` ramp exactly —
+   it used to be a third hand-copied spelling of the same gradient. */
 .grad-btn {
-  border: 1px solid #93c5fd;
-  background: linear-gradient(to bottom right, #3b82f6, #60a5fa, #bfdbfe);
+  border: 1px solid var(--brand-border);
+  background: var(--brand-grad);
   color: #ffffff;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  box-shadow: var(--brand-shadow);
 }
 
 .grad-btn:hover {
   color: #ffffff;
-  border-color: #60a5fa;
-  background: linear-gradient(to bottom right, #2563eb, #3b82f6, #93c5fd);
+  border-color: var(--brand-border-hover);
+  background: var(--brand-grad-hover);
 }
 
 .field {
@@ -2378,6 +2484,60 @@ body {
   background: var(--sea-foam);
   color: var(--ocean-deep);
   border: 1px solid var(--foam-line);
+}
+
+/* A tag used as a filter control. The `is-active` suffix is this file's existing
+   convention (.nav-item.is-active, .tab-btn.is-active) rather than a new
+   one-off class, so a chip reads the same as a selected tab. */
+button.tag {
+  cursor: pointer;
+  font-family: inherit;
+  line-height: 1.4;
+}
+
+button.tag:hover {
+  border-color: var(--ocean-mid);
+}
+
+.tag.is-active {
+  background: linear-gradient(135deg, var(--ocean-mid), var(--ocean-deep));
+  color: #fff;
+  border-color: transparent;
+}
+
+/* A row of filter chips. Wraps on desktop, but 76 company facets measured a
+   627px-tall block on a 390x844 phone — three quarters of the viewport spent on
+   chips before a single posting is visible. Below the md breakpoint the row
+   becomes one swipeable line instead, with the scrollbar hidden so it reads as a
+   strip rather than a control. Every chip stays reachable; nothing is truncated
+   behind a "more" affordance. */
+.tag-row {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin: 0.75rem 0;
+}
+
+@media (max-width: 767px) {
+  .tag-row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    /* Bleed past the card padding so the strip visibly runs off the edge. */
+    margin-inline: -0.75rem;
+    padding-inline: 0.75rem;
+  }
+
+  .tag-row::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Keep a chip from being squeezed into an unreadable sliver mid-scroll. */
+  .tag-row > * {
+    flex: 0 0 auto;
+  }
 }
 
 .status {
@@ -3030,6 +3190,7 @@ body {
   font-family: var(--font-geist), var(--font);
 }
 
+.marketing-type .font-mono,
 .guild-type .font-mono {
   font-family: var(--font-geist-mono), ui-monospace, "SFMono-Regular", monospace;
 }
@@ -3073,7 +3234,7 @@ body {
 .marketing-type h2,
 .marketing-type h3,
 .marketing-type h4 {
-  color: #111827;
+  color: var(--ocean-deep);
 }
 
 .marketing-type a:hover {
@@ -3476,3 +3637,64 @@ body {
 }
 
 
+
+/* ========== SKELETON LOADING ANIMATIONS ========== */
+@keyframes loading-skeleton {
+  0% {
+    background-position: 200% center;
+  }
+  100% {
+    background-position: -200% center;
+  }
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse-soft {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-loading-skeleton {
+  animation: loading-skeleton 2s ease-in-out infinite;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 3s linear infinite;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.4s ease-out forwards;
+}
+
+.delay-50 { animation-delay: 50ms; }
+.delay-100 { animation-delay: 100ms; }
+.delay-150 { animation-delay: 150ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-250 { animation-delay: 250ms; }

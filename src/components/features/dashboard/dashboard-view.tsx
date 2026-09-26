@@ -3,6 +3,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { CheckinWidget } from "./checkin-widget";
 import { jalankanNavigator } from "@/lib/agents/navigator";
 import { getTask, tasks, profile, cleanJobs } from "@/lib/fixtures";
+import Link from "next/link";
 
 export function DashboardView() {
   const completedTaskIds = tasks
@@ -121,6 +122,31 @@ export function DashboardView() {
             );
           })}
         </ul>
+      </section>
+
+      <section className="card" aria-labelledby="cari-title">
+        <div className="card-head">
+          <div>
+            <h2 className="card-title" id="cari-title">
+              Cari lowongan
+            </h2>
+            <p className="card-sub">
+              Pindai papan lowongan publik, lalu buka dan lacak yang kamu minati
+            </p>
+          </div>
+          <span className="status status-info">Job seeker</span>
+        </div>
+        <p className="caption muted">
+          Lowongan ditemukan disimpan sebagai inbox, belum jadi lamaran. Tidak ada
+          yang dikirim otomatis — kamu yang memutuskan.
+        </p>
+        <Link
+          className="chrome-btn chrome-btn-brand"
+          href="/loker/inbox"
+          style={{ marginTop: "0.5rem" }}
+        >
+          Buka lowongan ditemukan
+        </Link>
       </section>
 
       <section className="card" aria-labelledby="badge-title">
