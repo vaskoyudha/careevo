@@ -24,7 +24,7 @@
  * Nama fungsi bisnis berbahasa Indonesia; tipe/helper infrastruktur Inggris.
  */
 
-import { and, asc, desc, eq, max } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, max } from "drizzle-orm";
 import { getDb, denganTransaksi, type KoneksiDb, type TransaksiDb } from "@/lib/db/client";
 import {
   courseCompletions,
@@ -269,6 +269,18 @@ export async function ambilCompletion(enrollmentId: string): Promise<CourseCompl
     .from(courseCompletions)
     .where(eq(courseCompletions.enrollmentId, enrollmentId));
   return baris ?? null;
+}
+
+/** Completion untuk banyak enrollment sekaligus — satu query, bukan N+1. */
+export async function ambilCompletionBanyak(
+  enrollmentIds: readonly string[],
+): Promise<Map<string, CourseCompletion>> {
+  if (enrollmentIds.length === 0) return new Map();
+  const baris = await getDb()
+    .select()
+    .from(courseCompletions)
+    .where(inArray(courseCompletions.enrollmentId, [...enrollmentIds]));
+  return new Map(baris.map((b) => [b.enrollmentId, b]));
 }
 
 /* ------------------------------------------------------------------ *

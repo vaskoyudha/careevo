@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth/session";
 import { getCourseById } from "@/lib/courses/store";
-import { progresKursusDb, tandaiModulDb } from "@/lib/learning/service";
+import { progresKursusDb, selesaikanKursusDb, tandaiModulDb } from "@/lib/learning/service";
 import {
   akhiriRunDb,
   buktikanSesiDb,
@@ -337,6 +337,15 @@ export async function selesaikanMateriAction(input: {
       evidenceId: bukti?.id ?? null,
     });
   }
+
+  // Setiap modul bisa menjadi yang terakhir. Rekam completion dari progres
+  // server-side; tanpa ini pilihan kursus untuk submission tidak pernah muncul.
+  const completion = await selesaikanKursusDb({
+    principal: session,
+    courseId: kursus.id,
+    policyVersion: kebijakan.versi,
+  });
+  if (completion.selesai) safeRevalidate("/submission");
 
   // Revalidasi disamakan dengan `tandaiModulAction` (`/belajar` dan halaman
   // kursus): keduanya menulis progres yang sama, jadi keduanya harus menyegarkan

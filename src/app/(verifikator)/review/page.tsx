@@ -29,6 +29,7 @@ export default async function ReviewPage() {
     currentVersion: submission.currentVersion,
     submittedAt: submission.submittedAt?.toISOString() ?? null,
     updatedAt: submission.updatedAt.toISOString(),
+    assignedReviewerUserId: submission.assignedReviewerUserId,
   }));
 
   return (
@@ -39,7 +40,7 @@ export default async function ReviewPage() {
           lead="Seluruh submission lintas peserta dari database. Keputusan wajib disertai alasan, dan credential diterbitkan dari record server-side."
         />
         <div className="card">
-          <ReviewQueue items={items} />
+          <ReviewQueue items={items} currentUserId={session.userId} />
         </div>
     </AppShell>
   );

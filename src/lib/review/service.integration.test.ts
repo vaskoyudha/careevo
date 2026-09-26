@@ -20,9 +20,10 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { eq, sql } from "drizzle-orm";
 
 import { getDb, tutupDb, type KoneksiDb } from "@/lib/db/client";
-import { attestations, badges, reviews, submissions } from "@/lib/db/schema";
+import { attestations, badges, courseCompletions, reviews, submissions } from "@/lib/db/schema";
 import { daftarPengguna } from "@/lib/auth/auth-service";
 import { beriRole } from "@/lib/auth/invitation";
+import { daftarEnrollment, rekamCompletion } from "@/lib/learning/repository";
 import type { SessionPrincipal } from "@/lib/auth/principal";
 import {
   buatSubmissionDb,
@@ -123,6 +124,7 @@ describe("state machine submission — transisi ditegakkan di database", () => {
 
     const dikirim = await kirimSubmissionDb({ principal: learner, submissionId: submission.id });
     expect(dikirim.status).toBe("submitted");
+    expect(dikirim.submittedAt).toBeInstanceOf(Date);
 
     const assigned = await tetapkanReviewerDb({
       principal: staff,
@@ -169,6 +171,119 @@ describe("state machine submission — transisi ditegakkan di database", () => {
         rationale: "Alasan yang cukup panjang.",
       }),
     ).rejects.toMatchObject({ kode: "transisi_ditolak" });
+  });
+});
+
+describe("otorisasi reviewer", () => {
+  it("menolak self-claim dan reviewer tanpa role aktif", async () => {
+    const pemilik = await buatStaff("owner@contoh.test", "ownerreview");
+    const learner = await buatPrincipal("ownerlearner@contoh.test", "ownerlearner");
+    const tanpaRole = await buatPrincipal("nonstaff@contoh.test", "nonstaff");
+    const { submission } = await buatSubmissionDb({ principal: pemilik, konten: { judul: "Karya sendiri" } });
+    await kirimSubmissionDb({ principal: pemilik, submissionId: submission.id });
+    await expect(tetapkanReviewerDb({ principal: pemilik, submissionId: submission.id, reviewerUserId: pemilik.userId }))
+      .rejects.toMatchObject({ kode: "akses_ditolak" });
+    await expect(tetapkanReviewerDb({ principal: pemilik, submissionId: submission.id, reviewerUserId: tanpaRole.userId }))
+      .rejects.toMatchObject({ kode: "akses_ditolak" });
+    const staff = await buatStaff("valid@contoh.test", "validreview");
+    await tetapkanReviewerDb({ principal: staff, submissionId: submission.id, reviewerUserId: staff.userId });
+    await expect(mulaiReviewDb({ principal: pemilik, submissionId: submission.id }))
+      .rejects.toMatchObject({ kode: "akses_ditolak" });
+    await expect(mulaiReviewDb({ principal: learner, submissionId: submission.id }))
+      .rejects.toMatchObject({ kode: "akses_ditolak" });
+  });
+
+  it("staf lain tidak dapat memulai atau memutuskan review yang ditugaskan", async () => {
+    const learner = await buatPrincipal("reviewlearner@contoh.test", "reviewlearner");
+    const reviewer = await buatStaff("reviewer@contoh.test", "reviewer");
+    const staffLain = await buatStaff("stafflain@contoh.test", "stafflain");
+    const { submission } = await buatSubmissionDb({ principal: learner, konten: { judul: "Karya untuk review" } });
+    await kirimSubmissionDb({ principal: learner, submissionId: submission.id });
+    await tetapkanReviewerDb({ principal: reviewer, submissionId: submission.id, reviewerUserId: reviewer.userId });
+    await expect(mulaiReviewDb({ principal: staffLain, submissionId: submission.id }))
+      .rejects.toMatchObject({ kode: "akses_ditolak" });
+    await mulaiReviewDb({ principal: reviewer, submissionId: submission.id });
+    await expect(putuskanReviewDb({ principal: staffLain, submissionId: submission.id, decision: "approved", rubric: RUBRIK_LULUS, rationale: "Review tidak sah." }))
+      .rejects.toMatchObject({ kode: "akses_ditolak" });
+    const tersimpan = await db.select().from(attestations);
+    expect(tersimpan).toHaveLength(0);
+  });
+});
+
+describe("kelayakan kursus submission", () => {
+  async function submissionTerikat(learner: SessionPrincipal, courseId: string, enrollmentId: string) {
+    const { submission } = await buatSubmissionDb({
+      principal: learner,
+      courseId,
+      enrollmentId,
+      konten: { judul: "Karya kursus", catatan: "deskripsi" },
+    });
+    return submission;
+  }
+
+  it("menolak enrollment milik user lain", async () => {
+    const pemilik = await buatPrincipal("elig-a@contoh.test", "elig-a");
+    const penyusup = await buatPrincipal("elig-b@contoh.test", "elig-b");
+    const { enrollment } = await daftarEnrollment({
+      userId: pemilik.userId, courseId: "crs-1",
+      slug: "fullstack-web-development-nextjs-15-react-19", title: "Kursus A",
+    });
+    await rekamCompletion({
+      userId: pemilik.userId, courseId: "crs-1", enrollmentId: enrollment.id,
+      completionPath: "terverifikasi", policyVersion: 1,
+    });
+    await expect(
+      buatSubmissionDb({ principal: penyusup, courseId: "crs-1", enrollmentId: enrollment.id, konten: { judul: "X" } }),
+    ).rejects.toMatchObject({ kode: "kelayakan_ditolak" });
+  });
+
+  it("menolak enrollment yang belum completion terverifikasi", async () => {
+    const learner = await buatPrincipal("elig-c@contoh.test", "elig-c");
+    const { enrollment } = await daftarEnrollment({
+      userId: learner.userId, courseId: "crs-1",
+      slug: "fullstack-web-development-nextjs-15-react-19", title: "Kursus A",
+    });
+    // Belum ada completion sama sekali.
+    await expect(
+      buatSubmissionDb({ principal: learner, courseId: "crs-1", enrollmentId: enrollment.id, konten: { judul: "X" } }),
+    ).rejects.toMatchObject({ kode: "kelayakan_ditolak" });
+  });
+
+  it("menolak completion informal", async () => {
+    const learner = await buatPrincipal("elig-d@contoh.test", "elig-d");
+    const { enrollment } = await daftarEnrollment({
+      userId: learner.userId, courseId: "crs-1",
+      slug: "fullstack-web-development-nextjs-15-react-19", title: "Kursus A",
+    });
+    await rekamCompletion({
+      userId: learner.userId, courseId: "crs-1", enrollmentId: enrollment.id,
+      completionPath: "informal", policyVersion: 1,
+    });
+    await expect(
+      buatSubmissionDb({ principal: learner, courseId: "crs-1", enrollmentId: enrollment.id, konten: { judul: "X" } }),
+    ).rejects.toMatchObject({ kode: "kelayakan_ditolak" });
+  });
+
+  it("menolak approve bila completion terverifikasi sudah hilang", async () => {
+    const learner = await buatPrincipal("elig-e@contoh.test", "elig-e");
+    const reviewer = await buatStaff("elig-staff@contoh.test", "elig-staff");
+    const { enrollment } = await daftarEnrollment({
+      userId: learner.userId, courseId: "crs-1",
+      slug: "fullstack-web-development-nextjs-15-react-19", title: "Kursus A",
+    });
+    await rekamCompletion({
+      userId: learner.userId, courseId: "crs-1", enrollmentId: enrollment.id,
+      completionPath: "terverifikasi", policyVersion: 1,
+    });
+    const submission = await submissionTerikat(learner, "crs-1", enrollment.id);
+    await kirimSubmissionDb({ principal: learner, submissionId: submission.id });
+    await tetapkanReviewerDb({ principal: reviewer, submissionId: submission.id, reviewerUserId: reviewer.userId });
+    await mulaiReviewDb({ principal: reviewer, submissionId: submission.id });
+    // Hapus completion sehingga approve wajib gagal (re-check saat approve).
+    await db.delete(courseCompletions).where(eq(courseCompletions.enrollmentId, enrollment.id));
+    await expect(
+      putuskanReviewDb({ principal: reviewer, submissionId: submission.id, decision: "approved", rubric: RUBRIK_LULUS, rationale: "Review tanpa completion." }),
+    ).rejects.toMatchObject({ kode: "kelayakan_ditolak" });
   });
 });
 

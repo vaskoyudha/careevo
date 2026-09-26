@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { StatusBadge, statusSubmission } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
+import { TransisiSubmission } from "@/components/features/submission/submission-actions";
 import { cn } from "@/lib/utils";
 
 /**
@@ -22,6 +23,8 @@ export interface ReviewQueueItem {
   /** ISO string dari kolom timestamp; `null` bila belum pernah disubmit. */
   submittedAt: string | null;
   updatedAt: string;
+  /** Reviewer yang ditugaskan; `null` sebelum assignment. */
+  assignedReviewerUserId?: string | null;
 }
 
 const STATUS_FILTERS = [
@@ -46,11 +49,6 @@ const FILTER_LABEL: Record<StatusFilter, string> = {
   rejected: "Ditolak",
 };
 
-/** Badge hanya mengerti `revision`; `changes_requested` dipetakan ke sana. */
-function statusBadge(status: string): string {
-  return status === "changes_requested" ? "revision" : status;
-}
-
 /** Timestamp database berupa ISO — `null`/tidak valid ditampilkan "—", bukan tanggal karangan. */
 function formatWaktu(nilai: string | null): string {
   if (!nilai) return "—";
@@ -63,7 +61,7 @@ function formatWaktu(nilai: string | null): string {
   }).format(tanggal);
 }
 
-export function ReviewQueue({ items }: { items: ReviewQueueItem[] }) {
+export function ReviewQueue({ items, currentUserId }: { items: ReviewQueueItem[]; currentUserId?: string }) {
   const [filter, setFilter] = useState<StatusFilter>("semua");
 
   const filtered = useMemo(
@@ -97,12 +95,15 @@ export function ReviewQueue({ items }: { items: ReviewQueueItem[] }) {
             </a>
             <span className="row-aside">
               <span className="mono muted">v{item.currentVersion}</span>
-              <StatusBadge status={statusBadge(item.status)} />
+              <StatusBadge status={statusSubmission(item.status)} />
             </span>
             <span className="row-meta">
               {item.ownerNama} · {item.ownerEmail} · dikirim {formatWaktu(item.submittedAt)} ·
               diperbarui {formatWaktu(item.updatedAt)}
             </span>
+            {item.status === "assigned" && item.assignedReviewerUserId === currentUserId ? (
+              <TransisiSubmission submissionId={item.id} jenis="mulai" />
+            ) : null}
           </li>
         ))}
       </ul>

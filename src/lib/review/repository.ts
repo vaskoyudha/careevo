@@ -154,11 +154,16 @@ export async function transisiSubmission(
   id: string,
   dari: Submission["status"],
   ke: Submission["status"],
+  reviewerUserId?: string,
 ): Promise<Submission | null> {
   const [baris] = await db
     .update(submissions)
-    .set({ status: ke, updatedAt: new Date() })
-    .where(and(eq(submissions.id, id), eq(submissions.status, dari)))
+    .set({ status: ke, updatedAt: new Date(), ...(ke === "submitted" ? { submittedAt: new Date() } : {}) })
+    .where(and(
+      eq(submissions.id, id),
+      eq(submissions.status, dari),
+      ...(reviewerUserId ? [eq(submissions.assignedReviewerUserId, reviewerUserId)] : []),
+    ))
     .returning();
   return baris ?? null;
 }
@@ -380,6 +385,17 @@ export async function listSubmissionStaf(): Promise<SubmissionStaf[]> {
     submission: b.submission,
     owner: { userId: b.userId, nama: b.nama, email: b.email },
   }));
+}
+
+/** Token credential milik submission, tanpa mengekspos credential pengguna lain. */
+export async function ambilTokenAttestationSubmission(submissionId: string): Promise<string | null> {
+  const [baris] = await getDb()
+    .select({ token: attestations.publicToken })
+    .from(attestations)
+    .innerJoin(reviews, eq(attestations.sourceReviewId, reviews.id))
+    .where(and(eq(reviews.submissionId, submissionId), eq(attestations.status, "active")))
+    .orderBy(desc(attestations.issuedAt));
+  return baris?.token ?? null;
 }
 
 /** Attestation aktif (dan subjeknya) untuk endpoint verify publik + profil. */

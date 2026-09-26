@@ -27,7 +27,14 @@ import type { SessionPrincipal } from "@/lib/auth/principal";
 import { kanonik, type AttestationPayload } from "@/lib/attestation/payload";
 import { tandaTangan, tokenPublicBaru, type KeyVersion } from "@/lib/attestation/key";
 import { jalankanDenganOutbox } from "@/lib/outbox/writer";
-import { cariUserById } from "@/lib/auth/identity-repository";
+import { ambilRolesAktif, cariUserById } from "@/lib/auth/identity-repository";
+import {
+  ambilCompletion,
+  ambilCompletionBanyak,
+  ambilEnrollment,
+  ambilEnrollmentById,
+  listEnrollments,
+} from "@/lib/learning/repository";
 import { getDb } from "@/lib/db/client";
 import {
   ambilAttestation,
@@ -132,6 +139,52 @@ export interface KontenSubmission {
   catatan?: string | null;
 }
 
+/** Jalur kursus wajib memakai enrollment dan completion milik subjek di DB. */
+async function pastikanKelayakanKursus(
+  userId: string,
+  courseId: string | null | undefined,
+  enrollmentId: string | null | undefined,
+): Promise<void> {
+  // Submission portofolio lama tetap berdiri sendiri, bukan bukti lulus kursus.
+  if (!courseId && !enrollmentId) return;
+  const enrollment = enrollmentId
+    ? await ambilEnrollmentById(enrollmentId)
+    : courseId ? await ambilEnrollment(userId, courseId) : null;
+  if (!courseId || !enrollment || enrollment.userId !== userId || enrollment.courseId !== courseId) {
+    throw new GalatReview("kelayakan_ditolak", "Enrollment kursus tidak sesuai dengan pemilik submission.");
+  }
+  const completion = await ambilCompletion(enrollment.id);
+  if (
+    !completion || completion.userId !== userId || completion.courseId !== courseId ||
+    completion.completionPath !== "terverifikasi" || !(await getCourseById(courseId))
+  ) {
+    throw new GalatReview("kelayakan_ditolak", "Selesaikan kursus melalui jalur terverifikasi sebelum mengirim karya.");
+  }
+}
+
+/** Pilihan form berasal dari completion server, bukan klaim browser. */
+export async function daftarKursusSubmission(principal: SessionPrincipal): Promise<{
+  courseId: string; enrollmentId: string; title: string;
+}[]> {
+  const enrollments = await listEnrollments(principal.userId);
+  const completions = await ambilCompletionBanyak(enrollments.map((e) => e.id));
+  const hasil: { courseId: string; enrollmentId: string; title: string }[] = [];
+  for (const enrollment of enrollments) {
+    const completion = completions.get(enrollment.id);
+    if (completion?.completionPath !== "terverifikasi") continue;
+    const course = await getCourseById(enrollment.courseId);
+    if (course) hasil.push({ courseId: course.id, enrollmentId: enrollment.id, title: course.title });
+  }
+  return hasil;
+}
+
+function wajibReviewer(submission: Submission, principal: SessionPrincipal): void {
+  wajibStaff(principal);
+  if (submission.userId === principal.userId || submission.assignedReviewerUserId !== principal.userId) {
+    throw new GalatReview("akses_ditolak", "Review hanya dapat dilakukan oleh verifikator yang ditugaskan, bukan pemilik karya.");
+  }
+}
+
 /**
  * Buat submission `draft` untuk learner.
  *
@@ -144,6 +197,11 @@ export async function buatSubmissionDb(input: {
   enrollmentId?: string | null;
   konten: KontenSubmission;
 }): Promise<{ submission: Submission; versi: SubmissionVersion }> {
+  await pastikanKelayakanKursus(
+    input.principal.userId,
+    input.courseId,
+    input.enrollmentId,
+  );
   return jalankanDenganOutbox(
     async (tx) =>
       buatSubmission(tx, {
@@ -180,6 +238,10 @@ export async function kirimSubmissionDb(input: {
   if (!submission || submission.userId !== input.principal.userId) {
     throw new GalatReview("submission_tidak_ditemukan", "Submission tidak ditemukan.");
   }
+  if (!transisiSah(submission.status, "submitted")) {
+    throw new GalatReview("transisi_ditolak", "Submission tidak dalam status yang bisa dikirim.");
+  }
+  await pastikanKelayakanKursus(submission.userId, submission.courseId, submission.enrollmentId);
 
   return jalankanDenganOutbox(
     async (tx) => {
@@ -228,6 +290,13 @@ export async function tetapkanReviewerDb(input: {
   wajibStaff(input.principal);
   const submission = await ambilSubmission(input.submissionId);
   if (!submission) throw new GalatReview("submission_tidak_ditemukan", "Submission tidak ditemukan.");
+  if (submission.userId === input.reviewerUserId) {
+    throw new GalatReview("akses_ditolak", "Pemilik karya tidak boleh menilai karyanya sendiri.");
+  }
+  const roles = await ambilRolesAktif(getDb(), input.reviewerUserId);
+  if (!roles.includes("verifikator") && !roles.includes("admin")) {
+    throw new GalatReview("akses_ditolak", "Reviewer harus memiliki hak akses verifikator.");
+  }
 
   return jalankanDenganOutbox(
     async (tx) => {
@@ -254,8 +323,9 @@ export async function mulaiReviewDb(input: {
   wajibStaff(input.principal);
   const submission = await ambilSubmission(input.submissionId);
   if (!submission) throw new GalatReview("submission_tidak_ditemukan", "Submission tidak ditemukan.");
+  wajibReviewer(submission, input.principal);
 
-  const hasil = await transisiSubmission(getDb(), submission.id, "assigned", "in_review");
+  const hasil = await transisiSubmission(getDb(), submission.id, "assigned", "in_review", input.principal.userId);
   if (!hasil) throw new GalatReview("transisi_ditolak", "Submission belum di-assign ke reviewer.");
   return hasil;
 }
@@ -281,6 +351,10 @@ export async function putuskanReviewDb(input: {
   if (submission.status !== "in_review") {
     throw new GalatReview("transisi_ditolak", "Submission belum dalam review.");
   }
+  wajibReviewer(submission, staff);
+  if (input.decision === "approved" && submission.courseId) {
+    await pastikanKelayakanKursus(submission.userId, submission.courseId, submission.enrollmentId);
+  }
 
   const versi = await ambilVersiTerkini(submission.id);
   if (!versi) throw new GalatReview("versi_tidak_ditemukan", "Versi submission tidak ditemukan.");
@@ -304,8 +378,8 @@ export async function putuskanReviewDb(input: {
     username: user.usernameNormalized,
     task_id: submission.courseId ?? submission.id,
     task_title: course?.title ?? "Submission",
-    track: course?.track ?? "web-dev",
-    level: course?.level ?? "dasar",
+    track: course?.track ?? "portofolio",
+    level: course?.level ?? "mandiri",
     score,
     issued_at: new Date().toISOString(),
   };
@@ -325,7 +399,7 @@ export async function putuskanReviewDb(input: {
         rationale: input.rationale,
       });
 
-      const hasilSub = await transisiSubmission(tx, submission.id, "in_review", statusTujuan);
+      const hasilSub = await transisiSubmission(tx, submission.id, "in_review", statusTujuan, staff.userId);
       if (!hasilSub) {
         throw new GalatReview("transisi_ditolak", "Status submission berubah saat review diputuskan.");
       }
@@ -336,7 +410,7 @@ export async function putuskanReviewDb(input: {
       if (input.decision === "approved") {
         badge = await buatBadge(tx, {
           userId: submission.userId,
-          type: "course_submission",
+          type: submission.courseId ? "course_submission" : "portfolio_submission",
           sourceReviewId: review.id,
         });
 

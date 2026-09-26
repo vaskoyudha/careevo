@@ -3,18 +3,14 @@ import { notFound } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { AppShell } from "@/components/ui/app-shell";
 import { PageHead } from "@/components/ui/page-head";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { StatusBadge, statusSubmission } from "@/components/ui/status-badge";
 import { ReviewForm } from "@/components/features/review/review-form";
-import { listSubmissionStaf } from "@/lib/review/repository";
+import { ambilVersiTerkini, listSubmissionStaf } from "@/lib/review/repository";
+import { TransisiSubmission } from "@/components/features/submission/submission-actions";
 
 export const metadata: Metadata = {
   title: "Review Detail",
 };
-
-/** Badge hanya mengerti `revision`; `changes_requested` dipetakan ke sana. */
-function statusBadge(status: string): string {
-  return status === "changes_requested" ? "revision" : status;
-}
 
 /** Waktu dari kolom timestamp — `null` ditampilkan "—", bukan tanggal karangan. */
 function formatWaktu(nilai: Date | null): string {
@@ -46,6 +42,10 @@ export default async function ReviewDetailPage({
   if (!baris) notFound();
 
   const { submission, owner } = baris;
+  const versi = await ambilVersiTerkini(submission.id);
+  const snapshot = versi?.contentSnapshot as { judul?: string | null; catatan?: string | null } | undefined;
+  const bukanPemilik = submission.userId !== session.userId;
+  const ditugaskan = bukanPemilik && submission.assignedReviewerUserId === session.userId;
 
   return (
     <AppShell session={session} current="/review">
@@ -53,7 +53,7 @@ export default async function ReviewDetailPage({
           eyebrow={`Review #${submission.id.slice(0, 8)} · ${owner.nama}`}
           title={`Submission ${submission.id.slice(0, 8)}`}
           lead="Ringkasan submission dari database. Auto-check, VTS, dan Socrates belum punya padanan di database, jadi tidak ditampilkan."
-          actions={<StatusBadge status={statusBadge(submission.status)} />}
+          actions={<StatusBadge status={statusSubmission(submission.status)} />}
         />
 
         <div className="grid-2">
@@ -76,7 +76,7 @@ export default async function ReviewDetailPage({
               <li className="list-app-row">
                 <span className="row-title">Status</span>
                 <span className="row-aside">
-                  <StatusBadge status={statusBadge(submission.status)} />
+                  <StatusBadge status={statusSubmission(submission.status)} />
                 </span>
               </li>
               <li className="list-app-row">
@@ -94,8 +94,21 @@ export default async function ReviewDetailPage({
             </ul>
           </section>
 
-          <ReviewForm submissionId={submission.id} username={owner.email} />
+          <section className="card" aria-labelledby="karya-review-title">
+            <h2 className="card-title" id="karya-review-title">{snapshot?.judul ?? "Karya tanpa judul"}</h2>
+            <p style={{ whiteSpace: "pre-wrap" }}>{snapshot?.catatan ?? "Tidak ada catatan."}</p>
+            {submission.status === "submitted" && bukanPemilik && (
+              <TransisiSubmission submissionId={submission.id} jenis="ambil" />
+            )}
+            {submission.status === "assigned" && ditugaskan && (
+              <TransisiSubmission submissionId={submission.id} jenis="mulai" />
+            )}
+            {!bukanPemilik && <p className="caption muted">Anda tidak dapat menilai karya sendiri.</p>}
+          </section>
         </div>
+        {submission.status === "in_review" && ditugaskan && (
+          <div style={{ marginTop: "1.25rem" }}><ReviewForm submissionId={submission.id} username={owner.email} /></div>
+        )}
     </AppShell>
   );
 }

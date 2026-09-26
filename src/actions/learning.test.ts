@@ -31,7 +31,7 @@ const store = vi.hoisted(() => ({
 }));
 
 const { auth } = vi.hoisted(() => ({ auth: { sesi: null as SessionPrincipal | null } }));
-const { tandaiModulDb } = vi.hoisted(() => ({ tandaiModulDb: vi.fn() }));
+const { tandaiModulDb, selesaikanKursusDb } = vi.hoisted(() => ({ tandaiModulDb: vi.fn(), selesaikanKursusDb: vi.fn() }));
 
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => auth.sesi }));
 
@@ -57,6 +57,7 @@ vi.mock("@/lib/learning/service", () => ({
     };
   },
   tandaiModulDb,
+  selesaikanKursusDb,
 }));
 
 /**
@@ -248,6 +249,7 @@ beforeEach(() => {
   seedTerdaftar("crs-1");
   seedTerdaftar("crs-2");
   seedTerdaftar("crs-3");
+  selesaikanKursusDb.mockResolvedValue({ selesai: false, selesaiCount: 1, total: 5 });
   tandaiModulDb.mockImplementation(
     async (input: { principal: SessionPrincipal; courseId: string; modulId: string }) => {
       const k = `${input.principal.userId}:${input.courseId}`;
@@ -396,6 +398,19 @@ describe("selesaikanMateriAction", () => {
  * **keadaan tersimpan**, bukan nilai balik action.
  */
 describe("selesaikanMateriAction — penyimpanan progres terverifikasi", () => {
+  it("mencatat completion setelah modul terverifikasi diselesaikan", async () => {
+    selesaikanKursusDb.mockResolvedValueOnce({ selesai: true, completion: { id: "completion-1" }, baru: true });
+    const mulai = await mulaiSesiAction("crs-2");
+    const hasil = await selesaikanMateriAction({
+      courseId: "crs-2", modulId: "crs-2-m1", bukti: mulai.bukti ?? "",
+    });
+    expect(hasil.ok).toBe(true);
+    expect(selesaikanKursusDb).toHaveBeenCalledWith({
+      principal: sesi, courseId: "crs-2", policyVersion: 1,
+    });
+    expect((await import("next/cache")).revalidatePath).toHaveBeenCalledWith("/submission");
+  });
+
   it("menyimpan modul selesai di kursus wajib yang terverifikasi", async () => {
     const mulai = await mulaiSesiAction("crs-2");
 

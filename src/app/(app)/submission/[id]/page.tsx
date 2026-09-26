@@ -1,20 +1,17 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { AppShell } from "@/components/ui/app-shell";
 import { PageHead } from "@/components/ui/page-head";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { StatusBadge, statusSubmission } from "@/components/ui/status-badge";
 import { listSubmissionDb } from "@/lib/review/service";
-import { listReviewSubmission } from "@/lib/review/repository";
+import { ambilTokenAttestationSubmission, ambilVersiTerkini, listReviewSubmission } from "@/lib/review/repository";
+import { TransisiSubmission } from "@/components/features/submission/submission-actions";
 
 export const metadata: Metadata = {
   title: "Submission",
 };
-
-/** Badge hanya mengerti `revision`; `changes_requested` dipetakan ke sana. */
-function statusBadge(status: string): string {
-  return status === "changes_requested" ? "revision" : status;
-}
 
 /** Waktu dari kolom timestamp — `null` ditampilkan sebagai "—", bukan tanggal karangan. */
 function formatWaktu(nilai: Date | null): string {
@@ -44,7 +41,12 @@ export default async function SubmissionPage({
   const submission = daftar.find((baris) => baris.id === id);
   if (!submission || submission.userId !== session.userId) notFound();
 
-  const review = await listReviewSubmission(submission.id);
+  const [review, versi, token] = await Promise.all([
+    listReviewSubmission(submission.id),
+    ambilVersiTerkini(submission.id),
+    submission.status === "approved" ? ambilTokenAttestationSubmission(submission.id) : Promise.resolve(null),
+  ]);
+  const snapshot = versi?.contentSnapshot as { judul?: string | null; catatan?: string | null } | undefined;
 
   return (
     <AppShell session={session} current="/belajar">
@@ -52,7 +54,7 @@ export default async function SubmissionPage({
         eyebrow="Submission"
         title={`Submission ${submission.id.slice(0, 8)}`}
         lead="Ringkasan status submission dan riwayat keputusan review."
-        actions={<StatusBadge status={statusBadge(submission.status)} />}
+        actions={<StatusBadge status={statusSubmission(submission.status)} />}
       />
 
       <section className="card" aria-labelledby="ringkasan-title">
@@ -68,7 +70,7 @@ export default async function SubmissionPage({
           <li className="list-app-row">
             <span className="row-title">Status</span>
             <span className="row-aside">
-              <StatusBadge status={statusBadge(submission.status)} />
+              <StatusBadge status={statusSubmission(submission.status)} />
             </span>
           </li>
           <li className="list-app-row">
@@ -84,6 +86,13 @@ export default async function SubmissionPage({
             <span className="row-aside">{formatWaktu(submission.updatedAt)}</span>
           </li>
         </ul>
+      </section>
+
+      <section className="card" style={{ marginTop: "1.25rem" }} aria-labelledby="karya-title">
+        <h2 className="card-title" id="karya-title">{snapshot?.judul ?? "Karya tanpa judul"}</h2>
+        <p style={{ whiteSpace: "pre-wrap" }}>{snapshot?.catatan ?? "Tidak ada catatan."}</p>
+        {submission.status === "draft" && <TransisiSubmission submissionId={submission.id} jenis="kirim" />}
+        {token && <p><Link href={`/verify/${token}`}>Lihat credential terverifikasi</Link></p>}
       </section>
 
       <section className="card" style={{ marginTop: "1.25rem" }} aria-labelledby="riwayat-title">
@@ -102,7 +111,7 @@ export default async function SubmissionPage({
             {review.map((item) => (
               <li className="list-app-row" key={item.id}>
                 <span className="row-title">
-                  <StatusBadge status={statusBadge(item.decision)} />
+                  <StatusBadge status={statusSubmission(item.decision)} />
                   <span style={{ marginLeft: "0.5rem" }}>
                     {item.score === null ? "belum dinilai" : `${item.score}/100`}
                   </span>

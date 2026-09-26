@@ -130,15 +130,6 @@ export function ReviewForm({
           type="button"
           variant="ghost"
           size="sm"
-          className={cn("tab-btn", decision === "changes_requested" && "is-active")}
-          onClick={() => setDecision("changes_requested")}
-        >
-          Minta revisi
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
           className={cn("tab-btn", decision === "rejected" && "is-active")}
           onClick={() => setDecision("rejected")}
         >
