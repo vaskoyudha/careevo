@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { StudyChatMessage, StudyPathProposal } from "./chat-types";
+import type { StudyChatMessage } from "./chat-types";
 
 interface CookieOptions {
   readonly httpOnly: boolean;
@@ -41,29 +41,13 @@ const {
   STUDY_CHAT_MAX_AGE_SECONDS,
   STUDY_CHAT_VERSION,
 } = await import("./chat-types");
-const {
-  appendStudyMessage,
-  clearPendingStudyProposal,
-  readStudyChatSnapshot,
-  setPendingStudyProposal,
-} = await import("./chat-store");
+const { appendStudyMessage, readStudyChatSnapshot } = await import("./chat-store");
 
 function message(overrides: Partial<StudyChatMessage> = {}): StudyChatMessage {
   return {
     id: "m1",
     role: "user",
     content: "Explain closures",
-    createdAt: "2026-09-24T00:00:00.000Z",
-    ...overrides,
-  };
-}
-
-function proposal(overrides: Partial<StudyPathProposal> = {}): StudyPathProposal {
-  return {
-    id: "proposal-1",
-    courseId: "crs-1",
-    moduleIds: ["crs-1-m1", "crs-1-m2"],
-    rationale: "This path starts with the learner's stated goal.",
     createdAt: "2026-09-24T00:00:00.000Z",
     ...overrides,
   };
@@ -211,78 +195,6 @@ describe("owner-scoped study chat store", () => {
 
     // Then
     expect(snapshot).toEqual({ version: STUDY_CHAT_VERSION, messages: [] });
-  });
-
-  it("rejects a sparse proposal without losing the existing transcript", async () => {
-    // Given
-    const transcript = await appendStudyMessage("a@careevo.test", message());
-    const sparseProposal = proposal({ moduleIds: new Array<string>(1) });
-
-    // When
-    const snapshot = await setPendingStudyProposal("a@careevo.test", sparseProposal);
-
-    // Then
-    expect(snapshot.pendingProposal).toBeUndefined();
-    expect((await readStudyChatSnapshot("a@careevo.test")).messages).toEqual(
-      transcript.messages,
-    );
-  });
-
-  it("copies only declared proposal fields into the return value and cookie", async () => {
-    // Given
-    const expected = proposal();
-    const runtimeProposal = Object.assign(proposal(), {
-      unsafeRuntimeField: "must-not-leak",
-    });
-
-    // When
-    const snapshot = await setPendingStudyProposal("a@careevo.test", runtimeProposal);
-    runtimeProposal.moduleIds.push("crs-1-m3");
-
-    // Then
-    expect(snapshot.pendingProposal).toEqual(expected);
-    const rawCookie = cookieState.jar.get(STUDY_CHAT_COOKIE) ?? "";
-    const separator = rawCookie.indexOf(".");
-    const body = rawCookie.slice(0, separator);
-    const envelope: unknown = JSON.parse(
-      Buffer.from(body, "base64url").toString("utf8"),
-    );
-    expect(envelope).toEqual({
-      version: STUDY_CHAT_VERSION,
-      owner: "a@careevo.test",
-      messages: [],
-      pendingProposal: expected,
-    });
-  });
-
-  it("replaces a pending proposal", async () => {
-    // Given
-    await appendStudyMessage("a@careevo.test", message());
-    await setPendingStudyProposal("a@careevo.test", proposal());
-    const replacement = proposal({
-      id: "proposal-2",
-      courseId: "crs-2",
-      moduleIds: ["crs-2-m1"],
-    });
-
-    // When
-    const snapshot = await setPendingStudyProposal("a@careevo.test", replacement);
-
-    // Then
-    expect(snapshot.pendingProposal).toEqual(replacement);
-  });
-
-  it("clears a pending proposal without clearing the transcript", async () => {
-    // Given
-    const withMessage = await appendStudyMessage("a@careevo.test", message());
-    await setPendingStudyProposal("a@careevo.test", proposal());
-
-    // When
-    const snapshot = await clearPendingStudyProposal("a@careevo.test");
-
-    // Then
-    expect(snapshot.pendingProposal).toBeUndefined();
-    expect(snapshot.messages).toEqual(withMessage.messages);
   });
 
   it("uses the existing secure cookie contract outside production", async () => {

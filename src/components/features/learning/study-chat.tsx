@@ -12,20 +12,19 @@
 
 import Link from "next/link";
 import { useActionState, useCallback, useId, useRef, useState, type KeyboardEvent } from "react";
-import { kirimStudyChatAction, setujuiStudyPathAction } from "@/actions/learning-chat";
+import { kirimStudyChatAction } from "@/actions/learning-chat";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MarkdownRingan } from "@/components/ui/markdown-ringan";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { Textarea } from "@/components/ui/textarea";
 import {
   MAX_STUDY_MESSAGE_CHARS,
   type StudyChatActionState,
   type StudyChatSnapshot,
-  type StudyProposalActionState,
 } from "@/lib/learning/chat-types";
 
 const INITIAL_SEND_STATE: StudyChatActionState = { status: "idle" };
-const INITIAL_APPROVAL_STATE: StudyProposalActionState = { status: "idle" };
 const PATH_SOURCE_LABEL = {
   "active-enrollment": "jalur belajar aktif",
   recommendation: "jalur rekomendasi",
@@ -47,11 +46,9 @@ export interface StudyChatProps {
 
 export function StudyChat({ initialSnapshot, context }: StudyChatProps) {
   const [message, setMessage] = useState("");
-  const [approvedProposalId, setApprovedProposalId] = useState<string | null>(null);
   const composing = useRef(false);
   const transcriptTitleId = useId();
   const messageId = useId();
-  const proposalTitleId = useId();
 
   const submitMessage = useCallback(async (previous: StudyChatActionState, formData: FormData) => {
     const next = await kirimStudyChatAction(previous, formData);
@@ -60,33 +57,18 @@ export function StudyChat({ initialSnapshot, context }: StudyChatProps) {
     }
     return next;
   }, []);
-  const submitApproval = useCallback(async (previous: StudyProposalActionState, formData: FormData) => {
-    const next = await setujuiStudyPathAction(previous, formData);
-    if (next.status === "success") {
-      const proposalId = formData.get("proposalId");
-      if (typeof proposalId === "string") setApprovedProposalId(proposalId);
-    }
-    return next;
-  }, []);
-
   const [sendState, sendFormAction, sendPending] = useActionState(submitMessage, INITIAL_SEND_STATE);
-  const [approvalState, approvalFormAction, approvalPending] = useActionState(
-    submitApproval,
-    INITIAL_APPROVAL_STATE,
-  );
   const displayedSnapshot =
     sendState.status === "success" || sendState.status === "unavailable" || sendState.status === "invalid_model_output"
       ? sendState.snapshot
       : initialSnapshot;
-  const storedProposal = displayedSnapshot.pendingProposal;
-  const proposal = storedProposal && storedProposal.id !== approvedProposalId ? storedProposal : undefined;
   const trimmedMessage = message.trim();
   const whitespaceOnly = message.length > 0 && trimmedMessage.length === 0;
   const completedCount = context.completedModuleIds.length;
   const hasCourseContext = context.courseId !== null;
   const contextSummary = hasCourseContext
     ? `Tutor memakai konteks ${PATH_SOURCE_LABEL[context.pathSource]}${context.moduleTitle ? ` dan modul ${context.moduleTitle}` : ""}.`
-    : "Chat tetap tersedia tanpa kursus. Usulan jalur dinonaktifkan sampai konteks kursus tervalidasi tersedia.";
+    : "Chat tetap tersedia tanpa kursus, tanpa konteks materi tertentu.";
   const completedLabel = completedCount === 1 ? "1 modul selesai" : `${completedCount} modul selesai`;
   const sendStatus = sendPending
     ? "Mengirim pertanyaan..."
@@ -102,16 +84,11 @@ export function StudyChat({ initialSnapshot, context }: StudyChatProps) {
       : sendState.status === "idle"
         ? "text-muted-foreground"
         : "text-destructive";
-  const approvalStatus = approvalPending
-    ? "Menyetujui usulan jalur..."
-    : approvalState.status === "idle"
-      ? ""
-      : approvalState.message;
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key !== "Enter" || event.shiftKey) return;
     if (composing.current || event.nativeEvent.isComposing) return;
-    if (sendPending || approvalPending || trimmedMessage.length === 0) return;
+    if (sendPending || trimmedMessage.length === 0) return;
     event.preventDefault();
     event.currentTarget.form?.requestSubmit();
   }
@@ -119,7 +96,7 @@ export function StudyChat({ initialSnapshot, context }: StudyChatProps) {
   return (
     <section
       data-study-chat="ready"
-      aria-busy={sendPending || approvalPending}
+      aria-busy={sendPending}
       className="w-full min-w-0 overflow-x-clip rounded-2xl border border-border bg-card shadow-xs"
     >
       <header className="border-b border-border px-4 py-5 sm:px-6">
@@ -153,9 +130,13 @@ export function StudyChat({ initialSnapshot, context }: StudyChatProps) {
                   <p className="text-xs font-semibold text-muted-foreground">
                     {chatMessage.role === "user" ? "Kamu" : "Tutor"}
                   </p>
-                  <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-7 text-card-foreground">
-                    {chatMessage.content}
-                  </p>
+                  {chatMessage.role === "user" ? (
+                    <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-7 text-card-foreground">
+                      {chatMessage.content}
+                    </p>
+                  ) : (
+                    <MarkdownRingan teks={chatMessage.content} className="mt-2 text-sm text-card-foreground" />
+                  )}
                   {chatMessage.truncated ? (
                     <p className="mt-2 text-xs text-muted-foreground">Balasan dipotong agar riwayat tetap ringkas.</p>
                   ) : null}
@@ -175,7 +156,7 @@ export function StudyChat({ initialSnapshot, context }: StudyChatProps) {
             rows={4}
             value={message}
             maxLength={MAX_STUDY_MESSAGE_CHARS}
-            disabled={sendPending || approvalPending}
+            disabled={sendPending}
             required
             placeholder="Contoh: jelaskan closures dengan analogi sederhana."
             aria-invalid={whitespaceOnly}
@@ -201,48 +182,10 @@ export function StudyChat({ initialSnapshot, context }: StudyChatProps) {
           <p id={`${messageId}-status`} role="status" aria-live="polite" aria-atomic="true" className={`min-h-5 text-sm font-medium ${sendStatusClass}`}>
             {sendStatus}
           </p>
-          <Button type="submit" size="lg" className="h-11 w-full sm:w-auto" disabled={sendPending || approvalPending || trimmedMessage.length === 0}>
+          <Button type="submit" size="lg" className="h-11 w-full sm:w-auto" disabled={sendPending || trimmedMessage.length === 0}>
             {sendPending ? "Mengirim" : "Kirim pertanyaan"}
           </Button>
         </form>
-      </section>
-
-      <section
-        aria-labelledby={proposalTitleId}
-        data-study-chat-proposal={proposal ? "pending" : "empty"}
-        className="border-t border-border px-4 py-5 sm:px-6"
-      >
-        <h3 id={proposalTitleId} className="text-base font-bold text-foreground">Usulan jalur</h3>
-        {proposal ? (
-          <div className="mt-3 min-w-0 border-l-2 border-primary pl-4">
-            <p className="text-xs font-semibold text-muted-foreground">
-              {proposal.moduleIds.length === 1 ? "1 modul kanonis" : `${proposal.moduleIds.length} modul kanonis`}
-            </p>
-            <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-foreground">{proposal.rationale}</p>
-            <p className="mt-2 text-xs leading-5 text-muted-foreground">
-              Persetujuan hanya mengaktifkan kursus dan tidak menandai modul sebagai selesai.
-            </p>
-            {hasCourseContext ? (
-              <form action={approvalFormAction} className="mt-4">
-                <input type="hidden" name="proposalId" value={proposal.id} />
-                <Button type="submit" variant="brand" size="lg" className="h-11 w-full sm:w-auto" disabled={approvalPending || sendPending}>
-                  {approvalPending ? "Menyetujui" : "Setujui jalur"}
-                </Button>
-              </form>
-            ) : (
-              <p className="mt-3 text-sm font-medium text-destructive">Usulan tidak dapat disetujui tanpa konteks kursus tervalidasi.</p>
-            )}
-          </div>
-        ) : (
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            {hasCourseContext
-              ? "Belum ada usulan jalur. Tutor dapat mengusulkan jalur setelah kamu memberi konteks yang cukup."
-              : "Usulan jalur tersedia setelah konteks kursus tervalidasi tersedia."}
-          </p>
-        )}
-        <p role="status" aria-live="polite" aria-atomic="true" className="mt-3 min-h-5 text-sm font-medium text-foreground">
-          {approvalStatus}
-        </p>
       </section>
     </section>
   );

@@ -7,7 +7,11 @@ import Link from "next/link";
  * Careevo Plus promo banner — sleek deep-navy ribbon matching the original
  * "Ends today! Grow on your schedule with big savings..." banner in Coursera Plus.
  */
-export function CareevoPlusPromoBanner() {
+export function CareevoPlusPromoBanner({
+  href = "#paket",
+}: {
+  href?: string;
+}) {
   const [visible, setVisible] = useState(true);
 
   if (!visible) return null;
@@ -20,7 +24,7 @@ export function CareevoPlusPromoBanner() {
           Berkembang sesuai jadwalmu dengan diskon besar untuk Careevo Plus.{" "}
         </span>
         <Link
-          href="#paket"
+          href={href}
           className="font-semibold text-white underline underline-offset-2 transition-opacity hover:opacity-85"
         >
           Hemat 40% selama 3 bulan

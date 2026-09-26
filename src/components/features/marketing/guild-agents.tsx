@@ -59,8 +59,8 @@ const CARDS: AgentCard[] = [
     position: "left-[3%] top-[16%] -rotate-3",
     icon: Compass,
     tone: "emerald",
-    name: "navigator",
-    description: "Menyusun rekomendasi task dari tren loker terbaru.",
+    name: "penemu materi",
+    description: "Nyusun rekomendasi task dari loker yang lagi banyak dilamar.",
     status: "running",
     delay: 0,
   },
@@ -68,8 +68,8 @@ const CARDS: AgentCard[] = [
     position: "left-[17%] top-[2%] rotate-2",
     icon: ShieldAlert,
     tone: "amber",
-    name: "sentinel",
-    description: "Menyaring lowongan kerja dari indikasi penipuan.",
+    name: "pengecek loker",
+    description: "Saring lowongan yang muat indikasi penipuan.",
     status: "queued",
     delay: 0.6,
   },
@@ -77,8 +77,8 @@ const CARDS: AgentCard[] = [
     position: "right-[16%] top-[4%] -rotate-2",
     icon: MessagesSquare,
     tone: "sky",
-    name: "socrates",
-    description: "Melatih pemahaman logika dan kesiapan interview teknis.",
+    name: "tutor logika",
+    description: "Latih logika dan kesiapan interview teknis kamu.",
     status: "idle",
     delay: 1.2,
   },
@@ -86,8 +86,8 @@ const CARDS: AgentCard[] = [
     position: "right-[2%] top-[22%] rotate-3",
     icon: BadgeCheck,
     tone: "blue",
-    name: "verifier",
-    description: "Menandatangani hasil dengan bukti kriptografis.",
+    name: "penandatangan",
+    description: "Tandatangani hasil kerja kamu, biar tidak bisa dimanipulasi.",
     status: "running",
     delay: 1.8,
   },
@@ -95,8 +95,8 @@ const CARDS: AgentCard[] = [
     position: "bottom-[16%] left-[6%] rotate-2",
     icon: Calculator,
     tone: "emerald",
-    name: "scorer",
-    description: "Menghitung rubrik lima kriteria secara konsisten.",
+    name: "penilai",
+    description: "Nilai jawaban kamu pakai rubrik lima kriteria yang sama.",
     status: "running",
     delay: 2.4,
   },
@@ -104,8 +104,8 @@ const CARDS: AgentCard[] = [
     position: "bottom-[13%] right-[5%] -rotate-2",
     icon: ScrollText,
     tone: "amber",
-    name: "audit-log",
-    description: "Menjaga catatan proses belajar tetap transparan.",
+    name: "pencatat proses",
+    description: "Simpan catatan belajar kamu supaya bisa dibuka siapa saja.",
     status: "queued",
     delay: 3.0,
   },
@@ -113,8 +113,8 @@ const CARDS: AgentCard[] = [
     position: "left-[26%] top-[13%] rotate-1",
     icon: ClipboardCheck,
     tone: "sky",
-    name: "reviewer",
-    description: "Menyiapkan ringkasan laporan untuk verifikator.",
+    name: "penyusun laporan",
+    description: "Siapin ringkasan laporan buat verifikator.",
     status: "idle",
     delay: 3.6,
   },
@@ -122,8 +122,8 @@ const CARDS: AgentCard[] = [
     position: "bottom-[6%] left-[31%] -rotate-1",
     icon: CalendarClock,
     tone: "emerald",
-    name: "schedule-bot",
-    description: "Mengunci jadwal belajar mingguan kamu.",
+    name: "jadwal",
+    description: "Kunci jadwal belajar mingguan kamu.",
     status: "running",
     delay: 4.2,
   },
@@ -131,8 +131,8 @@ const CARDS: AgentCard[] = [
     position: "bottom-[9%] right-[28%] rotate-2",
     icon: Target,
     tone: "blue",
-    name: "match-bot",
-    description: "Mencocokkan skill dan CV dengan lowongan valid.",
+    name: "pencocok skill",
+    description: "Cocokkan skill dan CV kamu dengan loker yang lolos cek.",
     status: "idle",
     delay: 4.8,
   },
@@ -215,24 +215,24 @@ export function MarketingAgents() {
         <Reveal>
           <div className="flex items-center justify-center gap-3 font-mono text-xs tracking-[0.02em] text-[#110f1a]/55 uppercase">
             <Bracket className="size-2 text-blue-500" />
-            Sistem AI pendukung kariermu
+            Yang kamu dapat
             <Bracket className="size-2 rotate-180 text-blue-500" />
           </div>
         </Reveal>
 
         <Reveal delay={90}>
-          <h1 className="mt-6 text-5xl leading-[1.08] font-light tracking-[-0.03em] text-[#0d0c11] sm:text-6xl lg:text-[64px] lg:leading-[1.06]">
-            Asisten belajar cerdas,
+          <h2 className="mt-6 text-5xl leading-[1.08] font-light tracking-[-0.03em] text-[#0d0c11] sm:text-6xl lg:text-[64px] lg:leading-[1.06]">
+            Delapan agen kerja buat kamu,
             <br />
-            pelindung saat mencari kerja
-          </h1>
+            satu akun
+          </h2>
         </Reveal>
 
         <Reveal delay={180}>
           <p className="mx-auto mt-6 max-w-xl text-[15px] leading-relaxed text-[#110f1a]/55">
-            Di balik Careevo, agen AI bekerja saling melengkapi: memandu logika
-            berpikirmu, menganalisis kesesuaian CV, memverifikasi hasil belajar,
-            dan menyaring loker palsu sebelum kamu melamar.
+            Tiap agen pegang satu tugas dan bisa kamu matikan sendiri: nunjukin
+            latihan yang perlu, nanya soal logika, cek loker, sampai
+            menandatangani hasil kerjamu.
           </p>
         </Reveal>
 
@@ -242,13 +242,13 @@ export function MarketingAgents() {
               href="/daftar"
               className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#14121c] px-6 text-[15px] font-medium whitespace-nowrap text-white transition-colors duration-200 select-none hover:bg-[#14121c]/85"
             >
-              Coba Latihan Gratis
+              Cobain satu challenge, gratis
             </Link>
             <Link
               href="#loop"
               className="group inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl px-6 text-[15px] font-medium whitespace-nowrap text-[#0d0c11]/85 transition-colors duration-200 select-none hover:bg-black/5"
             >
-              Pelajari Alurnya
+              Lihat alurnya
               <ArrowUpRight
                 className="size-4 text-blue-500 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
                 strokeWidth={2}

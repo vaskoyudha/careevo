@@ -1,6 +1,23 @@
 import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
 import { LearnerChrome } from "./learner-chrome";
+import { CareevoPlusPromoBanner } from "@/components/features/marketing/careevo-plus/header";
 import type { SessionPayload } from "@/lib/auth/types";
+
+function LearnerTopPromoBar() {
+  return (
+    <div className="relative z-[60] flex min-h-8 items-center justify-center gap-2 bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400 px-4 py-2 text-center text-[11px] text-white sm:gap-3 sm:text-[13px]">
+      <span className="font-mono text-white/75">Baru</span>
+      <Link
+        href="/daftar"
+        className="inline-flex items-center gap-1 font-medium text-white underline underline-offset-4 transition-opacity hover:opacity-75"
+      >
+        Coba demo Careevo gratis
+        <ArrowUpRight className="size-3.5" strokeWidth={2} aria-hidden="true" />
+      </Link>
+    </div>
+  );
+}
 
 const FOOTER_GROUPS: { heading: string; links: { label: string; href: string }[] }[] = [
   {
@@ -24,15 +41,27 @@ const FOOTER_GROUPS: { heading: string; links: { label: string; href: string }[]
 export function LearnerShell({
   session,
   queryAwal = "",
+  overlayMain = false,
+  promoBars = false,
   children,
 }: {
   session: SessionPayload;
   queryAwal?: string;
+  overlayMain?: boolean;
+  promoBars?: boolean;
   children: React.ReactNode;
 }) {
+  const shouldOverlayMain = overlayMain && !promoBars;
+
   return (
-    <div className="min-h-screen bg-white font-sans text-gray-900 antialiased">
+    <div
+      className={`min-h-screen bg-white font-sans text-gray-900 antialiased ${
+        shouldOverlayMain ? "learner-shell--overlay" : ""
+      }`}
+    >
+      {promoBars ? <LearnerTopPromoBar /> : null}
       <LearnerChrome session={session} queryAwal={queryAwal} />
+      {promoBars ? <CareevoPlusPromoBanner href="/careevo-plus" /> : null}
 
       <main id="main">{children}</main>
 

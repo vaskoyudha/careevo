@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -26,6 +26,8 @@ import {
   Calculator,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { closestPromoIndex } from "@/lib/learning/hero-promo";
+import { DitheredHeroBackdrop } from "./dithered-hero-backdrop";
 import type { ResourceFixture, TaskFixture } from "@/lib/fixtures";
 
 export interface KursusTerdaftar {
@@ -234,6 +236,271 @@ function levelLabel(level: string) {
   return "Lanjutan";
 }
 
+const HOME_SECTION_HEADING_CLASS =
+  "text-4xl font-medium -tracking-[1.9px] text-[#0a3d62] sm:text-5xl lg:text-6xl";
+
+type HeroPromoTone = "ink" | "blue" | "mist";
+
+interface HeroPromoCard {
+  eyebrow: string;
+  title: string;
+  description: string;
+  cta: string;
+  href: string;
+  image: string;
+  imagePosition: string;
+  tone: HeroPromoTone;
+}
+
+const HERO_PROMO_CARDS: HeroPromoCard[] = [
+  {
+    eyebrow: "Kursus AI",
+    title: "Kuasai AI untuk kerja nyata",
+    description: "Kursus dan sertifikat dari praktisi yang membangun teknologi.",
+    cta: "Jelajahi kursus AI",
+    href: "/explore/most-popular-courses",
+    image: "/images/customer-stories/taskrabbit-cover.webp",
+    imagePosition: "object-[68%_center]",
+    tone: "ink",
+  },
+  {
+    eyebrow: "Jalur belajar",
+    title: "Mulai, beralih, atau majukan karier",
+    description: "Pilih langkah belajar yang sesuai dengan tujuanmu berikutnya.",
+    cta: "Mulai gratis",
+    href: "/belajar/jalur",
+    image: "/images/customer-stories/modal-cover.webp",
+    imagePosition: "object-[72%_center]",
+    tone: "blue",
+  },
+  {
+    eyebrow: "Karya nyata",
+    title: "Bangun kemampuan yang terverifikasi",
+    description: "Selesaikan proyek dan tunjukkan bukti karyamu kepada dunia kerja.",
+    cta: "Lihat cara kerja",
+    href: "/belajar/jalur",
+    image: "/images/customer-stories/railway-cover.webp",
+    imagePosition: "object-[60%_center]",
+    tone: "mist",
+  },
+];
+
+const HERO_PROMO_THEMES: Record<
+  HeroPromoTone,
+  {
+    surface: string;
+    text: string;
+    muted: string;
+    eyebrow: string;
+    button: string;
+    overlay: string;
+    orb: string;
+  }
+> = {
+  ink: {
+    surface: "bg-[#101820]",
+    text: "text-white",
+    muted: "text-white/72",
+    eyebrow: "text-[#b9ddff]",
+    button: "bg-white text-[#0056D2]",
+    overlay: "bg-gradient-to-r from-[#101820] via-[#101820]/92 to-[#101820]/10",
+    orb: "border-[#4c8dff]/55",
+  },
+  blue: {
+    surface: "bg-[#0b6fd3]",
+    text: "text-white",
+    muted: "text-white/80",
+    eyebrow: "text-[#d9f0ff]",
+    button: "bg-white text-[#0056D2]",
+    overlay: "bg-gradient-to-r from-[#0b6fd3] via-[#0b6fd3]/92 to-[#0b6fd3]/12",
+    orb: "border-[#f5b9d3]/85",
+  },
+  mist: {
+    surface: "bg-[#eef6fb]",
+    text: "text-[#12324a]",
+    muted: "text-[#4e6879]",
+    eyebrow: "text-[#0056D2]",
+    button: "bg-[#0056D2] text-white",
+    overlay: "bg-gradient-to-r from-[#eef6fb] via-[#eef6fb]/94 to-[#eef6fb]/18",
+    orb: "border-[#0056D2]/25",
+  },
+};
+
+function HeroPromoCards() {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const [activeSlide, setActiveSlide] = useState(0);
+
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+
+    const updateActiveSlide = () => {
+      const scrollerRect = scroller.getBoundingClientRect();
+      const cards = Array.from(
+        scroller.querySelectorAll<HTMLElement>("[data-promo-card]"),
+      ).map((card) => {
+        const cardRect = card.getBoundingClientRect();
+        return {
+          left: scroller.scrollLeft + cardRect.left - scrollerRect.left,
+          width: cardRect.width,
+        };
+      });
+
+      setActiveSlide(closestPromoIndex(scroller.scrollLeft, scroller.clientWidth, cards));
+    };
+
+    updateActiveSlide();
+    scroller.addEventListener("scroll", updateActiveSlide, { passive: true });
+    window.addEventListener("resize", updateActiveSlide);
+
+    return () => {
+      scroller.removeEventListener("scroll", updateActiveSlide);
+      window.removeEventListener("resize", updateActiveSlide);
+    };
+  }, []);
+
+  const scrollToSlide = (index: number) => {
+    const scroller = scrollerRef.current;
+    const card = scroller?.querySelectorAll<HTMLElement>("[data-promo-card]")[index];
+    if (!scroller || !card) return;
+
+    const scrollerRect = scroller.getBoundingClientRect();
+    const cardRect = card.getBoundingClientRect();
+    const maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+    const cardCenterInScroll = scroller.scrollLeft + cardRect.left - scrollerRect.left + cardRect.width / 2;
+    const left = Math.min(
+      maxScroll,
+      Math.max(0, cardCenterInScroll - scroller.clientWidth / 2),
+    );
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    setActiveSlide(index);
+    scroller.scrollTo({ left, behavior: reduceMotion ? "auto" : "smooth" });
+  };
+
+  return (
+    <section
+      aria-label="Pilihan belajar"
+      className="relative z-20 -mt-14 sm:-mt-20 lg:-mt-24"
+    >
+      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="overflow-hidden rounded-[1.5rem] bg-white p-2.5 shadow-[0_24px_70px_-42px_rgba(10,61,98,0.48)] ring-1 ring-[#dbe5ea] sm:p-3">
+          <div
+            ref={scrollerRef}
+            role="region"
+            aria-label="Kartu promosi belajar"
+            tabIndex={0}
+            className="flex snap-x snap-mandatory gap-2.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {HERO_PROMO_CARDS.map((card) => {
+              const theme = HERO_PROMO_THEMES[card.tone];
+
+              return (
+                <Link
+                  key={card.title}
+                  data-promo-card
+                  href={card.href}
+                  className={cn(
+                    "group relative isolate min-h-[15rem] w-[86vw] max-w-[34rem] shrink-0 snap-start overflow-hidden rounded-[1.15rem] transition-[transform,box-shadow] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-1 hover:no-underline hover:shadow-[0_18px_34px_-24px_rgba(10,61,98,0.5)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0056D2] focus-visible:ring-offset-2 motion-reduce:transform-none sm:h-[17rem] sm:w-[68vw] sm:max-w-none sm:basis-[70%] lg:basis-[47%]",
+                    theme.surface,
+                  )}
+                >
+                  <Image
+                    src={card.image}
+                    alt=""
+                    fill
+                    sizes="(max-width: 640px) 86vw, (max-width: 1024px) 68vw, 47vw"
+                    className={cn(
+                      "object-cover transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.04] motion-reduce:transform-none",
+                      card.imagePosition,
+                    )}
+                    priority={card.tone === "ink"}
+                  />
+                  <div className={cn("absolute inset-0", theme.overlay)} />
+                  <div
+                    aria-hidden="true"
+                    className={cn(
+                      "absolute -top-20 -right-20 size-64 rounded-full border-[26px]",
+                      theme.orb,
+                    )}
+                  />
+                  <div
+                    aria-hidden="true"
+                    className={cn(
+                      "absolute -right-8 -bottom-24 size-48 rounded-full border-[18px]",
+                      theme.orb,
+                    )}
+                  />
+
+                  <div
+                    className={cn(
+                      "relative z-10 flex min-h-[15rem] max-w-[66%] flex-col justify-between p-5 sm:min-h-[17rem] sm:p-6",
+                      theme.text,
+                    )}
+                  >
+                    <div>
+                      <p
+                        className={cn(
+                          "text-[10px] font-semibold tracking-[0.18em] uppercase",
+                          theme.eyebrow,
+                        )}
+                      >
+                        {card.eyebrow}
+                      </p>
+                      <h2
+                        className={cn(
+                          "mt-3 max-w-[22rem] text-xl leading-[1.08] font-semibold tracking-[-0.03em] sm:text-2xl",
+                          card.tone === "mist" ? "!text-[#12324a]" : "!text-white",
+                        )}
+                      >
+                        {card.title}
+                      </h2>
+                      <p className={cn("mt-3 max-w-[21rem] text-xs leading-relaxed sm:text-sm", theme.muted)}>
+                        {card.description}
+                      </p>
+                    </div>
+
+                    <span
+                      className={cn(
+                        "mt-5 inline-flex min-h-10 w-fit items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold shadow-[0_8px_18px_-12px_rgba(10,61,98,0.45)] transition-transform duration-200 group-hover:-translate-y-0.5 motion-reduce:transform-none",
+                        theme.button,
+                      )}
+                    >
+                      {card.cta}
+                      <ArrowRight className="size-3.5" />
+                    </span>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+
+          <div className="mt-3 flex items-center gap-1.5 px-1">
+            {HERO_PROMO_CARDS.map((card, index) => (
+              <button
+                key={card.title}
+                type="button"
+                onClick={() => scrollToSlide(index)}
+                aria-label={`Tampilkan promo ${index + 1}: ${card.title}`}
+                aria-current={activeSlide === index ? "true" : undefined}
+                className={cn(
+                  "h-1.5 cursor-pointer rounded-full p-0 transition-[width,background-color] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0056D2] focus-visible:ring-offset-2",
+                  activeSlide === index
+                    ? "w-5 bg-[#0a3d62]"
+                    : "w-1.5 bg-[#b7c8d2] hover:bg-[#8fa8b7]",
+                )}
+              />
+            ))}
+            <span className="sr-only" aria-live="polite">
+              Promo {activeSlide + 1} dari {HERO_PROMO_CARDS.length}
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 const PARTNERS = [
   {
     name: "Google",
@@ -241,7 +508,7 @@ const PARTNERS = [
   },
   {
     name: "IBM",
-    logo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/7iLJYdbTLExBFAgVoHe2Pc/1735062f2f3a6df1dca8cfd9f1815098/ibm-logo.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+    logo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/7iLJYdbTLExBFAgVoHe2Pc/1735062f2f3a6df1dca8cfd9f1815098/ibm-logo.png?auto=format%2Ccompress&dpr=1&w=120&h=40",
   },
   {
     name: "Microsoft",
@@ -249,15 +516,15 @@ const PARTNERS = [
   },
   {
     name: "University of Illinois",
-    logo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/1BjGzhrTBjvvOPuzuqQDHS/81bdfa5d44c5ec8c0364e8ee4761ccff/200x48-illinois.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+    logo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/1BjGzhrTBjvvOPuzuqQDHS/81bdfa5d44c5ec8c0364e8ee4761ccff/200x48-illinois.png?auto=format%2Ccompress&dpr=1&w=160&h=40",
   },
   {
     name: "OpenAI",
-    logo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/88r0gwMY5y55z3J0h1T4M/e80fdcb65ff8681943c5394c670f6b7d/OAI_MVP_01_OpenAI_Logo_Black.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+    logo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/88r0gwMY5y55z3J0h1T4M/e80fdcb65ff8681943c5394c670f6b7d/OAI_MVP_01_OpenAI_Logo_Black.png?auto=format%2Ccompress&dpr=1&w=160&h=40",
   },
   {
     name: "Anthropic",
-    logo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/2qT888LE5BPxxD8d4pfXmJ/89b8eb03eaebe5ff116f509333f24fb5/Anthropic-logo.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
+    logo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/2qT888LE5BPxxD8d4pfXmJ/89b8eb03eaebe5ff116f509333f24fb5/Anthropic-logo.png?auto=format%2Ccompress&dpr=1&w=160&h=40",
   },
   {
     name: "DeepLearning.AI",
@@ -283,7 +550,7 @@ function CourseraCourseCard({ resource }: { resource: EntriSumber }) {
 
   return (
     <article className="group flex w-[270px] shrink-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xs transition-shadow duration-200 hover:shadow-md sm:w-[280px]">
-      <Link href={href} aria-label={`Lihat detail ${resource.title}`} className="relative block aspect-[16/9] w-full overflow-hidden bg-gray-100">
+      <Link href={href} aria-label={`Lihat detail ${resource.title}`} className="relative block aspect-[16/9] w-full overflow-hidden bg-gray-100 hover:no-underline">
         <Image
           src={meta.thumbnail}
           alt={resource.title}
@@ -322,7 +589,7 @@ function CourseraCourseCard({ resource }: { resource: EntriSumber }) {
         </div>
 
         <h3 className="mb-1.5 line-clamp-2 min-h-[2.6rem] text-sm font-bold text-gray-900 group-hover:text-[#0056D2]">
-          <Link href={href} className="hover:underline">
+          <Link href={href} className="hover:no-underline">
             {resource.title}
           </Link>
         </h3>
@@ -354,209 +621,108 @@ function CourseraCourseCard({ resource }: { resource: EntriSumber }) {
 }
 
 
-const HERO_BENTO_SLIDES = [
-  {
-    logo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/NxPkwTU0sAEpcAUWZkfR1/f1abc250476ce6841a0faff27924487b/Coursera_Plus_White_Logo.png?auto=format%2Ccompress&dpr=1&w=161&h=16",
-    badge: "PENAWARAN TERBATAS",
-    title: "Hemat 40% untuk 3 bulan Careevo Plus",
-    body: "Tumbuh dengan fleksibilitas yang dibutuhkan pelajar aktif. Mulai dengan ribuan materi dari Google, IBM, dan universitas ternama.",
-    cta: "Dapatkan penawaran",
-    href: "/careevo-plus",
-    bgClass: "bg-[#00255d]",
-    image: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/5WjTmMVrb8WjfC9QD1ZrXz/63fd6b219b626575a628a842a4a51371/Global__Catch-All__Main_Campaign_LOHP-Desktop_330x304.webp?auto=format%2C%20compress&dpr=1&w=323&q=40&fit=clip",
-  },
-  {
-    logo: null,
-    badge: "DOMAIN AI UNGGULAN",
-    title: "Pelajari AI dari perusahaan pembuatnya",
-    body: "Kursus dan sertifikat dari Google, OpenAI, Anthropic, dan IBM — untuk setiap tingkat kemahiran dan peran profesional.",
-    cta: "Jelajahi kursus AI",
-    href: "#katalog",
-    bgClass: "bg-[#0b1c3d]",
-    image: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/7puav77wSBnD8y6GiiDXwK/4de64002f3216738af9f22faa2397404/BC-5459_AI_Domain_Growth_Campaign_LOHP-Bento_330x304.png?auto=format%2C%20compress&dpr=1&w=323&q=40&fit=clip",
-  },
-  {
-    logo: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/3OYpxt8mmtxQGEyCZ76oqE/6e4a82d152d8f0dbe770bc0507655853/WES_Coursera_for_Teams_Logo__1_.png?auto=format%2Ccompress&dpr=1&w=1614&h=18",
-    badge: "CAREEVO UNTUK TIM",
-    title: "Tutup kesenjangan skill tim lebih cepat",
-    body: "Tingkatkan kapabilitas tim dengan diskon 30% untuk pelatihan terstruktur dan metrik penguasaan yang terukur.",
-    cta: "Hemat 30% hari ini",
-    href: "/careevo-plus#paket",
-    bgClass: "bg-[#052b47]",
-    image: "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/72W90xkzXmebg3oik1SEDK/56bfc27e76f6e1ef1a4fbb4417ac4af6/WES_Main_Campaign_LOHP-Desktop_330x304.webp?auto=format%2C%20compress&dpr=1&w=323&q=40&fit=clip",
-  },
-];
-
 function HeroSection({
+  nextTask,
   query,
   onQuery,
 }: {
+  nextTask?: TaskFixture;
   query: string;
-  onQuery: (val: string) => void;
+  onQuery: (value: string) => void;
 }) {
-  const [slide, setSlide] = useState(0);
-  const currentSlide = HERO_BENTO_SLIDES[slide];
-
   return (
-    <section className="bg-white">
-      <div className="mx-auto grid w-full max-w-7xl items-center gap-10 px-4 pt-8 pb-12 sm:px-6 lg:grid-cols-12 lg:px-8 lg:pt-12 lg:pb-16">
-        <div className="lg:col-span-7">
-          <h1 className="text-4xl font-bold tracking-tight text-[#1f1f1f] sm:text-5xl lg:text-[3.5rem] lg:leading-[1.12]">
-            Belajar tanpa batas
-          </h1>
-          <p className="mt-4 max-w-xl text-lg leading-relaxed text-gray-600">
-            Mulai, beralih, atau percepat kariermu dengan lebih dari 7.000 kursus,
-            Sertifikat Profesional, dan gelar dari universitas dan perusahaan kelas dunia.
-          </p>
+    <section
+      aria-labelledby="belajar-hero-title"
+      className="relative isolate min-h-[36rem] overflow-hidden bg-[#f7fbfc] lg:min-h-[41rem]"
+    >
+      <DitheredHeroBackdrop
+        videoSrc="/videos/hero-sterly.mp4"
+        levels={4}
+        ditherScale={2}
+        zoom={1}
+        focusY={0.5}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#f7fbfc] via-[#f7fbfc]/55 to-transparent"
+      />
 
-          <div className="mt-6 flex flex-wrap items-center gap-3">
-            <Link
-              href="#katalog"
-              className="inline-flex items-center justify-center rounded-lg bg-[#0056D2] px-7 py-3.5 text-base font-semibold text-white shadow-xs transition-colors hover:bg-[#00419e] active:scale-[0.98]"
-            >
-              Gabung Gratis
-            </Link>
-            <Link
-              href="/careevo-plus#paket"
-              className="inline-flex items-center justify-center rounded-lg border border-[#0056D2] bg-white px-7 py-3.5 text-base font-semibold text-[#0056D2] transition-colors hover:bg-blue-50/60 active:scale-[0.98]"
-            >
-              Coba Careevo untuk Bisnis
-            </Link>
-          </div>
-
-          <form
-            role="search"
-            onSubmit={(e) => {
-              e.preventDefault();
-              document.getElementById("katalog")?.scrollIntoView({ behavior: "smooth" });
-            }}
-            className="mt-6 flex max-w-xl items-center overflow-hidden rounded-lg border border-gray-400 bg-white shadow-xs focus-within:border-[#0056D2] focus-within:ring-1 focus-within:ring-[#0056D2]"
+      <div className="relative mx-auto flex min-h-[36rem] w-full max-w-6xl flex-col items-center justify-center px-4 pb-20 pt-[calc(5rem+var(--learner-chrome-height,0px))] text-center sm:px-6 lg:min-h-[41rem] lg:px-8 lg:pb-24 lg:pt-[calc(6rem+var(--learner-chrome-height,0px))]">
+        {nextTask ? (
+          <Link
+            href={`/challenge/${nextTask.id}`}
+            aria-label={`Lanjutkan challenge: ${nextTask.title}`}
+            className="group inline-flex min-h-11 w-full max-w-xl items-center justify-center gap-2 rounded-full border-2 border-white bg-white px-2 py-1 text-sm font-medium text-[#111827] shadow-[0_10px_24px_-12px_rgba(0,86,210,0.45)] transition-[background-color,border-color,transform] duration-200 hover:bg-[#f7fbff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0056D2] focus-visible:ring-offset-2 active:scale-[0.98] sm:w-auto sm:justify-start"
           >
-            <div className="flex flex-1 items-center px-4 py-3">
-              <Search className="size-5 shrink-0 text-gray-400" />
-              <input
-                value={query}
-                onChange={(e) => onQuery(e.target.value)}
-                placeholder="Apa yang ingin kamu pelajari hari ini?"
-                aria-label="Cari topik atau kursus"
-                className="ml-3 w-full bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400"
-              />
-            </div>
-            <button
-              type="submit"
-              className="flex h-full items-center bg-[#0056D2] px-6 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-[#00419e] active:scale-[0.98]"
-            >
-              Cari
-            </button>
-          </form>
+            <span className="shrink-0 rounded-full bg-gradient-to-br from-[#4da3ff] to-[#b9ddff] px-2 py-1 text-xs font-medium tracking-[0.12em] text-white uppercase">
+              Lanjutkan
+            </span>
+            <span className="min-w-0 truncate">{nextTask.title}</span>
+            <ArrowRight className="size-4 shrink-0 transition-transform duration-200 group-hover:translate-x-0.5" />
+          </Link>
+        ) : null}
 
-          <p className="mt-3 text-xs text-gray-500">
-            Pencarian populer:{" "}
-            <button type="button" onClick={() => onQuery("Python")} className="font-medium text-[#0056D2] hover:underline">Python</button> ·{" "}
-            <button type="button" onClick={() => onQuery("React")} className="font-medium text-[#0056D2] hover:underline">React</button> ·{" "}
-            <button type="button" onClick={() => onQuery("Data Analytics")} className="font-medium text-[#0056D2] hover:underline">Data Analytics</button> ·{" "}
-            <button type="button" onClick={() => onQuery("AI")} className="font-medium text-[#0056D2] hover:underline">AI & Prompting</button>
-          </p>
+        <h1
+          id="belajar-hero-title"
+          className="mt-7 max-w-4xl text-balance text-4xl font-medium tracking-tight text-[#1e293b] sm:text-5xl md:text-6xl"
+        >
+          Belajar tanpa batas
+        </h1>
+        <p className="mt-6 max-w-3xl text-pretty text-base leading-relaxed text-[#405464] sm:text-lg lg:text-xl">
+          Mulai, beralih, atau percepat kariermu dengan lebih dari 7.000 kursus,
+          Sertifikat Profesional, dan gelar dari universitas dan perusahaan kelas
+          dunia.
+        </p>
+
+        <div className="mt-8 flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
+          <Link
+            href="#katalog"
+            className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#0056D2] px-7 py-3.5 text-base font-semibold text-white shadow-[0_14px_28px_-16px_rgba(0,65,158,0.8)] transition-[background-color,transform] duration-200 hover:bg-[#00419e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0056D2] focus-visible:ring-offset-2 active:scale-[0.98]"
+          >
+            Mulai belajar
+          </Link>
+          <Link
+            href="/belajar/jalur"
+            className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#9fb5c4]/80 bg-white/72 px-7 py-3.5 text-base font-semibold text-[#243d50] backdrop-blur-md transition-[background-color,border-color,transform] duration-200 hover:border-white hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0056D2] focus-visible:ring-offset-2 active:scale-[0.98]"
+          >
+            Lihat jalur belajar
+          </Link>
         </div>
 
-        <div className="lg:col-span-5">
-          <div className={cn("relative overflow-hidden rounded-2xl p-6 text-white shadow-lg transition-colors duration-300 sm:p-7", currentSlide.bgClass)}>
-            <div className="flex min-h-[160px] flex-col justify-between sm:min-h-[180px]">
-              <div>
-                {currentSlide.logo ? (
-                  <div className="relative mb-3 h-5 w-36">
-                    <Image
-                      src={currentSlide.logo}
-                      alt="Logo Promo"
-                      fill
-                      sizes="150px"
-                      className="object-contain object-left"
-                    />
-                  </div>
-                ) : (
-                  <p className="mb-2 text-[11px] font-bold tracking-wider text-blue-200 uppercase">
-                    {currentSlide.badge}
-                  </p>
-                )}
-                <h2 className="text-xl font-bold text-white sm:text-2xl">
-                  {currentSlide.title}
-                </h2>
-                <p className="mt-2 text-xs leading-relaxed text-blue-100 sm:text-sm">
-                  {currentSlide.body}
-                </p>
-              </div>
-
-              <div className="mt-5 flex items-center justify-between">
-                <Link
-                  href={currentSlide.href}
-                  className="inline-flex rounded-lg bg-white px-5 py-2.5 text-xs font-bold text-[#00255d] transition-colors hover:bg-blue-50 active:scale-[0.98] sm:text-sm"
-                >
-                  {currentSlide.cta}
-                </Link>
-
-                <div className="relative size-20 shrink-0 sm:size-24">
-                  <Image
-                    src={currentSlide.image}
-                    alt={currentSlide.title}
-                    fill
-                    sizes="96px"
-                    className="object-contain"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6 flex items-center justify-between border-t border-white/20 pt-4">
-              <div className="flex gap-1.5">
-                {HERO_BENTO_SLIDES.map((s, idx) => (
-                  <button
-                    key={s.title}
-                    type="button"
-                    aria-label={`Ke slide ${idx + 1}`}
-                    onClick={() => setSlide(idx)}
-                    className={cn(
-                      "h-1.5 cursor-pointer rounded-full transition-all duration-200",
-                      idx === slide ? "w-6 bg-white" : "w-1.5 bg-white/40"
-                    )}
-                  />
-                ))}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  aria-label="Slide promo sebelumnya"
-                  onClick={() => setSlide((s) => (s + HERO_BENTO_SLIDES.length - 1) % HERO_BENTO_SLIDES.length)}
-                  className="flex size-7 cursor-pointer items-center justify-center rounded-full border border-white/30 text-xs text-white hover:bg-white/10 active:scale-95"
-                >
-                  ‹
-                </button>
-                <button
-                  type="button"
-                  aria-label="Slide promo berikutnya"
-                  onClick={() => setSlide((s) => (s + 1) % HERO_BENTO_SLIDES.length)}
-                  className="flex size-7 cursor-pointer items-center justify-center rounded-full border border-white/30 text-xs text-white hover:bg-white/10 active:scale-95"
-                >
-                  ›
-                </button>
-              </div>
-            </div>
+        <form
+          role="search"
+          onSubmit={(event) => {
+            event.preventDefault();
+            document.getElementById("katalog")?.scrollIntoView({ behavior: "smooth" });
+          }}
+          className="mt-5 flex w-full max-w-xl items-center rounded-full border border-white/90 bg-white/80 p-1 shadow-[0_14px_34px_-24px_rgba(12,63,94,0.5)] backdrop-blur-md focus-within:ring-2 focus-within:ring-[#0056D2] focus-within:ring-offset-2 lg:hidden"
+        >
+          <label htmlFor="belajar-mobile-search" className="sr-only">
+            Cari topik atau kursus
+          </label>
+          <div className="flex min-h-11 min-w-0 flex-1 items-center px-3">
+            <Search className="size-4 shrink-0 text-[#6f8491]" />
+            <input
+              id="belajar-mobile-search"
+              value={query}
+              onChange={(event) => onQuery(event.target.value)}
+              placeholder="Mau belajar apa?"
+              className="ml-2 min-w-0 flex-1 bg-transparent text-sm text-[#172b3a] outline-none placeholder:text-[#7d909c]"
+            />
           </div>
-        </div>
+          <button
+            type="submit"
+            className="min-h-11 rounded-full bg-[#0056D2] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#00419e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0056D2] focus-visible:ring-offset-2"
+          >
+            Cari
+          </button>
+        </form>
       </div>
     </section>
   );
 }
 
 function PartnersAndCategories({ onSelectCategory }: { onSelectCategory?: (name: string) => void }) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  const scrollRight = () => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollBy({ left: 300, behavior: "smooth" });
-    }
-  };
-
   const navCards = [
     {
       title: "Launch a new career",
@@ -594,62 +760,52 @@ function PartnersAndCategories({ onSelectCategory }: { onSelectCategory?: (name:
   ];
 
   return (
-    <section aria-labelledby="mitra-heading" className="border-b border-gray-200 bg-white py-12">
-      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Section 1: Partner Logos */}
-        <div className="mb-10">
-          <h2
-            id="mitra-heading"
-            className="mb-5 text-xl sm:text-2xl font-bold tracking-tight text-gray-900"
-          >
-            Learn from 350+ leading universities and companies
-          </h2>
-
-          <div className="relative flex items-center gap-3">
-            <div
-              ref={scrollRef}
-              className="flex flex-1 items-center gap-3 overflow-x-auto pb-2 pt-1 scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    <section
+      aria-labelledby="mitra-heading"
+      className="border-b border-[#dbe5ea] bg-[#f7fbfc] py-14 sm:py-20"
+    >
+      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-2 border-t border-l border-[#dbe5ea] bg-white shadow-[0_24px_70px_-52px_rgba(12,63,94,0.5)] sm:grid-cols-3 lg:grid-cols-[minmax(13rem,1.15fr)_repeat(4,minmax(0,1fr))]">
+          <div className="col-span-2 flex min-h-32 items-center justify-center border-r border-b border-[#dbe5ea] px-6 py-8 sm:col-span-3 lg:col-span-1 lg:row-span-2">
+            <h2
+              id="mitra-heading"
+              className="text-center text-[11px] leading-relaxed font-medium tracking-[0.12em] text-[#6a7f8c] uppercase"
             >
-              {PARTNERS.map((partner) => (
-                <div
-                  key={partner.name}
-                  className="flex shrink-0 items-center gap-2.5 rounded-full border border-gray-300/90 bg-white px-4 py-2.5 shadow-2xs transition-all hover:border-gray-400 hover:shadow-xs"
-                >
-                  <div className="relative size-5 shrink-0">
-                    <Image
-                      src={partner.logo}
-                      alt={partner.name}
-                      fill
-                      sizes="20px"
-                      className="object-contain"
-                      unoptimized
-                    />
-                  </div>
-                  <span className="text-xs sm:text-sm font-semibold text-gray-800">{partner.name}</span>
-                </div>
-              ))}
-            </div>
-
-            <button
-              type="button"
-              aria-label="Scroll mitra berikutnya"
-              onClick={scrollRight}
-              className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-gray-300 bg-white text-gray-700 shadow-2xs transition-all hover:bg-gray-50 active:scale-95"
-            >
-              <ChevronRight className="size-5" />
-            </button>
+              Belajar bersama
+              <span className="mt-1 block text-base font-bold tracking-[-0.02em] text-[#213847] normal-case">
+                mitra terpercaya
+              </span>
+            </h2>
           </div>
+
+          {PARTNERS.slice(0, 8).map((partner) => (
+            <div
+              key={partner.name}
+              className="flex min-h-28 items-center justify-center border-r border-b border-[#dbe5ea] px-5 py-7 sm:min-h-32"
+            >
+              <div className="relative h-8 w-28 grayscale sm:w-32">
+                <Image
+                  src={partner.logo}
+                  alt={partner.name}
+                  fill
+                  sizes="128px"
+                  className="object-contain opacity-65 transition-opacity duration-200 hover:opacity-100"
+                  unoptimized
+                />
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* Section 2: Navigation Action Cards */}
-        <div className="mb-12 grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-3">
+        <div className="mt-6 mb-10 grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-3">
           {navCards.map((c) => {
             const Icon = c.icon;
             return (
               <Link
                 key={c.title}
                 href={c.href}
-                className="group flex items-center justify-between rounded-2xl bg-[#F0F4F8] p-6 sm:p-7 shadow-2xs transition-all duration-200 hover:bg-[#E6EEF5] hover:shadow-xs active:scale-[0.99]"
+                className="group flex items-center justify-between rounded-2xl bg-[#F0F4F8] p-6 sm:p-7 shadow-2xs transition-all duration-200 hover:bg-[#E6EEF5] hover:no-underline hover:shadow-xs active:scale-[0.99]"
               >
                 <span className="max-w-[190px] text-lg sm:text-xl font-bold leading-snug text-[#1f1f1f] group-hover:text-[#0056D2] transition-colors">
                   {c.title}
@@ -664,7 +820,7 @@ function PartnersAndCategories({ onSelectCategory }: { onSelectCategory?: (name:
 
         {/* Section 3: Category Chips */}
         <div>
-          <h2 className="mb-4 text-xl sm:text-2xl font-bold tracking-tight text-gray-900">
+          <h2 className={cn("mb-4", HOME_SECTION_HEADING_CLASS)}>
             Explore categories
           </h2>
           <div className="flex flex-col gap-3">
@@ -1424,32 +1580,8 @@ export function BelajarHome({
 
   return (
     <div className="min-w-0 overflow-x-clip bg-white text-gray-900">
-      {nextTask ? (
-        <aside aria-label="Lanjutkan belajar" className="border-b border-blue-200 bg-[#e8effd]">
-          <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-            <div className="min-w-0 flex-1">
-              <span className="inline-flex items-center gap-1.5 text-xs font-bold tracking-wider text-[#0056D2] uppercase">
-                <span className="size-2 rounded-full bg-[#0056D2] animate-pulse" />
-                Lanjutkan Belajar Aktif
-              </span>
-              <p className="mt-0.5 text-sm font-bold text-gray-900 sm:text-base">
-                {nextTask.title}
-              </p>
-              <p className="line-clamp-1 max-w-2xl text-xs text-gray-600 sm:text-sm">
-                {nextTask.brief}
-              </p>
-            </div>
-            <Link
-              href={`/challenge/${nextTask.id}`}
-              className="inline-flex shrink-0 items-center justify-center rounded-lg bg-[#0056D2] px-5 py-2.5 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-[#00419e] active:scale-[0.98] sm:text-sm"
-            >
-              Buka challenge →
-            </Link>
-          </div>
-        </aside>
-      ) : null}
-
-      <HeroSection query={query} onQuery={setQuery} />
+      <HeroSection nextTask={nextTask} query={query} onQuery={setQuery} />
+      <HeroPromoCards />
 
       <PartnersAndCategories onSelectCategory={(cat) => setQuery(cat)} />
 
@@ -1458,7 +1590,7 @@ export function BelajarHome({
           <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-6 flex items-center justify-between">
               <div>
-                <h2 id="pembelajaran-saya" className="text-2xl font-bold tracking-tight text-gray-900">
+                <h2 id="pembelajaran-saya" className={HOME_SECTION_HEADING_CLASS}>
                   Pembelajaran saya
                 </h2>
                 <p className="mt-1 text-sm text-gray-600">
@@ -1475,7 +1607,7 @@ export function BelajarHome({
                 <Link
                   key={kursus.id}
                   href={`/belajar/${kursus.slug}`}
-                  className="group relative flex flex-col justify-between rounded-xl border border-gray-200 bg-white p-5 shadow-xs transition-all hover:border-[#0056D2] hover:shadow-md"
+                  className="group relative flex flex-col justify-between rounded-xl border border-gray-200 bg-white p-5 shadow-xs transition-all hover:border-[#0056D2] hover:no-underline hover:shadow-md"
                 >
                   <div>
                     <span className="text-xs font-semibold text-gray-500 uppercase">{kursus.provider}</span>
@@ -1502,7 +1634,7 @@ export function BelajarHome({
                         style={{ width: `${kursus.progres}%` }}
                       />
                     </div>
-                    <p className="mt-3 text-xs font-semibold text-[#0056D2] group-hover:underline">
+                    <p className="mt-3 text-xs font-semibold text-[#0056D2]">
                       {kursus.progres === 100 ? "Lihat sertifikat dan atestasi →" : "Lanjutkan modul berikutnya →"}
                     </p>
                   </div>
@@ -1517,7 +1649,7 @@ export function BelajarHome({
       <section aria-labelledby="baru-populer" className="bg-white py-12">
         <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-6">
-            <h2 id="baru-populer" className="text-2xl font-bold tracking-tight text-[#1f1f1f] sm:text-3xl">
+            <h2 id="baru-populer" className={HOME_SECTION_HEADING_CLASS}>
               New and popular
             </h2>
           </div>
@@ -1538,7 +1670,7 @@ export function BelajarHome({
                     <Link
                       key={item.title}
                       href={item.href}
-                      className="group flex items-center gap-3.5 rounded-xl border border-transparent bg-white p-3 shadow-2xs transition-all duration-200 hover:border-gray-200 hover:shadow-xs active:scale-[0.98]"
+                      className="group flex items-center gap-3.5 rounded-xl border border-transparent bg-white p-3 shadow-2xs transition-all duration-200 hover:border-gray-200 hover:no-underline hover:shadow-xs active:scale-[0.98]"
                     >
                       <div className="relative size-16 shrink-0 overflow-hidden rounded-lg bg-gray-100">
                         <Image
@@ -1568,7 +1700,6 @@ export function BelajarHome({
                         </div>
                         <h4
                           className="mt-0.5 line-clamp-2 text-xs sm:text-sm font-bold text-[#111827] leading-snug group-hover:text-[#0056D2]"
-                          title={item.title}
                         >
                           {item.title}
                         </h4>
@@ -1656,7 +1787,7 @@ export function BelajarHome({
                     <Link
                       key={card.title}
                       href={card.href}
-                      className="group flex flex-col justify-between overflow-hidden rounded-2xl bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg active:scale-[0.98]"
+                      className="group flex flex-col justify-between overflow-hidden rounded-2xl bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:no-underline hover:shadow-lg active:scale-[0.98]"
                     >
                       <div>
                         {/* Inset thumbnail with 16:9 aspect ratio */}
@@ -1691,7 +1822,6 @@ export function BelajarHome({
                         {/* Course Title */}
                         <h3
                           className="mt-1 line-clamp-2 text-xs sm:text-[13px] font-bold text-[#111111] leading-snug group-hover:text-[#0056D2] transition-colors min-h-[34px]"
-                          title={card.title}
                         >
                           {card.title}
                         </h3>
@@ -1799,7 +1929,7 @@ export function BelajarHome({
       <section aria-labelledby="siap-kerja-heading" className="bg-[#f5f7fa] py-14">
         <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="max-w-2xl">
-            <h2 id="siap-kerja-heading" className="text-2xl font-bold tracking-tight text-[#1f1f1f] sm:text-3xl">
+            <h2 id="siap-kerja-heading" className={HOME_SECTION_HEADING_CLASS}>
               Siap kerja untuk karier yang banyak dicari
             </h2>
             <p className="mt-2 text-base text-gray-600">
@@ -1856,7 +1986,7 @@ export function BelajarHome({
               <span className="text-xs font-bold tracking-wider text-[#0056D2] uppercase">
                 PENDIDIKAN TINGGI TERAKREDITASI
               </span>
-              <h2 id="gelar-heading" className="mt-1 text-2xl font-bold tracking-tight text-[#1f1f1f] sm:text-3xl">
+              <h2 id="gelar-heading" className={cn("mt-1", HOME_SECTION_HEADING_CLASS)}>
                 Raih gelar dari universitas terkemuka dunia
               </h2>
               <p className="mt-2 text-base text-gray-600">
@@ -1918,7 +2048,7 @@ export function BelajarHome({
 
       <section aria-labelledby="trending-searches-heading" className="border-t border-gray-200 bg-white py-14">
         <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-          <h2 id="trending-searches-heading" className="mb-6 text-2xl font-bold tracking-tight text-[#111827] sm:text-3xl">
+          <h2 id="trending-searches-heading" className={cn("mb-6", HOME_SECTION_HEADING_CLASS)}>
             Trending searches
           </h2>
 
@@ -1938,7 +2068,7 @@ export function BelajarHome({
                     <Link
                       key={item.title}
                       href={item.href}
-                      className="group flex items-center gap-3.5 rounded-xl border border-transparent bg-white p-3 shadow-2xs transition-all hover:border-gray-200 hover:shadow-xs"
+                      className="group flex items-center gap-3.5 rounded-xl border border-transparent bg-white p-3 shadow-2xs transition-all hover:border-gray-200 hover:no-underline hover:shadow-xs"
                     >
                       <div className="relative size-14 shrink-0 overflow-hidden rounded-md bg-gray-100">
                         <Image
@@ -1964,7 +2094,7 @@ export function BelajarHome({
                             {item.org}
                           </span>
                         </div>
-                        <h4 className="mt-0.5 line-clamp-2 text-xs sm:text-sm font-bold text-[#111827] group-hover:text-[#0056D2]" title={item.title}>
+                        <h4 className="mt-0.5 line-clamp-2 text-xs sm:text-sm font-bold text-[#111827] group-hover:text-[#0056D2]">
                           {item.title}
                         </h4>
                         <p className="mt-0.5 text-xs text-[#4B5563]">
@@ -2045,7 +2175,7 @@ export function BelajarHome({
             <span className="text-xs font-bold tracking-wider text-[#0056D2] uppercase">
               HASIL PEMBELAJAR YANG TERBUKTI
             </span>
-            <h2 className="mt-2 text-3xl font-bold tracking-tight text-[#1f1f1f] sm:text-4xl">
+            <h2 className={cn("mt-2", HOME_SECTION_HEADING_CLASS)}>
               91% peserta meraih hasil karier yang positif
             </h2>
             <p className="mt-4 text-base leading-relaxed text-gray-600">
@@ -2096,7 +2226,7 @@ export function BelajarHome({
               <span className="text-xs font-bold tracking-wider text-[#0056D2] uppercase">
                 CERITA SUKSES
               </span>
-              <h2 id="testimoni-heading" className="mt-1 text-2xl font-bold tracking-tight text-[#1f1f1f] sm:text-3xl">
+              <h2 id="testimoni-heading" className={cn("mt-1", HOME_SECTION_HEADING_CLASS)}>
                 Kenapa peserta memilih Careevo
               </h2>
             </div>
@@ -2163,7 +2293,7 @@ export function BelajarHome({
 
       <section aria-labelledby="kategori-heading" className="bg-white py-14">
         <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-          <h2 id="kategori-heading" className="text-2xl font-bold tracking-tight text-[#1f1f1f] sm:text-3xl">
+          <h2 id="kategori-heading" className={HOME_SECTION_HEADING_CLASS}>
             Jelajahi kategori
           </h2>
           <p className="mt-1.5 text-sm text-gray-600">
@@ -2196,7 +2326,7 @@ export function BelajarHome({
         <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
             <div>
-              <h2 id="katalog-heading" className="text-2xl font-bold tracking-tight text-[#1f1f1f] sm:text-3xl">
+              <h2 id="katalog-heading" className={HOME_SECTION_HEADING_CLASS}>
                 Katalog lengkap kursus
               </h2>
               <p className="mt-1 text-sm text-gray-600">
@@ -2244,7 +2374,7 @@ export function BelajarHome({
 
       <section aria-labelledby="faq-heading" className="border-t border-gray-200 bg-white py-14">
         <div className="mx-auto w-full max-w-4xl px-4 sm:px-6 lg:px-8">
-          <h2 id="faq-heading" className="text-center text-2xl font-bold tracking-tight text-[#1f1f1f] sm:text-3xl">
+          <h2 id="faq-heading" className={cn("text-center", HOME_SECTION_HEADING_CLASS)}>
             Pertanyaan yang sering diajukan
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">

@@ -69,6 +69,41 @@ export function JalurBelajarView({
               Jalur ini disusun dari minat {interests} dan tujuan belajarmu: {goal}.
             </p>
 
+            {/* The tutor lives at /belajar/tutor, mastery at /belajar/mastery,
+                books at /belajar/buku and practice quizzes at /belajar/latihan.
+                DeepTutor hands off from the path to the workspace the same way,
+                rather than embedding everything here. */}
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Link
+                href="/belajar/tutor"
+                className="inline-flex items-center gap-2 rounded-lg bg-[#1f1f1f] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-black"
+              >
+                Buka Tutor
+                <span aria-hidden="true">→</span>
+              </Link>
+              <Link
+                href="/belajar/mastery"
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-50"
+              >
+                Jalur Penguasaan
+                <span aria-hidden="true">→</span>
+              </Link>
+              <Link
+                href="/belajar/buku"
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-50"
+              >
+                Buku
+                <span aria-hidden="true">→</span>
+              </Link>
+              <Link
+                href="/belajar/latihan"
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-50"
+              >
+                Latihan Soal
+                <span aria-hidden="true">→</span>
+              </Link>
+            </div>
+
             {path.course ? (
               <div className="mt-7 min-w-0 rounded-2xl border border-gray-200 bg-white p-5 shadow-xs sm:p-6">
                 <p className="text-xs font-bold tracking-wider text-gray-500 uppercase">
