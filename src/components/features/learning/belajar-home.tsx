@@ -1735,8 +1735,15 @@ export function BelajarHome({
           <div
             className="relative overflow-hidden rounded-3xl p-6 sm:p-8 lg:p-9 shadow-xl"
             style={{
+              /* Blue → white ramp. The heading and sub-copy on the left are white,
+                 so the ramp has to START dark (10:1 at the left edge) and stay
+                 dark enough through ~30% where that column ends. The right side
+                 carries white cards and white pills, which is why the pale end
+                 only goes to a blue-tinted white — a true #fff tail would make
+                 them disappear. The cards and pills below carry a hairline
+                 border for the same reason. */
               background:
-                "linear-gradient(90deg, #0056D2 0%, #0070F3 25%, #00A6B4 60%, #68CF7A 100%)",
+                "linear-gradient(90deg, #0A3D8F 0%, #1259C8 30%, #3B82F6 55%, #7FB2F0 80%, #DCEBFD 100%)",
             }}
           >
             <div className="flex flex-col gap-8 lg:flex-row lg:items-stretch lg:gap-8">
@@ -1779,7 +1786,7 @@ export function BelajarHome({
                         "cursor-pointer shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all active:scale-95 shadow-2xs whitespace-nowrap",
                         role === r
                           ? "bg-[#1E1E1E] text-white shadow-sm"
-                          : "bg-white text-[#1E1E1E] hover:bg-gray-100"
+                          : "border border-[#0A3D8F]/10 bg-white text-[#1E1E1E] hover:bg-[#F2F7FD]"
                       )}
                     >
                       {r}
@@ -1793,7 +1800,7 @@ export function BelajarHome({
                     <Link
                       key={card.title}
                       href={card.href}
-                      className="group flex flex-col justify-between overflow-hidden rounded-2xl bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:no-underline hover:shadow-lg active:scale-[0.98]"
+                      className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-[#0A3D8F]/10 bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:no-underline hover:shadow-lg active:scale-[0.98]"
                     >
                       <div>
                         {/* Inset thumbnail with 16:9 aspect ratio */}
