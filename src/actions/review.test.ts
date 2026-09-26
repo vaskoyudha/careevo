@@ -1,15 +1,21 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { decideReview } from "./review";
 import * as sessionModule from "@/lib/auth/session";
+import * as reviewService from "@/lib/review/service";
 import { principalUji } from "@/lib/auth/test-principal";
 import type { Role } from "@/lib/auth/types";
 
 /**
- * `decideReview` used to issue HMAC attestations from fields the browser sent
- * (username, task title, score) with no principal check at all. A Server Action
- * is a POST endpoint, so the `/review` layout gated nothing: anyone could mint a
- * credential for any username and score. These tests call the action directly —
- * the way an attacker would — and assert no credential comes out.
+ * `decideReview` dulu menerbitkan attestation dari field yang dikirim browser
+ * (username, task title, score) tanpa principal check. Fase 3 membaliknya:
+ * action hanya mengurai input, memeriksa staff, lalu mendelegasikan ke
+ * `putuskanReviewDb` — yang membangun payload dari record server-side. Test ini
+ * memanggil action langsung (cara penyerang memanggilnya) dan menegaskan:
+ *
+ * 1. Tanpa sesi / learner → ditolak sebelum menyentuh service.
+ * 2. Input yang menentukan credential (score, username, task_title) TIDAK sampai
+ *    ke service; yang diteruskan hanya `submissionId` + rubrik tervalidasi.
+ * 3. Keputusan disimpan lewat service, dan service-lah yang menerbitkan credential.
  */
 
 const { jar } = vi.hoisted(() => ({ jar: new Map<string, string>() }));
@@ -38,14 +44,31 @@ function formData(fields: Record<string, string>): FormData {
   return data;
 }
 
-/** What the old vulnerability let anyone ask for. */
+/** Rubrik penuh 4/4 untuk semua kriteria — input sah. */
+const RUBRIK = {
+  kelengkapan: "4",
+  kualitas: "4",
+  orisinalitas: "4",
+  ketepatan_brief: "4",
+  dokumentasi: "4",
+};
+
 const KLAIM = {
   decision: "approved",
   reason: "Hasil karya saya sudah bagus dan lengkap.",
-  total: "100",
-  username: "budi",
-  task_title: "Rebuild Landing Page",
+  submissionId: "11111111-1111-4111-8111-111111111111",
+  ...RUBRIK,
 };
+
+/** Hasil service yang menyerupai penerbitan berhasil. */
+function hasilServiceOk() {
+  return {
+    review: { id: "r1", decision: "approved" },
+    submission: { id: KLAIM.submissionId, status: "approved" },
+    badge: { id: "b1" },
+    attestation: { id: "a1", status: "active" },
+  } as unknown as Awaited<ReturnType<typeof reviewService.putuskanReviewDb>>;
+}
 
 describe("decideReview — staff gate", () => {
   beforeEach(() => {
@@ -53,68 +76,39 @@ describe("decideReview — staff gate", () => {
     vi.restoreAllMocks();
   });
 
-  it("menolak pemanggilan tanpa sesi dan tidak menerbitkan token", async () => {
+  it("menolak pemanggilan tanpa sesi dan tidak memanggil service", async () => {
     vi.spyOn(sessionModule, "getSession").mockResolvedValue(null);
+    const putus = vi.spyOn(reviewService, "putuskanReviewDb");
 
     const res = await decideReview({ ok: false }, formData(KLAIM));
 
     expect(res.ok).toBe(false);
     expect(res.error).toContain("Akses ditolak");
-    // Tidak ada field attestation sama sekali — bukan hanya kosong.
-    expect(res).not.toHaveProperty("token");
+    expect(putus).not.toHaveBeenCalled();
   });
 
-  it("menolak learner yang mencoba menerbitkan attestation untuk dirinya sendiri", async () => {
+  it("menolak learner yang mencoba menerbitkan attestation", async () => {
     vi.spyOn(sessionModule, "getSession").mockResolvedValue(sesi("user"));
+    const putus = vi.spyOn(reviewService, "putuskanReviewDb");
 
     const res = await decideReview({ ok: false }, formData(KLAIM));
 
     expect(res.ok).toBe(false);
     expect(res.error).toContain("Akses ditolak");
-    // Tidak ada field attestation sama sekali — bukan hanya kosong.
-    expect(res).not.toHaveProperty("token");
+    expect(putus).not.toHaveBeenCalled();
   });
 
   it("menolak learner bahkan untuk keputusan non-approve", async () => {
     vi.spyOn(sessionModule, "getSession").mockResolvedValue(sesi("user"));
+    const putus = vi.spyOn(reviewService, "putuskanReviewDb");
 
     const res = await decideReview(
       { ok: false },
-      formData({ ...KLAIM, decision: "revision" }),
+      formData({ ...KLAIM, decision: "changes_requested" }),
     );
 
     expect(res.ok).toBe(false);
-    expect(res.error).toContain("Akses ditolak");
-    // Tidak ada field attestation sama sekali — bukan hanya kosong.
-    expect(res).not.toHaveProperty("token");
-  });
-
-  it("menerima verifikator untuk keputusan non-approve dan tidak mengklaim tersimpan", async () => {
-    vi.spyOn(sessionModule, "getSession").mockResolvedValue(sesi("verifikator"));
-
-    const res = await decideReview(
-      { ok: false },
-      formData({ ...KLAIM, decision: "revision" }),
-    );
-
-    expect(res.ok).toBe(true);
-    // Pesan tidak boleh mengklaim audit log/database terisi: `logAudit` masih
-    // stub dan belum ada store review sebelum Fase 3.
-    expect(res.message).not.toMatch(/tercatat di audit log/i);
-    expect(res.message).toMatch(/belum tersimpan/i);
-  });
-
-  it("menerima admin untuk keputusan non-approve dan tidak mengklaim tersimpan", async () => {
-    vi.spyOn(sessionModule, "getSession").mockResolvedValue(sesi("admin"));
-
-    const res = await decideReview(
-      { ok: false },
-      formData({ ...KLAIM, decision: "rejected" }),
-    );
-
-    expect(res.ok).toBe(true);
-    expect(res.message).not.toMatch(/tercatat di audit log/i);
-    expect(res.message).toMatch(/belum tersimpan/i);
+    expect(putus).not.toHaveBeenCalled();
   });
 
   it("menolak keputusan yang tidak sah meski staff", async () => {
@@ -122,7 +116,7 @@ describe("decideReview — staff gate", () => {
 
     const res = await decideReview(
       { ok: false },
-      formData({ ...KLAIM, decision: "menerima-suap", reason: "Ini alasan yang cukup panjang." }),
+      formData({ ...KLAIM, decision: "menerima-suap" }),
     );
 
     expect(res.ok).toBe(false);
@@ -137,33 +131,80 @@ describe("decideReview — staff gate", () => {
     expect(res.ok).toBe(false);
     expect(res.error).toContain("Alasan wajib diisi");
   });
+
+  it("menolak rubrik di luar rentang 0–4 meski staff", async () => {
+    vi.spyOn(sessionModule, "getSession").mockResolvedValue(sesi("admin"));
+
+    const res = await decideReview(
+      { ok: false },
+      formData({ ...KLAIM, kualitas: "99" }),
+    );
+
+    expect(res.ok).toBe(false);
+    expect(res.error).toContain("0–4");
+  });
 });
 
-describe("decideReview — attestation issuance is disabled", () => {
+describe("decideReview — delegasi ke service, bukan klaim dari browser", () => {
   beforeEach(() => {
     jar.clear();
     vi.restoreAllMocks();
   });
 
-  // Fase 0 stops issuance entirely: a valid credential has to be derived from a
-  // server-side review record, and no such record exists before Fase 3. An
-  // authorized staff call therefore gets an explicit refusal, not a token.
-  it("tidak menerbitkan token meski dipanggil staff yang sah", async () => {
+  it("meneruskan submissionId + rubrik ke service untuk keputusan approve", async () => {
     vi.spyOn(sessionModule, "getSession").mockResolvedValue(sesi("verifikator"));
+    const putus = vi.spyOn(reviewService, "putuskanReviewDb").mockResolvedValue(hasilServiceOk());
+
+    const res = await decideReview({ ok: false }, formData(KLAIM));
+
+    expect(res.ok).toBe(true);
+    expect(res.message).toMatch(/credential diterbitkan/i);
+    expect(putus).toHaveBeenCalledTimes(1);
+
+    // Hanya submissionId + rubrik yang diteruskan; skor total/username dari
+    // browser tidak pernah masuk argumen service.
+    const arg = putus.mock.calls[0][0];
+    expect(arg.submissionId).toBe(KLAIM.submissionId);
+    expect(arg.rubric).toEqual({
+      kelengkapan: 4,
+      kualitas: 4,
+      orisinalitas: 4,
+      ketepatan_brief: 4,
+      dokumentasi: 4,
+    });
+    expect(arg).not.toHaveProperty("username");
+    expect(arg).not.toHaveProperty("task_title");
+    expect(arg).not.toHaveProperty("total");
+  });
+
+  it("mengabaikan skor total dari browser alih-alih meneruskannya", async () => {
+    vi.spyOn(sessionModule, "getSession").mockResolvedValue(sesi("admin"));
+    const putus = vi.spyOn(reviewService, "putuskanReviewDb").mockResolvedValue(hasilServiceOk());
+
+    // `total: 100` dari klien pernah langsung masuk payload attestation; kini
+    // field itu diabaikan oleh action.
+    const res = await decideReview(
+      { ok: false },
+      formData({ ...KLAIM, total: "100", username: "budi", task_title: "Palsu" }),
+    );
+
+    expect(res.ok).toBe(true);
+    expect(putus).toHaveBeenCalledTimes(1);
+    const arg = putus.mock.calls[0][0];
+    expect(arg).not.toHaveProperty("total");
+    expect(arg).not.toHaveProperty("username");
+    expect(arg).not.toHaveProperty("task_title");
+  });
+
+  it("memetakan GalatReview dari service menjadi pesan galat", async () => {
+    vi.spyOn(sessionModule, "getSession").mockResolvedValue(sesi("verifikator"));
+    vi.spyOn(reviewService, "putuskanReviewDb").mockRejectedValue(
+      new reviewService.GalatReview("transisi_ditolak", "Submission belum dalam review."),
+    );
 
     const res = await decideReview({ ok: false }, formData(KLAIM));
 
     expect(res.ok).toBe(false);
-    expect(res.error).toContain("belum aktif");
-    expect(res).not.toHaveProperty("token");
-  });
-
-  it("menolak klaim skor dari browser alih-alih menandatanganinya", async () => {
-    vi.spyOn(sessionModule, "getSession").mockResolvedValue(sesi("admin"));
-
-    // Skor 100 dari klien: dulu langsung masuk ke payload attestation.
-    const res = await decideReview({ ok: false }, formData({ ...KLAIM, total: "100" }));
-
-    expect(JSON.stringify(res)).not.toContain("100");
+    expect(res.error).toContain("Submission belum dalam review.");
   });
 });

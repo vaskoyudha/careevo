@@ -3,6 +3,14 @@
 import { getSession } from "@/lib/auth/session";
 import { punyaRoleStaff } from "@/lib/auth/authorization";
 import { PESAN_AKSES_DITOLAK } from "@/lib/actions-common";
+import {
+  GalatReview,
+  KEPUTUSAN_REVIEW,
+  putuskanReviewDb,
+  type KeputusanReview,
+  type RubrikReview,
+} from "@/lib/review/service";
+import type { RubricCriterion } from "@/lib/scoring/karya";
 
 export interface ReviewState {
   ok: boolean;
@@ -11,77 +19,103 @@ export interface ReviewState {
   decision?: string;
 }
 
-/**
- * Attestation issuance is intentionally not reachable from this action yet.
- *
- * A credential must be derived from a server-side review record: the subject,
- * the task, and the score all have to come from stored data the caller cannot
- * write. No such record exists before Fase 3, and everything this action used to
- * receive (username, task title, score) arrived in `FormData` — so a learner
- * could mint an attestation for any username and any score by calling the action
- * directly, past the `/review` layout.
- *
- * Fase 0 therefore refuses to issue and says so, rather than issuing something
- * unfounded. Restoring issuance means adding the review service and reading the
- * payload from it — not re-adding these fields.
- */
-const PESAN_TERBIT_NONAKTIF =
-  "Keputusan diterima, tetapi penerbitan attestation belum aktif: menunggu layanan review sisi server (Fase 3). Tidak ada credential yang dibuat, dan belum ada yang tersimpan.";
-
-/**
- * The honest counterpart of the line above for non-approval decisions.
- *
- * This action validates the decision and returns it, but persists **nothing**:
- * `logAudit` is still an unimplemented stub (`src/lib/audit/logger.ts`) and
- * there is no review store before Fase 3. The previous copy said "Alasan
- * tercatat di audit log", which claimed a write that never happens — a
- * verifikator would read that as a completed record. Say what is true instead:
- * the decision is accepted for this response only, and nothing was stored.
- */
-const PESAN_BELUM_TERSIMPAN =
-  "Belum ada yang tersimpan: layanan review sisi server (Fase 3) belum ada, jadi keputusan ini tidak masuk audit log maupun database.";
-
 const DECISION_LABEL: Record<string, string> = {
   approved: "disetujui",
-  revision: "diminta revisi",
+  changes_requested: "diminta revisi",
   rejected: "ditolak",
 };
 
+/** Nama field rubrik yang dikirim form — satu daftar, dipakai parse + validasi. */
+const FIELD_RUBRIK: readonly RubricCriterion[] = [
+  "kelengkapan",
+  "kualitas",
+  "orisinalitas",
+  "ketepatan_brief",
+  "dokumentasi",
+];
+
+/**
+ * Parse rubrik 5 kriteria dari FormData. Nilai di luar 0–4 ditolak, bukan
+ * dijepit diam-diam: skor yang menentukan credential wajib dibaca dari input
+ * tervalidasi, dan nilai yang mencurigakan harus terlihat sebagai galat.
+ */
+function parseRubrik(formData: FormData): RubrikReview | { error: string } {
+  const rubrik = {} as RubrikReview;
+  for (const field of FIELD_RUBRIK) {
+    const mentah = String(formData.get(field) ?? "");
+    const nilai = Number(mentah);
+    if (!Number.isInteger(nilai) || nilai < 0 || nilai > 4) {
+      return { error: `Rubrik ${field} harus bilangan bulat 0–4.` };
+    }
+    rubrik[field] = nilai;
+  }
+  return rubrik;
+}
+
+/**
+ * Putuskan sebuah submission dari record server-side.
+ *
+ * Ini adalah penerbitan credential yang sesungguhnya: keputusan + rubrik
+ * diteruskan ke `putuskanReviewDb`, yang membangun payload attestation dari baris
+ * review + course + user — bukan dari field yang dikirim browser. Skor dihitung
+ * ulang server dari rubrik; `total`/`score`/`username`/`task_title` dari FormData
+ * tidak pernah menjadi payload credential.
+ *
+ * Authentication + staff authorization dilakukan di sini (Server Action adalah
+ * POST endpoint yang bisa dipanggil siapa pun), dan diulang oleh service
+ * (`wajibStaff`) — layout bukan boundary keamanan.
+ */
 export async function decideReview(
   _prev: ReviewState,
   formData: FormData,
 ): Promise<ReviewState> {
-  // Authentication and staff authorization happen here, in the action itself.
-  // The `/review` layout is a navigation guard, not a security boundary: a
-  // Server Action is a POST endpoint reachable by anyone who can send it.
-  //
-  // Otorisasinya membaca `roles` dari principal database (`punyaRoleStaff`),
-  // bukan field kompatibilitas `session.role` — supaya pencabutan role berlaku
-  // pada permintaan berikutnya lewat aturan yang sama dengan `gateStaff()`.
-  // Principal tanpa `userId` (cookie legacy) tetap ditolak.
   const session = await getSession();
   if (!session || !session.userId || !punyaRoleStaff(session.roles ?? [])) {
     return { ok: false, error: PESAN_AKSES_DITOLAK };
   }
 
+  const submissionId = String(formData.get("submissionId") ?? "").trim();
   const decision = String(formData.get("decision") ?? "");
   const reason = String(formData.get("reason") ?? "").trim();
 
-  if (!["approved", "revision", "rejected"].includes(decision)) {
+  if (!submissionId) {
+    return { ok: false, error: "Submission tidak valid." };
+  }
+  if (!(KEPUTUSAN_REVIEW as readonly string[]).includes(decision)) {
     return { ok: false, error: "Keputusan tidak valid." };
   }
-
   if (reason.length < 8) {
     return { ok: false, error: "Alasan wajib diisi minimal 8 karakter. Tidak ada silent reject." };
   }
 
-  if (decision === "approved") {
-    return { ok: false, error: PESAN_TERBIT_NONAKTIF };
+  const rubrik = parseRubrik(formData);
+  if ("error" in rubrik) {
+    return { ok: false, error: rubrik.error };
   }
 
-  return {
-    ok: true,
-    decision,
-    message: `Submission ${DECISION_LABEL[decision] ?? decision} (belum tersimpan). ${PESAN_BELUM_TERSIMPAN}`,
-  };
+  try {
+    const hasil = await putuskanReviewDb({
+      principal: session,
+      submissionId,
+      decision: decision as KeputusanReview,
+      rubric: rubrik,
+      rationale: reason,
+    });
+
+    const diterbitkan =
+      hasil.attestation && hasil.attestation.status === "active" ? true : false;
+    const pesan =
+      decision === "approved"
+        ? diterbitkan
+          ? "Disetujui dan credential diterbitkan."
+          : "Disetujui; credential sudah ada untuk review ini."
+        : `Submission ${DECISION_LABEL[decision] ?? decision} dan tersimpan.`;
+
+    return { ok: true, decision, message: pesan };
+  } catch (error) {
+    if (error instanceof GalatReview) {
+      return { ok: false, error: error.message };
+    }
+    throw error;
+  }
 }

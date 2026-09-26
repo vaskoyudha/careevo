@@ -38,6 +38,7 @@ import {
   reviews,
   submissions,
   submissionVersions,
+  users,
   type Attestation,
   type Badge,
   type Review,
@@ -91,12 +92,6 @@ export async function buatSubmission(
 /** Submission berdasarkan id. */
 export async function ambilSubmission(id: string): Promise<Submission | null> {
   const [baris] = await getDb().select().from(submissions).where(eq(submissions.id, id));
-  return baris ?? null;
-}
-
-/** Versi submission berdasarkan id. */
-export async function ambilVersiSubmission(id: string): Promise<SubmissionVersion | null> {
-  const [baris] = await getDb().select().from(submissionVersions).where(eq(submissionVersions.id, id));
   return baris ?? null;
 }
 
@@ -233,10 +228,13 @@ export async function rekamReview(
   return baris;
 }
 
-/** Review berdasarkan id. */
-export async function ambilReview(id: string): Promise<Review | null> {
-  const [baris] = await getDb().select().from(reviews).where(eq(reviews.id, id));
-  return baris ?? null;
+/** Semua review sebuah submission, terbaru lebih dulu (halaman learner). */
+export async function listReviewSubmission(submissionId: string): Promise<Review[]> {
+  return getDb()
+    .select()
+    .from(reviews)
+    .where(eq(reviews.submissionId, submissionId))
+    .orderBy(desc(reviews.createdAt));
 }
 
 /* ------------------------------------------------------------------ *
@@ -254,12 +252,6 @@ export async function buatBadge(
     .returning();
   if (!baris) throw new Error("Badge gagal dibuat.");
   return baris;
-}
-
-/** Badge berdasarkan id. */
-export async function ambilBadge(id: string): Promise<Badge | null> {
-  const [baris] = await getDb().select().from(badges).where(eq(badges.id, id));
-  return baris ?? null;
 }
 
 /* ------------------------------------------------------------------ *
@@ -326,15 +318,6 @@ export async function ambilAttestation(id: string): Promise<Attestation | null> 
   return baris ?? null;
 }
 
-/** Attestation berdasarkan public token (endpoint verify publik). */
-export async function ambilAttestationByToken(token: string): Promise<Attestation | null> {
-  const [baris] = await getDb()
-    .select()
-    .from(attestations)
-    .where(eq(attestations.publicToken, token));
-  return baris ?? null;
-}
-
 /**
  * Cabut attestation — compare-and-set `active` → `revoked` (dalam transaksi
  * pemanggil). Mengembalikan `null` bila sudah `revoked`/tidak ditemukan.
@@ -366,3 +349,68 @@ export async function cabutAttestation(
 
 /** Re-export tipe baris untuk pemanggil. */
 export type { Attestation, Badge, Review, Submission, SubmissionVersion };
+
+/* ------------------------------------------------------------------ *
+ * Pembacaan lintas-pemilik (dashboard staf + halaman review)
+ * ------------------------------------------------------------------ */
+
+/** Baris submission beserta pemiliknya (nama/email) untuk dashboard staf. */
+export interface SubmissionStaf {
+  submission: Submission;
+  owner: { userId: string; nama: string; email: string };
+}
+
+/**
+ * Semua submission lintas user, bergabung dengan `users` untuk nama/email.
+ * Dipakai halaman review staf menggantikan fixture `reviewQueue`.
+ */
+export async function listSubmissionStaf(): Promise<SubmissionStaf[]> {
+  const baris = await getDb()
+    .select({
+      submission: submissions,
+      userId: users.id,
+      nama: users.displayName,
+      email: users.emailNormalized,
+    })
+    .from(submissions)
+    .innerJoin(users, eq(submissions.userId, users.id))
+    .orderBy(desc(submissions.updatedAt));
+
+  return baris.map((b) => ({
+    submission: b.submission,
+    owner: { userId: b.userId, nama: b.nama, email: b.email },
+  }));
+}
+
+/** Attestation aktif (dan subjeknya) untuk endpoint verify publik + profil. */
+export interface AttestationPublik {
+  attestation: Attestation;
+  subject: { userId: string; nama: string; username: string };
+}
+
+/**
+ * Attestation + username subjek untuk sebuah public token. Dipakai endpoint
+ * verify publik: status active/revoked ikut dikembalikan supaya UI bisa
+ * membedakan "valid" dari "revoked".
+ */
+export async function ambilAttestationPublik(
+  token: string,
+): Promise<AttestationPublik | null> {
+  const baris = await getDb()
+    .select({
+      attestation: attestations,
+      userId: users.id,
+      nama: users.displayName,
+      username: users.usernameNormalized,
+    })
+    .from(attestations)
+    .innerJoin(users, eq(attestations.subjectUserId, users.id))
+    .where(eq(attestations.publicToken, token));
+  const b = baris[0];
+  if (!b) return null;
+  return {
+    attestation: b.attestation,
+    subject: { userId: b.userId, nama: b.nama, username: b.username },
+  };
+}
+
