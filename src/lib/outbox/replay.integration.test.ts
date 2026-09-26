@@ -64,7 +64,7 @@ async function seedEvent(over: Record<string, unknown> = {}) {
 
 /** Buat event yang benar-benar sudah dead-letter lewat worker. */
 async function seedDeadLetter(): Promise<string> {
-  const event = await seedEvent({ type: "attestation.issued" });
+  const event = await seedEvent({ type: "file.scanned" });
   await jalankanSatuPutaran({ owner: "worker-uji" });
   return event.id;
 }
@@ -127,7 +127,7 @@ describe("replay — keputusan ber-audit dan pemulihan", () => {
     expect(riwayat[0]?.actorUserId).toBe(admin.id);
     expect(riwayat[0]?.payloadRedacted).toMatchObject({
       reason: "handler dipasang di #1234",
-      type: "attestation.issued",
+      type: "file.scanned",
       error_code: "handler_tidak_terdaftar",
       attempts: 1,
     });

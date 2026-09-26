@@ -3,7 +3,6 @@
 import { useActionState, useMemo, useState } from "react";
 import { decideReview, type ReviewState } from "@/actions/review";
 import { hitungSkorKarya, type RubricCriterion } from "@/lib/scoring/karya";
-import type { SubmissionFixture } from "@/lib/fixtures";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -18,7 +17,20 @@ const CRITERIA: Array<{ key: RubricCriterion; label: string; bobot: string }> = 
   { key: "dokumentasi", label: "Dokumentasi", bobot: "10%" },
 ];
 
-export function ReviewForm({ submission, username }: { submission: SubmissionFixture; username: string }) {
+/**
+ * Form keputusan review. Yang menentukan credential hanya `submissionId`,
+ * `decision`, `reason`, dan lima nilai rubrik: action `decideReview` membaca
+ * payload attestation dari record server-side, bukan dari field di sini. Skor
+ * yang ditampilkan murni kosmetik — server menghitungnya ulang dari rubrik.
+ * `username` hanya dipakai untuk label tombol kirim.
+ */
+export function ReviewForm({
+  submissionId,
+  username,
+}: {
+  submissionId: string;
+  username?: string;
+}) {
   const [state, formAction, pending] = useActionState(decideReview, INITIAL);
   const [scores, setScores] = useState<Record<RubricCriterion, number>>({
     kelengkapan: 3,
@@ -27,19 +39,23 @@ export function ReviewForm({ submission, username }: { submission: SubmissionFix
     ketepatan_brief: 2,
     dokumentasi: 3,
   });
-  const [decision, setDecision] = useState("revision");
+  const [decision, setDecision] = useState("approved");
   const [reason, setReason] = useState("");
 
   const skorKarya = useMemo(() => hitungSkorKarya(scores), [scores]);
   const skorTotal = useMemo(() => Math.round((skorKarya / 40) * 100), [skorKarya]);
 
   return (
-    <form className="card" action={formAction}>
-      <input type="hidden" name="total" value={skorTotal} />
+    <form
+      className="card"
+      action={formAction}
+      aria-label={
+        username ? `Form keputusan review untuk ${username}` : "Form keputusan review"
+      }
+    >
+      <input type="hidden" name="submissionId" value={submissionId} />
       <input type="hidden" name="decision" value={decision} />
       <input type="hidden" name="reason" value={reason} />
-      <input type="hidden" name="username" value={username} />
-      <input type="hidden" name="task_title" value={submission.task_title} />
 
       <div className="card-head">
         <div>
@@ -75,6 +91,10 @@ export function ReviewForm({ submission, username }: { submission: SubmissionFix
                 setScores((prev) => ({ ...prev, [criterion.key]: Number(event.target.value) }))
               }
             />
+            {/* Nilai rubrik ikut terkirim lewat input tersembunyi, bukan lewat
+                input range: slider yang dinonaktifkan (`disabled`) tidak
+                dikirim browser, sedangkan rubrik wajib ada di FormData. */}
+            <input type="hidden" name={criterion.key} value={scores[criterion.key]} />
             <span className="mono">{scores[criterion.key]}/4</span>
           </div>
         </div>
@@ -105,15 +125,6 @@ export function ReviewForm({ submission, username }: { submission: SubmissionFix
           onClick={() => setDecision("approved")}
         >
           Approve
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className={cn("tab-btn", decision === "revision" && "is-active")}
-          onClick={() => setDecision("revision")}
-        >
-          Minta revisi
         </Button>
         <Button
           type="button"

@@ -5,20 +5,23 @@ import {
   type VerifyStatus,
 } from "@/components/features/verify/verify-result";
 import type { AttestationPayload } from "@/lib/attestation/sign";
-import { verifyPayload, type VerifyReason } from "@/lib/attestation/verify";
-import {
-  buildToken,
-  decodeToken,
-  getAttestationSecret,
-  isExpired,
-  DEMO_ATTESTATION_PAYLOAD,
-} from "@/lib/attestation/token";
+import type { VerifyReason } from "@/lib/attestation/verify";
+import { dariKanonik } from "@/lib/attestation/payload";
+import { verifikasiSignature } from "@/lib/attestation/key";
+import { isExpired } from "@/lib/attestation/token";
+import { ambilAttestationPublik } from "@/lib/review/repository";
 
 export const metadata: Metadata = {
   title: "Verifikasi Attestation",
   description:
     "Verifikasi publik attestation Careevo berbasis HMAC-SHA256, tanpa login.",
 };
+
+// Endpoint verify membaca baris `attestations` per permintaan. Statusnya bisa
+// berubah kapan saja (attestation dapat dicabut), jadi halaman ini **tidak**
+// boleh dirender statis: hasil yang di-cache akan menampilkan kredensial yang
+// sudah dicabut sebagai masih berlaku.
+export const dynamic = "force-dynamic";
 
 type Outcome = {
   status: VerifyStatus;
@@ -27,35 +30,67 @@ type Outcome = {
   reason?: VerifyReason;
 };
 
-function resolveToken(token: string): Outcome {
-  const decoded = decodeToken(token);
-  if (!decoded) return { status: "invalid", reason: "malformed" };
+/**
+ * Verifikasi token publik — **database adalah sumber kebenaran**.
+ *
+ * Fase 3 memindahkan attestation dari stateless ke tabel `attestations`:
+ * token tidak lagi membawa kebenarannya sendiri. Urutannya:
+ *
+ * 1. Baca baris berdasarkan `public_token`. Tidak ada baris → tidak dikenal.
+ * 2. Parse `payload_canonical`; bentuk rusak → tidak valid.
+ * 3. Verifikasi ulang HMAC dengan `key_version` yang tercatat (bukan versi
+ *    aktif saat ini) supaya attestation lama tetap terverifikasi setelah rotasi.
+ * 4. `status` dari database yang menentukan: `revoked` menang atas signature
+ *    yang masih cocok, `active` berarti valid.
+ *
+ * Kedaluwarsa diperiksa dari `issued_at` **pada payload kanonik yang tersimpan**,
+ * bukan dari token yang dikirim browser: yang diukur adalah umur kredensial
+ * yang benar-benar diterbitkan. Pemeriksaan ini hanya berlaku untuk baris
+ * `active`; baris `revoked` sudah final dan tidak boleh disamarkan menjadi
+ * "kedaluwarsa" oleh aturan umur. Batas 365 hari tetap dipakai karena belum ada
+ * kolom kedaluwarsa di tabel — bila penerbitan ulang diperpanjang, aturan itu
+ * pindah ke database.
+ */
+async function resolveToken(token: string): Promise<Outcome> {
+  const baris = await ambilAttestationPublik(token);
+  if (!baris) return { status: "invalid", reason: "malformed" };
 
-  const result = verifyPayload(
-    decoded.payload,
-    decoded.signature,
-    getAttestationSecret(),
+  const { attestation } = baris;
+  const payload = dariKanonik(attestation.payloadCanonical);
+  if (!payload) return { status: "invalid", reason: "malformed" };
+
+  const signatureCocok = verifikasiSignature(
+    attestation.payloadCanonical,
+    attestation.signature,
+    attestation.keyVersion,
   );
-  if (!result.valid) {
-    return { status: "invalid", reason: result.reason ?? "signature_mismatch" };
+  if (!signatureCocok) {
+    return { status: "invalid", reason: "signature_mismatch" };
   }
-  if (isExpired(decoded.payload)) {
+
+  // Signature cocok, jadi payload boleh ditampilkan pada kedua status di bawah.
+  // Yang membedakan hanya keputusan penerbit, bukan keaslian tanda tangannya.
+  if (attestation.status === "revoked") {
     return {
-      status: "expired",
-      payload: decoded.payload,
-      signature: decoded.signature,
+      status: "revoked",
+      payload,
+      signature: attestation.signature,
     };
   }
+
+  if (isExpired(payload)) {
+    return {
+      status: "expired",
+      payload,
+      signature: attestation.signature,
+    };
+  }
+
   return {
     status: "valid",
-    payload: decoded.payload,
-    signature: decoded.signature,
+    payload,
+    signature: attestation.signature,
   };
-}
-
-function tamperOneChar(token: string): string {
-  const last = token.slice(-1);
-  return token.slice(0, -1) + (last === "A" ? "B" : "A");
 }
 
 export default async function VerifyTokenPage({
@@ -64,14 +99,7 @@ export default async function VerifyTokenPage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  const outcome = resolveToken(token);
-
-  const demoToken = buildToken(DEMO_ATTESTATION_PAYLOAD);
-  const tamperedToken = tamperOneChar(demoToken);
-  const expiredToken = buildToken({
-    ...DEMO_ATTESTATION_PAYLOAD,
-    issued_at: "2020-01-01T00:00:00.000Z",
-  });
+  const outcome = await resolveToken(token);
 
   return (
     <section
@@ -81,11 +109,8 @@ export default async function VerifyTokenPage({
       <div className="container section-inner">
         <VerifyResult {...outcome} />
         <p className="caption verify-demo">
-          Token demo:{" "}
-          <Link href={`/verify/${demoToken}`}>valid</Link> {" · "}
-          <Link href={`/verify/${tamperedToken}`}>diubah 1 karakter</Link> {" · "}
-          <Link href={`/verify/${expiredToken}`}>kedaluwarsa</Link> {" · "}
-          <Link href="/verify/token-tidak-dikenal">tidak dikenal</Link>
+          Uji tautan yang tidak terdaftar:{" "}
+          <Link href="/verify/token-tidak-dikenal">token tidak dikenal</Link>
         </p>
       </div>
     </section>

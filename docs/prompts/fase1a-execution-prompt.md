@@ -43,7 +43,7 @@ outbox_events
 ```
 
 ## Cara kerja (WAJIB diikuti)
-- **Buat branch baru** dari `origin/main` (mis. `backend-production-fase1a`), jangan commit/push ke `main`. Jaga worktree bersih.
+- **Buat branch `backend-production`** dari `origin/main` (atau lanjutkan jika sudah ada), jangan commit/push ke `main`. Commit per fase ke branch ini dan push ke GitHub sebagai checkpoint; PR ke `main` dibuat satu kali setelah semua fase selesai.
 - **Fan out subagent** (WAJIB) untuk task paralel independen; HANYA `model: "sonnet"` (standar) dan `model: "haiku"` (lookup/perubahan kecil). JANGAN `opus`.
 - **Eksekusi bertahap**, urutan saran: (a) schema outbox + migration + helper writer transaksional (`tulisOutbox` / service yang menulis bisnis + event dalam `denganTransaksi`); (b) worker claim/lease aman (claim via `UPDATE ... WHERE lease_expires_at IS NULL OR < now() RETURNING`, release saat selesai, recover lease kedaluwarsa); (c) registry handler per type + idempotency sink audit internal + exponential backoff + max retry + dead-letter; (d) CLI replay/dead-letter ber-audit + redaction payload; (e) integration test.
 - **Verifikasi di akhir saja**, setelah semua task selesai (bukan per task).

@@ -4,8 +4,10 @@ import { getSession } from "@/lib/auth/session";
 import { LearnerShell } from "@/components/ui/learner-shell";
 import { DetailKursus, type KursusTerkait } from "@/components/features/learning/detail-kursus";
 import { cariEntri, katalogBelajar } from "@/lib/courses/katalog";
+import { irisModulSelesai } from "@/lib/courses/kurikulum";
 import { modulUntukSumber } from "@/lib/courses/modul-resolver";
-import { cariPendaftaran } from "@/lib/courses/enrollment";
+import { pastikanBackfill } from "@/lib/learning/backfill-lazy";
+import { progresKursusDb } from "@/lib/learning/service";
 import { getCourseById } from "@/lib/courses/store";
 import { kebijakanDefault } from "@/lib/courses/kebijakan";
 import { tasks } from "@/lib/fixtures";
@@ -46,7 +48,11 @@ export default async function DetailKursusPage({
     url: entri.url,
   });
 
-  const pendaftaran = await cariPendaftaran(entri.id, session.email);
+  // Migrasi lazy sebelum membaca: enrollment cookie pemilik ini (bila ada)
+  // dipindahkan ke database sekali, lalu progres dibaca dari sana.
+  await pastikanBackfill(session);
+  const { enrollment, selesai } = await progresKursusDb(session, entri.id);
+  const selesaiAwal = irisModulSelesai(selesai, modul);
 
   const skor = (kandidat: (typeof katalog)[number]) =>
     kandidat.tags.filter((tag) => entri.tags.includes(tag)).length;
@@ -68,7 +74,7 @@ export default async function DetailKursusPage({
   return (
     <LearnerShell session={session}>
       <DetailKursus
-        key={`${entri.id}-${(pendaftaran?.selesai_modul ?? []).join(",")}`}
+        key={`${entri.id}-${selesaiAwal.join(",")}`}
         kursus={{
           id: entri.id,
           slug: entri.slug,
@@ -86,8 +92,8 @@ export default async function DetailKursusPage({
           enrolled_count: kursusAsli?.enrolled_count ?? null,
         }}
         modul={modul}
-        terdaftar={Boolean(pendaftaran)}
-        selesaiAwal={pendaftaran?.selesai_modul ?? []}
+        terdaftar={Boolean(enrollment)}
+        selesaiAwal={selesaiAwal}
         terkait={terkait}
         tugas={tugas ? { id: tugas.id, title: tugas.title, brief: tugas.brief } : null}
         // Kebijakan tersimpan dibaca apa adanya; kursus yang belum pernah

@@ -15,6 +15,20 @@
       "when": 1790358791542,
       "tag": "0001_brief_doctor_octopus",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790395529384,
+      "tag": "0002_slippery_mathemanic",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790401240384,
+      "tag": "0003_sticky_doorman",
+      "breakpoints": true
     }
   ]
 }

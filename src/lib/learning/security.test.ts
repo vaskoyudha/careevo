@@ -25,12 +25,17 @@ describe("keamanan jalur ujian", () => {
 
   // Dulu uji ini mematok persis `run.owner !== session.email`, sehingga
   // normalisasi trim/toLowerCase yang wajar saja sudah cukup membuatnya merah
-  // tanpa ada kebocoran apa pun. Bentuk di bawah tetap menjaga invariannya —
-  // kepemilikan run dibandingkan dengan email sesi, bukan dengan apa pun yang
-  // dikirim klien — tanpa mengunci gaya penulisannya.
+  // tanpa ada kebocoran apa pun. Sejak cutover Fase 2 kepemilikan run ditegakkan
+  // `catatKejadianDb` lewat `principal.userId` (bukan lagi perbandingan email di
+  // action), jadi yang dijaga di sini adalah properti yang sama pada bentuk
+  // barunya: action hanya boleh menyerahkan **principal dari sesi**, dan tidak
+  // pernah membaca owner dari input klien.
   it("endpoint kejadian tidak mempercayai owner dari klien", () => {
     const isi = isiLearning();
-    expect(isi).toMatch(/run\.owner\s*!==\s*session\.email/);
+    expect(isi).toMatch(/catatKejadianDb\(\{\s*principal: session,/);
+    // Tidak ada `owner` yang dibaca dari wire di mana pun pada action ini.
+    expect(isi).not.toMatch(/input\.owner/);
+    expect(isi).not.toMatch(/session\.email\s*===/);
   });
 });
 
