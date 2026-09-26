@@ -153,6 +153,11 @@ describe("selesaikanModulKuisVerified — gerbang wajib_kamera", () => {
 
     const hasil = await selesaikan(true);
 
+    // Lingkup run harus terikat pada **course yang sedang diselesaikan**:
+    // `ambilRunAktif` di sini di-mock tanpa memeriksa argumen, jadi tanpa
+    // patokan ini `courseId` bisa hilang tanpa satu pun test merah — dan run
+    // berkamera milik course lain akan melepas gerbang kuis course ini.
+    expect(mocks.ambilRunAktif).toHaveBeenCalledWith(PRINCIPAL.userId, KURSUS);
     expect(hasil.modul.ok).toBe(true);
     expect(mocks.tandaiModulDb).toHaveBeenCalledWith(
       expect.objectContaining({ courseId: KURSUS, modulId: MODUL, sumber: "terverifikasi" }),

@@ -10,8 +10,15 @@
  * Keempat label, dan fakta yang masing-masing nyatakan:
  *
  * - `terverifikasi_kamera` — bukti adalah run, dan run itu punya
- *   `kamera_mulai`. Hanya mungkin pada course `wajib_kamera`, karena course
- *   `wajib` tidak pernah menolak penyelesaian tanpa kamera.
+ *   `kamera_mulai`. Label ini muncul kapan pun run-nya memang membawanya,
+ *   **bukan hanya** pada course `wajib_kamera`: `wajib_kamera` adalah kebijakan
+ *   yang *menjamin* kamera tercatat (satu-satunya yang menolak penyelesaian
+ *   tanpanya), sedangkan pencatatan sinyal kamera tidak memfilter per kebijakan,
+ *   jadi run course `wajib` pun bisa membawanya. Karena itu penelusuran run
+ *   tidak boleh dipersempit ke course `wajib_kamera` saja: run yang sebenarnya
+ *   bisa ditelusuri tetapi di luar pencarian itu akan jatuh ke
+ *   `terverifikasi_tanpa_bukti_kamera`, yaitu kalimat "kamera tidak bisa
+ *   ditelusuri ke run" untuk baris yang sebenarnya bisa.
  * - `terverifikasi` — bukti adalah run, dan run itu **tidak** punya
  *   `kamera_mulai`. Ketiadaan kejadian inilah yang diketahui, bukan "kamera
  *   pasti mati": `kamera_mulai` adalah sinyal yang dilaporkan peramban
