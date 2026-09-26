@@ -593,6 +593,9 @@ describe("selesaikanModulKuisVerified — kuis harus benar-benar terpasang di mo
         quizId: kuis.id,
         attemptId: attempt.id,
         policyVersion: 1,
+        // Kursus uji di berkas ini memakai kebijakan default `wajib`, jadi
+        // gerbang kamera tidak berlaku dan perilaku test tidak berubah.
+        wajibKamera: false,
       }),
     ).rejects.toMatchObject({ kode: "kuis_tidak_cocok" });
 
@@ -625,6 +628,9 @@ describe("selesaikanModulKuisVerified — kuis harus benar-benar terpasang di mo
       quizId: kuis.id,
       attemptId: attempt.id,
       policyVersion: 1,
+      // Kursus uji di berkas ini memakai kebijakan default `wajib`, jadi
+      // gerbang kamera tidak berlaku dan perilaku test tidak berubah.
+      wajibKamera: false,
     });
 
     expect(hasil.modul.ok).toBe(true);
@@ -678,6 +684,9 @@ describe("selesaikanModulKuisVerified — kuis harus benar-benar terpasang di mo
         quizId: kuis.id,
         attemptId: attempt.id,
         policyVersion: 1,
+        // Kursus uji di berkas ini memakai kebijakan default `wajib`, jadi
+        // gerbang kamera tidak berlaku dan perilaku test tidak berubah.
+        wajibKamera: false,
       }),
     ).rejects.toMatchObject({ kode: "kuis_tidak_cocok" });
     expect(await db.select().from(moduleProgress)).toHaveLength(0);
@@ -714,6 +723,9 @@ describe("selesaikanModulKuisVerified — kuis harus benar-benar terpasang di mo
         quizId: kuis.id,
         attemptId: attempt.id,
         policyVersion: 1,
+        // Kursus uji di berkas ini memakai kebijakan default `wajib`, jadi
+        // gerbang kamera tidak berlaku dan perilaku test tidak berubah.
+        wajibKamera: false,
       }),
     ).rejects.toMatchObject({ kode: "modul_tidak_ditemukan" });
 
