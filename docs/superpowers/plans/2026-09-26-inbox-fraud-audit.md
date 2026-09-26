@@ -969,3 +969,28 @@ git commit -m "feat(loker): show a derived fraud verdict on every inbox row"
 **Known risk, stated rather than hidden:** the escalation path for "no employer + short link" is asserted by a test in T3 and depends on `bit.ly` staying in `DOMAIN_MENCURIGAKAN`. If a future edit removes it, that test fails loudly — which is the intended behaviour, not a flaw to work around.
 
 **Verification done before execution, not assumed:** every endpoint, field name and allowlist entry this plan relies on was measured against the live API or read out of source on 2026-09-26 — `?jobId=` single-job lookup, the 404 on the detail endpoint, `loaderData: null`, the 9%/26%/1% rates, `jobstreet.com` in `ATS_DIIZINKAN`, `bit.ly` in `DOMAIN_MENCURIGAKAN`, `auditLoker`'s escalation branches, and `InboxJobShape`'s fields.
+
+---
+
+## Execution record — where this diverged from the plan
+
+Executed 2026-09-26 on branch `vasco`, 7 commits. Four things changed while running, each because a measurement contradicted the plan. The plan above is left as written so the divergence is visible rather than quietly edited away; the corrections are collected here.
+
+**1. `bacaInboxUnik` is synchronous, so T5's `await` inside it was impossible.** The plan assumed the dedupe read could be made async. Measured: it returns `InboxJob[]`, and making it async would have rippled through `bacaInboxDenganTanggal`, the page, and every existing test. Executed instead as a new `bacaInboxDiaudit({ fetchJson?, cacheFile? })` that wraps the untouched sync read. Smaller blast radius, and the pure read stays pure.
+
+**2. `InboxJobShape`'s fields are `company`/`role`, not `perusahaan`/`judul`.** Caught by reading the source before Task 4 rather than by a failing test. The plan's Indonesian field names would not have compiled. Task 4 now consumes `InboxJobShape` directly, so no parallel row type and no cast exist.
+
+**3. A false positive found only by running against the live API.** The first live run produced 3 quarantined rows, two of them legitimate YO AI Labs postings. Cause: Jobstreet's single-job endpoint returns `companyName` and `employer` both **absent** for some listings that its own list endpoint — the one the scan reads — had named. `bahanAudit` now takes the pipeline row's company as a fallback. Live verdicts went to 16 clean / 1 quarantined, and that one is the genuine `Private Advertiser`. Fixed in `ede1644`.
+
+**4. `labelSinyal` could not label the new signal — and neither could it label two existing ones.** `FEE_RULES` holds only six ids, so `email_pribadi` and `domain_baru` — both added inline by `auditLoker`, like the new signal — fell through to the raw-id fallback. A probe over the shipped fixtures confirmed both reached the learner as `domain_baru` and `email_pribadi`. That is a pre-existing defect of the "internal ids in the learner's face" class, and the new signal would have been a third instance. Fixed by adding `LABEL_IDENTITAS` to `sentinel.ts` rather than by letting the new flag inherit the same hole.
+
+**Two of this plan's own test expectations were wrong, and running them is what proved it:**
+
+- T4 asserted one fee rule produces `rejected`. The documented policy quarantines on one content signal and rejects on two. The test now asserts `quarantined`, plus a second case proving two independent fee rules do reject.
+- T5 asserted `firstSeen` comes from `scan-history.tsv`. It is `postedAt ?? scanHistoryDate`, so a row carrying `posted:` wins. Both branches are now pinned separately.
+
+**Also corrected during execution:** `bahanAudit` treats an empty `employer.id` as anonymity, because Jobstreet sends `{"id":"","name":"Private Advertiser"}` for anonymised listings — a truthy object is not a verifiable employer.
+
+**Verification actually performed, not asserted:** `npm run check` exit 0 (1149 tests, 85 files, 7 skills valid, 0 errors); `next build` green on the first attempt; and a browser probe over the 17 live rows returning 16 `Aman` / 1 `Perlu ditinjau`, with the tooltip reading `Sinyal: Nama perusahaan tidak bisa diverifikasi` and no raw signal id present in any rendered title. Screenshots in `docs/shots/13-inbox-fraud-verdict.png` and `14-inbox-fraud-verdict-mobile.png` (mobile chip strip measured 24px, no horizontal page scroll).
+
+**Not verified, and therefore not claimed:** the `rejected` tier never appeared in live data — no real listing in the sample carried two independent signals — so that branch is covered by unit tests only. The enrichment path against a *cold* cache (17 sequential network calls on first load) was not timed in the browser; the 556ms measured load used a warm cache. And the pre-existing hydration failure from the earlier screenshot session is untouched by this work, so the filter chips remain unverified as interactive.
