@@ -8,6 +8,7 @@ import { isStaffRole } from "@/lib/auth/roles";
 import type { SessionPayload } from "@/lib/auth/types";
 import {
   LayoutDashboard,
+  Compass,
   GraduationCap,
   Briefcase,
   Settings,
@@ -37,6 +38,7 @@ const USER_GROUPS: SidebarNavGroup[] = [
     items: [
       { href: "/dashboard", title: "Dashboard", icon: LayoutDashboard },
       { href: "/belajar", title: "Belajar", icon: GraduationCap },
+      { href: "/jelajah", title: "Jelajah", icon: Compass },
       { href: "/loker", title: "Loker", icon: Briefcase },
     ],
   },
@@ -79,26 +81,27 @@ function NavItem({
   const isActive = isActiveHref(current, item.href);
   const Icon = item.icon;
 
+  // Pill rows, matching the AI Mastery sidebar: a full-radius control with one
+  // tonal fill for the current page. The active state is a solid --accent
+  // rather than a gradient wash, and the icon carries the state through weight
+  // (1.9 vs 1.6) so it survives a greyscale or a colour-vision difference.
   const rowClass = cn(
-    "group flex w-full items-center justify-between rounded-[6px] px-2.5 py-[7px] text-left transition-all duration-200 select-none cursor-pointer",
+    "group flex min-h-9 w-full items-center justify-between rounded-full px-3 text-left transition-colors duration-200 select-none cursor-pointer",
     isActive
-      ? "bg-black/5 text-foreground font-medium"
-      : "text-muted-foreground hover:bg-black/5 hover:text-foreground/90",
+      ? "bg-[var(--accent)] font-medium text-[var(--accent-foreground)]"
+      : "text-muted-foreground hover:bg-[var(--muted)] hover:text-foreground",
   );
+
+  const indent = { paddingLeft: `calc(0.75rem + ${level} * 0.875rem)` };
 
   const content = (
     <>
       <div className="flex items-center gap-2.5">
         <Icon
-          className={cn(
-            "h-[16px] w-[16px] shrink-0 transition-colors",
-            isActive
-              ? "text-foreground"
-              : "text-muted-foreground/70 group-hover:text-foreground/70",
-          )}
-          strokeWidth={1.5}
+          className="h-[16px] w-[16px] shrink-0 transition-colors"
+          strokeWidth={isActive ? 1.9 : 1.6}
         />
-        <span className="truncate text-[13px] tracking-wide">{item.title}</span>
+        <span className="truncate text-[13px]">{item.title}</span>
       </div>
       {hasChildren ? (
         <ChevronRight
@@ -117,7 +120,7 @@ function NavItem({
       <div className="flex w-full flex-col">
         <div
           className={rowClass}
-          style={{ paddingLeft: `${level * 12 + 10}px` }}
+          style={indent}
           onClick={() => setIsOpen((open) => !open)}
           aria-expanded={isOpen}
         >
@@ -131,8 +134,8 @@ function NavItem({
         >
           <div className="relative mt-0.5 flex min-h-0 flex-col gap-0.5 overflow-hidden">
             <div
-              className="absolute top-0 bottom-0 border-l border-black/5"
-              style={{ left: `${level * 12 + 17.5}px` }}
+              className="absolute top-0 bottom-0 border-l border-[var(--border)]"
+              style={{ left: `calc(0.75rem + ${level} * 0.875rem + 0.7rem)` }}
             />
             {item.children!.map((child) => (
               <NavItem
@@ -153,7 +156,7 @@ function NavItem({
     <Link
       href={item.href}
       className={rowClass}
-      style={{ paddingLeft: `${level * 12 + 10}px` }}
+      style={indent}
       onClick={onNavigate}
       aria-current={isActive ? "page" : undefined}
     >
@@ -183,18 +186,25 @@ export function DashboardSidebar({
       className={cn("dashboard-sidebar-aside", className)}
       data-open={mobileOpen}
     >
-      <div className="flex h-full w-[260px] flex-col border-r border-border/50 bg-card/50 p-3 font-sans">
+      <div className="dashboard-sidebar-panel">
         <Link
           href={session.role === "admin" ? "/admin/courses" : staff ? "/review" : "/dashboard"}
           onClick={onNavigate}
-          className="group mb-4 flex items-center justify-between rounded-lg px-2 py-2 transition-colors select-none hover:bg-black/5"
+          className="group mb-4 flex items-center justify-between rounded-full border border-[var(--border)] bg-[var(--muted)] px-2.5 py-1.5 transition-colors select-none hover:bg-[var(--accent)]"
         >
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-[6px] bg-primary text-[13px] font-semibold uppercase text-primary-foreground shadow-sm">
+          <div className="flex items-center gap-2.5">
+            <div
+              className="flex h-8 w-8 items-center justify-center rounded-full text-[13px] font-semibold uppercase text-white"
+              style={{
+                background: "var(--brand-grad)",
+                border: "1px solid var(--brand-border)",
+                boxShadow: "var(--brand-shadow)",
+              }}
+            >
               {session.nama.charAt(0)}
             </div>
             <div className="flex flex-col overflow-hidden">
-              <span className="mb-1 max-w-[120px] truncate text-[13px] font-medium leading-none text-foreground">
+              <span className="mb-0.5 max-w-[120px] truncate text-[13px] font-medium leading-none text-foreground">
                 {session.nama}
               </span>
               <span className="text-[11px] leading-none text-muted-foreground">
@@ -228,7 +238,7 @@ export function DashboardSidebar({
           ))}
         </div>
 
-        <div className="mt-auto flex flex-col gap-0.5 border-t border-border/50 pt-4">
+        <div className="mt-auto flex flex-col gap-0.5 border-t border-[var(--border)] pt-4">
           <NavItem
             item={{ href: "/profil", title: "Profil", icon: UserRound }}
             current={current}
@@ -239,16 +249,14 @@ export function DashboardSidebar({
             current={current}
             onNavigate={onNavigate}
           />
+          {/* Same pill vocabulary as NavItem — a control that looks different
+              next to its neighbours reads as a different kind of control. */}
           <form action={logoutAction}>
             <button
               type="submit"
-              className="group flex w-full items-center gap-2.5 rounded-[6px] px-2.5 py-[7px] text-left text-[13px] tracking-wide text-muted-foreground transition-all duration-200 select-none hover:bg-black/5 hover:text-foreground/90"
-              style={{ paddingLeft: "10px" }}
+              className="group flex min-h-9 w-full items-center gap-2.5 rounded-full px-3 text-left text-[13px] text-muted-foreground transition-colors duration-200 select-none hover:bg-[var(--muted)] hover:text-foreground"
             >
-              <LogOut
-                className="h-[16px] w-[16px] shrink-0 text-muted-foreground/70 transition-colors group-hover:text-foreground/70"
-                strokeWidth={1.5}
-              />
+              <LogOut className="h-[16px] w-[16px] shrink-0" strokeWidth={1.6} />
               Keluar
             </button>
           </form>

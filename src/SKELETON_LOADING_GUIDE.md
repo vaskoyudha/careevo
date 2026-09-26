@@ -2,7 +2,7 @@
 
 ## Overview
 
-Beautiful skeleton loading animations have been added to Careevo, matching the same elegant design system used in SiJago. These shimmer effects provide professional loading states throughout your application.
+Beautiful skeleton loading animations have been added to Careevo, matching the same elegant design system used in AI Mastery. These shimmer effects provide professional loading states throughout your application.
 
 ## Components Available
 

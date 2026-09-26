@@ -25,6 +25,7 @@ import type { SessionPayload } from "@/lib/auth/types";
 
 const PAGE_LABELS: Record<string, string> = {
   "/dashboard": "Dashboard",
+  "/jelajah": "Jelajah",
   "/belajar": "Belajar",
   "/loker": "Loker",
   "/profil": "Profil",
@@ -77,6 +78,7 @@ export function AppShell({
   };
 
   const label = pageLabel(current);
+  const staffHome = session.role === "admin" ? "/admin/courses" : "/review";
   const roleLabel =
     session.role === "admin"
       ? "Admin"
@@ -112,7 +114,7 @@ export function AppShell({
               type="button"
               onClick={toggle}
               aria-label="Buka atau tutup menu navigasi"
-              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] border border-white/80 bg-white/70 text-muted-foreground shadow-sm transition-colors hover:bg-white hover:text-foreground"
             >
               <Menu className="h-[18px] w-[18px] lg:hidden" strokeWidth={1.5} />
               {collapsed ? (
@@ -127,12 +129,14 @@ export function AppShell({
                 />
               )}
             </button>
-            <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
-              <span className="shrink-0">Careevo</span>
-              <span className="shrink-0">/</span>
-              <span className="truncate font-medium text-foreground">
-                {label}
+            <div className="flex min-w-0 items-center gap-2">
+              <Link href={staffHome} className="dashboard-topbar-brand">
+                careevo<span className="dashboard-topbar-brand-dot">.</span>
+              </Link>
+              <span className="dashboard-topbar-sep hidden sm:inline" aria-hidden="true">
+                /
               </span>
+              <span className="dashboard-topbar-label hidden sm:inline-flex">{label}</span>
             </div>
           </div>
 
@@ -141,13 +145,13 @@ export function AppShell({
               <button
                 type="button"
                 aria-label="Buka menu akun"
-                className="group flex items-center gap-2 rounded-full border border-transparent py-1 pr-1.5 pl-2 text-muted-foreground transition-colors select-none hover:border-black/10 hover:bg-black/5 hover:text-foreground data-[state=open]:border-black/10 data-[state=open]:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                className="group flex items-center gap-2 rounded-full border border-white/80 bg-white/60 py-1 pr-1.5 pl-2 text-muted-foreground shadow-sm transition-colors select-none hover:bg-white hover:text-foreground data-[state=open]:bg-white data-[state=open]:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
               >
                 <span className="hidden text-[13px] sm:inline">
                   @{session.username}
                 </span>
                 <span
-                  className="grid h-8 w-8 place-items-center rounded-full border border-primary/20 bg-primary/10 text-[12px] font-semibold uppercase text-primary"
+                  className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-[#3b82f6] via-[#60a5fa] to-[#bfdbfe] text-[12px] font-semibold text-white uppercase shadow-sm ring-1 ring-white/60"
                   aria-hidden="true"
                 >
                   {session.nama.charAt(0)}

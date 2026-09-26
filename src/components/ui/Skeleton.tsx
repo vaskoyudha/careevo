@@ -5,7 +5,7 @@ import React, { useState } from "react";
 
 /**
  * Beautiful skeleton loading animations with shimmer effects
- * Matches SiJago's ocean-blue theme palette
+ * Matches AI Mastery's ocean-blue theme palette
  */
 
 interface SkeletonProps {
