@@ -63,23 +63,39 @@ export function applyUrlFromTeaser(teaser: string, postingUrl: string): string {
   return found;
 }
 
-/** True when the listing names an employer a candidate could verify. */
-function employerTerverifikasi(listing: ListingJobstreet): boolean {
-  const nama = (listing.companyName ?? "").trim();
+/**
+ * True when the listing names an employer a candidate could verify.
+ *
+ * `fallbackCompany` is the company the scan already recorded in `pipeline.md`.
+ * It matters because Jobstreet's two endpoints disagree: the list endpoint (what
+ * the scan reads) sometimes names a company that the single-job endpoint then
+ * returns with `companyName` and `employer` both absent. That is an API
+ * inconsistency, not an anonymous employer, so the scan's name is used rather
+ * than quarantining a posting for the API's behaviour.
+ *
+ * An empty `employer.id` IS evidence of anonymity — Jobstreet sends
+ * `{"id":"","name":"Private Advertiser"}` for anonymised listings — so a
+ * truthy object is not on its own a verifiable employer.
+ */
+function employerTerverifikasi(listing: ListingJobstreet, fallbackCompany: string): boolean {
+  const dariApi = (listing.companyName ?? "").trim();
+  const nama = dariApi || fallbackCompany.trim();
   if (!nama) return false;
   if (/^private advertiser$/i.test(nama)) return false;
-  return Boolean(listing.employer?.id);
+  if (dariApi && listing.employer && !listing.employer.id) return false;
+  return true;
 }
 
 /** Everything `auditLoker` can be given for this listing. */
-export function bahanAudit(listing: ListingJobstreet): BahanAudit {
+export function bahanAudit(listing: ListingJobstreet, fallbackCompany = ""): BahanAudit {
   const postingUrl = `https://id.jobstreet.com/id/job/${listing.id}`;
+  const dariApi = (listing.companyName ?? "").trim();
   return {
     description: [...(listing.bulletPoints ?? []), listing.teaser ?? ""]
       .filter((part) => part && part.trim())
       .join("\n"),
     apply_url: applyUrlFromTeaser(listing.teaser ?? "", postingUrl),
-    company: (listing.companyName ?? "").trim(),
-    employer_known: employerTerverifikasi(listing),
+    company: dariApi || fallbackCompany.trim(),
+    employer_known: employerTerverifikasi(listing, fallbackCompany),
   };
 }

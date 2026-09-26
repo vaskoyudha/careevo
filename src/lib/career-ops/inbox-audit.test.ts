@@ -95,10 +95,23 @@ describe("auditBaris", () => {
   });
 
   it("falls back to the pipeline row's company when the listing names none", () => {
+    // This is the whole point of the fallback: the scan recorded a company, so the
+    // row is judged on that rather than on the detail endpoint's silence. An
+    // earlier version expected `quarantined` — it was describing the fallback not
+    // existing yet, not a requirement.
     const [out] = auditBaris(
       [row({ company: "PT Dari Pipeline" })],
-      { "94839531": listing({ companyName: "" }) },
+      { "94839531": listing({ companyName: "" as never, employer: undefined }) },
+    );
+    expect(out.audit.status).toBe("clean");
+  });
+
+  it("quarantines when neither the listing nor the pipeline row names an employer", () => {
+    const [out] = auditBaris(
+      [row({ company: "Private Advertiser" })],
+      { "94839531": listing({ companyName: "Private Advertiser", employer: undefined }) },
     );
     expect(out.audit.status).toBe("quarantined");
+    expect(out.audit.flags).toContain("perusahaan_tidak_terverifikasi");
   });
 });
