@@ -60,7 +60,7 @@ export const HeroFinancial = () => {
           sendiri. Perusahaan bisa buka rekamannya lewat satu tautan.
         </TimelineAnimation>
 
-        <div className="flex gap-4 justify-center">
+        <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
           <TimelineAnimation
             as={Link}
             href="/daftar"
@@ -78,6 +78,15 @@ export const HeroFinancial = () => {
             className="rounded-lg border border-neutral-300 bg-linear-to-br from-neutral-50 via-neutral-100 to-neutral-300 px-4 py-2.5 text-base text-black shadow-sm transition"
           >
             Lihat loker yang lolos cek
+          </TimelineAnimation>
+          <TimelineAnimation
+            as={Link}
+            href="/jelajah"
+            animationNum={6}
+            timelineRef={timelineRef}
+            className="rounded-lg border border-neutral-300 bg-linear-to-br from-neutral-50 via-neutral-100 to-neutral-300 px-4 py-2.5 text-base text-black shadow-sm transition"
+          >
+            Jelajahi kursus
           </TimelineAnimation>
         </div>
       </div>

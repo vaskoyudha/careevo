@@ -56,6 +56,13 @@
   --radius-md: 14px;
   --radius-sm: 10px;
   --radius-pill: 980px;
+  /* The floating dashboard sidebar panel. Carried over from AI Mastery so the two
+     shells agree; two layers (a contact shadow plus a soft lift) because a
+     panel that floats needs both to read as detached from the page. */
+  --radius-dock: 26px;
+  --shadow-dock:
+    0 1px 2px rgba(10, 61, 98, 0.05),
+    0 10px 28px -14px rgba(10, 61, 98, 0.18);
   --max: 1280px;
   --page-pad: 24px;
   --section-gap: clamp(48px, 8vw, 64px);
@@ -430,12 +437,6 @@ h6 {
     inset 0 -1px 0 rgba(191, 230, 239, 0.4);
 }
 
-/* Explore mega dropdown: sekarang fixed full-width (hasil ukur DOM Coursera),
-   jadi aturan lebar lama di bawah tidak boleh mengaturnya lagi. */
-.explore-mega-menu {
-  width: 100%;
-}
-
 /* Rule global di atas (h1..h6 { font-weight: 500 }) ikut kena ke heading
    menu. Coursera pakai 400, jadi diturunkan khusus di dalam panel. */
 .explore-mega-menu h1,
@@ -448,25 +449,6 @@ h6 {
   font-weight: 400;
 }
 
-.explore-scrim {
-  animation: explore-scrim-in 180ms ease-out;
-}
-
-@keyframes explore-scrim-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .explore-scrim {
-    animation: none;
-  }
-}
-
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .chrome.is-scrolled {
     background: rgba(255, 255, 255, 0.97);
@@ -477,6 +459,97 @@ h6 {
    hidden once the bar morphs into the floating pill. */
 .chrome.is-scrolled .learner-search {
   display: none;
+}
+
+/* ===== AI Mastery navbar (dark winged bar, /ai-mastery) ===== */
+/* The third bar, and the only one that is not a morph. See
+   `src/components/ui/ai-mastery-navbar.tsx` for why the page forces it: the
+   framed app owns its own scrolling, so `is-scrolled` would be unreachable. */
+
+/* Publishes the navbar's real height to the frame below it. 769px is the
+   breakpoint where `.chrome` stops wrapping — measured, not guessed, and the
+   same one `.learner-shell--overlay` uses. Below it the bar is two rows. */
+.ai-mastery-shell {
+  --app-chrome-h: 84px;
+}
+
+@media (min-width: 769px) {
+  .ai-mastery-shell {
+    --app-chrome-h: 4rem;
+  }
+}
+
+.chrome.is-winged {
+  --wing-ink: #0a141e;
+  --wing-ink-2: #10202e;
+  top: 0;
+  width: 100%;
+  margin: 0;
+  padding: 0 1.25rem;
+  border: none;
+  /* Exactly `4rem`, because `ai-mastery-frame.tsx` sizes the frame to
+     `calc(100dvh - 4rem)`. Any other bar height and the page either overflows
+     by the difference or leaves a gap under the frame. The SVG's own bottom
+     rounding supplies the lower silhouette. */
+  min-height: 4rem;
+  background: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: 0 10px 24px -18px rgba(4, 12, 20, 0.9);
+  isolation: isolate;
+}
+
+/* The wing. Drawn as a background rather than a child <svg> so the bar keeps a
+   single DOM node, its own padding, and its existing flex layout — an inset
+   overlay would have to hard-code the inner widths the flex row already
+   computes. `preserveAspectRatio="none"` is deliberate: the curve has to stay
+   fluid from a 360px phone to an ultrawide, and a uniform-scale path would
+   letterbox into a straight edge on one end or the other. */
+.chrome.is-winged::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-color: var(--wing-ink);
+  /* No `background-color` here on purpose. The silhouette is defined by the SVG
+     being *unpainted* above the wing curve, so a solid backdrop on this pseudo
+     element would fill that region the same colour as the shape and erase the
+     edge. For the same reason the sheen is an SVG gradient rather than a second
+     CSS layer: any opaque CSS background would repaint the whole box. */
+  /* Two wing paths, because `preserveAspectRatio="none"` scales x by
+     `width/1000` and y by `1`. At 1600px the wide path reads as a swept edge;
+     the same path at 390px compresses each wing's run into ~27px while the
+     34px rise stays put, which turns the curve into a spike. The narrow path
+     is wider and flatter so the slope survives the squeeze. Measured, not
+     eyeballed: re-check both if the bar's padding or item count changes. */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 64' preserveAspectRatio='none'><defs><linearGradient id='g' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='%23162a3c'/><stop offset='0.45' stop-color='%230d1a27'/><stop offset='1' stop-color='%230a141e'/></linearGradient></defs><path fill='url(%23g)' d='M0 40 C40 34 120 26 240 26 C400 26 440 40 500 40 C560 40 600 26 760 26 C880 26 960 34 1000 40 L1000 50 Q1000 64 982 64 L18 64 Q0 64 0 50 Z'/></svg>");
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  pointer-events: none;
+}
+
+@media (min-width: 769px) {
+  .chrome.is-winged::before {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 64' preserveAspectRatio='none'><defs><linearGradient id='g' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='%23162a3c'/><stop offset='0.45' stop-color='%230d1a27'/><stop offset='1' stop-color='%230a141e'/></linearGradient></defs><path fill='url(%23g)' d='M0 34 C0 14 30 0 70 0 C260 0 380 30 500 30 C620 30 740 0 930 0 C970 0 1000 14 1000 34 L1000 46 Q1000 64 982 64 L18 64 Q0 64 0 46 Z'/></svg>");
+  }
+}
+
+/* The wordmark is a dark PNG built for a light page, so on this bar it is
+   knocked back to a single white silhouette rather than dropped on a white
+   plate — a plate reads as a stuck-on rectangle and fights the wing edge. This
+   costs the logo's blue/dark two-tone, which is the right trade against an
+   unreadable mark. `is-dark-hero` recolours the *text* variant; the image needs
+   the filter. */
+.chrome.is-winged .chrome-brand img {
+  filter: brightness(0) invert(1);
+}
+
+/* `is-dark-hero` already flips `.nav-item` and `.chrome-btn-ghost` to light; the
+   account avatar and its chevron are not covered by it and would otherwise
+   stay black-on-black. */
+.chrome.is-winged .chrome-actions :is(button, a):focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.75);
+  outline-offset: 2px;
 }
 
 .chrome-brand {
@@ -2270,9 +2343,10 @@ h6 {
 .dashboard-shell {
   display: flex;
   min-height: 100vh;
+  /* One ambient wash, not two. The shell is an Operate surface: the nav and
+     cards carry the hierarchy, so the backdrop stays quiet behind them. */
   background:
-    radial-gradient(1100px 460px at 88% -8%, rgba(42, 127, 184, 0.10), transparent 62%),
-    radial-gradient(820px 400px at -6% 0%, rgba(46, 196, 182, 0.08), transparent 58%),
+    radial-gradient(1100px 460px at 88% -8%, rgba(42, 127, 184, 0.08), transparent 62%),
     var(--background);
 }
 
@@ -2290,22 +2364,41 @@ h6 {
     transform 260ms ease;
 }
 
+/* Collapsing has to zero the desktop inset too — with `box-sizing: border-box`
+   a `width: 0` that keeps 12px of horizontal padding still reserves a 24px
+   gutter, so the panel would "collapse" to a visible empty strip. */
 .dashboard-shell[data-collapsed="true"] .dashboard-sidebar-aside {
   width: 0;
+  padding-left: 0;
+  padding-right: 0;
 }
 
-/* Sidebar panel: white-to-pale glass over the oceanic backdrop. */
+/* Sidebar panel: a floating card, inset from the viewport edges on desktop —
+   the AI Mastery "dock" treatment (mx/my-3, 100dvh minus the insets, dock radius,
+   --card fill, two-layer dock shadow). A flush full-height column reads as part
+   of the page furniture; floating it makes the nav a distinct object the
+   learner can collapse out of the way. Mobile keeps the flush drawer, because
+   an inset panel over an overlay wastes the width it is trying to win. */
 .dashboard-sidebar-panel {
   display: flex;
   height: 100%;
-  width: 260px;
+  width: 100%;
   flex-direction: column;
-  border-right: 1px solid rgba(203, 230, 239, 0.8);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(238, 246, 250, 0.94));
-  backdrop-filter: blur(14px);
+  background: var(--card);
   padding: 0.75rem;
   font-family: var(--font);
+}
+
+@media (min-width: 1024px) {
+  .dashboard-sidebar-aside {
+    padding: 0.75rem;
+  }
+
+  .dashboard-sidebar-panel {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-dock);
+    box-shadow: var(--shadow-dock);
+  }
 }
 
 .dashboard-content {
@@ -2315,8 +2408,9 @@ h6 {
   flex-direction: column;
 }
 
-/* Top bar: sticky glass strip so it reads as a real navbar instead of blending
-   into the cards below. White-on-pale glass with a primary-tinted shadow. */
+/* Top bar: a sticky opaque strip with a single hairline edge, so it reads as a
+   real navbar instead of dissolving into the cards below. The elevation is the
+   border plus one tight shadow — not a blur that would show the page through. */
 .dashboard-topbar {
   position: sticky;
   top: 0;
@@ -2327,19 +2421,9 @@ h6 {
   gap: 1rem;
   height: 64px;
   padding: 0 1.25rem;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(236, 243, 247, 0.8));
-  backdrop-filter: blur(18px) saturate(160%);
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
-  border-bottom: 1px solid rgba(203, 230, 239, 0.9);
-  box-shadow:
-    0 10px 30px -22px rgba(10, 61, 98, 0.5),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.55);
-}
-
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .dashboard-topbar {
-    background: rgba(255, 255, 255, 0.97);
-  }
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 2px rgba(10, 61, 98, 0.04);
 }
 
 .dashboard-topbar-brand {
@@ -2461,19 +2545,19 @@ h6 {
   }
 }
 
+/* Card: an opaque surface on --card with a crisp 1px edge and one tight,
+   offset shadow. This is the AI Mastery `.surface-card` recipe (rounded-2xl /
+   border / bg-card / shadow-sm) so the dashboard and the AI chat read as one
+   product. The previous glass here was decoration: it blurred the page behind
+   the content and made body text sit on an unstable ground. */
 .card {
-  background: var(--glass-regular-bg);
-  backdrop-filter: blur(16px) saturate(150%);
-  border: 1px solid rgba(255, 255, 255, 0.65);
-  border-radius: var(--radius-lg);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
   padding: 1.4rem;
   box-shadow:
-    0 10px 30px -18px rgba(10, 61, 98, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7);
-}
-
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .card { background: rgba(255, 255, 255, 0.94); }
+    0 1px 2px rgba(10, 61, 98, 0.04),
+    0 8px 24px -16px rgba(10, 61, 98, 0.18);
 }
 
 .card-head {
@@ -2486,43 +2570,49 @@ h6 {
 
 .card-title {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--foreground);
 }
 
 .card-sub {
-  margin: 0.2rem 0 0;
-  color: var(--text-secondary);
-  font-size: 0.9rem;
+  margin: 0.25rem 0 0;
+  color: var(--muted-foreground);
+  font-size: 0.85rem;
 }
 
+/* Stat tile: a filled --muted chip, not a nested card. Elevation is declared
+   once in the system (the card), so a tile carries no shadow and no glass —
+   the tonal step alone separates it from the card it sits in. */
 .stat-box {
-  background: var(--glass-subtle-bg);
-  border: 1px solid var(--foam-line);
+  background: var(--muted);
   border-radius: var(--radius-md);
-  padding: 1rem 1.1rem;
+  padding: 0.95rem 1.05rem;
 }
 
 .stat-box-label {
   display: block;
-  font-size: 0.74rem;
+  font-size: 0.72rem;
   text-transform: uppercase;
-  letter-spacing: 0.09em;
-  color: var(--text-tertiary);
-  margin-bottom: 0.35rem;
+  letter-spacing: 0.08em;
+  color: var(--muted-foreground);
+  margin-bottom: 0.3rem;
 }
 
 .stat-box-value {
   font-family: var(--font-mono);
-  font-size: 1.6rem;
+  font-size: 1.75rem;
   font-weight: 600;
   color: var(--ocean-deep);
-  line-height: 1.1;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
 }
 
 .stat-box-note {
-  margin: 0.3rem 0 0;
-  font-size: 0.8rem;
-  color: var(--text-secondary);
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  color: var(--muted-foreground);
 }
 
 .kv {
@@ -2551,14 +2641,17 @@ h6 {
   font-family: var(--font-mono);
 }
 
+/* Chip: the AI Mastery `.muted-chip` shape — full pill, tonal fill, no border.
+   A 1px edge on a chip that small reads as a rendering artefact once the
+   surrounding card is opaque, so the fill alone carries it. */
 .tag {
   display: inline-block;
-  font-size: 0.76rem;
-  padding: 0.18rem 0.55rem;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.6rem;
   border-radius: var(--radius-pill);
-  background: var(--sea-foam);
-  color: var(--ocean-deep);
-  border: 1px solid var(--foam-line);
+  background: var(--muted);
+  color: var(--muted-foreground);
+  border: 1px solid transparent;
 }
 
 /* A tag used as a filter control. The `is-active` suffix is this file's existing
@@ -2685,13 +2778,15 @@ button.tag:hover {
   grid-template-columns: 1fr auto;
   gap: 0.35rem 1rem;
   align-items: center;
-  padding: 0.9rem 0;
-  border-bottom: 1px solid var(--foam-line);
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--border);
   transition: background-color 160ms ease-out;
 }
 
+/* The old hover was a translucent white wash, which vanished once the card
+   behind it became opaque. A tonal step is the equivalent signal here. */
 .list-app-row:hover {
-  background: rgba(255, 255, 255, 0.5);
+  background: color-mix(in srgb, var(--muted) 65%, transparent);
 }
 
 .list-app-row:last-child {
@@ -2699,19 +2794,20 @@ button.tag:hover {
 }
 
 .row-title {
-  font-weight: 600;
-  color: var(--ocean-deep);
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: var(--foreground);
   text-decoration: none;
 }
 
 .row-title:hover {
-  color: var(--ocean-mid);
+  color: var(--primary);
 }
 
 .row-meta {
   grid-column: 1;
-  color: var(--text-secondary);
-  font-size: 0.85rem;
+  color: var(--muted-foreground);
+  font-size: 0.78rem;
 }
 
 .row-aside {
@@ -3033,113 +3129,19 @@ button.tag:hover {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.dashboard-shell .card {
-  background: rgba(255, 255, 255, 0.78);
-  backdrop-filter: blur(14px) saturate(150%);
-  -webkit-backdrop-filter: blur(14px) saturate(150%);
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  border-radius: 14px;
-  padding: 1.25rem;
-  box-shadow:
-    0 10px 30px -18px rgba(10, 61, 98, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
-}
-
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .dashboard-shell .card {
-    background: rgba(255, 255, 255, 0.96);
-  }
-}
-
-.dashboard-shell .card-head {
-  margin-bottom: 0.9rem;
-}
-
-.dashboard-shell .card-title {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--foreground);
-  letter-spacing: -0.01em;
-}
-
-.dashboard-shell .card-sub {
-  margin-top: 0.15rem;
-  font-size: 0.8rem;
-  color: var(--muted-foreground);
-}
-
-.dashboard-shell .stat-box {
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.92), rgba(236, 243, 247, 0.62));
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  border-radius: 14px;
-  padding: 1.1rem 1.2rem;
-  box-shadow:
-    0 10px 26px -20px rgba(10, 61, 98, 0.45),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
-}
-
-.dashboard-shell .stat-box-label {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--muted-foreground);
-  margin-bottom: 0.5rem;
-}
-
-.dashboard-shell .stat-box-value {
-  font-family: var(--font);
-  font-size: 1.75rem;
-  font-weight: 600;
-  color: var(--primary);
-  line-height: 1.1;
-}
-
-.dashboard-shell .stat-box-note {
-  margin-top: 0.35rem;
-  font-size: 0.78rem;
-  color: var(--muted-foreground);
-}
-
-.dashboard-shell .list-app-row {
-  border-bottom: 1px solid rgba(203, 230, 239, 0.6);
-  padding: 0.8rem 0.5rem;
-  border-radius: 8px;
-}
-
-.dashboard-shell .list-app-row:hover {
-  background: linear-gradient(90deg, rgba(42, 127, 184, 0.06), rgba(46, 196, 182, 0.04));
-}
-
-.dashboard-shell .row-title {
-  color: var(--foreground);
-  font-weight: 500;
-  font-size: 0.9rem;
-}
-
-.dashboard-shell .row-title:hover {
-  color: var(--primary);
-}
-
-.dashboard-shell .row-meta {
-  color: var(--muted-foreground);
-  font-size: 0.78rem;
-}
-
-.dashboard-shell .tag {
-  background: var(--muted);
-  color: var(--muted-foreground);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 11px;
-  padding: 0.2rem 0.5rem;
-}
+/* The card, stat tile, list row and chip all inherit from the base classes
+   above. They used to be re-declared here with a glass treatment that
+   contradicted the base system and fought the AI Mastery reference; that override
+   is gone so one surface rule governs the whole product. Only genuinely
+   dashboard-local concerns (page type scale, grid, bars, tables) live here. */
 
 .dashboard-shell .status {
   font-size: 11px;
   font-weight: 500;
-  padding: 0.2rem 0.55rem;
-  border-radius: 6px;
+  padding: 0.2rem 0.6rem;
+  /* Full pill, like `.tag` and the sidebar pills — a status chip and a level
+     chip are the same control at different weights. */
+  border-radius: var(--radius-pill);
   box-shadow: none;
 }
 

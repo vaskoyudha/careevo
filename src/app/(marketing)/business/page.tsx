@@ -10,9 +10,9 @@ import {
   CheckCircle2,
   ChevronRight,
   Sparkles,
-  Building2,
 } from "lucide-react";
 import { Reveal } from "@/components/features/marketing/primitives";
+import { BusinessHero } from "@/components/features/marketing/business/hero";
 
 export const metadata = {
   title: "Careevo Bisnis · Solusi Pelatihan & Peningkatan Keterampilan Tim",
@@ -23,72 +23,7 @@ export default function BusinessPage() {
   return (
     <div className="marketing-type bg-white text-gray-900">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-blue-50/60 via-white to-white pt-12 pb-20 lg:pt-16 lg:pb-28">
-        <div className="absolute inset-0 -z-10 bg-[radial-gradient(45rem_25rem_at_top,theme(colors.blue.100),transparent)] opacity-60" />
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="mx-auto max-w-3xl text-center">
-            <Reveal>
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-200/80 bg-blue-50 px-3.5 py-1 text-xs font-semibold text-blue-700 shadow-xs">
-                <Building2 className="size-3.5 text-blue-600" />
-                <span>Careevo untuk Bisnis & Enterprise</span>
-              </div>
-              <h1 className="mb-6 text-4xl font-semibold tracking-tight text-gray-900 sm:text-5xl lg:text-6xl -tracking-[1.5px] leading-[1.12]">
-                Dibangun untuk pembelajar.<br />
-                <span className="text-[#0B408B]">Mendorong dampak nyata bagi tim.</span>
-              </h1>
-              <p className="mb-8 text-base text-gray-600 sm:text-lg lg:text-xl leading-relaxed">
-                Dipercaya oleh ribuan profesional dan organisasi. Careevo Bisnis membantu perusahaan Anda meningkatkan keahlian teknis, literasi AI, dan kapabilitas rekayasa secara terukur dan terverifikasi.
-              </p>
-
-              {/* Value points */}
-              <div className="mb-10 flex flex-wrap items-center justify-center gap-y-2 gap-x-6 text-xs sm:text-sm font-medium text-gray-600">
-                <span className="flex items-center gap-1.5">
-                  <CheckCircle2 className="size-4 text-blue-600" />
-                  Kurikulum berbasis praktik langsung
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <CheckCircle2 className="size-4 text-blue-600" />
-                  Jalur belajar mandiri & interaktif
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <CheckCircle2 className="size-4 text-blue-600" />
-                  Pelaporan & analitik tim real-time
-                </span>
-              </div>
-
-              {/* CTA buttons */}
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5">
-                <Link
-                  href="/masuk"
-                  className="grad-btn inline-flex h-11 w-full sm:w-auto items-center justify-center gap-2 rounded-lg px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
-                >
-                  <span>Minta Demo Platform</span>
-                  <ChevronRight className="size-4" />
-                </Link>
-                <Link
-                  href="#harga"
-                  className="inline-flex h-11 w-full sm:w-auto items-center justify-center rounded-lg border border-gray-300 bg-white px-6 py-2.5 text-sm font-semibold text-gray-800 shadow-xs transition hover:bg-gray-50 hover:text-gray-900"
-                >
-                  Lihat Paket & Harga
-                </Link>
-              </div>
-            </Reveal>
-          </div>
-
-          {/* Hero Dashboard Preview */}
-          <Reveal delay={150} className="mt-14 lg:mt-16">
-            <div className="relative mx-auto max-w-5xl rounded-2xl border border-gray-200/90 bg-white p-2 shadow-2xl shadow-blue-900/10 ring-1 ring-gray-900/5">
-              <div className="relative overflow-hidden rounded-xl bg-gray-900">
-                <img
-                  src="/images/business-landing/blp-hero.png"
-                  alt="Dashboard Platform Careevo Bisnis"
-                  className="w-full h-auto object-cover"
-                />
-              </div>
-            </div>
-          </Reveal>
-        </div>
-      </section>
+      <BusinessHero />
 
       {/* Quick Action Grid */}
       <section className="border-t border-b border-gray-100 bg-gray-50/70 py-16 lg:py-20 px-6">

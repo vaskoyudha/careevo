@@ -159,6 +159,14 @@ Each of these shipped in this repo. The detection is the useful part.
   `aria-hidden` but still mounted. `inert={!open}` closes both gaps at once.
 - **A two-model-call turn with no cache.** If a feature fires a second call per
   turn, check whether re-entering re-buys it. Count the POSTs.
+- **A feature that lives in an iframe you cannot reach.** `/ai-mastery` frames
+  `features/sijago/` on a *different origin* (`:3200` parent, `:3790` child), so
+  `page.evaluate` returns the parent's DOM and every selector reads `null` — or,
+  worse, matches something in the chrome and "works". Drive the child with
+  `page.frameLocator('iframe')`, and read it with
+  `page.frames().find(f => f.url().includes('3790'))`. `page.screenshot()` with no
+  args still captures the composed page, which is what you want here. See the
+  `careevo-sijago` skill for the framing and hydration details.
 
 ## Traps that break the run
 
@@ -177,7 +185,11 @@ Each of these shipped in this repo. The detection is the useful part.
 - **A watch out for a typo in a constant name** — `KUNTEK_KEYS` vs
   `KUNTEKS_KEYS` passed a re-read and failed `tsc`. Run the gate.
 - **Beware stale builds.** `npm start` serves `.next`. Rebuild before believing
-  a behavioural check.
+  a behavioural check. The same trap is worse for `features/sijago`, whose `:3790`
+  server runs from **`.next/standalone`** — a source edit is invisible there until
+  that bundle is rebuilt and the server restarted.
+- **A UI that still shows the old name after you renamed it.** Usually not a
+  failed edit: check *which bundle is being served* before re-grepping source.
 - **`data/` and `.data/` are gitignored and real.** A behavioural check mutates
   a learner's actual data. It is a dev store, so that is fine, but do not delete
   it to "reset" without asking.

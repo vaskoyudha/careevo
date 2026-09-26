@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { Building2, Briefcase, GraduationCap, Sparkle } from "./icons";
 import { ExploreMenu } from "./explore-menu";
-import { SiJagoLink } from "./sijago-link";
+import { AiMasteryLink } from "./ai-mastery-link";
 
 type NavItem = {
   href: string;
@@ -89,7 +89,7 @@ export function Chrome() {
           />
         </Link>
         <nav className="nav-float" aria-label="Navigasi utama">
-          <ExploreMenu isDarkBg={isDarkHero} />
+          <ExploreMenu />
           {navItems.map((item) => {
             const active = isActive(item.href);
             return (
@@ -110,7 +110,7 @@ export function Chrome() {
           })}
         </nav>
         <div className="chrome-actions">
-          <SiJagoLink />
+          <AiMasteryLink />
           <Link
             className="chrome-btn chrome-btn-text chrome-btn-ghost"
             href="/masuk"

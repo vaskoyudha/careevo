@@ -19,7 +19,6 @@ export default async function DashboardPage() {
   return (
     <AppShell session={session} current="/dashboard">
       <PageHead
-        eyebrow="Dashboard"
         title={`Halo, ${session.nama}`}
         lead="Jadwal, streak, rekomendasi Navigator, dan skor terverifikasi dalam satu tempat."
       />

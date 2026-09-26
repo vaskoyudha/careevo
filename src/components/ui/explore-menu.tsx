@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Compass, ChevronDown } from "./icons";
 import {
@@ -13,10 +14,16 @@ import {
   EXPLORE_FALLBACKS,
 } from "@/lib/courses/explore-taxonomy";
 
-export function ExploreMenu({ isDarkBg = false }: { isDarkBg?: boolean }) {
+export function ExploreMenu() {
   const [isOpen, setIsOpen] = useState(false);
+  const [panelRect, setPanelRect] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearCloseTimeout = useCallback(() => {
@@ -26,10 +33,30 @@ export function ExploreMenu({ isDarkBg = false }: { isDarkBg?: boolean }) {
     }
   }, []);
 
+  // The panel is portalled to <body> and positioned against the viewport, so
+  // its box has to be measured from the trigger and the chrome — the chrome
+  // morphs between `.is-top` (full-width) and `.is-scrolled` (a centered
+  // floating pill), and the card must track both states.
+  const measurePanel = useCallback(() => {
+    const btn = buttonRef.current;
+    if (!btn) return;
+    const btnRect = btn.getBoundingClientRect();
+    const chrome = btn.closest(".chrome");
+    const chromeRect = chrome
+      ? chrome.getBoundingClientRect()
+      : { left: 0, width: window.innerWidth };
+    setPanelRect({
+      top: Math.round(btnRect.bottom + 8),
+      left: Math.round(chromeRect.left),
+      width: Math.round(chromeRect.width),
+    });
+  }, []);
+
   const open = useCallback(() => {
     clearCloseTimeout();
+    measurePanel();
     setIsOpen(true);
-  }, [clearCloseTimeout]);
+  }, [clearCloseTimeout, measurePanel]);
 
   const scheduleClose = useCallback(() => {
     clearCloseTimeout();
@@ -50,17 +77,18 @@ export function ExploreMenu({ isDarkBg = false }: { isDarkBg?: boolean }) {
     };
   }, [clearCloseTimeout]);
 
-  // Close on click outside or escape key
+  // Close on click outside or escape key.
+  // The panel is portalled to <body>, so "outside" means outside BOTH the
+  // trigger container and the panel itself — otherwise every click inside the
+  // mega-menu would read as outside and close it.
   useEffect(() => {
     if (!isOpen) return;
 
     const handleClickOutside = (e: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(e.target as Node)
-      ) {
-        closeImmediately();
-      }
+      const target = e.target as Node;
+      if (containerRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      closeImmediately();
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -77,6 +105,19 @@ export function ExploreMenu({ isDarkBg = false }: { isDarkBg?: boolean }) {
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen, closeImmediately]);
+
+  // Re-anchor while open: the chrome is sticky and flips between `.is-top` and
+  // `.is-scrolled`, so a box captured at open time goes stale.
+  useEffect(() => {
+    if (!isOpen) return;
+    const remeasure = () => measurePanel();
+    window.addEventListener("scroll", remeasure, { passive: true });
+    window.addEventListener("resize", remeasure);
+    return () => {
+      window.removeEventListener("scroll", remeasure);
+      window.removeEventListener("resize", remeasure);
+    };
+  }, [isOpen, measurePanel]);
 
   const columnClass = "flex flex-col justify-start mb-6 min-w-[149px]";
   const headingClass = "mb-2 text-base leading-7 font-normal text-[#0D0F12]";
@@ -96,12 +137,11 @@ export function ExploreMenu({ isDarkBg = false }: { isDarkBg?: boolean }) {
       onMouseEnter={open}
       onMouseLeave={scheduleClose}
     >
-      {/* Explore Trigger Button inside center nav-float:
-          - Automatically selected and opens on hover
-          - No border when not selected
-          - Uses border when selected (open)
-          - Features icon, text, and chevron matching other nav items
-      */}
+      {/* Explore trigger. Uses the same `.nav-item` system as its siblings so it
+          inherits the light, dark-hero, hover and active states from
+          `globals.css` — including `.chrome.is-dark-hero .nav-item`, which
+          replaces the `isDarkBg` prop this used to branch on in JS.
+          `is-active` tracks `isOpen`, so the pill only lights up while open. */}
       <button
         ref={buttonRef}
         type="button"
@@ -115,11 +155,7 @@ export function ExploreMenu({ isDarkBg = false }: { isDarkBg?: boolean }) {
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         aria-label="Explore menu"
-        className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-[8px] px-2 text-sm font-normal transition-colors duration-200 cursor-pointer ${
-          isOpen || !isDarkBg
-            ? "bg-[#F0F6FF] text-[#0B408B] hover:bg-[#E1EDFF]"
-            : "text-white/90 hover:bg-white/15 hover:text-white"
-        }`}
+        className={`nav-item cursor-pointer ${isOpen ? "is-active" : ""}`}
       >
         <Compass
           size={15}
@@ -138,24 +174,30 @@ export function ExploreMenu({ isDarkBg = false }: { isDarkBg?: boolean }) {
         />
       </button>
 
-      {/* Mega Dropdown Panel — Solid opaque white background */}
-      {isOpen && (
-        <>
-          {/* Scrim penutup layar: fixed, rgba(0,0,0,0.2) - sama seperti Coursera */}
-          <div
-            aria-hidden="true"
-            onClick={closeImmediately}
-            className="explore-scrim fixed inset-0 z-[70] bg-black/20"
-          />
+      {/* Floating Explore card.
 
-          {/* Panel: fixed, lebar penuh, radius 0, tanpa border, tanpa shadow */}
-          <div
-            role="dialog"
-            aria-label="Explore catalog"
-            onMouseEnter={open}
-            onMouseLeave={scheduleClose}
-            className="explore-mega-menu fixed inset-x-0 top-[104px] z-[80] max-h-[calc(100vh-104px)] overflow-y-auto bg-white [-ms-overflow-style:none] [scrollbar-width:thin]"
-          >
+          Rendered through a portal to <body> on purpose. `.chrome` carries
+          `backdrop-filter` in its scrolled state, and per CSS an element with
+          backdrop-filter becomes the containing block for `position: fixed`
+          descendants. Without the portal this card would be anchored to the
+          navbar instead of the viewport. The box is measured from the trigger
+          and the chrome, so it tracks both the full-width `.is-top` bar and
+          the centered `.is-scrolled` pill. */}
+      {isOpen && panelRect && createPortal(
+        <div
+          ref={panelRef}
+          role="dialog"
+          aria-label="Explore catalog"
+          onMouseEnter={open}
+          onMouseLeave={scheduleClose}
+          style={{
+            top: panelRect.top,
+            left: panelRect.left,
+            width: panelRect.width,
+            maxHeight: `calc(100vh - ${panelRect.top}px - 16px)`,
+          }}
+          className="explore-mega-menu fixed z-[80] overflow-y-auto rounded-2xl border border-gray-200 bg-white shadow-[0_25px_60px_-15px_rgba(0,0,0,0.2),0_10px_20px_-5px_rgba(0,0,0,0.08)] [-ms-overflow-style:none] [scrollbar-width:thin]"
+        >
           {/* Row: max-w 1200, space-between, 6 kolom, gap-x 24px.
               Kolom diberi lebar min sepadat Coursera supaya tinggi baris rata. */}
           <div className="mx-auto flex max-w-[1200px] flex-nowrap items-start justify-between gap-x-6 px-[32.5px] pt-4">
@@ -361,8 +403,8 @@ export function ExploreMenu({ isDarkBg = false }: { isDarkBg?: boolean }) {
               </Link>
             </div>
           </div>
-          </div>
-        </>
+          </div>,
+        document.body
         )}
     </div>
   );
