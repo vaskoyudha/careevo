@@ -4,7 +4,7 @@
 
 **Goal:** Menutup dua jurang yang ditinggalkan Task 4 — (1) `wajib_kamera` belum ditegakkan di server, sehingga course yang menuntut kamera masih bisa diselesaikan lewat `selesaikanMateriAction` **maupun** lewat kuis tanpa kamera; dan (2) laporan belum menyatakan apa arti `terverifikasi` pada course `wajib_kamera` dibanding `wajib` biasa.
 
-**Architecture:** Tiga bagian. **A (bug)** — `selesaikanMateriAction` memanggil `putuskanAkses` tanpa `adaBuktiKamera` dan tidak menangani cabang `perlu_kamera`, jadi gerbang Task 4 hanya hidup di UI. Bukti kamera diturunkan dari **run yang sedang diverifikasi** (`bukti.id`) lewat kejadian `kamera_mulai`, bukan dari klaim klien. **B (gerbang kuis)** — `selesaikanModulKuisVerified` menulis `terverifikasi` tanpa memeriksa run; ia kini menolak `perlu_kamera` bila kebijakan kursus `wajib_kamera` tetapi tidak ada run aktif dengan `kamera_mulai`. **C (pengungkapan)** — `completion_path` tetap dua nilai (CHECK constraint), tetapi laporan menurunkan **label** jalurnya dari bukti yang tersimpan. Label punya **empat** nilai, bukan tiga, dan itu bukan embellishment: `module_progress.evidence_id` adalah kolom tunggal yang dipakai dua writer berbeda — jalur materi mengisinya dengan `learning_runs.id` (`src/actions/learning.ts:339`), jalur kuis dengan `quiz_attempts.id` (`src/lib/learning/assessment-service.ts:413`). Penyelesaian kuis karena itu **tidak punya run yang bisa ditelusuri**, dan label yang memaksainya menjadi "kamera tidak tercatat" akan berbohong tepat pada baris yang paling perlu jujur: course `wajib_kamera` yang gerbang kuis baru saja memverifikasi kameranya. Keempat nilai dijelaskan di Task C.
+**Architecture:** Tiga bagian. **A (bug)** — `selesaikanMateriAction` memanggil `putuskanAkses` tanpa `adaBuktiKamera` dan tidak menangani cabang `perlu_kamera`, jadi gerbang Task 4 hanya hidup di UI. Bukti kamera diturunkan dari **run yang sedang diverifikasi** (`bukti.id`) lewat kejadian `kamera_mulai`, bukan dari klaim klien. **B (gerbang kuis)** — `selesaikanModulKuisVerified` menulis `terverifikasi` tanpa memeriksa run; ia kini menolak `perlu_kamera` bila kebijakan kursus `wajib_kamera` tetapi tidak ada run aktif dengan `kamera_mulai`. **C (pengungkapan)** — `completion_path` tetap dua nilai (CHECK constraint), tetapi laporan menurunkan **label** jalurnya dari bukti yang tersimpan. Label punya **empat** nilai, bukan tiga, dan itu bukan embellishment: `module_progress.evidence_id` adalah kolom tunggal yang diisi writer berbeda — jalur materi mengisinya dengan `learning_runs.id` atau `null` (`src/actions/learning.ts:363`), jalur kuis dengan `quiz_attempts.id` (`src/lib/learning/assessment-service.ts:441`). Penyelesaian kuis karena itu **tidak punya run yang bisa ditelusuri**, dan label yang memaksainya menjadi "kamera tidak tercatat" akan berbohong tepat pada baris yang paling perlu jujur: course `wajib_kamera` yang gerbang kuis baru saja memverifikasi kameranya. Keempat nilai dijelaskan di Task C.
 
 **Tech Stack:** Next.js 16 App Router (Server Actions), React 19, TypeScript 5, Vitest 5 (node env, tanpa jsdom), Drizzle ORM + PostgreSQL.
 
@@ -637,7 +637,7 @@ Bagian ini **tidak** menambah nilai `completion_path`. Ia menurunkan label tampi
   - `function jalurDariBukti(input: { completionPath: string | null; evidenceId: string | null; kameraMulai?: ReadonlyMap<string, boolean> }): JalurTerlihat`
   - `const LABEL_JALUR: Record<JalurTerlihat, string>`
 
-> **Kenapa empat nilai, bukan tiga.** `module_progress.evidence_id` punya **dua writer** yang mengisi dua jenis id berbeda ke kolom yang sama: `selesaikanMateriAction` mengisinya dengan `learning_runs.id` (`src/actions/learning.ts:339`) dan `selesaikanModulKuisVerified` dengan `quiz_attempts.id` (`src/lib/learning/assessment-service.ts:413`). Skema memang menyebutnya begitu — "referensi **lunak** ke `quiz_attempts.id` **atau** `learning_runs.id`" (`src/lib/db/schema.ts:524-526`) — jadi tidak ada satu pun yang boleh mengarang run untuk baris kuis. Akibatnya pelaporan punya **tiga** situasi faktual, bukan dua:
+> **Kenapa empat nilai, bukan tiga.** `module_progress.evidence_id` diisi oleh writer berbeda dengan dua jenis id (plus `null`): `selesaikanMateriAction` mengisinya dengan `learning_runs.id`, atau `null` pada course `opsional` yang memang tidak punya run (`src/actions/learning.ts:363`), dan `selesaikanModulKuisVerified` dengan `quiz_attempts.id` (`src/lib/learning/assessment-service.ts:441`). Skema memang menyebutnya begitu — "referensi **lunak** ke `quiz_attempts.id` **atau** `learning_runs.id`" (`src/lib/db/schema.ts:524-526`) — jadi tidak ada satu pun yang boleh mengarang run untuk baris kuis. Akibatnya pelaporan punya **tiga** situasi faktual, bukan dua:
 >
 > 1. bukti = run, run punya `kamera_mulai` → kamera terbukti menyala;
 > 2. bukti = run, run tidak punya `kamera_mulai` → kamera tidak tercatat;
@@ -1198,10 +1198,11 @@ bukan dari klaim klien.
 
 **Pelusan spec ini.** Paragraf di atas menyebut label `terverifikasi` atau
 `terverifikasi_kamera` "dari run yang mendasarinya", dan itu belum cukup lengkap.
-`module_progress.evidence_id` punya dua writer: jalur materi menyimpannya sebagai
-`learning_runs.id`, jalur kuis sebagai `quiz_attempts.id` (`schema.ts:524-526`).
-Penyelesaian kuis karena itu **tidak punya run yang bisa ditelusuri**, dan label
-untuknya adalah `terverifikasi_tanpa_bukti_kamera` — "jalur terverifikasi, kamera
+`module_progress.evidence_id` diisi oleh writer berbeda: jalur materi menyimpannya
+sebagai `learning_runs.id` — atau `null` pada course `opsional` yang memang tidak
+punya run — dan jalur kuis sebagai `quiz_attempts.id` (`schema.ts:524-526`).
+Keduanya **tidak punya run yang bisa ditelusuri**, dan label untuk keduanya adalah
+`terverifikasi_tanpa_bukti_kamera` — "jalur terverifikasi, kamera
 tidak bisa ditelusuri ke run". Itu **bukan** nilai `completion_path` keempat:
 kolomnya tetap dua nilai, dan label turunan boleh lebih dari dua.
 
@@ -1233,10 +1234,11 @@ Di `AGENTS.md`, bagian `## Architecture` (baris 66–68) saat ini kosong. Isi de
 - **`wajib_kamera` ditegakkan server dari `kamera_mulai`, bukan dari boolean
   klien.** Dua gerbang: `selesaikanMateriAction` (cabang `perlu_kamera` dari
   `putuskanAkses`) dan `selesaikanModulKuisVerified` (kode `perlu_kamera`).
-- **`module_progress.evidence_id` berisi dua jenis id.** Jalur materi mengisi
-  `learning_runs.id`, jalur kuis mengisi `quiz_attempts.id`. Apa pun yang memetakan
-  bukti ke run harus memeriksa jenisnya lebih dulu, bukan menganggap id yang
-  tidak ditemukan di peta run berarti "tidak ada kamera".
+- **`module_progress.evidence_id` berisi dua jenis id, plus `null`.** Jalur materi
+  mengisi `learning_runs.id`, atau `null` pada course `opsional` yang memang tidak
+  punya run; jalur kuis mengisi `quiz_attempts.id`. Apa pun yang memetakan bukti
+  ke run harus memeriksa jenisnya lebih dulu, bukan menganggap id yang tidak
+  ditemukan di peta run berarti "tidak ada kamera".
 ```
 
 - [ ] **Step 2: Run the gate**
