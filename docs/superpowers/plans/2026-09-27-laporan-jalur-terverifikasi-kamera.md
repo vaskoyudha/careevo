@@ -889,11 +889,12 @@ git commit -m "feat(performa): label jalur selesai diturunkan dari bukti (bukan 
 **Files:**
 - Modify: `src/lib/learning/dashboard.ts:145-150` (`BarisSelesaiModul`), `:198-203` (signature `detailPembelajaranDariDb`), `:220-229` (loop progres)
 - Modify: `src/lib/learning/dashboard.test.ts:48-62` (tambah helper `progresDenganRun`) + describe baru
-- Modify: `src/app/(verifikator)/performa/[owner]/page.tsx:7-14` (import), `:33-45` (peta kamera), `:69` (batas sinyal kamera), `:86` (render label)
+- Modify: `src/lib/learning/run-service.ts` (tambah `petaKameraMulaiPemilik` + import `listEventRun`)
+- Modify: `src/app/(verifikator)/performa/[owner]/page.tsx:7-14` (import), `:45` (peta kamera), `:69` (batas sinyal kamera), `:86` (render label)
 
 **Interfaces:**
 - Consumes: `jalurDariBukti`, `LABEL_JALUR` (Task C); `listRunStaf(): Promise<LearningRun[]>` (`run-service.ts:284`); `listEventRun` (`repository.ts:383`); `BATAS_SINYAL.kamera` (`src/lib/learning/sumber-sinyal.ts:42`).
-- Produces: `BarisSelesaiModul` bertambah `jalur: JalurTerlihat`; `detailPembelajaranDariDb` menerima `kameraMulai?: ReadonlyMap<string, boolean>` (runId → ada `kamera_mulai`).
+- Produces: `BarisSelesaiModul` bertambah `jalur: JalurTerlihat`; `detailPembelajaranDariDb` menerima `kameraMulai?: ReadonlyMap<string, boolean>` (runId → ada `kamera_mulai`); `run-service.ts` exports `petaKameraMulaiPemilik(userId: string): Promise<Map<string, boolean>>`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1061,50 +1062,72 @@ Expected: PASS.
 
 Task ini tidak punya logika sendiri — keputusannya sudah diuji di Task C — tapi **wiring**-nya justru tempat bug yang lolos review. Dua mutasi, masing-masing harus membuat test merah, lalu dikembalikan:
 
-1. Di loop progres, ganti `evidenceId: baris.evidenceId` dengan `evidenceId: null` — harus membuat merah test "menandai penyelesaian kuis sebagai jalur tanpa bukti kamera yang bisa ditelusuri" **dan** "menandai jalur terverifikasi yang ditopang kamera".
+1. Di loop progres, ganti `evidenceId: baris.evidenceId` dengan `evidenceId: null` — harus membuat merah test **"menandai jalur terverifikasi yang ditopang kamera"**. Test kuis ("…penyelesaian kuis sebagai jalur tanpa bukti kamera…") **tetap hijau secara struktural**, dan itu memang begitu: `jalurDariBukti` memperlakukan `evidenceId` null dan id yang tidak tertelusuri lewat cabang yang sama, jadi baris kuis merender `terverifikasi_tanpa_bukti_kamera` baik dengan maupun tanpa mutasi. Jangan mengejar test kuis untuk redden di sini — kekebalannya adalah sifat yang benar, bukan celah.
 2. Ganti `kameraMulai: input.kameraMulai` dengan `kameraMulai: undefined` — harus membuat merah test "menandai jalur terverifikasi yang ditopang kamera".
 
-Kalau mutasi 1 tidak membuat test kuis merah, berarti test itu tidak membedakan bukti attempt dari bukti run, dan seluruh Task C jadi tidak terverifikasi di lapis laporan.
+Kalau mutasi 1 tidak membuat test kamera merah, berarti `evidence_id` tidak benar-benar diteruskan dari baris progres ke adapter — dan seluruh Task C jadi tidak terverifikasi di lapis laporan.
+
+> **Nama yang dilarang di berkas halaman:** guard memindai berkas sebagai teks, jadi tiga substring ini dilarang muncul di `performa/[owner]/page.tsx` — termasuk **di dalam komentar**: `listRun` (jadi jangan pernah memanggil `listRunStaf` dari halaman; `petaKameraMulaiPemilik` menggantikannya), `kejadian`, dan `ringkasIntegritasByOwner`. `run-service.ts` tidak berada dalam daftar berkas yang dipindai, jadi di sana `listRunStaf` dan `listEventRun` boleh dipakai.
 
 - [ ] **Step 6: Show it in the report UI**
 
-Di `src/app/(verifikator)/performa/[owner]/page.tsx`, ganti blok import (baris 8–14) dengan:
+> **PUTUSAN (2026-09-27, setelah cacat plan ditemukan saat eksekusi) — persempit sambungannya, JANGAN ubah guard-nya.** Versi awal langkah ini meminta halaman memanggil `listRunStaf()` dan `listEventRun()` sendiri. Itu menabrak guard keamanan yang disengaja di `src/lib/learning/security.test.ts:230-240`, yang berasal dari commit `4e1acdd` ("pisahkan laporan belajar dari laporan integritas"), dan komentarnya sendiri berbunyi *"Pemisahan ini bukan aturan tampilan: kalau halaman belajar masih mengimpor `listRun`, datanya bisa bocor kembali ke sana."* Guard itu melarang tiga substring — `listRun`, `kejadian`, `ringkasIntegritasByOwner` — di `performa/page.tsx`, `performa/[owner]/page.tsx`, dan `performa-belajar.tsx`. Kode lama menabrak dua dari ketiganya (`listRunStaf` memuat `listRun`; sebuah variabel lokal bernama `kejadian`). Guard itu merepresentasikan keputusan nyata, jadi ia tetap. Baca prasyarat peta di `jalur-selesai.ts:66-91` sebelum menulis kode halaman.
+
+(a) Tambah aksesor sempit di `src/lib/learning/run-service.ts` — file ini sudah mengimpor dari `./repository` dan tidak ada dalam daftar berkas yang dijaga guard:
+
+```ts
+/**
+ * `run id` → apakah run itu punya kejadian `kamera_mulai`, untuk satu pemilik.
+ *
+ * **Aksesor sempit, bukan tabel run.** Halaman laporan belajar tidak boleh
+ * membaca data sesi sama sekali; itu dipisah oleh guard di
+ * `src/lib/learning/security.test.ts` ("laporan belajar dan laporan integritas
+ * tidak bercampur"), yang melarang `listRun`, `kejadian`, dan
+ * `ringkasIntegritasByOwner` muncul di halaman-halaman itu. Yang halaman itu
+ * butuhkan hanyalah satu bit per run: apakah kamera tercatat menyala.
+ *
+ * Peta ini **penuh** untuk pemilik tersebut — bukan hanya run aktif, bukan satu
+ * periode, dan bukan hanya run yang dirujuk baris progres. Peta yang lebih
+ * sempit membuat run yang sebenarnya bisa ditelusuri tampil sebagai
+ * `terverifikasi_tanpa_bukti_kamera`, dan kalimat itu terbaca seperti temuan
+ * tentang orangnya, bukan seperti data yang tidak ada.
+ */
+export async function petaKameraMulaiPemilik(userId: string): Promise<Map<string, boolean>> {
+  const peta = new Map<string, boolean>();
+  for (const run of (await listRunStaf()).filter((r) => r.userId === userId)) {
+    const isi = await listEventRun(run.id);
+    peta.set(run.id, isi.some((k) => k.kind === "kamera_mulai"));
+  }
+  return peta;
+}
+```
+
+Tambahkan `listEventRun` ke impor `./repository` di file itu.
+
+(b) Di `src/app/(verifikator)/performa/[owner]/page.tsx`, ganti blok import (baris 7–14) dengan:
 
 ```tsx
 import { LABEL_JALUR } from "@/lib/performa/jalur-selesai";
 import {
   listAttemptSemua,
   listEnrollmentStaf,
-  listEventRun,
   listProgresSemua,
 } from "@/lib/learning/repository";
 import { detailPembelajaranDariDb } from "@/lib/learning/dashboard";
-import { listRunStaf } from "@/lib/learning/run-service";
+import { petaKameraMulaiPemilik } from "@/lib/learning/run-service";
 import { BATAS_SINYAL } from "@/lib/learning/sumber-sinyal";
 ```
 
-Ganti blok setelah filter enrollment (baris 45) dengan:
+(c) Ganti baris `const record = detailPembelajaranDariDb({ ... })` (sekitar baris 45) dengan:
 
 ```tsx
-  // Flag `kamera_mulai` per run milik peserta ini — bukan catatan integritas.
-  // Halaman ini sengaja tidak memuat temuan/hitungan kejadian (lihat pintu
-  // "Lihat integritas"), dan yang dibutuhkan di sini hanya satu fakta: apakah
-  // run yang mendasari penyelesaian ini punya kamera menyala. Kejadian dibaca
-  // dari database sehingga bisa diaudit.
-  //
-  // `listRunStaf()` mengembalikan **semua** run tanpa gate, jadi filter owner di
-  // sini bukan sekadar kosmetik: tanpa filter, satu halaman memuat flag kamera
-  // seluruh peserta.
-  const kunci = owner.trim().toLowerCase();
-  const emailPerUser = new Map(semua.map((b) => [b.user.userId, b.user.email]));
-  const runPeserta = (await listRunStaf()).filter(
-    (run) => (emailPerUser.get(run.userId) ?? "").trim().toLowerCase() === kunci,
-  );
-  const petaKamera = new Map<string, boolean>();
-  for (const run of runPeserta) {
-    const kejadian = await listEventRun(run.id);
-    petaKamera.set(run.id, kejadian.some((k) => k.kind === "kamera_mulai"));
-  }
+  // Peta kamera dihitung lewat aksesor sempit, bukan di halaman ini: halaman
+  // laporan belajar dijaga agar tidak pernah membaca baris run maupun isi
+  // kejadiannya (lihat `security.test.ts`). `EnrollmentStaf` sudah membawa
+  // `user.userId`, jadi pemilik diambil langsung dari enrollment yang tadi sudah
+  // difilter email — tidak perlu mencocokkan email dengan run.
+  const petaKamera =
+    enrollments.length > 0 ? await petaKameraMulaiPemilik(enrollments[0].user.userId) : new Map<string, boolean>();
 
   const record = detailPembelajaranDariDb({
     enrollments,
@@ -1113,6 +1136,8 @@ Ganti blok setelah filter enrollment (baris 45) dengan:
     kameraMulai: petaKamera,
   });
 ```
+
+> `enrollments.length > 0` dijaga karena `detailPembelajaranDariDb` mengembalikan `null` untuk enrollment kosong dan pemanggil sudah `notFound()` pada kasus itu — tetapi aksesor dipanggil lebih dulu, jadi jangan biarkan ia membaca run untuk halaman yang memang tidak memuat peserta.
 
 Lalu ubah baris label (baris 86):
 
