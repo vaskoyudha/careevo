@@ -1912,19 +1912,44 @@ body {
   box-shadow: 0 0 0 3px var(--aqua-glow);
 }
 
-/* The field label acts as a placeholder: it sits inline while the input is
-   empty and untouched, then fades out as soon as the field is focused or has
-   content. `:placeholder-shown` needs the input's `placeholder=" "`. */
+/* The field label doubles as a floating placeholder: it sits vertically
+   centered while the input is empty and untouched, then shrinks and moves to
+   the top-left of the box on focus or once the field has content, instead of
+   disappearing. `:placeholder-shown` needs the input's `placeholder=" "`. */
 .auth-field-label {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  transform-origin: left center;
+  color: rgba(0, 0, 0, 0.6);
+  line-height: 1;
+  white-space: nowrap;
   transition:
-    opacity 0.18s ease,
+    color 0.18s ease,
     transform 0.18s ease;
+}
+
+/* The typed value gets pushed down while the label floats above it, so the
+   two never overlap inside the 44px field. */
+.auth-field input {
+  transition: padding-top 0.18s ease;
 }
 
 .auth-field:focus-within .auth-field-label,
 .auth-field:has(input:not(:placeholder-shown)) .auth-field-label {
-  opacity: 0;
-  transform: translateY(-4px);
+  top: 0.2rem;
+  transform: translateY(0) scale(0.7);
+  transform-origin: left top;
+}
+
+.auth-field:focus-within input,
+.auth-field:has(input:not(:placeholder-shown)) input {
+  padding-top: 0.8rem;
+}
+
+.auth-field:focus-within .auth-field-label {
+  color: var(--aqua);
 }
 
 @media (max-width: 560px) {
