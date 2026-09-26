@@ -266,6 +266,38 @@ describe("buatUndanganAction — token hanya muncul sekali", () => {
     expect(hasil.ok).toBe(false);
     expect(layanan.buatUndanganStaff).not.toHaveBeenCalled();
   });
+
+  it("menolak email berspasi, tidak memangkasnya diam-diam", async () => {
+    // Sebelum ini `z.email().trim().toLowerCase()` menerima `"  ...  "` dengan
+    // memangkasnya, padahal `z.email()` polos di lib/validation/auth.ts
+    // menolaknya. Dua aturan untuk masukan yang sama adalah dua definisi yang
+    // bisa menyimpang; action ini sekarang menolak, bukan menormalkan.
+    const hasil = await buatUndanganAction(
+      { ok: false },
+      formData({ email: "  calon@contoh.test  ", role: "verifikator" }),
+    );
+
+    expect(hasil.ok).toBe(false);
+    expect(hasil.fieldErrors).toHaveProperty("email");
+    expect(layanan.buatUndanganStaff).not.toHaveBeenCalled();
+  });
+
+  it("menerima email sah tanpa spasi dan meneruskannya apa adanya ke service", async () => {
+    layanan.buatUndanganStaff.mockResolvedValue({ ok: true, token: "T", undangan: {} });
+
+    const hasil = await buatUndanganAction(
+      { ok: false },
+      formData({ email: "calon@contoh.test", role: "verifikator" }),
+    );
+
+    expect(hasil.ok).toBe(true);
+    // Normalisasi sebenarnya tetap milik service (`normalizeOwner`), bukan
+    // action — action hanya tidak lagi menerima bentuk yang berbeda dari
+    // schema auth lain.
+    expect(layanan.buatUndanganStaff).toHaveBeenCalledWith(
+      expect.objectContaining({ emailNormalized: "calon@contoh.test" }),
+    );
+  });
 });
 
 describe("redeemUndanganAction — identitas dari principal", () => {

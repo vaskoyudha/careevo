@@ -73,10 +73,44 @@ Dua hal yang mudah salah:
 Migrator-nya idempoten: ia mencatat migrasi yang sudah jalan di
 `drizzle.__drizzle_migrations`, jadi `npm run db:migrate` boleh diulang.
 
-Migrasi **maju saja**; tidak ada rollback otomatis. Untuk membatalkan sebuah
-migrasi, tulis migrasi baru yang mengoreksinya. Menghapus berkas SQL yang sudah
-pernah dijalankan akan membuat database lain (staging, produksi) berbeda dari
-dev tanpa jejak.
+### Rollback dan forward (runbook)
+
+Plan §5 butir 8 meminta runbook rollback. Yang berikut adalah prosedurnya —
+**tidak** otomatis, dan tidak ada `db:rollback` di repo ini.
+
+Satu hal yang harus dipahami lebih dulu: **Drizzle tidak menulis migrasi down.**
+`drizzle/` hanya berisi `up` (satu berkas per migrasi, mis.
+`drizzle/0000_faulty_quicksilver.sql`), dan `__drizzle_migrations` hanya mencatat
+migrasi yang sudah diterapkan — tidak ada skrip pembalik.
+
+1. **Rollback = forward, bukan `down`.** Karena tidak ada file `down`, satu-satunya
+   cara membatalkan migrasi adalah menulis migrasi **baru** yang mengoreksinya
+   (mis. `ALTER TABLE ... DROP COLUMN`, atau mengembalikan tipe/constraint).
+   Hapus berkas `drizzle/000N_*.sql` yang sudah pernah dijalankan akan membuat
+   staging/produksi berbeda dari dev tanpa jejak — jangan.
+2. **Tulis dan review migrasi korektif persis seperti migrasi biasa.** SQL itu
+   akan dipakai di produksi, jadi ia harus dibaca sebelum dijalankan (`$EDITOR`)
+   dan ikut ter-commit.
+3. **Uji di database ephemeral, bukan dev.** Jalur paling cepat:
+   `npm run test:db` — `scripts/test-db-setup.ts` membuat database baru dari nol
+   lalu menjalankan seluruh migrasi, jadi migrasi korektif yang gagal terlihat
+   sebelum menyentuh dev.
+4. **Jangan mengedit berkas migrasi yang sudah diterapkan.** Mengubahnya membuat
+   hash/isi berbeda dari yang tercatat di `__drizzle_migrations`; database yang
+   sudah menjalankannya tidak akan tahu ada yang berubah, sedangkan database
+   baru mendapat definisi lain. Symptom-nya: dev dan produksi "punya migrasi yang
+   sama" tetapi schema-nya beda.
+
+Bila migrasi yang salah **belum** tersebar ke database lain, cara paling bersih
+adalah reset database itu sendiri (lihat §5 Reset), bukan menulis koreksi:
+database yang belum punya data produksi tidak perlu membawa riwayat koreksi.
+
+Untuk memeriksa migrasi mana yang sudah jalan:
+
+```bash
+docker compose exec postgres psql -U careevo -d careevo \
+  -c 'select id, hash, created_at from drizzle.__drizzle_migrations order by created_at'
+```
 
 ### Melihat isi database
 
@@ -84,6 +118,56 @@ dev tanpa jejak.
 docker compose exec postgres psql -U careevo -d careevo -c '\dt'
 docker compose exec postgres psql -U careevo -d careevo -c 'select id, email_normalized, status from users'
 ```
+
+## 3b. Bootstrap admin pertama
+
+Database yang baru dimigrasikan **tidak punya admin sama sekali**, dan
+`gateAdmin()` membaca `user_roles` dari database — jadi tanpa langkah ini
+`buatUndanganAction`/`beriRoleAction` unreachable dan staff tidak bisa
+di-provisioning lewat produk (utang review Fase 1 §6 butir 4).
+
+Perintahnya adalah CLI operator, bukan seed otomatis:
+
+```bash
+# 1. User harus SUDAH terdaftar lewat alur normal: buka /daftar, daftar dengan
+#    email yang mau dijadikan admin. Registrasi BELUM memverifikasi mailbox:
+#    operator harus membuktikan identitas dan kepemilikan email target di luar
+#    aplikasi sebelum grant. CLI tidak membuat akun/menerima password.
+#
+# 2. Lihat kandidat yang sudah terdaftar (kolom `admin` = sudah admin):
+npx tsx scripts/bootstrap-admin.ts --list-candidates
+
+# 3. Naikkan role-nya. Default admin; `--role verifikator` untuk verifikator.
+npx tsx scripts/bootstrap-admin.ts admin@contoh.test
+```
+
+Yang perlu diketahui:
+
+- **Tidak ada `npm run` script untuk ini, dan itu disengaja.** Utang aslinya
+  menuntut seed yang "tidak aktif otomatis di produksi"; menaruhnya di
+  `package.json` membuatnya mudah ikut terpanggil gate build/deploy atau
+  disalin orang tanpa membaca. Bila integrator memutuskan menambah
+  `"bootstrap:admin"`, itu satu baris di `package.json`.
+- **Batas kepercayaan.** `status=active` berarti akun ada, bukan mailbox sudah
+  diverifikasi; operator wajib memverifikasi kepemilikan email secara terpisah
+  sebelum mengangkatnya menjadi admin. Jalur registrasi/email verification penuh
+  masih pekerjaan fase berikutnya.
+- **Idempoten.** Menjalankan ulang pada user yang sudah memegang role itu tidak
+  menulis audit kedua — audit trail tidak boleh berbohong tentang perubahan yang
+  tidak terjadi.
+- **Grant dan audit satu transaksi.** Kalau salah satu gagal, keduanya batal;
+  tidak boleh ada role tanpa bukti siapa yang memberikannya.
+- **Audit-nya `user_role.bootstrapped`, `actor_user_id` null.** Belum ada admin
+  yang bisa jadi aktor, dan memakai user target sendiri sebagai aktor akan
+  membuat audit mengklaim sesuatu yang tidak terjadi. `null` berarti
+  operator/sistem di luar aplikasi.
+- **Izin `DATABASE_URL` harus menunjuk database yang benar.** Skrip ini
+  mencetak URL-nya (password disamarkan) sebelum menulis; bila ragu, cek
+  database-nya lebih dulu dengan `--list-candidates`.
+
+Setelah admin pertama ada, staff berikutnya diprovisioning lewat produk
+(undangan atau `beriRoleAction`) — CLI ini hanya untuk **admin pertama**, bukan
+jalur sehari-hari.
 
 ## 4. Test
 

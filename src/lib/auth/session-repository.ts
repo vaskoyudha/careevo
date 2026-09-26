@@ -18,10 +18,17 @@
  *   itu berbeda artinya: `rotated` berarti token diganti karena login baru
  *   (bukan insiden), `revoked` berarti sesi dihentikan. Menyamakannya akan
  *   membuat audit logout palsu setiap kali orang login.
+ * - **Rotasi terikat pada pemilik sesi lama.** `rotasiSession` hanya menandai
+ *   baris yang `user_id`-nya sama dengan user yang baru lolos verifikasi.
+ *   Tanpa syarat itu, login yang sah bisa mematikan token milik orang lain,
+ *   dan baris yang ditandai bisa mengaku "diganti login" padahal login itu
+ *   tidak pernah menggantikannya.
  * - **Filter yang menentukan sesi masih sah tinggal di satu fungsi**
- *   (`cariSessionAktifByTokenHash`): `revoked_at is null` dan
- *   `expires_at > now()`. Kalau aturan itu tersebar, satu pemanggil yang lupa
- *   salah satunya adalah celah yang tidak terlihat.
+ *   (`cariSessionAktifByTokenHash`): `revoked_at is null`, `rotated_at is
+ *   null`, dan `expires_at > now()`. Kalau aturan itu tersebar, satu pemanggil
+ *   yang lupa salah satunya adalah celah yang tidak terlihat — dan yang paling
+ *   mudah terlupa adalah `rotated_at`: token yang sudah digantikan login
+ *   berikutnya harus mati, bukan tetap sah sampai `expires_at`.
  */
 
 import { and, eq, gt, isNull, lt, ne } from "drizzle-orm";
@@ -94,8 +101,13 @@ export async function cariSessionByTokenHash(
  * Sesi yang **masih sah** berdasarkan token.
  *
  * Inilah satu-satunya predikat yang boleh dipakai `getSession`: sesi yang
- * dicabut atau lewat `expires_at`-nya harus gagal di sini, bukan disaring lagi
- * oleh pemanggil.
+ * dicabut, yang sudah dirotasi, atau yang lewat `expires_at`-nya harus gagal di
+ * sini, bukan disaring lagi oleh pemanggil.
+ *
+ * `rotated_at` ikut disaring karena rotasi berarti token itu sudah digantikan
+ * login berikutnya. Bila tidak disaring, "rotasi saat login" tidak menambah
+ * keamanan apa pun — token lama tetap bekerja sampai `expires_at`, persis
+ * seperti sebelum rotasi ada.
  */
 export async function cariSessionAktifByTokenHash(
   db: EksekutorDb,
@@ -108,6 +120,7 @@ export async function cariSessionAktifByTokenHash(
       and(
         eq(sessions.tokenHash, tokenHash),
         isNull(sessions.revokedAt),
+        isNull(sessions.rotatedAt),
         gt(sessions.expiresAt, new Date()),
       ),
     )
@@ -179,6 +192,21 @@ export async function revokeSemuaSessionUser(
  * yang baru masuk mendapat token baru. Token lama **tidak** dicabut, jadi
  * riwayatnya tetap terbaca sebagai "diganti", bukan "dihentikan".
  *
+ * Dua syarat pada `UPDATE`-nya, dan keduanya menutup kegagalan yang berbeda:
+ *
+ * - `user_id = input.userId` — sesi lama hanya boleh ditandai bila ia memang
+ *   milik user yang baru saja lolos verifikasi. Tanpa syarat ini, login yang
+ *   sah (atau id sesi yang dipalsukan) dapat menandai sesi milik orang lain
+ *   sebagai "diganti", yaitu pencabutan lintas pengguna lewat jalur login.
+ * - `rotated_at is null` — idempoten; menandai dua kali tidak menimpa waktu
+ *   rotasi yang asli.
+ *
+ * Bila sesi lama tidak ada, sudah dirotasi, atau milik user lain, fungsinya
+ * tetap menerbitkan sesi baru. Rotasi bersifat best-effort terhadap sesi lama:
+ * login yang sah tidak boleh gagal hanya karena cookie lama sudah tidak
+ * berlaku. Yang penting, sesi baru tidak mewarisi apa pun dari sesi lama —
+ * tokennya selalu belum pernah ada.
+ *
  * Bila sesi lama sudah tidak ada/`rotated_at`-nya sudah terisi, fungsinya tetap
  * menerbitkan sesi baru — rotasi bersifat best-effort terhadap sesi lama, dan
  * kegagalan menandainya tidak boleh menghalangi login yang sah.
@@ -196,7 +224,13 @@ export async function rotasiSession(
     await db
       .update(sessions)
       .set({ rotatedAt: new Date() })
-      .where(and(eq(sessions.id, input.sessionLamaId), isNull(sessions.rotatedAt)));
+      .where(
+        and(
+          eq(sessions.id, input.sessionLamaId),
+          eq(sessions.userId, input.userId),
+          isNull(sessions.rotatedAt),
+        ),
+      );
   }
 
   return buatSession(db, {

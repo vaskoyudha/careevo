@@ -107,7 +107,7 @@ Fase 5   Observability, backup/restore, dan CI production
 Fase 6   AI dan live loker terukur
 ```
 
-Fase berikutnya hanya mulai setelah exit criteria fase sebelumnya terpenuhi. Fase 1A adalah prasyarat keras bagi Fase 3 (attestation/outbox) dan Fase 4 (file scan/cleanup). Fase 4 dapat dikerjakan sebagian paralel dengan Fase 3 **hanya setelah** Fase 1 membuat identity/role database tersedia dan Fase 1A lulus uji duplicate-delivery/crash recovery.
+Fase berikutnya hanya mulai setelah exit criteria fase sebelumnya terpenuhi. Fase 1A adalah prasyarat keras bagi Fase 3 (attestation/outbox) dan Fase 4 (file scan/cleanup). Fase 4 dapat dikerjakan sebagian paralel dengan Fase 3 **hanya setelah** Fase 1 membuat identity/role database tersedia dan Fase 1A lulus uji duplicate-delivery dan pemulihan lease (simulasi crash).
 
 ---
 
@@ -214,7 +214,7 @@ audit_events (buat schema sekarang; isi penuh dimulai Fase 3)
    - role default hanya `learner`;
    - tetapkan vocabulary canonical secara eksplisit: data legacy `user` dipetakan ke `learner` pada adapter/cutover (atau pertahankan `user` end-to-end bila dipilih ADR); tidak boleh ada dua arti role yang hidup tanpa mapping;
    - buat `username_normalized` unik dan `display_name`; tetapkan aturan collision, rename, redirect/404 public-profile lama, dan cooldown rename sebelum mengaktifkan `/p/[username]` dari database;
-   - verification email diaktifkan sebelum policy staff/sensitive flow mengizinkan akses.
+   - verification email diaktifkan sebelum policy staff/sensitive flow mengizinkan akses. Sebelum alur email itu diaktifkan, pilih provider lewat ADR, tulis token dan event pengiriman dalam transaksi yang sama, lalu buktikan kunci idempotensi deterministik dihormati provider saat timeout, retry, dan crash setelah pengiriman. Tanpa provider dan bukti tersebut, verifikasi email belum aktif dan akses sensitif tetap diblokir.
 4. Migrasikan login dan session:
    - cookie hanya membawa opaque session token;
    - database menyimpan hash token, expiry, revocation, dan metadata minimal;
@@ -314,15 +314,16 @@ outbox_events
 
 1. Sediakan helper transaksi yang menulis perubahan bisnis dan `outbox_events` dalam transaksi PostgreSQL yang sama.
 2. Buat worker minimal yang melakukan claim/lease aman, handler per event type, idempotency per sink, exponential backoff, maksimum retry, serta dead-letter state/queue.
-3. Tambahkan event/handler minimum untuk audit fan-out dan lifecycle attestation; file scan/cleanup handler disiapkan sebelum upload production dibuka.
+3. Daftarkan event/handler yang punya sumber kebenaran di Fase 1A: `auth.registered` → sink audit internal. Lifecycle attestation diimplementasikan pada Fase 3; handler scan/cleanup disiapkan dan diaktifkan pada Fase 4 sebelum upload production dibuka. Tipe tanpa handler harus gagal terminal, bukan dilaporkan sukses.
 4. Sediakan operasi replay dan dead-letter yang ber-audit. Payload outbox/log harus ter-redact dari secret dan PII yang tidak dibutuhkan handler.
 
 ### Acceptance criteria dan verifikasi
 
-- Duplicate delivery, worker crash sesudah claim, dan retry sesudah timeout tidak menggandakan attestation/email/audit side effect.
-- Event yang gagal terminal dapat ditemukan dan direplay dengan actor/reason tercatat.
-- Uji integration membuktikan transaksi gagal tidak meninggalkan event, serta business commit selalu memiliki event yang diwajibkan.
+- Untuk sink audit internal yang ada di Fase 1A, duplicate delivery, simulasi worker mati sesudah claim (lease kedaluwarsa), retry sesudah handler gagal sementara, dan pemulihan lease tidak menggandakan baris audit. Test ini tidak mematikan proses OS atau mensimulasikan timeout provider; bukti ini tidak menjamin efek samping provider eksternal tidak terduplikasi.
+- Event yang gagal terminal dapat ditemukan dan direplay dengan actor/reason tercatat; tipe tanpa handler berakhir sebagai kegagalan terminal `handler_tidak_terdaftar`, bukan sukses semu.
+- Uji integration membuktikan transaksi gagal tidak meninggalkan event, dan alur yang sudah memakai writer (`daftarPengguna`) selalu meninggalkan event yang diwajibkan. Alur bisnis lain baru mendapat jaminan ini setelah diintegrasikan dengan writer.
 - Uji worker/claim memverifikasi lease kedaluwarsa dapat dipulihkan aman oleh worker lain.
+- **Gerbang lintas fase, bukan syarat kelulusan M1A:** handler attestation, email, dan file scan/cleanup baru boleh didaftarkan saat sumber bisnis dan transisi status otoritatif tersedia; payload disaring dari secret/PII yang tidak dibutuhkan **sebelum insert**; kunci idempotensi deterministik diteruskan dan benar-benar dihormati tujuan efek samping; serta uji integrasi membuktikan timeout/retry, replay, dan crash **sesudah efek samping berhasil tetapi sebelum commit status delivery** tidak menggandakan efek. Jika tujuan tidak mendukung deduplikasi, jangan mengklaim jaminan itu: rilis fitur yang memerlukannya diblokir sampai ada mekanisme setara yang terbukti atau keputusan risiko tersendiri. Gerbang attestation berada di Fase 3, file scan/cleanup di Fase 4, dan email sebelum alur pengiriman terkait diaktifkan.
 
 ---
 
@@ -465,6 +466,7 @@ attested → revoked
 - Reviewer tidak dapat me-review submission tanpa assignment/policy yang valid.
 - Perubahan score/username/form client tidak mengubah payload credential yang diterbitkan.
 - Pengiriman ulang action atau worker dua kali hanya menerbitkan satu attestation aktif.
+- Sebelum credential production dibuka, issuance/revocation attestation harus memakai review, status, dan record otoritatif yang persisten; transisi bisnis dan event outbox commit atomik. Uji crash setelah klaim, retry, dan replay membuktikan tidak ada penerbitan ganda, termasuk bila ada tujuan eksternal yang sudah berhasil sebelum status delivery tersimpan (gerbang sink §6).
 - Token public valid menampilkan status minimal; token revoked menunjukkan revoked tanpa mengungkap data sensitif.
 - Audit menunjukkan actor, action, entity, request ID, waktu, dan alasan revocation.
 - Integration/E2E: submission → review → verify public → revoke → verify public; juga test transition terlarang dan concurrent review.
@@ -522,6 +524,7 @@ uploaded_files
 - Unggahan baru tersedia setelah restart/deploy `next start` dan pada multi-instance; tidak ada dependensi `public/` runtime.
 - File path traversal, MIME spoofing, upload tanpa ownership, file oversized, dan file scan-failed ditolak/diisolasi.
 - File `pending_scan`, `rejected`, dan `deleted` tidak dapat dibaca publik; E2E mencakup public, private, pending scan, rejected, deleted, legacy-visibility policy, serta username rename/collision.
+- Sebelum upload production dibuka, pilih storage/scanner melalui ADR, simpan metadata serta status scan otoritatif, dan buktikan worker scan/cleanup memulihkan timeout, retry, crash, serta replay tanpa menggandakan efek atau menyajikan file sebelum status `clean` (gerbang sink §6). Jika scanner/storage tidak dapat mendukung deduplikasi yang diperlukan, upload production tetap diblokir sampai mitigasi yang setara terbukti atau risiko diputuskan tersendiri.
 - Hapus/soft-delete file menghilangkan akses sesuai lifecycle dan worker cleanup tidak menghapus file yang masih direferensikan.
 - Import dijalankan dua kali tanpa duplikasi; counts/hash/data sample sama dengan sumber legacy.
 - Course stored/derived, page block, quiz bank, dan resolver modul yang ada terus lulus test termasuk build boundary client/server.
@@ -535,7 +538,7 @@ uploaded_files
 
 ### Pekerjaan
 
-1. Perluas event dan handler Fase 1A untuk seluruh efek samping non-transaksional: email, notifikasi, file scan/thumbnail, certificate render, AI, audit fan-out, dan ingestion loker.
+1. Perluas event dan handler Fase 1A untuk efek samping non-transaksional sesuai fase pemiliknya: email/notifikasi, file scan/thumbnail, certificate render, AI, dan ingestion loker. Sink audit internal sudah tersedia sejak Fase 1A; handler baru hanya masuk registry setelah gerbang lintas fase §6 terpenuhi, bukan dengan mendaftarkan no-op.
 2. Selesaikan runbook operator untuk claim/lease, idempotency key, retry, dead-letter, dan replay yang sudah tersedia sejak Fase 1A.
 3. Implementasikan logging terstruktur dengan `request_id`/correlation ID pada action, route, worker, dan public verify.
 4. Pasang error tracking, metrics, dan tracing untuk database, storage, queue, AI, authentication failure, upload rejection, attestation issuance/revocation, serta worker lag.
@@ -656,7 +659,7 @@ Nama Indonesia untuk domain/business logic tetap mengikuti konvensi proyek apabi
 |---|---|
 | Unit | Validasi, policy, canonicalization, state transition, redaction, resolver compatibility |
 | Database integration | Constraint, transaction, authorization, idempotency, concurrent request, migration |
-| Worker integration | Retry, duplicate delivery, dead-letter, recovery sesudah crash |
+| Worker integration | Retry, duplicate delivery, dead-letter, recovery lease kedaluwarsa (simulasi crash) |
 | HTTP/E2E | Login, role boundary, upload, cross-device progress, submit-review-attest-revoke, public verify |
 | Build/deploy | `npm run build`, production start, smoke, secret validation, migration upgrade |
 | Operasional | Backup/restore drill, alert exercise, credential revocation drill |
@@ -678,7 +681,7 @@ Nama Indonesia untuk domain/business logic tetap mengikuti konvensi proyek apabi
 |---|---|
 | M0 — Aman untuk staging | Secret production enforced, public staff signup/demo blocked, credential action authorized/disabled, **rate limit shared aktif**, dan gates berjalan |
 | M1 — Identity otoritatif | Login/session/RBAC database, canonical role/username compatibility, staff invitation audited, cookie legacy tidak lagi authority |
-| M1A — Async foundation | Outbox/worker lease, idempotency, retry/DLQ, replay, dan crash-recovery evidence tersedia sebelum credential/file production |
+| M1A — Async foundation | Outbox/worker dengan lease, idempotensi sink audit internal, retry/DLQ, replay ber-audit, dan bukti pemulihan claim/lease; sink attestation/email/file scan belum aktif dan wajib melewati gerbang fase pemiliknya sebelum credential, email, atau file production dibuka (§6, Fase 3, Fase 4) |
 | M2 — Belajar lintas perangkat | Enrollment/progress/run/verified grade transactional dengan assessment version/snapshot immutable, cross-device E2E hijau |
 | M3 — Credential tepercaya | Submission/review/attestation/revoke persistent, public verification dan audit lifecycle hijau dengan outbox Fase 1A |
 | M4 — Storage production | File dan CMS DB/object storage, visibility/scan/legacy-consent policy, migration idempoten, tidak ada business write ke local filesystem production |
@@ -694,7 +697,7 @@ Nama Indonesia untuk domain/business logic tetap mengikuti konvensi proyek apabi
 | Data legacy cookie/file tidak dapat dipercaya atau terlalu besar | Migrasikan sebagai convenience state yang disaring; jangan jadikan evidence/credential authoritative; sediakan user recovery flow |
 | Migrasi course mengubah ID modul dan menghilangkan progress | Pertahankan resolver dan `irisModulSelesai()`; import/cutover dengan report affected enrollment; jangan memetakan paksa ID lama |
 | Dual-write membuat data divergen | Hindari dual-write lama; gunakan import idempoten, read-compare, lalu single-writer cutover dan audit count/hash |
-| Worker delivery duplikat atau provider timeout | Fase 1A transactional outbox, lease, idempotency key, retry backoff, DLQ; Fase 5 menambah dashboard lag/error |
+| Worker delivery duplikat | Fase 1A transactional outbox, lease, idempotency key, retry backoff, DLQ (sink audit internal); provider timeout mitigasinya di gerbang §6 fase sink pemilik; Fase 5 menambah dashboard lag/error |
 | Object storage memperluas akses file | Storage key opaque, owner/purpose metadata, signed read/upload, `pending_scan` blocked, lifecycle cleanup, dan explicit public visibility/legacy consent policy |
 | ORM/provider lock-in | Repository boundary, ADR provider, migration SQL yang ter-review, dan export/restore test |
 | Credential invalid terbit selama transisi | Fase 0 menonaktifkan/menolak issuance publik sampai Fase 3 service/state machine siap |

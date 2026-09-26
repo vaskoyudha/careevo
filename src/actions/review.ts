@@ -1,7 +1,7 @@
 "use server";
 
 import { getSession } from "@/lib/auth/session";
-import { isStaffRole } from "@/lib/auth/roles";
+import { punyaRoleStaff } from "@/lib/auth/authorization";
 import { PESAN_AKSES_DITOLAK } from "@/lib/actions-common";
 
 export interface ReviewState {
@@ -54,8 +54,13 @@ export async function decideReview(
   // Authentication and staff authorization happen here, in the action itself.
   // The `/review` layout is a navigation guard, not a security boundary: a
   // Server Action is a POST endpoint reachable by anyone who can send it.
+  //
+  // Otorisasinya membaca `roles` dari principal database (`punyaRoleStaff`),
+  // bukan field kompatibilitas `session.role` — supaya pencabutan role berlaku
+  // pada permintaan berikutnya lewat aturan yang sama dengan `gateStaff()`.
+  // Principal tanpa `userId` (cookie legacy) tetap ditolak.
   const session = await getSession();
-  if (!session || !isStaffRole(session.role)) {
+  if (!session || !session.userId || !punyaRoleStaff(session.roles ?? [])) {
     return { ok: false, error: PESAN_AKSES_DITOLAK };
   }
 

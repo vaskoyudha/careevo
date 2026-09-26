@@ -6,8 +6,8 @@
  *
  * - Cookie sesi `ls_session` ber-`SameSite=Lax`, sehingga POST lintas situs
  *   tidak membawa cookie.
- * - Gerbang sesi + `isStaffRole` di dalam handler menolak permintaan tanpa
- *   sesi staff.
+ * - Gerbang sesi + peran staff (`punyaRoleStaff` atas `roles` principal
+ *   database) di dalam handler menolak permintaan tanpa sesi staff.
  * - Pemeriksaan `Origin` di modul ini menolak permintaan lintas origin sebelum
  *   body disentuh sama sekali.
  *
