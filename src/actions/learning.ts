@@ -15,6 +15,7 @@ import { sessionRunDariDb } from "@/lib/learning/dashboard";
 import { modulUntukSumber } from "@/lib/courses/modul-resolver";
 import {
   JENIS_KEJADIAN_SAH,
+  butuhKamera,
   checkpointEfektif,
   lewatBatas,
   putuskanAkses,
@@ -280,9 +281,20 @@ export async function selesaikanMateriAction(input: {
   // mengirim permintaan ini pada course `opsional` tidak ikut ditolak.
   //
   // Bukti kamera dibaca dari run **setelah** `bukti` terverifikasi: tanpa run
-  // yang sah tidak ada catatan yang bisa diperiksa, dan course `wajib` biasa
-  // tidak membayar query kejadian yang sia-sia.
-  const kameraMenyala = bukti ? await kameraMenyalaPadaRun(bukti.id) : false;
+  // yang sah tidak ada catatan yang bisa diperiksa, jadi membacanya lebih awal
+  // tidak menambah apa pun.
+  //
+  // Yang menentukan apakah pembacaan itu dibayar adalah kebijakannya, bukan
+  // keberadaan `bukti`: `putuskanAkses` membaca `adaBuktiKamera` hanya di dalam
+  // cabang `butuhKamera`, jadi pada course `wajib` hasilnya dibuang. Tanpa
+  // syarat itu, `wajib` — kebijakan bawaan kursus seed — membayar satu
+  // `learning_events` per penyelesaian untuk jawaban yang tidak pernah dipakai.
+  // Bentuknya sengaja meniru gerbang jalur kuis (`wajibKamera` di
+  // `selesaikanModulKuisVerified`) supaya dua gerbang dibaca sama. Syarat `bukti`
+  // tetap ikut ada: pada course `wajib_kamera` bukti bisa saja kosong, dan
+  // `bukti.id` tidak boleh dibaca lebih dulu supaya tidak jatuh ke galat.
+  const kameraMenyala =
+    butuhKamera(kebijakan) && bukti ? await kameraMenyalaPadaRun(bukti.id) : false;
 
   const keputusan = putuskanAkses({
     jenisKegiatan: "materi",

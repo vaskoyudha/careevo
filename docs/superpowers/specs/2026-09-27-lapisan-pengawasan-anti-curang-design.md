@@ -195,8 +195,12 @@ bukan dari klaim klien.
 **Pelusan spec ini.** Paragraf di atas menyebut label `terverifikasi` atau
 `terverifikasi_kamera` "dari run yang mendasarinya", dan itu belum cukup lengkap.
 `module_progress.evidence_id` punya dua writer: jalur materi menyimpannya sebagai
-`learning_runs.id` — atau `null` bila aturan pengawasannya `opsional`, yang memang
-tidak punya run untuk ditelusuri — dan jalur kuis sebagai `quiz_attempts.id`
+`learning_runs.id` — atau `null` ketika tidak ada bukti sesi yang diverifikasi,
+dan `null` itu nilai yang ditulis writer (`evidenceId: bukti?.id ?? null`): pada
+kebijakan `opsional` sesi tidak diwajibkan sehingga buktinya tidak pernah
+dihitung, dan itu sebab `null` muncul, bukan `opsional` tidak punya run untuk
+ditelusuri (`mulaiSesiAction` tidak membatasi run ke kebijakan apa pun) — dan
+jalur kuis sebagai `quiz_attempts.id`
 (`schema.ts:524-526`). Penyelesaian kuis karena itu **tidak punya run yang bisa
 ditelusuri**, dan materi pada course `opsional` berakhir di titik yang sama:
 ketika peta kamera disertakan, label untuk keduanya adalah

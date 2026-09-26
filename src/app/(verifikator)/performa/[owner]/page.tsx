@@ -83,12 +83,21 @@ export default async function PerformaDetailPage({
 
       <div className="space-y-4">
         <PeringatanPembelajaran />
-        {/* Label jalur di bawah berasal dari `kamera_mulai`, jadi batas
-            asal sinyalnya wajib ikut tampil di halaman yang sama — spec
-            P3/§"Batas yang harus tertulis di UI". Teksnya bukan kalimat
-            baru: `BATAS_SINYAL` sudah mengunci satu batas per asal, dan
-            `sumber-sinyal.test.ts` menjaganya. */}
+        {/* Batas asal sinyal ikut tampil di sini karena label jalur di bawah
+            menyebut kamera, dan label itu dibaca dari `kamera_mulai` — yang
+            dilaporkan peramban peserta, bukan diturunkan model di perangkatnya.
+            Karena yang jadi dasar label adalah laporan peserta, **kedua** asal
+            itu punya batasnya sendiri di spec P3/§"Batas yang harus tertulis di
+            UI" (butir 1 dan 2), jadi keduanya ditulis di sini: menampilkan satu
+            saja membiarkan pembaca menyimpulkan asal yang tidak diketahui.
+            Baris `informal` tidak memakai peta kamera sama sekali —
+            `jalurDariBukti` berhenti lebih dulu untuk completion yang tidak
+            eksak `terverifikasi` — jadi tidak ada yang perlu dibatasi untuknya.
+
+            Teksnya bukan kalimat baru: `BATAS_SINYAL` sudah mengunci satu
+            batas per asal, dan `sumber-sinyal.test.ts` menjaganya. */}
         <p className="mt-2 text-xs text-muted-foreground">{BATAS_SINYAL.kamera}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{BATAS_SINYAL.browser}</p>
 
         <section className="card" aria-labelledby="performa-kursus">
           <h2 className="card-title" id="performa-kursus">
