@@ -437,6 +437,25 @@ h6 {
     inset 0 -1px 0 rgba(191, 230, 239, 0.4);
 }
 
+/* The Explore mega-menu card is drawn in the floating pill's box — inset,
+   centred, capped at `--max` — and it does so in *every* state of the bar,
+   including the full-width `.is-top` one. Measured from the bar instead, the
+   card inherited `left: 0; width: 100%` from the transparent state and read as
+   a second navbar rather than a menu hanging off one.
+
+   The card is portalled to <body> and `position: fixed`, so `100%` here is the
+   viewport — the same measure the pill's own rule resolves against. The pill
+   stays the source of truth: its inset (`min(var(--max),
+   calc(100% - 2 * var(--page-pad)))`) is copied, so change it there and this
+   follows. `left`/`right` + auto margins rather than `translateX(-50%)` keep
+   the box on whole pixels at odd widths. */
+.explore-mega-menu {
+  left: 0;
+  right: 0;
+  width: min(var(--max), calc(100% - 2 * var(--page-pad)));
+  margin-inline: auto;
+}
+
 /* Rule global di atas (h1..h6 { font-weight: 500 }) ikut kena ke heading
    menu. Coursera pakai 400, jadi diturunkan khusus di dalam panel. */
 .explore-mega-menu h1,
@@ -461,7 +480,7 @@ h6 {
   display: none;
 }
 
-/* ===== AI Mastery navbar (dark winged bar, /ai-mastery) ===== */
+/* ===== AI Mastery navbar (winged bar, /ai-mastery) ===== */
 /* The third bar, and the only one that is not a morph. See
    `src/components/ui/ai-mastery-navbar.tsx` for why the page forces it: the
    framed app owns its own scrolling, so `is-scrolled` would be unreachable. */
@@ -469,9 +488,11 @@ h6 {
 /* Publishes the navbar's total vertical footprint to the frame below it: its
    height plus the `margin-top` that lifts it off the viewport edge. 769px is
    the breakpoint where `.chrome` stops wrapping — measured, not guessed, and
-   the same one `.learner-shell--overlay` uses. Below it the bar is two rows. */
+   the same one `.learner-shell--overlay` uses. Below it the bar is two rows.
+   The mobile figure is 95 rather than a round 94 because the bar carries a 1px
+   border, which lands outside its 64/85px content box. */
 .ai-mastery-shell {
-  --app-chrome-h: 94px;
+  --app-chrome-h: 95px;
   /* `flow-root` is load-bearing, not tidiness. The bar is the shell's first
      child and carries a `margin-top` to lift it off the viewport edge. With no
      top border or padding on the shell, that margin collapses *through* the
@@ -489,77 +510,81 @@ h6 {
 }
 
 .chrome.is-winged {
-  /* Inset from both screen edges, and lifted off the top. This is what makes
-     the wings visible at all: at `width: 100%` the path's first and last
-     control points sit exactly on x=0 and x=1000, so the viewport clips both
-     wing tips and all that survives is a rounded card. The page showing either
-     side is what gives the curve an edge to read against. */
+  /* The wings are two bar-coloured "ears" that sit *outside* the bar's left and
+     right edges (see the `::before` / `::after` pair below), so the bar's width
+     has to leave room for them. Without the `- 2 * var(--wing)` term they would
+     hang off the viewport at narrow widths and the page would scroll sideways. */
+  --wing: 30px;
+  --wing-fill: #f1f6fa;
+  --wing-edge: rgba(10, 42, 58, 0.16);
   top: 10px;
-  width: min(var(--max), calc(100% - 2 * var(--page-pad)));
+  width: min(var(--max), calc(100% - 2 * var(--page-pad) - 2 * var(--wing)));
   margin: 10px auto 0;
   padding: 0 1.15rem;
-  border: none;
-  /* Plus the 10px `margin-top` above, which is why `--app-chrome-h` is 74px
-     here and not 4rem: `ai-mastery-frame.tsx` sizes the frame to
-     `calc(100dvh - var(--app-chrome-h))`, and getting this wrong by the margin
-     either overflows the page or leaves a gap under the frame. The SVG's own
-     bottom rounding supplies the lower silhouette. */
   min-height: 4rem;
-  /* Same light glass as the floating `.chrome.is-scrolled` state — the bar
-     keeps the site's own colour and only the silhouette changes. */
-  background: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  isolation: isolate;
-}
-
-/* The wing. Drawn as a background rather than a child <svg> so the bar keeps a
-   single DOM node, its own padding, and its existing flex layout — an inset
-   overlay would have to hard-code the inner widths the flex row already
-   computes. `preserveAspectRatio="none"` is deliberate: the curve has to stay
-   fluid from a 360px phone to an ultrawide, and a uniform-scale path would
-   letterbox into a straight edge on one end or the other.
-
-   The silhouette is defined by the SVG being *unpainted* above the wing curve,
-   so there is deliberately no `background-color` on this pseudo element — a
-   solid backdrop would fill that region too and erase the edge. The sheen is
-   an SVG gradient rather than a second CSS layer for the same reason: any
-   opaque CSS background would repaint the whole box.
-
-   `drop-shadow` is what makes a light bar's wing read. The page behind is also
-   white, so the shape has no colour edge to define it; the filter traces the
-   rendered alpha, which follows the wing curve exactly and stays true at every
-   width. A `box-shadow` cannot do this — it would be a rectangle.
-
-   The *first* filter is the load-bearing one and its zero Y offset is
-   deliberate. A shadow offset downward (the usual `0 8px 18px` floating recipe)
-   lands inside the shape's own footprint, so it defines the bottom edge and
-   leaves the top edge — the wing — completely undefined. A zero-offset blur
-   haloes the whole silhouette and is the only thing that traces the curve. The
-   second filter then adds the floating depth. */
-.chrome.is-winged::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  /* Two wing paths, because `preserveAspectRatio="none"` scales x by
-     `width/1000` and y by `1`. At 1600px the wide path reads as a swept edge;
-     the same path at 390px compresses each wing's run into ~27px while the
-     34px rise stays put, which turns the curve into a spike. The narrow path
-     is wider and flatter so the slope survives the squeeze. Measured, not
-     eyeballed: re-check both if the bar's padding or item count changes. */
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 64' preserveAspectRatio='none'><defs><linearGradient id='g' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='%23ffffff'/><stop offset='0.55' stop-color='%23f4f8fb'/><stop offset='1' stop-color='%23e6eff6'/></linearGradient></defs><path fill='url(%23g)' d='M0 4 C30 0 60 0 90 4 C200 12 380 30 500 30 C620 30 800 12 910 4 C940 0 970 0 1000 4 L1000 50 Q1000 64 982 64 L18 64 Q0 64 0 50 Z'/></svg>");
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
-  filter: drop-shadow(0 0 3px rgba(10, 42, 58, 0.28))
-    drop-shadow(0 8px 16px rgba(10, 42, 58, 0.14));
-  pointer-events: none;
+  border: 1px solid var(--wing-edge);
+  /* The wings own the top corners — a border there would cut across them. */
+  border-top: none;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+  background: linear-gradient(180deg, #ffffff, var(--wing-fill));
+  box-shadow: 0 12px 28px -14px rgba(10, 42, 58, 0.4);
 }
 
 @media (min-width: 769px) {
-  .chrome.is-winged::before {
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 64' preserveAspectRatio='none'><defs><linearGradient id='g' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='%23ffffff'/><stop offset='0.55' stop-color='%23f4f8fb'/><stop offset='1' stop-color='%23e6eff6'/></linearGradient></defs><path fill='url(%23g)' d='M0 4 C30 0 60 0 90 4 C200 16 380 38 500 38 C620 38 800 16 910 4 C940 0 970 0 1000 4 L1000 50 Q1000 64 982 64 L18 64 Q0 64 0 50 Z'/></svg>");
+  .chrome.is-winged {
+    --wing: 44px;
   }
+}
+
+/* The wings, ported from the notch bar in `vyns.ko/decks/01-hero-deck.html`
+   (`.projects-notch-bar::before` / `::after`, "Inverted Concave Corner Notch
+   Illusion Wings"). Each pseudo is a `--wing` square parked just outside one
+   top corner, with a transparent circle punched out of it: the square minus
+   the circle is the concave "ear", and its outer arc is the wing's edge.
+
+   This replaced an SVG path for the top edge, which could not work here. The
+   path had to span the full bar, and any dip deep enough to read as a wing
+   ate the surface the nav row sits on — a 38px dip on a 64px bar left 26px, so
+   the links spilled out above the fill and the shadow halo cut through them.
+   The notch keeps the bar a plain rounded rectangle: the wings are additive
+   and cost the bar's own height nothing.
+
+   `--wing` is used as the circle's radius *and* the square's side, so the
+   scoop is a clean quarter-round. The two intermediate stops are the wing's
+   outline: a `radial-gradient` cannot take a border, so the edge is painted
+   as a thin ring between the transparent core and the fill. That matters on a
+   light bar, where without the ring the wing is white-on-white. */
+.chrome.is-winged::before,
+.chrome.is-winged::after {
+  content: "";
+  position: absolute;
+  top: -1px;
+  width: var(--wing);
+  height: var(--wing);
+  pointer-events: none;
+}
+
+.chrome.is-winged::before {
+  left: calc(-1 * var(--wing));
+  background: radial-gradient(
+    circle at 0 100%,
+    transparent calc(var(--wing) - 1.5px),
+    var(--wing-edge) calc(var(--wing) - 1px),
+    var(--wing-edge) calc(var(--wing) - 0.5px),
+    var(--wing-fill) var(--wing)
+  );
+}
+
+.chrome.is-winged::after {
+  right: calc(-1 * var(--wing));
+  background: radial-gradient(
+    circle at 100% 100%,
+    transparent calc(var(--wing) - 1.5px),
+    var(--wing-edge) calc(var(--wing) - 1px),
+    var(--wing-edge) calc(var(--wing) - 0.5px),
+    var(--wing-fill) var(--wing)
+  );
 }
 
 .chrome-brand {
