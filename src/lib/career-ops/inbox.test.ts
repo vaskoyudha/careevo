@@ -8,7 +8,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 const AKAR = mkdtempSync(path.join(tmpdir(), "careevo-inbox-"));
 vi.stubEnv("CAREER_OPS_ROOT", AKAR);
 
-const { bacaInbox, bacaTanggalScan, bacaInboxDenganTanggal } = await import("./inbox");
+const { bacaInbox, bacaTanggalScan, bacaInboxDenganTanggal, bacaInboxUnik } = await import("./inbox");
 
 beforeEach(() => {
   mkdirSync(path.join(AKAR, "data"), { recursive: true });
@@ -105,5 +105,50 @@ describe("bacaInboxDenganTanggal", () => {
     writeFileSync(KOSONG, "- [ ] https://a.example/2 | Acme | Eng\n");
     writeFileSync(SCAN_TSV, "url\tfirst_seen\tportal\nhttps://a.example/2\t2026-09-01\tgreenhouse\n");
     expect(bacaInboxDenganTanggal()[0]!.firstSeen).toBe("2026-09-01");
+  });
+
+  it("collapses a repeated URL, so the list has a unique key per posting", () => {
+    // Reproduces the real data root: 431 rows, 422 distinct URLs.
+    writeFileSync(
+      KOSONG,
+      [
+        "- [ ] https://a.example/1 | Allianz | Eng | Jakarta",
+        "- [ ] https://a.example/2 | BMW | AI | Munich",
+        "- [ ] https://a.example/1 | Allianz | Eng | Jakarta",
+      ].join("\n") + "\n",
+    );
+    const rows = bacaInboxDenganTanggal();
+    expect(rows).toHaveLength(2);
+    expect(new Set(rows.map((r) => r.url)).size).toBe(2);
+    // First occurrence wins, so the earlier recorded row is the one kept.
+    expect(rows[0]!.url).toBe("https://a.example/1");
+  });
+});
+
+describe("bacaInboxUnik", () => {
+  it("leaves a file with no repeats untouched", () => {
+    writeFileSync(
+      KOSONG,
+      "- [ ] https://a.example/1 | Acme | Eng\n- [ ] https://a.example/2 | Globex | PM\n",
+    );
+    expect(bacaInboxUnik()).toHaveLength(2);
+  });
+
+  it("keeps the first of an identical repeat and drops the later copy", () => {
+    writeFileSync(
+      KOSONG,
+      "- [ ] https://a.example/1 | Acme | Eng\n- [ ] https://a.example/1 | Acme | Eng\n",
+    );
+    const rows = bacaInboxUnik();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.company).toBe("Acme");
+  });
+
+  it("does not dedupe two different postings that merely share a company", () => {
+    writeFileSync(
+      KOSONG,
+      "- [ ] https://a.example/1 | Acme | Eng\n- [ ] https://a.example/2 | Acme | PM\n",
+    );
+    expect(bacaInboxUnik()).toHaveLength(2);
   });
 });

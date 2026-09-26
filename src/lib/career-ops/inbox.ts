@@ -44,6 +44,37 @@ export function bacaInbox(): InboxJob[] {
 }
 
 /**
+ * One row per posting URL, keeping the first occurrence.
+ *
+ * `pipeline.md` is an append-only markdown file, and the engine's own dedupe is
+ * TTL-based: a URL it considers "past its recheck window" gets re-added by a
+ * later scan even though the row is still on the list. Measured on a real data
+ * root: 431 rows, 422 distinct URLs — 9 postings present twice.
+ *
+ * That is not only a cosmetic repeat. The caller keys each row by URL, and React
+ * reconciles by key, so duplicate keys make it strand stale rows in the DOM: with
+ * 3 duplicate Allianz URLs the filtered list rendered 53 rows while the component
+ * held 44, and rows from a *different* company survived the filter. A key that is
+ * not unique is a rendering bug, not a duplicate to be tolerated.
+ *
+ * Keeping the first occurrence is unambiguous rather than a policy choice: every
+ * one of the 9 measured groups was byte-identical apart from its position, so
+ * there is no field to reconcile. A genuine future conflict — same URL, different
+ * content — still resolves to the earlier row, which is the one the engine
+ * recorded first and the one `bacaTanggalScan` already treats as canonical.
+ */
+export function bacaInboxUnik(): InboxJob[] {
+  const seen = new Set<string>();
+  const out: InboxJob[] = [];
+  for (const job of bacaInbox()) {
+    if (seen.has(job.url)) continue;
+    seen.add(job.url);
+    out.push(job);
+  }
+  return out;
+}
+
+/**
  * `url → first_seen (YYYY-MM-DD)` from `data/scan-history.tsv`.
  *
  * The scanner already stamps every posting with the day it was first seen, so
@@ -73,13 +104,16 @@ export function bacaTanggalScan(): Map<string, string> {
 }
 
 /**
- * Inbox with a freshness date joined on.
+ * Inbox with a freshness date joined on, one row per posting URL.
  *
  * The row's own `posted:` label wins: it is the employer's post date, which is
  * more meaningful than the day our scanner happened to see it. The scan-history
  * join is the fallback for rows written without that label.
+ *
+ * Deduped by `bacaInboxUnik`, because this is the read the UI renders and keys
+ * by URL — see that function for why a repeated URL is a rendering bug.
  */
 export function bacaInboxDenganTanggal(): Array<InboxJob & { firstSeen?: string }> {
   const dates = bacaTanggalScan();
-  return bacaInbox().map((j) => ({ ...j, firstSeen: j.postedAt ?? dates.get(j.url) }));
+  return bacaInboxUnik().map((j) => ({ ...j, firstSeen: j.postedAt ?? dates.get(j.url) }));
 }

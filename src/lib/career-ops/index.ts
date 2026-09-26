@@ -34,6 +34,7 @@ export { bacaTrackerMd } from "./tracker-table";
 export { parseInbox, splitLines, type InboxJobShape } from "./pipeline-table";
 export {
   bacaInbox,
+  bacaInboxUnik,
   bacaInboxDenganTanggal,
   bacaTanggalScan,
   type InboxJob,
