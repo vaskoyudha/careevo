@@ -75,6 +75,25 @@ describe("jalurDariBukti", () => {
     ).toBe("terverifikasi_tanpa_bukti_kamera");
   });
 
+  it("membaca peta yang tidak lengkap sebagai bukti yang tidak bisa ditelusuri", () => {
+    // `run-2` adalah id run yang sah, tapi pemanggil hanya menyusun peta dari
+    // bacaan sebagian sehingga `run-2` tidak masuk. Modul tidak bisa
+    // membedakannya dari id attempt, dan **itulah** pembacaan yang benar bagi
+    // modul ini: satu-satunya yang bisa dikatakannya adalah "tidak bisa
+    // ditelusuri", bukan "run ini tidak punya kamera". Bahwa `run-2` sebenarnya
+    // ada di database adalah kewajiban pemanggil untuk dicegah — peta harus
+    // menutup setiap run dalam lingkup laporan. Kalau tidak, label ini berdiri
+    // untuk baris yang sebenarnya bisa ditelusuri, dan itu terbaca seperti
+    // temuan, bukan seperti ketiadaan data.
+    expect(
+      jalurDariBukti({
+        completionPath: "terverifikasi",
+        evidenceId: "run-2",
+        kameraMulai: peta(["run-1", true]),
+      }),
+    ).toBe("terverifikasi_tanpa_bukti_kamera");
+  });
+
   it("tidak pernah mengklaim kamera saat pemanggil tidak menyertakan peta", () => {
     // Tanpa peta, `terverifikasi` berarti "tidak ada bukti kamera yang tersedia"
     // — bukan "kamera pasti tidak menyala". Menurunkannya ke jalur terverifikasi
