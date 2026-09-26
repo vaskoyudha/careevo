@@ -38,6 +38,7 @@ import {
 } from "@/lib/learning/akses";
 import type { LearningEvent, LearningRun, ModuleProgressRow } from "@/lib/db/schema";
 import type { BarisPembelajaran } from "@/lib/performa/ringkasan";
+import { jalurDariBukti, type JalurTerlihat } from "@/lib/performa/jalur-selesai";
 import type { EnrollmentStaf } from "@/lib/learning/repository";
 
 /* ------------------------------------------------------------------ *
@@ -146,6 +147,14 @@ export interface BarisSelesaiModul {
   modul_id: string;
   /** Jalur tak dikenal turun ke "informal" — klaim tidak dinaikkan. */
   sumber: "terverifikasi" | "informal";
+  /**
+   * Jalur **yang terlihat di laporan** — diturunkan dari `completion_path` plus
+   * `evidence_id` dan peta kamera. Tidak pernah lebih kuat dari `sumber`:
+   * `jalurDariBukti` menurunkan apa pun yang bukan `terverifikasi` ke
+   * `informal`, dan `evidence_id` yang bukan id run menghasilkan
+   * `terverifikasi_tanpa_bukti_kamera`, bukan klaim kamera apa pun.
+   */
+  jalur: JalurTerlihat;
   at: string;
 }
 
@@ -200,6 +209,16 @@ export function detailPembelajaranDariDb(input: {
   progress: ModuleProgressRow[];
   attempts: AttemptDashboard[];
   judul?: ReadonlyMap<string, string>;
+  /**
+   * `run id` → apakah run itu punya kejadian `kamera_mulai`.
+   *
+   * Opsional supaya pemanggil yang tidak punya akses ke kejadian run tetap
+   * bekerja: tanpa peta ini, `terverifikasi` berarti "tidak ada bukti kamera
+   * yang tersedia" — bukan "kamera pasti tidak menyala", dan bukan pula
+   * "kamera menyala". Pemanggil yang lupa mengirim peta tidak boleh diam-diam
+   * mengubah arti laporan.
+   */
+  kameraMulai?: ReadonlyMap<string, boolean>;
 }): DetailPembelajaran | null {
   if (input.enrollments.length === 0) return null;
 
@@ -221,9 +240,17 @@ export function detailPembelajaranDariDb(input: {
     if (baris.state !== "completed") continue;
     const courseId = courseDariEnrollment.get(baris.enrollmentId);
     if (!courseId) continue;
+    const sumber = baris.completionPath === "terverifikasi" ? "terverifikasi" : "informal";
     perKursus.get(courseId)?.selesai.push({
       modul_id: baris.moduleId,
-      sumber: baris.completionPath === "terverifikasi" ? "terverifikasi" : "informal",
+      sumber,
+      // `evidence_id` diteruskan apa adanya: ia bisa id run (jalur materi) atau
+      // id attempt (jalur kuis), dan `jalurDariBukti` yang membedakan.
+      jalur: jalurDariBukti({
+        completionPath: baris.completionPath,
+        evidenceId: baris.evidenceId,
+        kameraMulai: input.kameraMulai,
+      }),
       at: iso(baris.completedAt),
     });
   }
