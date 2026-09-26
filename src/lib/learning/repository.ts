@@ -24,7 +24,7 @@
  * Nama fungsi bisnis berbahasa Indonesia; tipe/helper infrastruktur Inggris.
  */
 
-import { and, asc, desc, eq, max, sql } from "drizzle-orm";
+import { and, asc, desc, eq, max } from "drizzle-orm";
 import { getDb, denganTransaksi, type KoneksiDb, type TransaksiDb } from "@/lib/db/client";
 import {
   courseCompletions,

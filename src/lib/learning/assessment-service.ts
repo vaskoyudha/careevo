@@ -20,6 +20,13 @@
  *    attempt yang sudah `submitted` apa adanya; skor yang dipakai untuk
  *    laporan adalah skor yang **tersimpan**, bukan hasil hitung ulang, sehingga
  *    pengiriman kedua dengan jawaban berbeda tidak mengubah skor historis.
+ * 5. **Jembatan ke progres ada di sini, bukan di action.**
+ *    `selesaikanModulKuisVerified` adalah satu-satunya tempat attempt yang lulus
+ *    menjadi baris `module_progress` + completion kursus. Ia memakai
+ *    `tandaiModulDb`/`selesaikanKursusDb` dari `service.ts` (penulis tunggal
+ *    progres) dan hanya membaca baris attempt lewat `ambilAttempt` — tidak ada
+ *    query database langsung, dan kelulusan dihitung ulang dari snapshot,
+ *    bukan dipercaya dari argumen.
  *
  * **Kunci jawaban tidak pernah dikembalikan ke pemanggil.** Baik `attempt` di
  * `mulaiAttemptVerified` maupun di `kirimAttemptVerified` bertipe
@@ -49,6 +56,12 @@ import {
   snapshotKuis,
   type HasilSkorSnapshot,
 } from "./assessment-snapshot";
+import {
+  selesaikanKursusDb,
+  tandaiModulDb,
+  type HasilSelesaikan,
+  type HasilTandaiModul,
+} from "./service";
 
 /** Versi algoritma penilaian yang dipakai service ini. Lihat ADR 0003. */
 export const GRADING_VERSION = 1;
@@ -79,7 +92,12 @@ export type KodeGalatAsesmen =
   | "enrollment_tidak_ditemukan"
   | "attempt_tidak_ditemukan"
   | "bukan_pemilik"
-  | "jawaban_tidak_lengkap";
+  | "jawaban_tidak_lengkap"
+  // Dipakai `selesaikanModulKuisVerified`: attempt harus sudah dikirim, lulus,
+  // dan berasal dari kuis yang benar-benar dipasang di modul target.
+  | "attempt_belum_dikirim"
+  | "attempt_belum_lulus"
+  | "kuis_tidak_cocok";
 
 /** Galat domain asesmen — bukan galat database, supaya bisa dipetakan ke pesan UI. */
 export class GalatAsesmen extends Error {
@@ -251,4 +269,98 @@ export async function kirimAttemptVerified(input: {
     score,
     lulus: lulusSnapshot(tersimpan.assessmentSnapshot, score),
   };
+}
+
+/** Hasil `selesaikanModulKuisVerified`: tindakan modul + evaluasi completion. */
+export interface HasilSelesaikanModulKuis {
+  /** Attempt yang membuktikan kelulusan (baris ringkas, tanpa kunci jawaban). */
+  attempt: AttemptRingkas;
+  /** Skor **tersimpan** pada attempt, bukan hasil hitung ulang. */
+  score: number;
+  modul: HasilTandaiModul;
+  /** Hasil evaluasi penyelesaian kursus setelah modul ditandai. */
+  kursus: HasilSelesaikan;
+}
+
+/**
+ * Selesaikan satu modul lewat bukti attempt kuis yang **sudah lulus**.
+ *
+ * Ini jembatan antara asesmen dan progres: satu-satunya cara modul ditandai
+ * `terverifikasi` dengan `evidenceId`, dan satu-satunya tempat completion
+ * kursus dievaluasi setelah sebuah kuis lulus. Aturan yang dikunci:
+ *
+ * - **Kelulusan dibaca dari baris attempt, bukan dari argumen.** `lulus` pernah
+ *   jadi input di action; di sini ia dihitung dari `assessmentSnapshot` +
+ *   `score` tersimpan lewat `lulusSnapshot`, dengan `attemptId` sebagai
+ *   satu-satunya yang datang dari pemanggil. Attempt yang masih `in_progress`
+ *   atau tidak lulus tidak pernah menulis progres.
+ * - **Kepemilikan diperiksa di sini juga.** `kirimAttemptVerified` sudah
+ *   memeriksanya saat submit, tetapi fungsi ini adalah endpoint terpisah —
+ *   percaya pada pemeriksaan di tempat lain berarti satu panggilan langsung ke
+ *   sini bisa menandai modul dengan attempt orang lain.
+ * - **Tidak ada query database langsung.** `tandaiModulDb` (upsert modul,
+ *   penulis tunggal `module_progress`) dan `selesaikanKursusDb` (penurun
+ *   `completion_path` + `rekamCompletion`) yang menulis; `ambilAttempt` hanya
+ *   membaca baris attempt.
+ * - **Idempoten.** Memanggil dua kali tidak menggandakan apa pun: attempt
+ *   `submitted` tetap mengembalikan skor pertama, `tandaiModulDb` upsert pada
+ *   PK `(enrollment_id, module_id)`, dan `rekamCompletion` unique pada
+ *   `enrollment_id` sehingga completion kedua melihat baris yang sudah ada
+ *   (`baru: false`) alih-alih membuat baris baru.
+ *
+ * Perhatikan urutannya: modul ditandai **sebelum** completion dievaluasi, sebab
+ * `selesaikanKursusDb` menurunkan `completion_path` dari baris `module_progress`
+ * yang baru saja ditulis. `policyVersion` wajib diturunkan server-side oleh
+ * pemanggil — jangan pernah dari input klien.
+ */
+export async function selesaikanModulKuisVerified(input: {
+  principal: SessionPrincipal;
+  courseId: string;
+  modulId: string;
+  /** Kuis yang dipasang di modul; dicocokkan dengan `attempt.quizId`. */
+  quizId: string;
+  attemptId: string;
+  policyVersion: number;
+}): Promise<HasilSelesaikanModulKuis> {
+  const { principal, courseId, modulId, quizId, attemptId, policyVersion } = input;
+
+  const attempt = await ambilAttempt(attemptId);
+  if (!attempt) {
+    throw new GalatAsesmen("attempt_tidak_ditemukan", "Attempt tidak ditemukan.");
+  }
+  if (attempt.userId !== principal.userId) {
+    throw new GalatAsesmen("bukan_pemilik", "Attempt ini bukan milik Anda.");
+  }
+  // Attempt yang belum dikirim tidak punya skor; ia tidak bisa membuktikan apa pun.
+  if (attempt.status !== "submitted") {
+    throw new GalatAsesmen("attempt_belum_dikirim", "Attempt ini belum dikirim.");
+  }
+  // Snapshot yang tidak bisa dibaca / skor hilang → tidak lulus (gagal-tertutup),
+  // bukan dilewati. `lulusSnapshot` mengembalikan `false` untuk keduanya.
+  const score = attempt.score ?? Number.NaN;
+  const lulus = lulusSnapshot(attempt.assessmentSnapshot, score);
+  if (!lulus || !Number.isFinite(score)) {
+    throw new GalatAsesmen("attempt_belum_lulus", "Attempt ini belum lulus.");
+  }
+  // Attempt dari kuis lain tidak boleh menyelesaikan modul ini — tanpa
+  // pencocokan ini, kelulusan kuis mana pun bisa dipakai untuk modul mana pun.
+  if (attempt.quizId !== quizId) {
+    throw new GalatAsesmen("kuis_tidak_cocok", "Attempt ini bukan untuk kuis tersebut.");
+  }
+
+  const modul = await tandaiModulDb({
+    principal,
+    courseId,
+    modulId,
+    // Jalur terverifikasi tidak pernah lahir dari klien: hanya fungsi ini yang
+    // memasangkannya, dan hanya setelah attempt lulus di atas.
+    sumber: "terverifikasi",
+    nama: principal.nama,
+    // Bukti yang mengikat penyelesaian ini ke asesmennya.
+    evidenceId: attemptId,
+  });
+
+  const kursus = await selesaikanKursusDb({ principal, courseId, policyVersion });
+
+  return { attempt: ringkas(attempt), score, modul, kursus };
 }

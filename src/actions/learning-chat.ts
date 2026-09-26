@@ -2,16 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth/session";
+import { normalizeOwner } from "@/lib/auth/types";
+import type { SessionPrincipal } from "@/lib/auth/principal";
 import { katalogBelajar, type EntriKatalog } from "@/lib/courses/katalog";
 import { getCourseById } from "@/lib/courses/store";
 import { kebijakanDefault } from "@/lib/courses/kebijakan";
 import { putuskanAkses } from "@/lib/learning/akses";
-import {
-  cariPendaftaran,
-  daftarKursus,
-  listPendaftaran,
-  pendaftaranPenuh,
-} from "@/lib/courses/enrollment";
+import type { Pendaftaran } from "@/lib/courses/enrollment";
+import { daftarKursusDb, listKursusTerdaftarDb, progresKursusDb } from "@/lib/learning/service";
 import { modulKursus, type ModulKursus } from "@/lib/courses/kurikulum";
 import { getProfile } from "@/lib/onboarding/store";
 import { bangunJalurPersonalisasi } from "@/lib/learning/personalized-path";
@@ -60,12 +58,47 @@ function safeRevalidate(path: string): void {
   }
 }
 
-async function loadPathContext(owner: string): Promise<PathContext | null> {
+/**
+ * Enrollment dari database, dipetakan ke bentuk `Pendaftaran` yang sudah
+ * dimengerti `bangunJalurPersonalisasi`.
+ *
+ * Bentuk itu dipertahankan (bukan algoritmanya yang diubah) supaya modul
+ * jalur personalisasi tetap murni dan bisa diuji tanpa database; yang pindah
+ * hanyalah sumber datanya. `owner` diisi email principal karena penyaringan di
+ * dalam `bangunJalurPersonalisasi` mencocokkannya dengan `profile.owner`.
+ *
+ * Id modul yang sudah basi tidak disaring di sini — `bangunJalurPersonalisasi`
+ * sudah memakai `irisModulSelesai()` terhadap kurikulum yang berlaku.
+ */
+async function enrollmentDariDb(
+  principal: SessionPrincipal,
+  catalog: EntriKatalog[],
+): Promise<Pendaftaran[]> {
+  const terdaftar = await listKursusTerdaftarDb(principal);
+  const owner = normalizeOwner(principal.email);
+  const hasil: Pendaftaran[] = [];
+  for (const pendaftaran of terdaftar) {
+    const { selesai } = await progresKursusDb(principal, pendaftaran.courseId);
+    hasil.push({
+      course_id: pendaftaran.courseId,
+      slug:
+        catalog.find((entri) => entri.id === pendaftaran.courseId)?.slug ??
+        pendaftaran.courseId,
+      owner,
+      enrolled_at: pendaftaran.enrolledAt.toISOString(),
+      selesai_modul: selesai,
+    });
+  }
+  return hasil;
+}
+
+async function loadPathContext(principal: SessionPrincipal): Promise<PathContext | null> {
+  const owner = principal.email;
   const profile = await getProfile(owner);
   if (!profile) return null;
 
   const catalog = await katalogBelajar();
-  const enrollments = await listPendaftaran(owner);
+  const enrollments = await enrollmentDariDb(principal, catalog);
   const path = bangunJalurPersonalisasi({ profile, catalog, enrollments });
   const course = path.course
     ? catalog.find((entry) => entry.id === path.course?.id) ?? null
@@ -89,15 +122,19 @@ async function loadPathContext(owner: string): Promise<PathContext | null> {
   };
 }
 
-async function checkEnrollmentPolicy(course: EntriKatalog, owner: string): Promise<EnrollmentPolicy> {
+async function checkEnrollmentPolicy(
+  course: EntriKatalog,
+  principal: SessionPrincipal,
+): Promise<EnrollmentPolicy> {
   if (!course.is_free) {
     return { allowed: false, message: "Kursus berbayar ini termasuk paket Careevo Plus." };
   }
-  if (await cariPendaftaran(course.id, owner)) {
+  // Sumbernya `enrollments` (unique per user+course), bukan cookie: batas 50
+  // pendaftaran per peramban tidak lagi berlaku, dan keanggotaan tidak bisa
+  // hilang karena cookie dibersihkan atau hilang di perangkat lain.
+  const { enrollment } = await progresKursusDb(principal, course.id);
+  if (enrollment) {
     return { allowed: true, alreadyEnrolled: true };
-  }
-  if ((await pendaftaranPenuh()).length >= 50) {
-    return { allowed: false, message: "Batas 50 pendaftaran tercapai di peramban ini." };
   }
   return { allowed: true, alreadyEnrolled: false };
 }
@@ -203,7 +240,7 @@ export async function kirimStudyChatAction(
   }
 
   const owner = session.email;
-  const context = await loadPathContext(owner);
+  const context = await loadPathContext(session);
   if (!context) {
     return { status: "invalid_input", message: "Profil belajar belum lengkap." };
   }
@@ -295,7 +332,7 @@ export async function setujuiStudyPathAction(
     return { status: "invalid_proposal", message: "Usulan jalur tidak valid atau sudah usang." };
   }
 
-  const context = await loadPathContext(owner);
+  const context = await loadPathContext(session);
   if (!context?.course || context.course.id !== proposal.courseId) {
     return { status: "invalid_proposal", message: "Usulan jalur sudah tidak cocok." };
   }
@@ -306,10 +343,17 @@ export async function setujuiStudyPathAction(
   }
 
   try {
-    const policy = await checkEnrollmentPolicy(validation.course, owner);
+    const policy = await checkEnrollmentPolicy(validation.course, session);
     if (!policy.allowed) return { status: "error", message: policy.message };
     if (!policy.alreadyEnrolled) {
-      await daftarKursus(validation.course.id, validation.course.slug, owner);
+      // Judul diambil dari entri katalog (bukan dari FormData) supaya cache
+      // referensi `courses` tidak bisa diisi judul palsu oleh pemanggil.
+      await daftarKursusDb({
+        principal: session,
+        courseId: validation.course.id,
+        slug: validation.course.slug,
+        title: validation.course.title,
+      });
     }
     await clearPendingStudyProposal(owner);
   } catch {

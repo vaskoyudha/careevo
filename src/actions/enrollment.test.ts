@@ -1,34 +1,31 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import path from "node:path";
 import { daftarKursusAction, tandaiModulAction } from "./enrollment";
 import { createModul, resetCourses, updateCourse } from "@/lib/courses/store";
-import {
-  cariPendaftaran,
-  daftarKursus,
-  decodePendaftaran,
-  encodePendaftaran,
-  listPendaftaran,
-  type Pendaftaran,
-} from "@/lib/courses/enrollment";
 import { PESAN_POLICY } from "@/lib/courses/kebijakan";
 import * as sessionModule from "@/lib/auth/session";
 import * as cacheModule from "next/cache";
 import { principalUji } from "@/lib/auth/test-principal";
+import type { SessionPrincipal } from "@/lib/auth/principal";
+import type { Enrollment } from "@/lib/db/schema";
 
-const { jar } = vi.hoisted(() => ({ jar: new Map<string, string>() }));
+/**
+ * Setelah cutover Fase 2, sumber data enrollment/progres adalah PostgreSQL
+ * lewat `@/lib/learning/service`. Test ini karena itu mem-mock **lapisan
+ * service**, bukan cookie `ls_enroll`: yang diuji di sini adalah keputusan
+ * action (gerbang sesi/kursus/modul/checkpoint/kebijakan dan argumen delegasi),
+ * sedangkan perilaku penyimpanannya sendiri sudah dikunci
+ * `service.test.ts` + `run-service.integration.test.ts` di atas Postgres.
+ */
+const mocks = vi.hoisted(() => ({
+  daftarKursusDb: vi.fn(),
+  progresKursusDb: vi.fn(),
+  tandaiModulDb: vi.fn(),
+}));
 
-vi.mock("next/headers", () => ({
-  cookies: async () => ({
-    get: (name: string) => {
-      const value = jar.get(name);
-      return value ? { value } : undefined;
-    },
-    set: (name: string, value: string) => {
-      jar.set(name, value);
-    },
-  }),
+vi.mock("@/lib/learning/service", () => ({
+  daftarKursusDb: mocks.daftarKursusDb,
+  progresKursusDb: mocks.progresKursusDb,
+  tandaiModulDb: mocks.tandaiModulDb,
 }));
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
@@ -44,6 +41,49 @@ const sesi = principalUji({
 const KURSUS_OPSIONAL = "crs-4";
 /** Kursus yang dipakai untuk menguji kebijakan `wajib` yang **tersimpan**. */
 const KURSUS_WAJIB = "crs-7";
+
+/**
+ * Toko enrollment in-memory: menirukan dua sifat service yang diandalkan action.
+ *
+ * 1. **Unik per `(userId, courseId)`** — mendaftar dua kali mengembalikan
+ *    `baru: false`, bukan baris kedua. Id pemilik adalah `principal.userId`
+ *    (uuid), bukan email, persis seperti `enrollments` di database.
+ * 2. **Toggle informal / tambah terverifikasi** — `tandaiModulDb` yang
+ *    memutuskan arahnya, bukan action.
+ *
+ * Menirukan service di sini bukan berarti menguji ulang service: yang
+ * diperiksa adalah bahwa action memanggilnya dengan argumen yang benar dan
+ * **tidak** memanggilnya saat gerbangnya menolak.
+ */
+let enrollmentTersimpan: Map<string, Enrollment>;
+let selesaiTersimpan: Map<string, string[]>;
+
+function kunci(userId: string, courseId: string): string {
+  return `${userId}:${courseId}`;
+}
+
+function enrollmentUji(courseId: string, userId: string): Enrollment {
+  return {
+    id: `enr-${courseId}-${userId.slice(0, 8)}`,
+    userId,
+    courseId,
+    status: "active",
+    enrolledAt: new Date("2026-09-01T08:00:00.000Z"),
+    completedAt: null,
+    completionPath: null,
+  };
+}
+
+/** Progres yang sudah tersimpan untuk sebuah kursus (pemilik default `sesi`). */
+function seedSelesai(courseId: string, modul: string[], principal: SessionPrincipal = sesi): void {
+  const k = kunci(principal.userId, courseId);
+  enrollmentTersimpan.set(k, enrollmentUji(courseId, principal.userId));
+  selesaiTersimpan.set(k, [...modul]);
+}
+
+function bacaSelesai(courseId: string, principal: SessionPrincipal = sesi): string[] {
+  return selesaiTersimpan.get(kunci(principal.userId, courseId)) ?? [];
+}
 
 /**
  * Modul `materi` tersimpan pada kurikulum sebuah kursus, dibuat lewat store.
@@ -69,8 +109,6 @@ async function setelKebijakan(courseId: string, aturanPengawasan: "wajib" | "ops
   const kursus = await updateCourse(courseId, { kebijakan: { aturan_pengawasan: aturanPengawasan } });
   expect(kursus?.kebijakan?.aturan_pengawasan).toBe(aturanPengawasan);
 }
-const OWNER_A = "a@careevo.test";
-const OWNER_B = "b@careevo.test";
 
 /**
  * Principal dengan email berbeda, `userId` ikut berbeda.
@@ -83,37 +121,61 @@ function sesiUntuk(email: string) {
   return principalUji({ email, nama: "Raka Pratama", username: "raka", role: "user" });
 }
 
-function buatPendaftaran(
-  owner: string | undefined,
-  courseId = "crs-1",
-  selesai_modul: string[] = [],
-): Pendaftaran {
-  const base = {
-    course_id: courseId,
-    slug: "fullstack-web-development-nextjs-15-react-19",
-    enrolled_at: "2026-09-01T08:00:00.000Z",
-    selesai_modul,
-  };
-  return owner === undefined ? base : { ...base, owner };
-}
-
-function seedPendaftaran(...entries: Pendaftaran[]): void {
-  jar.set("ls_enroll", encodePendaftaran(entries));
-}
-
-function bacaPendaftaran(): Pendaftaran[] {
-  return decodePendaftaran(jar.get("ls_enroll"));
-}
-
 describe("enrollment actions", () => {
   beforeEach(() => {
     resetCourses();
-    jar.clear();
     vi.clearAllMocks();
+    enrollmentTersimpan = new Map();
+    selesaiTersimpan = new Map();
     vi.spyOn(sessionModule, "getSession").mockResolvedValue(sesi);
-    // Direktori per test: env global dari `vitest.config.mts` juga dipakai test
-    // toko yang berjalan paralel, dan `tandaiModul` sekarang menulis ke sana.
-    process.env.CAREEVO_PERFORMA_DIR = mkdtempSync(path.join(tmpdir(), "careevo-performa-enroll-"));
+
+    mocks.daftarKursusDb.mockImplementation(
+      async ({ principal, courseId }: { principal: SessionPrincipal; courseId: string }) => {
+        const k = kunci(principal.userId, courseId);
+        const ada = enrollmentTersimpan.get(k);
+        if (ada) return { enrollment: ada, baru: false };
+        const baru = enrollmentUji(courseId, principal.userId);
+        enrollmentTersimpan.set(k, baru);
+        return { enrollment: baru, baru: true };
+      },
+    );
+
+    mocks.progresKursusDb.mockImplementation(
+      async (principal: SessionPrincipal, courseId: string) => {
+        const k = kunci(principal.userId, courseId);
+        const enrollment = enrollmentTersimpan.get(k) ?? null;
+        return { enrollment, selesai: enrollment ? (selesaiTersimpan.get(k) ?? []) : [] };
+      },
+    );
+
+    mocks.tandaiModulDb.mockImplementation(
+      async ({
+        principal,
+        courseId,
+        modulId,
+        sumber,
+      }: {
+        principal: SessionPrincipal;
+        courseId: string;
+        modulId: string;
+        sumber: "terverifikasi" | "informal";
+      }) => {
+        const k = kunci(principal.userId, courseId);
+        const enrollment = enrollmentTersimpan.get(k);
+        if (!enrollment) return { ok: false, alasan: "belum_terdaftar" };
+        const daftar = selesaiTersimpan.get(k) ?? [];
+        const sudah = daftar.includes(modulId);
+        if (sumber === "informal") {
+          selesaiTersimpan.set(
+            k,
+            sudah ? daftar.filter((id) => id !== modulId) : [...daftar, modulId],
+          );
+          return { ok: true, aksi: sudah ? "dibatalkan" : "ditandai", enrollment };
+        }
+        if (!sudah) selesaiTersimpan.set(k, [...daftar, modulId]);
+        return { ok: true, aksi: "ditandai", enrollment };
+      },
+    );
   });
 
   it("menolak bila belum masuk", async () => {
@@ -132,6 +194,15 @@ describe("enrollment actions", () => {
     expect(cacheModule.revalidatePath).toHaveBeenCalledWith(
       "/belajar/fullstack-web-development-nextjs-15-react-19",
     );
+    // Idempotensi datang dari unique `(user_id, course_id)` di database, bukan
+    // dari pembacaan cookie: panggilan kedua mengembalikan `baru: false`.
+    expect(mocks.daftarKursusDb).toHaveBeenCalledWith(
+      expect.objectContaining({
+        principal: sesi,
+        courseId: "crs-1",
+        slug: "fullstack-web-development-nextjs-15-react-19",
+      }),
+    );
     const kedua = await daftarKursusAction("crs-1");
     expect(kedua.ok).toBe(true);
     expect(kedua.message).toContain("sudah terdaftar");
@@ -141,6 +212,7 @@ describe("enrollment actions", () => {
     const res = await daftarKursusAction("crs-5");
     expect(res.ok).toBe(false);
     expect(res.butuhPlus).toBe(true);
+    expect(mocks.daftarKursusDb).not.toHaveBeenCalled();
   });
 
   it("menolak kursus draft yang belum dipublikasikan", async () => {
@@ -158,12 +230,17 @@ describe("enrollment actions", () => {
   it("mendaftarkan fixture resource gratis lewat id-nya", async () => {
     const res = await daftarKursusAction("r1");
     expect(res.ok).toBe(true);
+    // Judul untuk cache referensi `courses` datang dari store, bukan pemanggil.
+    expect(mocks.daftarKursusDb).toHaveBeenCalledWith(
+      expect.objectContaining({ courseId: "r1", title: expect.any(String) }),
+    );
   });
 
   it("menandai modul hanya setelah terdaftar", async () => {
     const tanpaDaftar = await tandaiModulAction("crs-2", "crs-2-m1");
     expect(tanpaDaftar.ok).toBe(false);
     expect(tanpaDaftar.error).toContain("Daftar");
+    expect(mocks.tandaiModulDb).not.toHaveBeenCalled();
 
     // Kursus dibuat `opsional` dulu supaya jalur informalnya sah. `crs-2`
     // memakai kebijakan default (`wajib`), dan sejak gerbang kebijakan ada,
@@ -179,6 +256,7 @@ describe("enrollment actions", () => {
 
     const batal = await tandaiModulAction("crs-2", "crs-2-m1");
     expect(batal.ok).toBe(true);
+    expect(bacaSelesai("crs-2")).toEqual([]);
   });
 
   it("menolak id modul yang tidak dikenal", async () => {
@@ -186,6 +264,7 @@ describe("enrollment actions", () => {
     const res = await tandaiModulAction("crs-2", "crs-2-m99");
     expect(res.ok).toBe(false);
     expect(res.error).toContain("tidak dikenal");
+    expect(mocks.tandaiModulDb).not.toHaveBeenCalled();
   });
 
   it("menolak tandai untuk kursus draft", async () => {
@@ -193,18 +272,19 @@ describe("enrollment actions", () => {
     expect(res.ok).toBe(false);
   });
 
-  it("menyimpan pendaftaran di cookie yang bisa dibaca kembali", async () => {
-    // Kursus `opsional`: penandaan mandiri adalah jalur yang sah di sana, jadi
-    // cookie progres benar-benar ditulis dan bisa dibaca kembali.
+  it("mendelegasikan penyelesaian informal ke service dengan jalur informal", async () => {
     await setelKebijakan("crs-1", "opsional");
     await daftarKursusAction("crs-1");
     await tandaiModulAction("crs-1", "crs-1-m1");
-    const mentah = jar.get("ls_enroll");
-    expect(mentah).toBeDefined();
-    const daftar = decodePendaftaran(mentah);
-    expect(daftar).toHaveLength(1);
-    expect(daftar[0].course_id).toBe("crs-1");
-    expect(daftar[0].selesai_modul).toEqual(["crs-1-m1"]);
+    expect(mocks.tandaiModulDb).toHaveBeenCalledWith(
+      expect.objectContaining({
+        principal: sesi,
+        courseId: "crs-1",
+        modulId: "crs-1-m1",
+        sumber: "informal",
+      }),
+    );
+    expect(bacaSelesai("crs-1")).toEqual(["crs-1-m1"]);
   });
 
   it("menolak modul dengan checkpoint kuis", async () => {
@@ -226,10 +306,10 @@ describe("enrollment actions", () => {
     expect(res.error).toContain("kuis/proyek");
     expect(res.error).toContain("penandaan manual");
 
-    // Bukti bahwa penolakan benar-benar menghentikan penulisan: progres tetap
-    // kosong, bukan hanya balasan `ok: false`.
-    const daftar = decodePendaftaran(jar.get("ls_enroll"));
-    expect(daftar[0].selesai_modul).toEqual([]);
+    // Bukti bahwa penolakan benar-benar menghentikan penulisan: service tidak
+    // dipanggil sama sekali, bukan hanya balasan `ok: false`.
+    expect(mocks.tandaiModulDb).not.toHaveBeenCalled();
+    expect(bacaSelesai("crs-3")).toEqual([]);
   });
 
   it("menolak modul dengan checkpoint proyek", async () => {
@@ -245,6 +325,7 @@ describe("enrollment actions", () => {
     const res = await tandaiModulAction("crs-3", modulProyek!.id);
     expect(res.ok).toBe(false);
     expect(res.error).toContain("kuis/proyek");
+    expect(mocks.tandaiModulDb).not.toHaveBeenCalled();
   });
 
   it("tetap mengizinkan penandaan modul checkpoint materi", async () => {
@@ -265,8 +346,7 @@ describe("enrollment actions", () => {
     const res = await tandaiModulAction("crs-3", modulMateri!.id);
     expect(res.ok).toBe(true);
 
-    const daftar = decodePendaftaran(jar.get("ls_enroll"));
-    expect(daftar[0].selesai_modul).toEqual([modulMateri!.id]);
+    expect(bacaSelesai("crs-3")).toEqual([modulMateri!.id]);
   });
 
   it("tetap mengizinkan penandaan modul turunan tanpa checkpoint tersimpan", async () => {
@@ -278,7 +358,7 @@ describe("enrollment actions", () => {
     await daftarKursusAction("crs-1");
     const res = await tandaiModulAction("crs-1", "crs-1-m1");
     expect(res.ok).toBe(true);
-    expect(decodePendaftaran(jar.get("ls_enroll"))[0].selesai_modul).toEqual(["crs-1-m1"]);
+    expect(bacaSelesai("crs-1")).toEqual(["crs-1-m1"]);
   });
 
   /**
@@ -308,9 +388,9 @@ describe("enrollment actions", () => {
       expect(res.error).toBe(PESAN_POLICY.wajib);
 
       // Bukti bahwa penolakan terjadi sebelum penulisan: progres tetap kosong,
-      // dan tidak ada revalidasi cache yang dijalankan.
-      const daftar = decodePendaftaran(jar.get("ls_enroll"));
-      expect(daftar[0].selesai_modul).toEqual([]);
+      // tidak ada delegasi ke service, dan tidak ada revalidasi cache.
+      expect(mocks.tandaiModulDb).not.toHaveBeenCalled();
+      expect(bacaSelesai(KURSUS_WAJIB)).toEqual([]);
       expect(cacheModule.revalidatePath).not.toHaveBeenCalled();
     });
 
@@ -326,7 +406,8 @@ describe("enrollment actions", () => {
 
       expect(res.ok).toBe(false);
       expect(res.error).toBe(PESAN_POLICY.wajib);
-      expect(decodePendaftaran(jar.get("ls_enroll"))[0].selesai_modul).toEqual([]);
+      expect(mocks.tandaiModulDb).not.toHaveBeenCalled();
+      expect(bacaSelesai(KURSUS_WAJIB)).toEqual([]);
       expect(cacheModule.revalidatePath).not.toHaveBeenCalled();
     });
 
@@ -338,7 +419,7 @@ describe("enrollment actions", () => {
       const res = await tandaiModulAction(KURSUS_OPSIONAL, modul.id);
 
       expect(res.ok).toBe(true);
-      expect(decodePendaftaran(jar.get("ls_enroll"))[0].selesai_modul).toEqual([modul.id]);
+      expect(bacaSelesai(KURSUS_OPSIONAL)).toEqual([modul.id]);
     });
 
     it("tetap mengizinkan penandaan modul kuis dan proyek di kursus opsional", async () => {
@@ -361,7 +442,7 @@ describe("enrollment actions", () => {
       expect(resKuis.ok).toBe(false);
       expect(resKuis.error).toContain("kuis/proyek");
       expect(resMateri.ok).toBe(true);
-      expect(decodePendaftaran(jar.get("ls_enroll"))[0].selesai_modul).toEqual([modulMateri.id]);
+      expect(bacaSelesai(KURSUS_OPSIONAL)).toEqual([modulMateri.id]);
     });
 
     it("tetap mengizinkan pembatalan modul materi di kursus wajib", async () => {
@@ -375,135 +456,77 @@ describe("enrollment actions", () => {
       await setelKebijakan(KURSUS_WAJIB, "opsional");
       const tandai = await tandaiModulAction(KURSUS_WAJIB, modul.id);
       expect(tandai.ok).toBe(true);
-      expect(decodePendaftaran(jar.get("ls_enroll"))[0].selesai_modul).toEqual([modul.id]);
+      expect(bacaSelesai(KURSUS_WAJIB)).toEqual([modul.id]);
 
       await setelKebijakan(KURSUS_WAJIB, "wajib");
       const res = await tandaiModulAction(KURSUS_WAJIB, modul.id);
 
       expect(res.ok).toBe(true);
-      expect(decodePendaftaran(jar.get("ls_enroll"))[0].selesai_modul).toEqual([]);
+      expect(bacaSelesai(KURSUS_WAJIB)).toEqual([]);
     });
   });
 
-  it("owner written normalized after daftarKursusAction", async () => {
-    vi.spyOn(sessionModule, "getSession").mockResolvedValue(
-      sesiUntuk("  RAKA@Careevo.Test  "),
-    );
+  it("enrollment unik per user: dua akun boleh punya baris untuk course_id yang sama", async () => {
+    // Pengganti test cookie "owner ternormalisasi"/"dua akun": kepemilikan
+    // sekarang `users.id` (uuid), dan keunikannya `(user_id, course_id)`.
+    const untukA = sesiUntuk("a@careevo.test");
+    const untukB = sesiUntuk("b@careevo.test");
+    expect(untukA.userId).not.toBe(untukB.userId);
 
-    await daftarKursusAction("crs-1");
+    vi.spyOn(sessionModule, "getSession").mockResolvedValue(untukA);
+    expect((await daftarKursusAction("crs-1")).ok).toBe(true);
 
-    expect(bacaPendaftaran()[0]?.owner).toBe("raka@careevo.test");
+    vi.spyOn(sessionModule, "getSession").mockResolvedValue(untukB);
+    expect((await daftarKursusAction("crs-1")).ok).toBe(true);
+
+    expect(enrollmentTersimpan.has(kunci(untukA.userId, "crs-1"))).toBe(true);
+    expect(enrollmentTersimpan.has(kunci(untukB.userId, "crs-1"))).toBe(true);
   });
 
-  it("owner remains normalized after tandaiModulAction", async () => {
-    await daftarKursus(
-      "crs-1",
-      "fullstack-web-development-nextjs-15-react-19",
-      "raka@careevo.test",
-    );
-    vi.spyOn(sessionModule, "getSession").mockResolvedValue(
-      sesiUntuk(" RAKA@Careevo.Test "),
-    );
-
-    await tandaiModulAction("crs-1", "crs-1-m1");
-
-    expect(bacaPendaftaran()[0]?.owner).toBe("raka@careevo.test");
+  it("tidak punya batas 50 pendaftaran seperti cookie", async () => {
+    // Batas 50 adalah batas ukuran cookie `ls_enroll`. Dengan `enrollments`
+    // unik per (user, course) tidak ada batas keras, jadi pendaftaran ke-51
+    // harus tetap berhasil.
+    for (let index = 0; index < 50; index += 1) {
+      seedSelesai(`lain-${index}`, [], sesi);
+    }
+    const hasil = await daftarKursusAction("crs-1");
+    expect(hasil.ok).toBe(true);
+    expect(hasil.message).toContain("berhasil");
   });
 
-  it("listPendaftaran filters another account", async () => {
-    const recordA = buatPendaftaran(OWNER_A);
-    const recordB = buatPendaftaran(OWNER_B, "crs-2");
-    seedPendaftaran(recordA, recordB);
-
-    expect(await listPendaftaran(OWNER_A)).toEqual([recordA]);
-  });
-
-  it("two accounts can hold separate records for the same course_id", async () => {
-    await daftarKursus(
-      "crs-1",
-      "fullstack-web-development-nextjs-15-react-19",
-      OWNER_A,
-    );
-    await daftarKursus(
-      "crs-1",
-      "fullstack-web-development-nextjs-15-react-19",
-      OWNER_B,
-    );
-
-    expect(bacaPendaftaran().map((item) => item.owner)).toEqual([OWNER_A, OWNER_B]);
-  });
-
-  it("cariPendaftaran cannot retrieve another account's record", async () => {
-    seedPendaftaran(buatPendaftaran(OWNER_A));
-
-    expect(await cariPendaftaran("crs-1", OWNER_B)).toBeUndefined();
-  });
-
-  it("ownerless legacy record is ignored by owner-scoped reads", async () => {
-    seedPendaftaran(buatPendaftaran(undefined));
-
-    expect(await listPendaftaran(OWNER_A)).toEqual([]);
-    expect(await cariPendaftaran("crs-1", OWNER_A)).toBeUndefined();
-  });
-
-  it("tandaiModulAction changes only the active owner's record", async () => {
-    // Isolasi owner, bukan gerbang kebijakan: `crs-1` memakai default `wajib`,
-    // dan pada kursus `wajib` jalur informal memang ditolak. Disetel `opsional`
-    // dulu supaya yang diuji benar-benar penulisan lintas-owner (pola yang sama
-    // dipakai "tetap mengizinkan penandaan modul turunan tanpa checkpoint").
+  it("tandaiModulAction hanya menulis enrollment milik pemanggil", async () => {
+    // Isolasi kepemilikan, bukan gerbang kebijakan: `crs-1` memakai default
+    // `wajib`, dan pada kursus `wajib` jalur informal memang ditolak. Disetel
+    // `opsional` dulu supaya yang diuji benar-benar penulisan lintas-owner.
     await setelKebijakan("crs-1", "opsional");
-    const recordB = buatPendaftaran(OWNER_B, "crs-1", ["crs-1-m2"]);
-    const recordA = buatPendaftaran(OWNER_A);
-    seedPendaftaran(recordB, recordA);
-    vi.spyOn(sessionModule, "getSession").mockResolvedValue(sesiUntuk(OWNER_A));
+    const pemilikLain = sesiUntuk("b@careevo.test");
+    const enrollmentLain = enrollmentUji("crs-1", pemilikLain.userId);
+    const enrollmentSendiri = enrollmentUji("crs-1", sesi.userId);
+
+    // Service dipanggil action dengan principal **pemanggil**: itulah yang
+    // membuat enrollment milik orang lain tidak mungkin tersentuh, sebab
+    // service memuat barisnya lewat `(principal.userId, courseId)`.
+    mocks.progresKursusDb.mockResolvedValue({
+      enrollment: enrollmentSendiri,
+      selesai: [],
+    });
+    mocks.tandaiModulDb.mockResolvedValue({
+      ok: true,
+      aksi: "ditandai",
+      enrollment: enrollmentSendiri,
+    });
 
     await tandaiModulAction("crs-1", "crs-1-m1");
 
-    expect(bacaPendaftaran()).toEqual([
-      recordB,
-      { ...recordA, selesai_modul: ["crs-1-m1"] },
-    ]);
-  });
-
-  it("pendaftaranPenuh counts the full signed-cookie array", async () => {
-    const otherOwners = Array.from({ length: 50 }, (_, index) =>
-      buatPendaftaran(OWNER_B, `other-${index}`),
+    expect(mocks.progresKursusDb).toHaveBeenCalledWith(sesi, "crs-1");
+    expect(mocks.tandaiModulDb).toHaveBeenCalledWith(
+      expect.objectContaining({ principal: sesi, courseId: "crs-1" }),
     );
-    seedPendaftaran(...otherOwners, buatPendaftaran(OWNER_A, "active-course"));
-    vi.spyOn(sessionModule, "getSession").mockResolvedValue(sesiUntuk(OWNER_A));
-
-    const result = await daftarKursusAction("crs-1");
-
-    expect(result.ok).toBe(false);
-    expect(result.error).toContain("50");
-  });
-
-  // Cermin ke toko performa: `tandaiModul` akan menulis ke cookie dan ke
-  // `.data/` sekaligus, jadi test ini juga menguji bahwa tidak ada test yang
-  // sampai menyentuh `.data/` repo.
-  it("mencerminkan penyelesaian ke toko performa dengan sumber informal", async () => {
-    setelKebijakan(KURSUS_OPSIONAL, "opsional");
-    const modul = await modulMateriBaru(KURSUS_OPSIONAL);
-    await daftarKursus(KURSUS_OPSIONAL, KURSUS_OPSIONAL, sesi.email);
-    await tandaiModulAction(KURSUS_OPSIONAL, modul.id);
-
-    const { bacaPerforma } = await import("@/lib/performa/store");
-    const record = await bacaPerforma(sesi.email);
-    const selesai = record?.kursus.find((k) => k.course_id === KURSUS_OPSIONAL)?.selesai ?? [];
-    expect(selesai).toHaveLength(1);
-    expect(selesai[0].sumber).toBe("informal");
-  });
-
-  it("melepas cermin ketika peserta membatalkan penandaan", async () => {
-    setelKebijakan(KURSUS_OPSIONAL, "opsional");
-    const modul = await modulMateriBaru(KURSUS_OPSIONAL);
-    await daftarKursus(KURSUS_OPSIONAL, KURSUS_OPSIONAL, sesi.email);
-    await tandaiModulAction(KURSUS_OPSIONAL, modul.id);
-    await tandaiModulAction(KURSUS_OPSIONAL, modul.id);
-
-    const { bacaPerforma } = await import("@/lib/performa/store");
-    const record = await bacaPerforma(sesi.email);
-    const selesai = record?.kursus.find((k) => k.course_id === KURSUS_OPSIONAL)?.selesai ?? [];
-    expect(selesai).toHaveLength(0);
+    // `enrollmentId` orang lain tidak pernah ikut di argumen mana pun: action
+    // tidak membawa id enrollment, ownership sepenuhnya milik service.
+    expect(JSON.stringify(mocks.tandaiModulDb.mock.calls)).not.toContain(
+      enrollmentLain.userId,
+    );
   });
 });
