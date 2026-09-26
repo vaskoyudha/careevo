@@ -5,13 +5,15 @@ import { getSession } from "@/lib/auth/session";
 import { AppShell } from "@/components/ui/app-shell";
 import { PageHead } from "@/components/ui/page-head";
 import { PeringatanPembelajaran } from "@/components/features/performa/performa-belajar";
-import { LABEL_SUMBER } from "@/lib/performa/store";
+import { LABEL_JALUR } from "@/lib/performa/jalur-selesai";
 import {
   listAttemptSemua,
   listEnrollmentStaf,
   listProgresSemua,
 } from "@/lib/learning/repository";
 import { detailPembelajaranDariDb } from "@/lib/learning/dashboard";
+import { petaKameraMulaiPemilik } from "@/lib/learning/run-service";
+import { BATAS_SINYAL } from "@/lib/learning/sumber-sinyal";
 
 export const metadata: Metadata = {
   title: "Detail Belajar",
@@ -42,7 +44,21 @@ export default async function PerformaDetailPage({
     (baris) => baris.user.email.trim().toLowerCase() === owner.trim().toLowerCase(),
   );
 
-  const record = detailPembelajaranDariDb({ enrollments, progress, attempts });
+  // Peta kamera dihitung lewat aksesor sempit, bukan di halaman ini: halaman
+  // laporan belajar dijaga agar tidak pernah membaca baris run maupun apa pun
+  // yang tercatat pada baris itu (lihat `security.test.ts`).
+  // `EnrollmentStaf` sudah membawa `user.userId`, jadi pemilik diambil langsung
+  // dari enrollment yang tadi sudah difilter email — tidak perlu mencocokkan
+  // email dengan run.
+  const petaKamera =
+    enrollments.length > 0 ? await petaKameraMulaiPemilik(enrollments[0].user.userId) : new Map<string, boolean>();
+
+  const record = detailPembelajaranDariDb({
+    enrollments,
+    progress,
+    attempts,
+    kameraMulai: petaKamera,
+  });
   if (!record) notFound();
 
   return (
@@ -67,6 +83,12 @@ export default async function PerformaDetailPage({
 
       <div className="space-y-4">
         <PeringatanPembelajaran />
+        {/* Label jalur di bawah berasal dari `kamera_mulai`, jadi batas
+            asal sinyalnya wajib ikut tampil di halaman yang sama — spec
+            P3/§"Batas yang harus tertulis di UI". Teksnya bukan kalimat
+            baru: `BATAS_SINYAL` sudah mengunci satu batas per asal, dan
+            `sumber-sinyal.test.ts` menjaganya. */}
+        <p className="mt-2 text-xs text-muted-foreground">{BATAS_SINYAL.kamera}</p>
 
         <section className="card" aria-labelledby="performa-kursus">
           <h2 className="card-title" id="performa-kursus">
@@ -83,7 +105,7 @@ export default async function PerformaDetailPage({
                     <li className="list-app-row" key={s.modul_id}>
                       <span className="row-title">{s.modul_id}</span>
                       <span className="text-xs text-muted-foreground">
-                        selesai {LABEL_SUMBER[s.sumber]} · {s.at}
+                        selesai {LABEL_JALUR[s.jalur]} · {s.at}
                       </span>
                     </li>
                   ))}
