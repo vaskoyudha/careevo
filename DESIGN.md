@@ -70,6 +70,12 @@ Both use `.chrome`, `.is-top`, and `.is-scrolled` from `src/app/globals.css`, in
 - Hero media: `DitheredHeroBackdrop` may be used behind readable content; only a subtle bottom boundary fade is allowed to meet the next section. Do not add a full-surface scrim or image opacity overlay. The backdrop must stop for reduced-motion users and while offscreen.
 - Forms: visible labels or accessible names, 44px minimum touch targets, and visible focus rings.
 - Icons: Lucide/Phosphor-style line icons; no emoji as interface iconography.
+- Catalog course card: the single recipe lives in `src/components/ui/catalog-course-card.tsx` (`CatalogCourseCard` + `courseMetaFor`) and is consumed by `/belajar`, `/jelajah`, and `/dashboard` recommendations. Change it there, never per-page.
+  - Shell: `rounded-xl border border-gray-200 bg-white shadow-xs hover:shadow-md` — one elevation declaration only, no nested cards.
+  - The white body is a **rounded sheet that overlaps the thumbnail**, not a square block under it: `relative z-10 -mt-8 rounded-t-2xl bg-white`. The 16px top radius only reads as rounded because the thumbnail shows through those two corners — dropping the negative margin, the `bg-white`, or the `z-10` (the thumbnail link is `relative`, so it would otherwise paint over the body) silently flattens the top back to square.
+  - Anatomy (source: `/belajar`): 16:9 thumbnail with a top-left credential pill; provider row with a `#0056D2` initial fallback when the logo is missing; bold title; rating row; meta line (level · hours); footer with a `bg-blue-50 text-[#0056D2]` pill and a Gratis / Careevo Plus state.
+  - Provider logos and ratings come only from `courseMetaFor`; do not invent artwork, discounts, ratings, or thumbnails.
+  - Radii stay in the 12–16px floor; body text keeps AA contrast; no gradient text, kickers, or nested-card decoration.
 
 ## Motion
 
@@ -95,3 +101,4 @@ Both use `.chrome`, `.is-top`, and `.is-scrolled` from `src/app/globals.css`, in
 ## Last updated
 
 - 2026-09-25 — documented the centered `/belajar` hero, dithered learning-media direction, and learner-shell rules.
+- 2026-09-26 — recorded the shared catalog-course-card recipe; `/jelajah` and `/dashboard` now adopt the `/belajar` card + container language via `CatalogCourseCard`.

@@ -1,6 +1,9 @@
+"use client";
+
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Award, CalendarDays } from "lucide-react";
+import { Award, CalendarDays, Star } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import type { ProgramDetails } from "@/lib/courses/catalog-data";
 import { programHref } from "@/lib/courses/explore-queries";
@@ -9,70 +12,91 @@ import { kredensialProgram, levelProgram, mulaiProgram } from "./format";
 /**
  * Kartu program untuk baris "Jelajahi kursus langsung".
  *
- * Setiap baris di kartu ini berasal dari `ProgramDetails`: nama pengajar,
- * peran, tanggal mulai, dan jenis kredensial. Tidak ada field yang ditebak —
- * kalau `bannerGraphic` kosong, sampulnya jadi blok warna merek, bukan gambar
- * rekaan.
- *
- * Pill di tepi atas sengaja berisi **level**, bukan diskon. Referensi visualnya
- * memakai badge "Early bird - 20% off", tetapi diskon seperti itu adalah klaim
- * yang tidak ada di data — geometries-nya ditiru, isinya tidak.
+ * Anatomi kartu mengikuti kartu katalog belajar (`CatalogCourseCard`):
+ * sampul 16:9, pill kredensial di pojok kiri-atas, baris penyedia (logo +
+ * nama), judul yang membiru saat hover, lalu baris rating dan meta tanggal /
+ * kredensial di footer dengan pemisah hairline. Field yang tidak ada di
+ * `ProgramDetails` tidak pernah ditebak.
  */
 export function ProgramCard({ program }: { program: ProgramDetails }) {
+  const [logoErrored, setLogoErrored] = useState(false);
+
   return (
     <Link
       href={programHref(program)}
-      className="group relative flex h-full flex-col rounded-[14px] border border-[#cbe6ef] bg-white transition-shadow hover:shadow-md"
+      className="group flex h-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xs transition-shadow duration-200 hover:shadow-md"
     >
-      <div className="relative aspect-[16/10] w-full overflow-hidden rounded-t-[14px] bg-[#0a3d62]">
+      <div className="relative aspect-[16/9] w-full overflow-hidden bg-gray-100">
         {program.bannerGraphic ? (
           <Image
             src={program.bannerGraphic}
             alt=""
             fill
             sizes="(min-width: 1024px) 22rem, (min-width: 640px) 45vw, 92vw"
-            className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
-          // `bannerGraphic` hanya ada di satu dari enam program, dan
-          // `providerLogo` menolak dimuat (403) untuk dua lainnya — jadi
-          // keduanya tidak bisa diandalkan sebagai artwork. Nama penyedia
-          // selalu ada dan selalu tampil.
+          // `bannerGraphic` hanya ada di satu dari enam program, jadi
+          // providerLogo/banner tidak bisa diandalkan sebagai artwork. Nama
+          // penyedia selalu ada dan selalu tampil.
           <div className="absolute inset-0 flex items-center justify-center bg-linear-to-br from-[#e2eef4] via-[#ecf3f7] to-[#cbe6ef] p-5">
             <span className="line-clamp-2 text-center text-[13px] leading-snug font-semibold text-[#0a3d62]">
               {program.provider}
             </span>
           </div>
         )}
+        <span className="absolute top-2.5 left-2.5 rounded-md bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-gray-800 shadow-xs backdrop-blur-xs">
+          {kredensialProgram(program.type)}
+        </span>
       </div>
 
-      {/* Sengaja di luar wrapper yang `overflow-hidden`: pill menyilang tepi atas
-          sampul, jadi klan jendela di sampul akan memotong separuhnya. */}
-      <span className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-[980px] border border-[#e8a33d]/50 bg-[#e8a33d] px-2.5 py-0.5 text-[11px] font-semibold whitespace-nowrap text-[#3d2a00] shadow-sm">
-        {levelProgram(program.level)}
-      </span>
+      <div className="flex flex-1 flex-col p-4">
+        <div className="mb-2 flex items-center gap-2">
+          {program.providerLogo && !logoErrored ? (
+            <div className="relative size-5 shrink-0 overflow-hidden rounded-sm">
+              <Image
+                src={program.providerLogo}
+                alt={program.provider}
+                fill
+                sizes="20px"
+                className="object-contain"
+                onError={() => setLogoErrored(true)}
+              />
+            </div>
+          ) : (
+            <span
+              aria-hidden="true"
+              className="inline-flex size-5 shrink-0 items-center justify-center rounded-sm bg-[#0056D2] text-[10px] font-bold text-white uppercase"
+            >
+              {program.provider.charAt(0)}
+            </span>
+          )}
+          <span className="truncate text-xs font-medium text-gray-600">{program.provider}</span>
+        </div>
 
-      <div className="flex flex-1 flex-col p-3.5">
-        <h3 className="line-clamp-2 text-[15px] leading-snug font-semibold text-[#0a2a3a]">
+        <h3 className="mb-1.5 line-clamp-2 min-h-[2.6rem] text-sm font-bold text-gray-900 group-hover:text-[#0056D2]">
           {program.title}
         </h3>
-        <p className="mt-1.5 text-[13px] font-semibold text-[#0a2a3a]">
-          {program.instructor}
-        </p>
-        <p className="mt-0.5 line-clamp-1 text-[12px] text-[#48606e]">
-          {program.instructorRole}
-        </p>
 
-        <Separator className="my-2.5 border-dashed bg-[#cbe6ef]" />
+        <div className="mb-3 flex items-center gap-1.5 text-xs">
+          <div className="flex items-center text-[#eb8a04]">
+            <Star className="size-3.5 fill-[#eb8a04] text-[#eb8a04]" />
+            <span className="ml-1 font-bold text-gray-900">{program.rating}</span>
+          </div>
+          <span className="text-gray-400">·</span>
+          <span className="text-gray-500">({program.reviews})</span>
+        </div>
 
-        <ul className="mt-auto flex flex-col gap-1">
-          <li className="flex items-center gap-1.5 text-[12px] text-[#48606e]">
-            <CalendarDays className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} aria-hidden="true" />
+        <Separator className="mt-auto mb-3 border-gray-100" />
+
+        <ul className="flex flex-col gap-1.5">
+          <li className="flex items-center gap-1.5 text-xs text-gray-500">
+            <CalendarDays className="size-3.5 shrink-0" strokeWidth={1.5} aria-hidden="true" />
             {mulaiProgram(program.startDate)}
           </li>
-          <li className="flex items-center gap-1.5 text-[12px] text-[#48606e]">
-            <Award className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} aria-hidden="true" />
-            {kredensialProgram(program.type)}
+          <li className="flex items-center gap-1.5 text-xs text-gray-500">
+            <Award className="size-3.5 shrink-0" strokeWidth={1.5} aria-hidden="true" />
+            {kredensialProgram(program.type)} · {levelProgram(program.level)}
           </li>
         </ul>
       </div>
