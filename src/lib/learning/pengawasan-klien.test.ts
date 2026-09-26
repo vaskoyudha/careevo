@@ -50,6 +50,15 @@ describe("sinyalPintasan", () => {
     expect(sinyalPintasan({ ctrl: true, meta: false, alt: false, shift: false, key: "Control" })).toBeNull();
   });
 
+  it("mengabaikan ketikan biasa tanpa modifier", () => {
+    // Ini menjaga guard `if (!e.ctrl && !e.meta && !e.alt) return null;`.
+    // Tanpa guard itu, ketikan `v` polos jatuh ke cabang `pengenal = "alt"`
+    // dan TERCATAT sebagai `alt+v` — false positive untuk setiap huruf v/c/x
+    // yang diketik normal. Tanpa test ini, guardnya bisa dihapus dan suite
+    // tetap hijau.
+    expect(sinyalPintasan({ ctrl: false, meta: false, alt: false, shift: false, key: "v" })).toBeNull();
+  });
+
   it("mengabaikan kombinasi yang tidak masuk daftar", () => {
     expect(sinyalPintasan({ ctrl: true, meta: false, alt: false, shift: true, key: "r" })).toBeNull();
   });
