@@ -49,7 +49,11 @@ const BERKAS_DETAIL = path.join(ROOT, "src/components/features/learning/detail-k
 const BERKAS_SESI = path.join(ROOT, "src/components/features/learning/course-session.tsx");
 const BERKAS_CHAT_ACTION = path.join(ROOT, "src/actions/learning-chat.ts");
 const BERKAS_CHAT_UI = path.join(ROOT, "src/components/features/learning/study-chat.tsx");
-const BERKAS_SKOR = path.join(ROOT, "src/actions/performa.ts");
+const BERKAS_SKOR = path.join(ROOT, "src/actions/assessment.ts");
+const BERKAS_KUIS_VIEW = path.join(
+  ROOT,
+  "src/components/features/learning/kuis-view.tsx",
+);
 const BERKAS_LAPORAN_BELAJAR = path.join(
   ROOT,
   "src/components/features/performa/performa-belajar.tsx",
@@ -117,25 +121,80 @@ describe("gerbang aturan bantuan pada tutor", () => {
 });
 
 describe("pencatatan skor kuis", () => {
+  it("UI kuis memakai jalur penilaian server, bukan action skor lama", () => {
+    // Jalur lama menghitung nilai di peramban lalu mengirimnya sebagai catatan
+    // yang tidak pernah dibaca laporan. Yang dijaga di sini: UI tidak kembali ke
+    // jalur itu, dan penilaiannya lewat action asesmen terverifikasi.
+    const isi = readFileSync(BERKAS_KUIS_VIEW, "utf8");
+    expect(isi).toContain("mulaiKuisVerifiedAction");
+    expect(isi).toContain("kirimDanSelesaikanKuisAction");
+    expect(isi).not.toContain("simpanNilaiKuisAction");
+  });
+
+  it("UI kuis memeriksa hasil penyimpanan dan menampilkan kegagalannya", () => {
+    // Inti bug MVP: jalur lama fire-and-forget (`.catch(() => undefined)`), jadi
+    // kegagalan penyimpanan tidak pernah terlihat peserta. Empat penanda ini
+    // membuat regresi itu tidak bisa kembali diam-diam:
+    //   1. hasil action diperiksa (`if (!kirim.ok)`),
+    //   2. ada state gagal,
+    //   3. pesannya benar-benar disimpan untuk ditampilkan, dan
+    //   4. tidak ada lagi pola fire-and-forget.
+    const isi = readFileSync(BERKAS_KUIS_VIEW, "utf8");
+    expect(isi).toContain("if (!kirim.ok)");
+    expect(isi).toContain('fase: "gagal"');
+    expect(isi).toContain("if (terjawab < soal.length) return;");
+    expect(isi).toContain("Nilai belum tersimpan");
+    expect(isi).not.toContain(".catch(() => undefined)");
+    expect(isi).not.toMatch(/void\s+kirimDanSelesaikan/);
+  });
+
+  it("skor yang ditampilkan berasal dari balasan server", () => {
+    // Skor lokal hanya umpan balik sementara; yang tersimpan — dan yang dibaca
+    // laporan — adalah `score` dari server.
+    expect(readFileSync(BERKAS_KUIS_VIEW, "utf8")).toContain("server.score");
+  });
+
+  it("retry memakai ulang attempt, bukan membuka attempt baru", () => {
+    // Bila pengiriman gagal setelah server sempat menyimpan, retry harus
+    // mengirim ulang attempt yang sama (idempoten), bukan menumpuk attempt
+    // `in_progress` baru.
+    expect(readFileSync(BERKAS_KUIS_VIEW, "utf8")).toContain("attemptRef");
+  });
+
+  it("klaim Lulus hanya setelah server menyimpan; sebelum itu hasil sementara", () => {
+    // "Lulus!" adalah klaim kelulusan yang memicu progres terverifikasi. Di
+    // atas `nilaiLokal` (hitungan peramban yang belum tersimpan) ia akan
+    // melebihkan. Karena itu teksnya dipisah per fase: hanya `tersimpan` yang
+    // menghasilkan "Lulus!", dan keadaan lain memakai "Hasil latihan sementara".
+    const isi = readFileSync(BERKAS_KUIS_VIEW, "utf8");
+    expect(isi).toContain('const tersimpan = server.fase === "sukses"');
+    expect(isi).toContain("Hasil latihan sementara");
+    // Pesan pada banner tidak lagi memakai `nilaiLokal` untuk mengklaim lulus.
+    expect(isi).toMatch(/lulusTampil = server\.lulus/);
+  });
+
   it("aksi penyimpanan nilai tidak pernah menyebut kunci jawaban", () => {
     // Whole-file scan, comments included: the answer key must not travel on the
     // new path either.
     expect(readFileSync(BERKAS_SKOR, "utf8")).not.toContain("jawaban_benar");
   });
 
-  it("halaman kursus tetap meneruskan konteks pencatatan", () => {
-    // `catat` is optional so the admin previews compile without it — which is
+  it("halaman kursus tetap meneruskan konteks penilaian", () => {
+    // `konteks` is optional so the admin previews compile without it — which is
     // exactly why the learner path needs pinning. Dropping it here would make
-    // quiz scores stop being recorded with no error anywhere.
-    expect(readFileSync(BERKAS_DETAIL, "utf8")).toContain("catat={{ courseId: kursus.id, modulId: m.id }}");
+    // quiz answers stop being graded on the server with no error anywhere.
+    expect(readFileSync(BERKAS_DETAIL, "utf8")).toContain(
+      "konteks={{ courseId: kursus.id, modulId: m.id }}",
+    );
   });
 });
 
 describe("laporan performa tidak mengklaim lebih dari yang dilakukan", () => {
-  it("laporan belajar menyatakan skor kuis dilaporkan klien", () => {
+  it("laporan belajar menyatakan skor dinilai server tetapi bukan tahan-curang", () => {
     const isi = readFileSync(BERKAS_LAPORAN_BELAJAR, "utf8");
     expect(isi).toContain("PERINGATAN_PEMBELAJARAN");
-    expect(isi).toContain("dilaporkan klien");
+    expect(isi).toContain("dinilai di server");
+    expect(isi).toContain("tahan-curang");
   });
 
   it("laporan integritas menyatakan catatan bukan pelanggaran", () => {

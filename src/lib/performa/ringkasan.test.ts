@@ -28,7 +28,9 @@ function record(
           nilai: n,
           total_soal: 4,
           at: "2026-09-25T10:00:00.000Z",
-          sumber: "klien",
+          // Record historis menulis `sumber: "klien"`; tetap ada di kontrak
+          // supaya pembacaan lama tidak diam-diam berubah.
+          sumber: "klien" as const,
         })),
       },
     ],

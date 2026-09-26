@@ -93,7 +93,7 @@ export default async function PerformaDetailPage({
                         {q.kuis_id} — {q.nilai === null ? "belum dinilai" : `${q.nilai}/100`}
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        dilaporkan klien · {q.at}
+                        dinilai server · {q.at}
                       </span>
                     </li>
                   ))}

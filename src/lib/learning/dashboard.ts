@@ -152,17 +152,24 @@ export interface BarisSelesaiModul {
 /**
  * Satu percobaan kuis pada halaman detail.
  *
- * `sumber` sengaja tetap `"klien"`: sejak Fase 2 penilaian memang dihitung
- * server dari snapshot, tetapi label itu adalah **janji laporan lama** yang
- * tidak boleh dicabut diam-diam oleh adapter. Mengubahnya menjadi klaim
- * terverifikasi adalah keputusan produk.
+ * `skor` menerangkan **asal angka**, dan laporan ini hanya bisa memuat satu
+ * asal: `"server"`. Sejak penilaian pindah ke `quiz_attempts`, setiap baris di
+ * tabel itu lahir dari `mulaiAttemptVerified`/`kirimAttemptVerified`, dan
+ * skornya dihitung terhadap snapshot yang dibekukan saat attempt dibuka
+ * (ADR 0003) — tidak ada penulis database yang menerima skor dari klien. Nilai
+ * literal tunggal ini disengaja: bila kelak ada jalur yang menerima skor klien,
+ * tipe ini memaksa keputusan sadar alih-alih diam-diam melebarkan klaim.
+ *
+ * Ini **bukan** klaim tamper-proof: kunci jawaban masih ikut ke peramban, jadi
+ * peserta bisa menghitung sendiri sebelum mengirim. Yang diterangkan hanyalah
+ * bahwa angka yang tersimpan berasal dari penilaian server, bukan hitungan klien.
  */
 export interface BarisPercobaanKuis {
   kuis_id: string;
   attempt_id: string;
   nilai: number | null;
   at: string;
-  sumber: "klien";
+  skor: "server";
 }
 
 export interface BarisKursusPeserta {
@@ -229,7 +236,9 @@ export function detailPembelajaranDariDb(input: {
       attempt_id: attempt.id,
       nilai: typeof attempt.score === "number" && Number.isFinite(attempt.score) ? attempt.score : null,
       at: iso(attempt.submittedAt),
-      sumber: "klien",
+      // Setiap baris `quiz_attempts` dinilai server terhadap snapshot attempt;
+      // tidak ada penulis yang menerima skor dari klien (lihat ADR 0003).
+      skor: "server",
     });
   }
 

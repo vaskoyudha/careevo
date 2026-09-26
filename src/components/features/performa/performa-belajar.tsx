@@ -5,13 +5,16 @@ import { LABEL_SUMBER } from "@/lib/performa/store";
 /**
  * Peringatan laporan **pembelajaran**.
  *
- * Satu-satunya klaim yang wajib disebut di sini adalah bahwa skor kuis
- * dilaporkan klien. Peringatan integritas sengaja tidak ikut: laporan ini tidak
- * memuat data integritas sama sekali, dan menaruhnya di sini hanya mengajak
- * pembaca mengaitkan keduanya.
+ * Klaim yang wajib disebut di sini: skor kuis dinilai server (dari snapshot
+ * attempt) sehingga **kredibel**, tetapi **bukan tahan-curang** — kunci jawaban
+ * masih ikut ke peramban. Menyebutnya "terverifikasi" saja akan melebihkan
+ * klaimnya; menyebutnya "dilaporkan klien" (janji lama) kini justru salah.
+ * Peringatan integritas sengaja tidak ikut: laporan ini tidak memuat data
+ * integritas sama sekali, dan menaruhnya di sini hanya mengajak pembaca
+ * mengaitkan keduanya.
  */
 export const PERINGATAN_PEMBELAJARAN = [
-  "Skor kuis dilaporkan oleh klien dan belum dinilai server, sehingga belum dapat diperlakukan sebagai nilai terverifikasi.",
+  "Skor kuis dinilai di server terhadap snapshot attempt, tetapi bukan bukti tahan-curang: kunci jawaban tetap terkirim ke peramban.",
 ] as const;
 
 export function PeringatanPembelajaran() {
@@ -60,7 +63,7 @@ export function PembelajaranTabel({ baris }: { baris: BarisPembelajaran[] }) {
               </td>
               <td className="p-3">
                 {b.rataRataKuis === null ? "—" : `${b.rataRataKuis}/100`}
-                <p className="text-xs text-muted-foreground">dilaporkan klien</p>
+                <p className="text-xs text-muted-foreground">dinilai server</p>
               </td>
               {/* Bukan angka integritas — hanya pintu ke laporan terpisah, supaya
                   kedua laporan tidak pernah dibandingkan di satu layar. */}
