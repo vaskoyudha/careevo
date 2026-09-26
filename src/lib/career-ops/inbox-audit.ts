@@ -55,7 +55,9 @@ export function auditBaris(
       return { ...row, audit: takTeraudit(), enriched: false };
     }
 
-    const bahan = bahanAudit(listing);
+    // The pipeline row's company is the fallback: Jobstreet's single-job
+    // endpoint sometimes omits what its list endpoint recorded.
+    const bahan = bahanAudit(listing, row.company);
     return {
       ...row,
       audit: auditLoker({

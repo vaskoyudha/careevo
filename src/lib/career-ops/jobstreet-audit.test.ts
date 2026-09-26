@@ -61,8 +61,19 @@ describe("bahanAudit", () => {
     expect(out.description).toContain("Data Scientist");
   });
 
-  it("marks the employer as unknown when there is no employer object", () => {
-    expect(bahanAudit(listing({ employer: undefined })).employer_known).toBe(false);
+  it("treats a company name as verifiable even without an employer object", () => {
+    // Corrected after measuring the live feed: every normal listing carries both
+    // `companyName` and `employer`, while the genuinely anonymous ones carry
+    // neither. A company name on its own is still a name a candidate can look
+    // up, so this is not a signal. An earlier version of this test asserted the
+    // opposite and quarantined two legitimate YO AI Labs postings.
+    expect(bahanAudit(listing({ employer: undefined })).employer_known).toBe(true);
+  });
+
+  it("marks the employer as unknown when neither source names one", () => {
+    expect(
+      bahanAudit(listing({ companyName: "" as never, employer: undefined }), "").employer_known,
+    ).toBe(false);
   });
 
   it("marks the employer as unknown for a Private Advertiser", () => {
@@ -71,5 +82,37 @@ describe("bahanAudit", () => {
 
   it("marks the employer as known for a named company", () => {
     expect(bahanAudit(listing()).employer_known).toBe(true);
+  });
+
+  it("marks the employer as unknown when the API returns an empty employer id", () => {
+    // Measured: Jobstreet returns {"id":"","name":"Private Advertiser"} for
+    // anonymised listings, so a truthy object is not a verifiable employer.
+    expect(
+      bahanAudit(listing({ employer: { id: "", name: "Private Advertiser" } })).employer_known,
+    ).toBe(false);
+  });
+
+  it("trusts the pipeline row when the detail lookup omits the company", () => {
+    // The single-job endpoint omits companyName/employer for some listings that
+    // the list endpoint — the one the scan read — did name. Quarantining those
+    // would punish the posting for an API inconsistency rather than for anything
+    // the employer did.
+    const out = bahanAudit(
+      listing({ companyName: undefined as never, employer: undefined }),
+      "YO AI Labs",
+    );
+    expect(out.company).toBe("YO AI Labs");
+    expect(out.employer_known).toBe(true);
+  });
+
+  it("still reports an unverifiable employer when both sources say Private Advertiser", () => {
+    const out = bahanAudit(
+      listing({
+        companyName: "Private Advertiser",
+        employer: { id: "", name: "Private Advertiser" },
+      }),
+      "Private Advertiser",
+    );
+    expect(out.employer_known).toBe(false);
   });
 });
