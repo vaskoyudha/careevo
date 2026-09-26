@@ -50,7 +50,7 @@ Calm editorial technology: oceanic blue and aqua, generous whitespace, crisp ink
 - Marketing and catalog heroes may be centered when the composition calls for one; application and dashboard layouts default to left-aligned, operational composition.
 - Mobile uses one column with at least `16px` side padding.
 - Learner catalog pages use `LearnerShell`; dashboard-style pages use `AppShell`.
-- `/belajar/tutor` is the focus-workspace exception and owns its full-height shell.
+- `/belajar/mastery`, `/belajar/buku` and `/belajar/latihan` are the focus-workspace exception and own their full-height shell.
 
 ## Navigation contract
 

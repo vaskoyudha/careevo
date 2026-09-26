@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
-import { isValidSessionId } from "@/lib/tutor/ids";
+import { isValidSessionId } from "@/lib/ids";
 import { getMasteryTopic } from "@/lib/mastery/store";
 import {
   antreanJatuhTempo,

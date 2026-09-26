@@ -30,7 +30,6 @@ const routes = [
   "/belajar/fullstack-web-development-nextjs-15-react-19",
   "/belajar/r1",
   "/belajar/jalur",
-  "/belajar/tutor",
   "/belajar/mastery",
   "/belajar/buku",
   "/belajar/latihan",

@@ -8,14 +8,11 @@ import { listPendaftaran } from "@/lib/courses/enrollment";
 import { modulKursus } from "@/lib/courses/kurikulum";
 import { bangunJalurPersonalisasi } from "@/lib/learning/personalized-path";
 import { getProfile } from "@/lib/onboarding/store";
-import { isValidSessionId } from "@/lib/tutor/ids";
-import { newMessageId } from "@/lib/tutor/types";
-import { appendTutorMessage, createTutorSession } from "@/lib/tutor/session-store";
+import { isValidSessionId } from "@/lib/ids";
 import {
   archiveMasteryTopic,
   createMasteryTopic,
   deleteMasteryTopic,
-  getMasteryTopic,
   recordAttempt,
 } from "@/lib/mastery/store";
 import {
@@ -158,55 +155,4 @@ export async function hapusTopikAction(formData: FormData): Promise<void> {
   await deleteMasteryTopic(session.email, topicId);
   revalidatePath("/belajar/mastery");
   redirect("/belajar/mastery");
-}
-
-/**
- * Open a tutor conversation scoped to one knowledge point.
- *
- * The opening message is written on the learner's behalf — pressing the button
- * *is* the request — so the session arrives with context already in it rather
- * than as an empty box they have to describe. This mirrors DeepTutor's
- * hand-off (see `masteryOpeningMessage` upstream).
- */
-export async function mulaiSesiTopikAction(formData: FormData): Promise<void> {
-  const session = await getSession();
-  if (!session) redirect("/masuk");
-
-  const topicId = String(formData.get("topicId") ?? "");
-  if (!isValidSessionId(topicId)) return;
-
-  const bundle = await getMasteryTopic(session.email, topicId);
-  if (!bundle) redirect("/belajar/mastery");
-
-  const knowledgePointId = String(formData.get("knowledgePointId") ?? "").trim();
-  const point = bundle.points.find((item) => item.id === knowledgePointId) ?? bundle.points[0];
-  if (!point) redirect(`/belajar/mastery/${topicId}`);
-
-  const opening = formData.get("opening") === "review"
-    ? `Ulangi tes: apakah aku sudah menguasai "${point.name}"?`
-    : `Bantu aku belajar "${point.name}". Mulai dari bagian yang paling sering bikin ragu.`;
-
-  const tutorSession = await createMasterySession(session.email, bundle, point.name, opening);
-  redirect(`/belajar/tutor/${tutorSession.id}`);
-}
-
-async function createMasterySession(
-  owner: string,
-  bundle: NonNullable<Awaited<ReturnType<typeof getMasteryTopic>>>,
-  pointName: string,
-  opening: string,
-): Promise<{ id: string }> {
-  const created = await createTutorSession(owner, {
-    title: pointName,
-    ...(bundle.topic.courseId ? { courseId: bundle.topic.courseId } : {}),
-    ...(bundle.points[0] ? { moduleId: bundle.points[0].moduleId } : {}),
-  });
-  await appendTutorMessage(owner, created.id, {
-    id: newMessageId(),
-    role: "user",
-    content: opening,
-    createdAt: new Date().toISOString(),
-    ...(bundle.topic.courseId ? { courseId: bundle.topic.courseId } : {}),
-  });
-  return created;
 }

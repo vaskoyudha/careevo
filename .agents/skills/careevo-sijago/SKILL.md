@@ -3,13 +3,13 @@ name: careevo-sijago
 description: >-
   How to run, configure, verify, and brand AI Mastery — the vendored
   DeepTutor-derived Next.js app in features/sijago that Careevo frames at
-  /ai-mastery. Use when a chat turn says "No active LLM model is configured",
-  when adding or switching its model, when a screenshot of the real AI Mastery UI
-  (not /belajar/tutor) is wanted, when renaming the visible brand, or before
-  restarting any of its processes. Covers the :8001/:8011/:3782/:3790 topology,
-  the model-catalog API, why space-bunny cannot drive it, and the rename split
-  between the user-facing "AI Mastery" name and the internal "sijago" path and
-  "deeptutor" identifiers.
+  /ai-mastery — Careevo's only study chat. Use when a chat turn says "No active
+  LLM model is configured", when adding or switching its model, when a
+  screenshot of the real AI Mastery UI is wanted, when renaming the visible
+  brand, or before restarting any of its processes. Covers the
+  :8001/:8011/:3782/:3790 topology, the model-catalog API, why space-bunny
+  cannot drive it, and the rename split between the user-facing "AI Mastery"
+  name and the internal "sijago" path and "deeptutor" identifiers.
 license: MIT
 metadata:
   owner: careevo
@@ -27,13 +27,16 @@ typecheck, or edit it as if it were Careevo source.
 **The brand is AI Mastery; the path is still `features/sijago/`.** That split is
 deliberate (see the rename section below).
 
-The visible UI at `/ai-mastery` is **not** Careevo's `/belajar/tutor`. The tutor
-is a hand-rolled re-implementation in `src/components/features/tutor/`; AI
-Mastery is the real DeepTutor-derived UI (3-pane shell, AI-titled sessions,
-ask-hint with Tab-to-complete, Copy/Play-aloud/Regenerate/Delete, per-turn
-"Done · Ns" and token counts). If someone asks for a screenshot of "the AI
-tutor" or "the AI Mastery UI", they mean `http://localhost:3000/ai-mastery` (or
-`:3790/chat` unframed), not `/belajar/tutor`.
+`/ai-mastery` is the **only** study chat in Careevo. There used to be a
+hand-rolled re-implementation at `/belajar/tutor` (and a smaller inline chat card
+on `/belajar/jalur`); both were deleted in favour of this one, and their route,
+components, session store, actions and DeepTutor attribution rows went with
+them. AI Mastery is the real DeepTutor-derived UI (3-pane shell, AI-titled
+sessions, ask-hint with Tab-to-complete, Copy/Play-aloud/Regenerate/Delete,
+per-turn "Done · Ns" and token counts). If someone asks for a screenshot of "the
+AI tutor" or "the AI Mastery UI", they mean `http://localhost:3000/ai-mastery`
+(or `:3790/chat` unframed) — there is no second implementation to confuse it
+with. Do not rebuild one.
 
 ## Process topology — which port is which
 

@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { normalizeOwner } from "@/lib/auth/types";
-import { newSessionId, isValidSessionId } from "@/lib/tutor/ids";
+import { newSessionId, isValidSessionId } from "@/lib/ids";
 import {
   isBlock,
   isBookDepth,
@@ -24,8 +24,8 @@ import {
  * page is written but the spine that lists it is not.
  *
  * Same owner-derivation, path checks and `CAREERS_DATA_DIR` override as the
- * resume, tutor and mastery stores — see `src/lib/tutor/session-store.ts` for
- * why a file and not a cookie.
+ * resume and mastery stores: a book is unbounded and would blow the ~4KB cookie
+ * limit, so it is a file per owner rather than a signed cookie.
  */
 
 export const DATA_ROOT =

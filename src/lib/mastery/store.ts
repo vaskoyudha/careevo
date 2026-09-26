@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { normalizeOwner } from "@/lib/auth/types";
-import { newSessionId, isValidSessionId } from "@/lib/tutor/ids";
+import { newSessionId, isValidSessionId } from "@/lib/ids";
 import {
   isKnowledgePoint,
   isMasteryTopic,

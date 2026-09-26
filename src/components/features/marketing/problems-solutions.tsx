@@ -659,15 +659,15 @@ const SHOWCASE_ITEMS: PlatformShowcaseItem[] = [
     navLabel: "Rekam jejak kerja",
     headlineBold: "Rekruter cuma perlu satu tautan buat ngecek.",
     headlineMuted:
-      "Setiap tugas yang kamu kerjakan dicatat, termasuk revisi dan tesnya. Hasilnya ditandatangani digital dan bisa dibuka publik, jadi rekruter tidak perlu menebak apakah itu hasil kerjamu.",
+      "Setiap tugas yang kamu kerjakan dicatat, termasuk revisi dan tesnya. Hasilnya ditandatangani digital dan bisa dibuka publik, jadi rekruter nggak perlu nebak ini hasil kerjamu atau hasil AI.",
     renderVisual: () => <VerifierLedgerVisual />,
   },
   {
     id: "socrates-sparring",
-    navLabel: "Latihan interview",
-    headlineBold: "Ditelepon buat interview beneran, bukan dapat contekan.",
+    navLabel: "Uji nalar",
+    headlineBold: "Ditanya balik soal keputusan di kodemu sendiri.",
     headlineMuted:
-      "Socrates jadi mewawancarai kamu seperti senior engineer: nanya alasan kamu milih struktur kode, bukan cuma hasil akhirnya.",
+      "Socrates nyusun pertanyaan nalar dari diff dan rubrik kamu — kenapa pilih pendekatan itu, dan apa konsekuensinya. Jawabannya ada batas waktunya.",
     renderVisual: () => <SocratesSparringVisual />,
   },
   {
@@ -675,7 +675,7 @@ const SHOWCASE_ITEMS: PlatformShowcaseItem[] = [
     navLabel: "Cek loker palsu",
     headlineBold: "Loker yang minta transfer ke rekening pribadi, nggak muncul.",
     headlineMuted:
-      "Sebelum loker masuk halaman kamu, Sentinel ngecek apakah ada biaya pendaftaran, rekening pribadi, atau domain yang baru didirikan kemarin.",
+      "Sebelum loker masuk ke halamanmu, Sentinel ngecek apakah ada biaya pendaftaran, rekening pribadi, atau domain yang baru didirikan kemarin.",
     renderVisual: () => <SentinelWorkflowVisual />,
   },
   {
@@ -683,8 +683,56 @@ const SHOWCASE_ITEMS: PlatformShowcaseItem[] = [
     navLabel: "Celah skill",
     headlineBold: "Tahu skill mana yang masih kurang sebelum apply.",
     headlineMuted:
-      "Navigator bandingkan profil kamu dengan ratusan loker, lalu susun latihan yang perlu kamu kerjakan biar celahnya ketutup.",
+      "Navigator bandingkan profil kamu dengan loker yang lagi kamu incar, lalu susun latihan yang perlu kamu kerjakan biar celahnya ketutup.",
     renderVisual: () => <NavigatorRoadmapVisual />,
+  },
+];
+
+/* =========================================================================
+ * Problem framing
+ * Figures are quoted from named sources; none of them are invented.
+ * BPS (Indikator Kesejahteraan Rakyat 2025) · Stanford Digital Economy Lab
+ * (Canaries in the Coal Mine, 2026) · Kominfo (2024) · Robert Half (2026).
+ * ========================================================================= */
+interface MasalahSolusiItem {
+  id: string;
+  nomor: string;
+  judul: string;
+  masalah: string;
+  sumber: string;
+  solusi: string;
+}
+
+const MASALAH_SOLUSI: MasalahSolusiItem[] = [
+  {
+    id: "pengangguran-muda",
+    nomor: "01",
+    judul: "Lulus, tapi belum kepake.",
+    masalah:
+      "19,44% anak muda 15–24 tahun nggak kerja, nggak sekolah, nggak ikut pelatihan. BPS menyebutnya “potensi tenaga kerja yang hilang”.",
+    sumber: "BPS · Indikator Kesejahteraan Rakyat 2025",
+    solusi:
+      "Latihan diarahkan ke posisi yang benar-benar dibuka, bukan kursus yang berhenti di sertifikat.",
+  },
+  {
+    id: "level-masuk-kena-ai",
+    nomor: "02",
+    judul: "Level masuk yang paling kena AI.",
+    masalah:
+      "Perekrutan umur 22–25 di pekerjaan yang paling terpapar AI kini 19% di bawah trennya. Di Indonesia pasokan lulusan IT melimpah, tapi perusahaan tetap sukar dapat talenta yang bisa dibuktikan.",
+    sumber: "Stanford Digital Economy Lab · payroll AS 2026 · Kominfo 2024",
+    solusi:
+      "Materi dan latihan disusun dari celah skill di posisi yang kamu incar, dan lokernya sudah lewat audit Sentinel.",
+  },
+  {
+    id: "bukti-bisa-dibuat-ai",
+    nomor: "03",
+    judul: "Portofolio dan sertifikat bisa dibuat AI.",
+    masalah:
+      "65% perekrut bilang banjir lamaran hasil AI bikin skill kandidat makin sukar diverifikasi, dan 67% merasa proses rekrutmennya jadi lebih lambat.",
+    sumber: "Robert Half · 2.000+ manajer perekrutan, 2026",
+    solusi:
+      "Tiap tugas diuji, dicatat, dan ditandatangani digital. Kamu harus bisa mempertanggungjawabkan hasil kerjamu sendiri, dan rekruter bisa mengeceknya dari satu tautan.",
   },
 ];
 
@@ -724,27 +772,52 @@ export function MarketingProblemsSolutions() {
       <div className="mx-auto max-w-7xl border-x border-[#cbe6ef] bg-white">
         <div className="border-b border-[#cbe6ef] px-6 py-14 sm:px-10 lg:px-14 lg:py-18">
           <Reveal>
-            <p className="mb-6 font-mono text-[10px] uppercase tracking-[0.16em] text-[#48606e]">Platform / 04</p>
+            <p className="mb-6 font-mono text-[10px] uppercase tracking-[0.16em] text-[#48606e]">Masalah / Solusi</p>
           </Reveal>
 
           <Reveal delay={60}>
             <h2 className="max-w-4xl text-3xl font-medium leading-tight tracking-[-0.035em] text-[#0a2a3a] sm:text-4xl lg:text-[44px]">
-              <span className="font-semibold">Masalah yang sering ditemui. </span>
+              <span className="font-semibold">Lowongan makin sempit, pelamar makin susah dibedakan. </span>
               <br className="hidden sm:inline" />
-              <span className="font-normal text-[#8aa0ac]">Yang Careevo kerjain.</span>
+              <span className="font-normal text-[#8aa0ac]">Careevo bikin kemampuanmu bisa dibuktikan, bukan cuma diklaim.</span>
             </h2>
           </Reveal>
 
           <Reveal delay={120}>
             <p className="mt-4 max-w-3xl text-base leading-relaxed text-[#48606e] sm:text-lg">
-              Kandidat kebanjiran kode hasil AI, dan banyak lowongan kerja yang
-              ternyata penipuan. Careevo nyambungin proses belajarmu sampai
-              rekruter bisa lihat sendiri kemampuanmu.
+              AI bikin lamaran, sertifikat, dan portofolio bisa jadi dalam
+              hitungan menit — sementara perusahaan makin hati-hati merekrut.
+              Satu jalur menyambung latihan, kerja nyata, dan bukti yang bisa
+              dicek siapa pun.
             </p>
           </Reveal>
 
-          <Reveal delay={180}>
-            <div className="mt-8 flex max-w-3xl flex-col gap-3 border-l border-[#8fd6e3] py-1 pl-4 sm:flex-row sm:items-start sm:justify-between sm:gap-8">
+          <div className="mt-10 grid grid-cols-1 border-t border-[#cbe6ef] md:grid-cols-3">
+            {MASALAH_SOLUSI.map((item, index) => (
+              <Reveal
+                key={item.id}
+                delay={140 + index * 60}
+                className="flex flex-col border-b border-[#cbe6ef] py-6 last:border-b-0 md:border-b-0 md:border-l md:py-7 md:pl-6 md:pr-6 md:first:border-l-0 md:first:pl-0 md:last:pr-0"
+              >
+                <div className="flex items-center gap-2">
+                  <span aria-hidden="true" className="font-mono text-[10px] text-[#5d7a89]">{item.nomor}</span>
+                  <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#48606e]">Masalah</span>
+                </div>
+
+                <h3 className="mt-3 text-lg font-semibold tracking-[-0.02em] text-[#0a3d62]">{item.judul}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-[#48606e]">{item.masalah}</p>
+                <p className="mt-2 font-mono text-[10px] leading-relaxed text-[#5d7a89]">{item.sumber}</p>
+
+                <div className="mt-4 border-t border-dashed border-[#cbe6ef] pt-3">
+                  <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#124e78]">Yang Careevo kerjain</span>
+                  <p className="mt-1.5 text-sm font-medium leading-relaxed text-[#0a3d62]">{item.solusi}</p>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+
+          <Reveal delay={340}>
+            <div className="mt-10 flex max-w-3xl flex-col gap-3 border-l border-[#8fd6e3] py-1 pl-4 sm:flex-row sm:items-start sm:justify-between sm:gap-8">
               <p className="text-xs italic leading-relaxed text-[#48606e] sm:text-sm">
                 &ldquo;In a world where AI can generate anything, having basic critical thinking skills may be the most important thing to success. You don&rsquo;t want to fall for things that are fake, and you don&rsquo;t want to get scammed.&rdquo;
                 <span className="mt-1 block font-medium not-italic text-[#0a3d62]">— Dario Amodei, CEO Anthropic</span>

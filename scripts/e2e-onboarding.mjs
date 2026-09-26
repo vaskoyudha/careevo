@@ -140,21 +140,17 @@ await checkRoute({
 await checkRoute({ label: "edit mode stays", path: "/onboarding?edit=1", cookie: learnerCookie, status: 200 });
 await checkRoute({ label: "demo public", path: "/onboarding/demo", status: 200 });
 await checkRoute({
-  label: "public login has no study chat",
+  label: "public login has no learner path",
   path: "/masuk",
   status: 200,
-  forbidden: ["data-study-chat"],
+  forbidden: ["data-path-source"],
 });
 await checkRoute({
   label: "recommendation path",
   path: "/belajar/jalur",
   cookie: learnerCookie,
   status: 200,
-  required: [
-    'data-path-source="recommendation"',
-    'data-study-chat="ready"',
-    "Mulai kursus",
-  ],
+  required: ['data-path-source="recommendation"', "Mulai kursus"],
   forbidden: ['data-path-source="active-enrollment"'],
 });
 await checkRoute({
@@ -164,7 +160,6 @@ await checkRoute({
   status: 200,
   required: [
     'data-path-source="active-enrollment"',
-    'data-study-chat="ready"',
     'data-module-status="current"',
     "Lanjutkan belajar",
   ],
@@ -177,46 +172,6 @@ await checkRoute({
   status: 200,
   required: ['data-path-source="recommendation"', "Mulai kursus"],
   forbidden: ['data-path-source="active-enrollment"'],
-});
-
-console.log("\n— tutor workspace —");
-await checkRoute({
-  label: "tutor workspace opens",
-  path: "/belajar/tutor",
-  cookie: learnerCookie,
-  status: 200,
-  required: [
-    'data-tutor-rail="true"',
-    'data-tutor-composer="true"',
-    'data-tutor-activity="closed"',
-  ],
-});
-await checkRoute({
-  label: "tutor needs a session",
-  path: "/belajar/tutor",
-  cookie: undefined,
-  status: 307,
-  location: "/masuk",
-});
-// A well-formed id that no one owns must 404, not render an empty shell.
-await checkRoute({
-  label: "unknown tutor session is 404",
-  path: "/belajar/tutor/aaaaaaaaaaaa",
-  cookie: learnerCookie,
-  status: 404,
-});
-// Path-escaping ids must be refused before they reach the filesystem.
-await checkRoute({
-  label: "path-escaping tutor id is 404",
-  path: "/belajar/tutor/..%2F..%2Fetc%2Fpasswd",
-  cookie: learnerCookie,
-  status: 404,
-});
-await checkRoute({
-  label: "malformed tutor id is 404",
-  path: "/belajar/tutor/SHORT",
-  cookie: learnerCookie,
-  status: 404,
 });
 
 console.log("\n— mastery path —");

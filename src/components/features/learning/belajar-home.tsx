@@ -646,6 +646,13 @@ function HeroSection({
         aria-hidden
         className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#f7fbfc] via-[#f7fbfc]/55 to-transparent"
       />
+      {/* Localised soft halo so ink text stays crisp over the bright dithered
+          stipple. Not a full-surface scrim — the backdrop stays visible
+          around it and the edges. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-1/2 h-[24rem] w-[min(52rem,92vw)] -translate-x-1/2 -translate-y-1/2 rounded-[4rem] bg-white/55 blur-3xl sm:h-[26rem] sm:w-[min(58rem,88vw)]"
+      />
 
       <div className="relative mx-auto flex min-h-[36rem] w-full max-w-6xl flex-col items-center justify-center px-4 pb-20 pt-[calc(5rem+var(--learner-chrome-height,0px))] text-center sm:px-6 lg:min-h-[41rem] lg:px-8 lg:pb-24 lg:pt-[calc(6rem+var(--learner-chrome-height,0px))]">
         {nextTask ? (
@@ -668,7 +675,7 @@ function HeroSection({
         >
           Belajar tanpa batas
         </h1>
-        <p className="mt-6 max-w-3xl text-pretty text-base leading-relaxed text-[#405464] sm:text-lg lg:text-xl">
+        <p className="mt-6 max-w-3xl text-pretty text-base leading-relaxed text-[#1e293b] sm:text-lg lg:text-xl">
           Mulai, beralih, atau percepat kariermu dengan lebih dari 7.000 kursus,
           Sertifikat Profesional, dan gelar dari universitas dan perusahaan kelas
           dunia.

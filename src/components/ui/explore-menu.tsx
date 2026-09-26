@@ -16,11 +16,7 @@ import {
 
 export function ExploreMenu() {
   const [isOpen, setIsOpen] = useState(false);
-  const [panelRect, setPanelRect] = useState<{
-    top: number;
-    left: number;
-    width: number;
-  } | null>(null);
+  const [panelTop, setPanelTop] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -33,23 +29,18 @@ export function ExploreMenu() {
     }
   }, []);
 
-  // The panel is portalled to <body> and positioned against the viewport, so
-  // its box has to be measured from the trigger and the chrome — the chrome
-  // morphs between `.is-top` (full-width) and `.is-scrolled` (a centered
-  // floating pill), and the card must track both states.
+  // The panel is portalled to <body> and pinned to the viewport, so only its
+  // vertical anchor is measured: it hangs 8px below the trigger, which itself
+  // sits lower once the chrome morphs into its floating pill.
+  //
+  // The horizontal box is deliberately *not* measured. Reading it off
+  // `.chrome` made the card edge-to-edge whenever the bar was in the
+  // full-width `.is-top` state; it now takes the floating pill's own box in
+  // both states, from `.explore-mega-menu` in `globals.css`.
   const measurePanel = useCallback(() => {
     const btn = buttonRef.current;
     if (!btn) return;
-    const btnRect = btn.getBoundingClientRect();
-    const chrome = btn.closest(".chrome");
-    const chromeRect = chrome
-      ? chrome.getBoundingClientRect()
-      : { left: 0, width: window.innerWidth };
-    setPanelRect({
-      top: Math.round(btnRect.bottom + 8),
-      left: Math.round(chromeRect.left),
-      width: Math.round(chromeRect.width),
-    });
+    setPanelTop(Math.round(btn.getBoundingClientRect().bottom + 8));
   }, []);
 
   const open = useCallback(() => {
@@ -180,10 +171,13 @@ export function ExploreMenu() {
           `backdrop-filter` in its scrolled state, and per CSS an element with
           backdrop-filter becomes the containing block for `position: fixed`
           descendants. Without the portal this card would be anchored to the
-          navbar instead of the viewport. The box is measured from the trigger
-          and the chrome, so it tracks both the full-width `.is-top` bar and
-          the centered `.is-scrolled` pill. */}
-      {isOpen && panelRect && createPortal(
+          navbar instead of the viewport.
+
+          Only `top` is set inline: it tracks the trigger, which moves as the
+          bar morphs. The horizontal box belongs to the floating pill and lives
+          in `globals.css` (`.explore-mega-menu`), so the card no longer
+          stretches to the full width of the transparent `.is-top` bar. */}
+      {isOpen && panelTop !== null && createPortal(
         <div
           ref={panelRef}
           role="dialog"
@@ -191,10 +185,8 @@ export function ExploreMenu() {
           onMouseEnter={open}
           onMouseLeave={scheduleClose}
           style={{
-            top: panelRect.top,
-            left: panelRect.left,
-            width: panelRect.width,
-            maxHeight: `calc(100vh - ${panelRect.top}px - 16px)`,
+            top: panelTop,
+            maxHeight: `calc(100vh - ${panelTop}px - 16px)`,
           }}
           className="explore-mega-menu fixed z-[80] overflow-y-auto rounded-2xl border border-gray-200 bg-white shadow-[0_25px_60px_-15px_rgba(0,0,0,0.2),0_10px_20px_-5px_rgba(0,0,0,0.08)] [-ms-overflow-style:none] [scrollbar-width:thin]"
         >
