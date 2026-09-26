@@ -290,6 +290,8 @@ export async function tandaiModulDb(input: {
   modulId: string;
   sumber: JalurPenyelesaian;
   nama: string;
+  /** Id bukti (attempt/run) yang mengikat penyelesaian ini — hanya jalur server. */
+  evidenceId?: string | null;
 }): Promise<HasilTandaiModul> {
   const userId = idPrincipal(input.principal);
   const enrollment = await ambilEnrollment(userId, input.courseId);
@@ -329,7 +331,7 @@ export async function tandaiModulDb(input: {
     moduleId: input.modulId,
     completionPath: input.sumber,
     // Bukti dipasang oleh jalur assessment/run, tidak pernah dari klien.
-    evidenceId: null,
+    evidenceId: input.evidenceId ?? null,
   });
   return { ok: true, aksi: "ditandai", enrollment };
 }

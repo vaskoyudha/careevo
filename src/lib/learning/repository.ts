@@ -536,6 +536,54 @@ export async function kirimAttempt(input: {
   });
 }
 
+/* ------------------------------------------------------------------ *
+ * Pembacaan lintas-pemilik (dashboard staf)
+ * ------------------------------------------------------------------ */
+
+import { users } from "@/lib/db/schema";
+
+/** Baris enrollment beserta pemiliknya (nama/email) untuk dashboard staf. */
+export interface EnrollmentStaf {
+  enrollment: Enrollment;
+  user: { userId: string; nama: string; email: string };
+}
+
+/**
+ * Semua enrollment lintas user, bergabung dengan `users` untuk nama/email.
+ *
+ * Query terindeks (`enrollments_course_id_idx` + PK); tidak ada scan file.
+ */
+export async function listEnrollmentStaf(): Promise<EnrollmentStaf[]> {
+  const baris = await getDb()
+    .select({
+      enrollment: enrollments,
+      userId: users.id,
+      nama: users.displayName,
+      email: users.emailNormalized,
+    })
+    .from(enrollments)
+    .innerJoin(users, eq(enrollments.userId, users.id))
+    .orderBy(asc(users.displayName));
+
+  return baris.map((b) => ({
+    enrollment: b.enrollment,
+    user: { userId: b.userId, nama: b.nama, email: b.email },
+  }));
+}
+
+/** Semua baris `module_progress` lintas enrollment (dashboard staf). */
+export async function listProgresSemua(): Promise<ModuleProgressRow[]> {
+  return getDb().select().from(moduleProgress);
+}
+
+/** Semua attempt `submitted` lintas user (dashboard staf). */
+export async function listAttemptSemua(): Promise<QuizAttempt[]> {
+  return getDb()
+    .select()
+    .from(quizAttempts)
+    .where(eq(quizAttempts.status, "submitted"));
+}
+
 /** Re-export tipe baris untuk pemanggil. */
 export type {
   CourseCompletion,
