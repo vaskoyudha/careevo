@@ -185,6 +185,37 @@ Konsekuensinya harus dinyatakan di laporan: *jalur `terverifikasi` pada course
 `wajib_kamera` berarti kamera hidup; pada course `wajib` biasa ia berarti kamera
 mungkin tidak pernah menyala.*
 
+**Status implementasi (2026-09-27):** konsekuensi di atas sudah ditegakkan.
+`completion_path` tetap dua nilai; label jalur diturunkan di
+`src/lib/performa/jalur-selesai.ts` (`jalurDariBukti` + `LABEL_JALUR`).
+Gerbang `wajib_kamera` ditegakkan server di dua jalur: `selesaikanMateriAction`
+dan `selesaikanModulKuisVerified`, keduanya membaca `kamera_mulai` dari run —
+bukan dari klaim klien.
+
+**Pelusan spec ini.** Paragraf di atas menyebut label `terverifikasi` atau
+`terverifikasi_kamera` "dari run yang mendasarinya", dan itu belum cukup lengkap.
+`module_progress.evidence_id` punya dua writer: jalur materi menyimpannya sebagai
+`learning_runs.id`, jalur kuis sebagai `quiz_attempts.id` (`schema.ts:524-526`).
+Penyelesaian kuis karena itu **tidak punya run yang bisa ditelusuri**, dan label
+untuknya adalah `terverifikasi_tanpa_bukti_kamera` — "jalur terverifikasi, kamera
+tidak bisa ditelusuri ke run". Itu **bukan** nilai `completion_path` keempat:
+kolomnya tetap dua nilai, dan label turunan boleh lebih dari dua.
+
+Tiga hal yang **sengaja tidak** dikerjakan dan tidak boleh dianggap terlewat:
+
+1. `performa-belajar.tsx` (daftar peserta) tetap menampilkan
+   `LABEL_SUMBER.terverifikasi` yang generik. `BarisPembelajaran` hanya punya
+   **hitungan**, bukan daftar modul, jadi tidak ada run yang bisa dipetakan
+   tanpa mengubah bentuk datanya lebih dulu.
+2. `SumberPenyelesaian` di `src/lib/performa/store.ts` tidak mendapat nilai
+   baru. Tipe itu adalah bentuk data **yang tersimpan** (`.data/performa`), bukan
+   bentuk tampilan; menambah nilainya mengubah kontrak JSON yang sudah punya
+   pembaca.
+3. `evidence_id` tidak diubah, dan tidak ada kolom kedua untuk run kuis.
+   Menambahkannya berarti migrasi; label `terverifikasi_tanpa_bukti_kamera`
+   menyatakan batas bukti apa adanya, yang justru lebih jujur daripada menyimpan
+   run tebakan.
+
 ## Batas yang harus tertulis di UI
 
 Setiap permukaan yang menampilkan sinyal baru memuat baris ini:
