@@ -485,27 +485,18 @@ h6 {
    `src/components/ui/ai-mastery-navbar.tsx` for why the page forces it: the
    framed app owns its own scrolling, so `is-scrolled` would be unreachable. */
 
-/* Publishes the navbar's total vertical footprint to the frame below it: its
-   height plus the `margin-top` that lifts it off the viewport edge. 769px is
-   the breakpoint where `.chrome` stops wrapping — measured, not guessed, and
-   the same one `.learner-shell--overlay` uses. Below it the bar is two rows.
-   The mobile figure is 95 rather than a round 94 because the bar carries a 1px
-   border, which lands outside its 64/85px content box. */
+/* Publishes the navbar's vertical footprint to the frame below it. 769px is the
+   breakpoint where `.chrome` stops wrapping — measured, not guessed, and the
+   same one `.learner-shell--overlay` uses. Below it the bar is two rows. The
+   bar is flush with the top edge (as it is in vyns.ko), so this is just its
+   height: 64px including the 1px border on desktop, 85px on mobile. */
 .ai-mastery-shell {
-  --app-chrome-h: 95px;
-  /* `flow-root` is load-bearing, not tidiness. The bar is the shell's first
-     child and carries a `margin-top` to lift it off the viewport edge. With no
-     top border or padding on the shell, that margin collapses *through* the
-     parent: the shell keeps its 900px height but its box is pushed down 10px,
-     so the document scrolls 10px for no reason. A BFC root stops the collapse
-     and the margin stays inside the shell, where `--app-chrome-h` accounts
-     for it. */
-  display: flow-root;
+  --app-chrome-h: 85px;
 }
 
 @media (min-width: 769px) {
   .ai-mastery-shell {
-    --app-chrome-h: 74px;
+    --app-chrome-h: 64px;
   }
 }
 
@@ -515,11 +506,21 @@ h6 {
      has to leave room for them. Without the `- 2 * var(--wing)` term they would
      hang off the viewport at narrow widths and the page would scroll sideways. */
   --wing: 30px;
-  --wing-fill: #f1f6fa;
+  /* Measured off the framed app, not guessed: its `body` computes to
+     `rgb(248, 251, 253)`. The bar sits directly on top of that surface, so
+     any darker fill reads as a grey band against the chat behind it. Flat,
+     not a gradient — a gradient can only be darker at one end. Re-measure
+     with `getComputedStyle(document.body).backgroundColor` on `:3790` if the
+     framed app is restyled. */
+  --wing-fill: #f8fbfd;
   --wing-edge: rgba(10, 42, 58, 0.16);
-  top: 10px;
+  /* Flush to the top edge, like the vyns.ko original ("Attached Notch Bar
+     touching the top edge"). A `margin-top` here would leave a band of page
+     above the bar that reads as a mistake, and it would also be the shell's
+     first-child margin, which collapses through the parent. */
+  top: 0;
   width: min(var(--max), calc(100% - 2 * var(--page-pad) - 2 * var(--wing)));
-  margin: 10px auto 0;
+  margin: 0 auto;
   padding: 0 1.15rem;
   min-height: 4rem;
   border: 1px solid var(--wing-edge);
@@ -527,7 +528,7 @@ h6 {
   border-top: none;
   border-bottom-left-radius: 20px;
   border-bottom-right-radius: 20px;
-  background: linear-gradient(180deg, #ffffff, var(--wing-fill));
+  background: var(--wing-fill);
   box-shadow: 0 12px 28px -14px rgba(10, 42, 58, 0.4);
 }
 
