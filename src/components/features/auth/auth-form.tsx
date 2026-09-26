@@ -39,11 +39,7 @@ function Field({
           "auth-field group relative flex h-11 items-center rounded-[8px] border border-black/20 bg-white px-4 text-base leading-none transition-colors",
         )}
       >
-        <span
-          className={cn(
-            "auth-field-label pointer-events-none absolute text-black",
-          )}
-        >
+        <span className="auth-field-label pointer-events-none absolute">
           {label}
         </span>
         {children}
