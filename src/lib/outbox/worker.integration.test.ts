@@ -138,8 +138,8 @@ describe("worker — jalur sukses dan fan-out audit", () => {
 
 describe("worker — tipe tak dikenal dan payload rusak adalah terminal", () => {
   it("memindahkan tipe tanpa handler ke dead-letter, bukan sukses diam", async () => {
-    // `attestation.issued` belum punya tabel sumber di Fase 1A — fail-closed.
-    const event = await seedEvent({ type: "attestation.issued" });
+    // `file.scanned` belum punya handler — fail-closed.
+    const event = await seedEvent({ type: "file.scanned" });
 
     const stat = await jalankanSatuPutaran({ owner: OWNER });
 
@@ -299,7 +299,7 @@ describe("worker — lease, reclaim, dan fencing", () => {
 
   it("worker lama tidak dapat mencatat kegagalan setelah lease diambil alih worker lain", async () => {
     const event = await seedEvent({
-      type: "attestation.issued",
+      type: "file.scanned",
       leaseOwner: OWNER,
       leaseExpiresAt: new Date(Date.now() - 60_000),
       attempts: 1,

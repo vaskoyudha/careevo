@@ -141,7 +141,7 @@ describe("selesaikanKursusDb — double completion paralel", () => {
 describe("selesaikanKursusDb — path turunan server-side", () => {
   it("semua terverifikasi -> terverifikasi", async () => {
     const principal = await buatPrincipal("verified@contoh.test", "verified");
-    const { enrollment } = await daftar(principal);
+    await daftar(principal);
 
     const modulIds = [`${COURSE_ID}-m1`, `${COURSE_ID}-m2`, `${COURSE_ID}-m3`, `${COURSE_ID}-m4`, `${COURSE_ID}-m5`];
     for (const moduleId of modulIds) {
