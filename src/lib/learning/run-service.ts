@@ -39,6 +39,7 @@
 import type { LearningEvent, LearningRun } from "@/lib/db/schema";
 import type { SessionPrincipal } from "@/lib/auth/principal";
 import { JENIS_KEJADIAN_SAH, klasifikasiKejadian, type KJenisKejadian } from "./akses";
+import type { AsalSinyal } from "./sumber-sinyal";
 import {
   akhiriRun as akhiriRunRepo,
   ambilEnrollmentById,
@@ -174,12 +175,25 @@ function terbitkanBukti(courseId: string, userId: string, policyVersion: number)
  * sama dengan `KejadianIntegritas` di versi berkas; `detail` dipotong 300
  * karakter sebelum menyentuh database.
  */
+/** Empat asal yang sah; nilai lain apa pun turun ke `"server"`. */
+const ASAL_SAH: ReadonlySet<string> = new Set(["browser", "kamera", "luar", "server"]);
+
+function asalValid(nilai: string | undefined): AsalSinyal {
+  return nilai && ASAL_SAH.has(nilai) ? (nilai as AsalSinyal) : "server";
+}
+
 export async function catatKejadianDb(input: {
   principal: SessionPrincipal;
   runId: string;
   jenis: KJenisKejadian;
   visibilitas: "visible" | "hidden" | null;
   detail?: string;
+  /**
+   * Asal sinyal yang diklaim klien. **Tidak dipercaya penuh**: nilai di luar
+   * empat asal yang sah turun ke `"server"`, yang tidak menuduh dan selalu ada
+   * untuk setiap jenis kejadian.
+   */
+  asal?: string;
 }): Promise<LearningEvent | null> {
   if (!(JENIS_KEJADIAN_SAH as readonly string[]).includes(input.jenis)) return null;
 
@@ -193,6 +207,7 @@ export async function catatKejadianDb(input: {
     payloadRedacted: {
       jenis_klasifikasi: klasifikasiKejadian(input.jenis, input.visibilitas),
       visibilitas: input.visibilitas,
+      asal: asalValid(input.asal),
       ...(input.detail ? { detail: input.detail.slice(0, 300) } : {}),
     },
   });
