@@ -4,7 +4,7 @@ import { AppShell } from "@/components/ui/app-shell";
 import { PageHead } from "@/components/ui/page-head";
 import { InboxList } from "@/components/features/jobs/inbox-list";
 import {
-  bacaInboxDenganTanggal,
+  bacaInboxDiaudit,
   bacaRiwayatScan,
   bootstrapCareerOps,
 } from "@/lib/career-ops";
@@ -28,7 +28,10 @@ export default async function LokerInboxPage() {
     // fall through: the list renders empty and the button reports the failure
   }
 
-  const rows = bacaInboxDenganTanggal();
+  // Enrichment reaches the network once per uncached Jobstreet id, so it must be
+  // allowed to fail: a dead listing drops that row to "belum diperiksa" rather
+  // than taking the page down with it.
+  const rows = await bacaInboxDiaudit().catch(() => []);
   const adaRiwayat = bacaRiwayatScan().length > 0;
 
   return (

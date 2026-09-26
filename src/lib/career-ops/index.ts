@@ -36,9 +36,12 @@ export {
   bacaInbox,
   bacaInboxUnik,
   bacaInboxDenganTanggal,
+  bacaInboxDiaudit,
   bacaTanggalScan,
   type InboxJob,
 } from "./inbox";
+export { auditBaris, type BarisDiaudit } from "./inbox-audit";
+export type { BahanAudit, ListingJobstreet } from "./jobstreet-audit";
 export { bacaRiwayatScan, HEADER_SCAN_RUNS, type RiwayatScan } from "./scan-runs";
 export {
   renderLaporan,

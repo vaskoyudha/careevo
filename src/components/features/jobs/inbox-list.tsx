@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { jalankanScanAction, type HasilScanAction } from "@/actions/inbox";
 import type { InboxJob } from "@/lib/career-ops";
+import type { BarisDiaudit } from "@/lib/career-ops";
+import { labelSinyal } from "@/lib/agents/sentinel";
 
 /**
  * InboxList — lowongan yang ditemukan scanner, belum dilacak.
@@ -34,7 +36,47 @@ import type { InboxJob } from "@/lib/career-ops";
  * ada yang pernah dikirim otomatis.
  */
 
-type Baris = InboxJob & { firstSeen?: string };
+type Baris = InboxJob & { firstSeen?: string } & Partial<BarisDiaudit>;
+
+/**
+ * What the learner is told about a posting's trustworthiness.
+ *
+ * The load-bearing case is the third one. "Belum diperiksa" is NOT a warning
+ * about the posting — it is an admission that we did not look, and it must never
+ * be rendered as "Aman". A row we could not fetch is exactly the row nobody has
+ * checked, so showing a green tick there would be the copy lying about the
+ * product's own coverage.
+ */
+function verdictBadge(row: Baris): { label: string; cls: string; title: string } | null {
+  if (!row.audit) return null;
+  if (!row.enriched) {
+    return {
+      label: "Belum diperiksa",
+      cls: "verdict-unverified",
+      title: "Data lowongan ini belum bisa diambil dari papan aslinya, jadi belum diverifikasi.",
+    };
+  }
+  if (row.audit.status === "clean") {
+    return {
+      label: "Aman",
+      cls: "verdict-clean",
+      title: "Tidak ditemukan pola penipuan pada lowongan ini.",
+    };
+  }
+  if (row.audit.status === "quarantined") {
+    const flags = row.audit.flags.map(labelSinyal).join(" · ");
+    return {
+      label: "Perlu ditinjau",
+      cls: "verdict-quarantined",
+      title: flags ? `Sinyal: ${flags}` : "Ada sinyal yang perlu diperiksa lebih lanjut.",
+    };
+  }
+  return {
+    label: "Ditolak",
+    cls: "verdict-rejected",
+    title: `Sinyal: ${row.audit.flags.map(labelSinyal).join(" · ")}`,
+  };
+}
 
 /**
  * Versi `agoLabel` dari upstream, dengan label alih bahasa. Ambang 1/7/30 hari
@@ -180,8 +222,9 @@ export function InboxList({ awal, adaRiwayat }: { awal: Baris[]; adaRiwayat: boo
         <ul className="list-app" style={{ listStyle: "none", margin: 0, padding: 0 }}>
           {terlihat.map((r) => {
             const umur = agoLabel(umurHari(r.firstSeen, sekarang));
+            const verdict = verdictBadge(r);
             return (
-              <li className="list-app-row" key={r.url}>
+              <li className="list-app-row" key={r.url} data-inbox-row>
                 {/* No wrapper element: `.list-app-row` is the grid, and
                     `.row-meta`/`.row-aside` place themselves with
                     `grid-column`. A wrapper <div> here would become the only
@@ -194,6 +237,11 @@ export function InboxList({ awal, adaRiwayat }: { awal: Baris[]; adaRiwayat: boo
                   {umur ? ` · ${umur}` : ""}
                 </span>
                 <span className="row-aside">
+                  {verdict ? (
+                    <span className={`tag ${verdict.cls}`} title={verdict.title}>
+                      {verdict.label}
+                    </span>
+                  ) : null}
                   {r.compensation ? <span className="tag">{r.compensation}</span> : null}
                   <a
                     className="tag"
