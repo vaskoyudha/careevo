@@ -141,6 +141,16 @@ export const JENIS_KEJADIAN_SAH = [
   "kamera_gagal",
   "sesi_dimulai",
   "sesi_diakhiri",
+  // Lapisan 1 — browser (self-report, tanpa izin media).
+  "keluar_fullscreen",
+  "paste_massal",
+  "pintasan_terlarang",
+  "salin_terlarang",
+  // Lapisan 2 — kamera (diturunkan model, butuh persetujuan).
+  "wajah_tidak_terdeteksi",
+  "wajah_kedua",
+  // Lapisan 3 — sinyal dari lockdown browser di luar aplikasi.
+  "seb_aktif",
 ] as const;
 
 export type KJenisKejadian = (typeof JENIS_KEJADIAN_SAH)[number];
@@ -156,6 +166,9 @@ export type JenisKejadian = "kejadian" | "celah";
  */
 export function klasifikasiKejadian(jenis: KJenisKejadian, visibilitas: "visible" | "hidden" | null): JenisKejadian {
   if (jenis === "kamera_berhenti" || jenis === "kamera_gagal") return "celah";
+  // Wajah yang tidak terdeteksi berarti catatan kita tidak lengkap pada saat
+  // itu — itu definisi "celah", bukan bukti apa pun tentang peserta.
+  if (jenis === "wajah_tidak_terdeteksi") return "celah";
   if (jenis === "pindah_tab") return visibilitas === "hidden" ? "kejadian" : "celah";
   return "kejadian";
 }

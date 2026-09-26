@@ -119,6 +119,27 @@ describe("klasifikasiKejadian", () => {
   });
 });
 
+describe("klasifikasiKejadian untuk sinyal browser", () => {
+  it("mencatat paste dan pintasan sebagai kejadian, bukan celah", () => {
+    // Sinyal yang dipicu peserta sendiri masih "kejadian": ia teramati, hanya
+    // tidak selalu berarti curang. Celah dipakai saat pengawasan BERHENTI.
+    expect(klasifikasiKejadian("paste_massal", null)).toBe("kejadian");
+    expect(klasifikasiKejadian("pintasan_terlarang", null)).toBe("kejadian");
+    expect(klasifikasiKejadian("salin_terlarang", null)).toBe("kejadian");
+    expect(klasifikasiKejadian("keluar_fullscreen", null)).toBe("kejadian");
+  });
+
+  it("mencatat wajah yang hilang sebagai celah pengawasan", () => {
+    // Wajah hilang berarti catatan yang kita punya tidak lengkap pada saat itu —
+    // itu definisi "celah", bukan bukti perbuatan salah apa pun.
+    expect(klasifikasiKejadian("wajah_tidak_terdeteksi", "hidden")).toBe("celah");
+  });
+
+  it("mencatat wajah kedua sebagai kejadian", () => {
+    expect(klasifikasiKejadian("wajah_kedua", "visible")).toBe("kejadian");
+  });
+});
+
 describe("lewatBatas", () => {
   const MULAI = "2026-09-25T10:00:00.000Z";
   const menit = (n: number) => Date.parse(MULAI) + n * 60_000;
