@@ -16,11 +16,20 @@ export interface KonteksAkses {
   kebijakan: KebijakanCourse;
   /** True bila ada bukti sesi yang valid & cocok dengan kebijakan saat ini. */
   adaBuktiSesi: boolean;
+  /**
+   * True bila kamera menyala dalam sesi yang sedang berjalan.
+   *
+   * **Hanya relevan untuk `wajib_kamera`.** Field ini opsional supaya
+   * pemanggil lama (course `wajib`/`opsional`) tidak perlu menyentuhnya, dan
+   * `opsional` di bawah mengabaikannya sepenuhnya.
+   */
+  adaBuktiKamera?: boolean;
 }
 
 export type KeputusanAkses =
   | { tipe: "bebas" }
   | { tipe: "perlu_sesi"; pesan: string }
+  | { tipe: "perlu_kamera"; pesan: string }
   | { tipe: "ditolak"; pesan: string };
 
 const CHECKPOINT_DEFAULT: CheckpointMateri = { batas_waktu_menit: 30, mode: "materi" };
@@ -72,6 +81,16 @@ export function wajibSesiTerverifikasi(kebijakan: KebijakanCourse): boolean {
 }
 
 /**
+ * Apakah kebijakan course ini menuntut kamera menyala.
+ *
+ * Satu tempat, supaya baik mesin akses maupun UI memakai definisi yang sama.
+ * Hanya `wajib_kamera` yang true — lihat catatan P5 di spec 2026-09-27.
+ */
+export function butuhKamera(kebijakan: KebijakanCourse): boolean {
+  return kebijakan.aturan_pengawasan === "wajib_kamera";
+}
+
+/**
  * Jenis checkpoint yang penyelesaiannya diverifikasi server (bukan ditandai
  * manual oleh peserta). Hanya modul `materi`; `kuis`/`proyek` dinilai lewat
  * jalur penilaiannya sendiri, jadi penandaan manual tetap sah di sana.
@@ -99,7 +118,7 @@ export function lewatBatas(mulaiAt: string, batasMenit: number, now: number = Da
   return now - mulai > batasMenit * 60_000;
 }
 
-export function putuskanAkses({ jenisKegiatan, kebijakan, adaBuktiSesi }: KonteksAkses): KeputusanAkses {
+export function putuskanAkses({ jenisKegiatan, kebijakan, adaBuktiSesi, adaBuktiKamera }: KonteksAkses): KeputusanAkses {
   // Asesmen tanpa AI selalu menutup bantuan akademik, terlepas dari sesi.
   if (jenisKegiatan === "bantuan_akademik" && kebijakan.aturan_bantuan === "tanpa_ai") {
     return {
@@ -113,6 +132,12 @@ export function putuskanAkses({ jenisKegiatan, kebijakan, adaBuktiSesi }: Kontek
 
   if (!adaBuktiSesi) {
     return { tipe: "perlu_sesi", pesan: PESAN_POLICY.wajib };
+  }
+  // Kamera baru diminta **setelah** sesi: tanpa sesi, tidak ada run tempat
+  // kejadian kamera dicatat, jadi menagih kamera lebih dulu hanya menambah
+  // satu langkah yang pasti gagal.
+  if (butuhKamera(kebijakan) && !adaBuktiKamera) {
+    return { tipe: "perlu_kamera", pesan: PESAN_POLICY.wajib_kamera };
   }
   return { tipe: "bebas" };
 }

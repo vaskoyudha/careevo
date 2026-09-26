@@ -306,11 +306,16 @@ export type AturanBantuan = "bebas" | "bertutor" | "tanpa_ai";
  * Aturan pengawasan: apakah hasil hanya sah bila dikerjakan di sesi
  * terverifikasi.
  *
- * `wajib`/`opsional` (bukan daftar kontrol kamera) supaya kebijakan yang
- * tersimpan stabil saat detail teknis sesi berubah — detail kamera hidup di
- * mesin akses, bukan di data course.
+ * `wajib`/`opsional`/`wajib_kamera` (bukan daftar kontrol kamera) supaya
+ * kebijakan yang tersimpan stabil saat detail teknis sesi berubah — detail
+ * kamera hidup di mesin akses, bukan di data course.
+ *
+ * `wajib_kamera` nilai ketiga yang menambah satu syarat saja: kamera harus
+ * menyala. Ia **tidak** menambah nilai `completion_path` — jalur kamera
+ * diturunkan dari kejadian run, bukan disimpan (lihat spec
+ * 2026-09-27-lapisan-pengawasan-anti-curang-design.md).
  */
-export type AturanPengawasan = "wajib" | "opsional";
+export type AturanPengawasan = "wajib" | "opsional" | "wajib_kamera";
 
 export interface KebijakanCourse {
   aturan_bantuan: AturanBantuan;
