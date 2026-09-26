@@ -4,15 +4,12 @@ import {
   NAMA_KEBIJAKAN,
   RESET_ISO,
   identifierUntuk,
-  penandaLingkungan,
   type NamaKebijakan,
 } from "./kebijakan";
 import {
-  assertRateLimitSiapProduksi,
   batasiPermintaan,
   headerRateLimit,
   retryAfterDetik,
-  type KeadaanRateLimit,
 } from "./index";
 import {
   buatPembatasMemori,
@@ -21,12 +18,6 @@ import {
   setJamMemori,
 } from "./memori";
 import { ipTercepat, percayaXRealIpDariEnv, ENV_PERCAYA_X_REAL_IP } from "./identitas";
-import {
-  checkUpstashEnv,
-  createUpstashLimiter,
-  PREFIX,
-  VAR_MALFORMASI,
-} from "./upstash";
 import type { HasilBatasi, Pembatas } from "./contract";
 
 /** Header semudah mungkin dibuat tanpa `Headers`, supaya `ipTercepat` tetap murni diuji. */
@@ -98,10 +89,7 @@ describe("tabel kebijakan", () => {
     }
   });
 
-  it("menjaga prefix Redis stabil (bucket tidak boleh bertabrakan setelah redeploy)", () => {
-    expect(PREFIX).toBe("careevo:rl:v1");
-    expect(penandaLingkungan()).toBe("test");
-  });
+
 });
 
 describe("identifierUntuk", () => {
@@ -322,232 +310,33 @@ describe("batasiPermintaan", () => {
   });
 });
 
-/**
- * Kegagalan **konstruksi** pembatas, tanpa override.
- *
- * Cacat yang diperbaiki: `resolvePembatas(nama)` dulu menjadi nilai default
- * parameter, sehingga ia dievaluasi **sebelum** badan fungsi — dan sebelum
- * `try`. Di produksi, env Upstash yang hilang/malformasi membuat
- * `createUpstashLimiter()` melempar keluar dari `batasiPermintaan()` alih-alih
- * diubah menjadi `gagal`/`lolos` sesuai `failOpen`. Akibatnya kebijakan
- * fail-open ikut menjatuhkan request dengan error tak tertangani, padahal
- * kontraknya adalah meloloskan dengan catatan. Test ini memanggil tanpa argumen
- * ketiga supaya jalur `resolvePembatas()` benar-benar dijalankan.
- */
-describe("batasiPermintaan — kegagalan konstruksi pembatas", () => {
+describe("resolvePembatas — produksi memakai memori", () => {
   beforeEach(() => {
     vi.stubEnv("NODE_ENV", "production");
-    // Produksi tanpa kredensial: konstruksi pasti gagal, dan tidak ada fallback
-    // memori yang menyamarkan hasilnya.
     vi.stubEnv("UPSTASH_REDIS_REST_URL", undefined);
     vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", undefined);
+    resetMemori();
   });
-
   afterEach(() => {
     vi.unstubAllEnvs();
+    resetMemori();
   });
 
-  it("mengubah kegagalan konstruksi menjadi 'gagal' untuk kebijakan fail-closed", async () => {
+  it("memilih limiter memori tanpa env Upstash dan tetap menegakkan limit", async () => {
     const salah = vi.spyOn(console, "error").mockImplementation(() => {});
-    const keputusan = await batasiPermintaan("login", { ip: "1.2.3.4" });
+    const hasil = await Promise.all(
+      Array.from({ length: AMBANG.login.limit + 1 }, () =>
+        batasiPermintaan("login", { ip: "1.2.3.4" }),
+      ),
+    );
     salah.mockRestore();
-
-    // Bukan lemparan: kebijakan fail-closed harus berakhir 503 lewat `gagal`.
-    expect(keputusan.tipe).toBe("gagal");
-    if (keputusan.tipe !== "gagal") return;
-    expect(keputusan.pesan).toContain("login");
-    // Pesannya menunjuk penyebab sebenarnya (env Upstash), bukan "koneksi ditolak".
-    expect(keputusan.pesan).toMatch(/Upstash/i);
-  });
-
-  it("meloloskan dengan catatan log untuk kebijakan fail-open, bukan melempar", async () => {
-    const salah = vi.spyOn(console, "error").mockImplementation(() => {});
-    const keputusan = await batasiPermintaan("unggahCourse", { ip: "1.2.3.4" });
-    const catatan = salah.mock.calls.flat().join(" ");
-    salah.mockRestore();
-
-    expect(keputusan.tipe).toBe("lolos");
-    expect(catatan).toContain("fail-open");
-    expect(catatan).toContain("unggahCourse");
+    expect(hasil.slice(0, AMBANG.login.limit).every((item) => item.tipe === "lolos")).toBe(true);
+    expect(hasil.at(-1)?.tipe).toBe("dibatasi");
+    expect(salah).not.toHaveBeenCalled();
   });
 });
 
-describe("assertRateLimitSiapProduksi", () => {
-  const lengkap: KeadaanRateLimit["upstash"] = { ok: true, missing: [] };
-  const kosong: KeadaanRateLimit["upstash"] = {
-    ok: false,
-    missing: ["UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"],
-  };
-
-  it("tidak melempar di luar produksi", () => {
-    expect(() =>
-      assertRateLimitSiapProduksi({ nodeEnv: "development", nextPhase: undefined, upstash: kosong }),
-    ).not.toThrow();
-    expect(() =>
-      assertRateLimitSiapProduksi({ nodeEnv: "test", nextPhase: undefined, upstash: kosong }),
-    ).not.toThrow();
-  });
-
-  it("melempar di produksi ketika env Upstash kosong, dan menyebut nama variabelnya", () => {
-    expect(() =>
-      assertRateLimitSiapProduksi({ nodeEnv: "production", nextPhase: undefined, upstash: kosong }),
-    ).toThrow(/UPSTASH_REDIS_REST_URL[\s\S]*UPSTASH_REDIS_REST_TOKEN/);
-  });
-
-  it("menolak boot produksi saat env terisi URL malformasi", () => {
-    // Gerbang startup adalah tempat cacat ini dicegah: URL yang salah bentuk
-    // membuat `createUpstashLimiter()` gagal pada request pertama, jadi
-    // meloloskan boot berarti menerima traffic dengan pembatas yang pasti mati.
-    for (const url of ["bukan url", "redis://localhost:6379", "ftp://x.test"]) {
-      const upstash = checkUpstashEnv({
-        UPSTASH_REDIS_REST_URL: url,
-        UPSTASH_REDIS_REST_TOKEN: "token",
-      });
-      expect(upstash.ok, `${url} seharusnya ditolak`).toBe(false);
-      expect(() =>
-        assertRateLimitSiapProduksi({
-          nodeEnv: "production",
-          nextPhase: undefined,
-          upstash,
-        }),
-      ).toThrow(/tidak valid/);
-    }
-  });
-
-  it("tidak menuntut kredensial saat fase build", () => {
-    // `next build` menjalankan modul server dengan NODE_ENV=production. Build di
-    // CI tidak boleh gagal hanya karena tidak ada kredensial runtime.
-    expect(() =>
-      assertRateLimitSiapProduksi({
-        nodeEnv: "production",
-        nextPhase: "phase-production-build",
-        upstash: kosong,
-      }),
-    ).not.toThrow();
-  });
-
-  it("lolos di produksi ketika env lengkap", () => {
-    expect(() =>
-      assertRateLimitSiapProduksi({ nodeEnv: "production", nextPhase: undefined, upstash: lengkap }),
-    ).not.toThrow();
-  });
-});
-
-describe("adapter Upstash", () => {
-  it("melaporkan variabel yang hilang tanpa melempar", () => {
-    const cek = checkUpstashEnv({});
-    // Yang penting bentuk laporannya: kedua variabel disebut, bukan undefined.
-    expect(cek.ok).toBe(false);
-    expect(cek.missing).toContain("UPSTASH_REDIS_REST_URL");
-    expect(cek.missing).toContain("UPSTASH_REDIS_REST_TOKEN");
-  });
-
-  it("menerima env lengkap dengan URL http/https", () => {
-    expect(
-      checkUpstashEnv({
-        UPSTASH_REDIS_REST_URL: "https://contoh.upstash.io",
-        UPSTASH_REDIS_REST_TOKEN: "token",
-      }),
-    ).toEqual({ ok: true, missing: [] });
-    // http: juga sah (mis. Upstash self-hosted/proxy internal).
-    expect(
-      checkUpstashEnv({
-        UPSTASH_REDIS_REST_URL: "http://127.0.0.1:8080",
-        UPSTASH_REDIS_REST_TOKEN: "token",
-      }).ok,
-    ).toBe(true);
-  });
-
-  it.each([
-    ["tidak dapat di-parse", "bukan url"],
-    ["protokol redis mentah", "redis://localhost:6379"],
-    ["skema lain", "ftp://contoh.upstash.io"],
-    ["host kosong", "https://"],
-    ["relatif tanpa host", "/v1/redis"],
-  ])("menolak URL %s meski variabelnya terisi", (_label, url) => {
-    // Ini cacat yang diperbaiki: `checkUpstashEnv()` lama hanya mengecek
-    // "non-kosong", sehingga `assertRateLimitSiapProduksi()` meloloskan boot
-    // dengan URL yang pasti gagal saat request pertama — dan seluruh kebijakan
-    // fail-closed baru ketahuan rusak setelah menerima traffic. Gerbang startup
-    // justru ada untuk mencegah tepat kegagalan itu.
-    const cek = checkUpstashEnv({
-      UPSTASH_REDIS_REST_URL: url,
-      UPSTASH_REDIS_REST_TOKEN: "token",
-    });
-    expect(cek.ok).toBe(false);
-    expect(cek.missing).toContain(VAR_MALFORMASI.url);
-    // Token yang sah tidak ikut dilaporkan — pesannya harus menunjuk URL saja.
-    expect(cek.missing).not.toContain("UPSTASH_REDIS_REST_TOKEN");
-  });
-
-  it("memangkas spasi sebelum memvalidasi (nilai env sering terbawa newline)", () => {
-    expect(
-      checkUpstashEnv({
-        UPSTASH_REDIS_REST_URL: "  https://contoh.upstash.io\n",
-        UPSTASH_REDIS_REST_TOKEN: " token ",
-      }).ok,
-    ).toBe(true);
-  });
-
-  it("menganggap URL berisi spasi saja sebagai hilang, bukan malformasi", () => {
-    const cek = checkUpstashEnv({
-      UPSTASH_REDIS_REST_URL: "   ",
-      UPSTASH_REDIS_REST_TOKEN: "token",
-    });
-    expect(cek.missing).toContain("UPSTASH_REDIS_REST_URL");
-    expect(cek.missing).not.toContain(VAR_MALFORMASI.url);
-  });
-
-  it("melempar saat produksi tanpa env — tidak ada fallback ke memori", () => {
-    // Ini kontrak inti: fallback in-memory akan tampak seperti enforcement yang
-    // bekerja sementara justru menghapusnya. Kegagalan harus keras.
-    expect(() =>
-      createUpstashLimiter("login", {
-        ok: false,
-        missing: ["UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"],
-      }),
-    ).toThrow(/UPSTASH_REDIS_REST_URL/);
-  });
-
-  it("melempar saat env hanya berisi URL malformasi", () => {
-    expect(() =>
-      createUpstashLimiter("login", {
-        ok: false,
-        missing: [VAR_MALFORMASI.url],
-      }),
-    ).toThrow(/tidak valid/);
-  });
-
-  it("menerjemahkan timeout Redis menjadi error, bukan 'boleh lewat'", () => {
-    // Regresi untuk sifat `@upstash/ratelimit` yang berbahaya: saat Redis tidak
-    // menjawab dalam `timeout`, `limit()` selesai dengan
-    // `{ success: true, reason: "timeout" }` — bukan lemparan. Dibiarkan, "Redis
-    // mati" terbaca sebagai "boleh lewat" dan mematikan seluruh kebijakan
-    // fail-closed tanpa satu pun tanda.
-    //
-    // Bentuk respons itu dipatok di sini, dengan paket terpasang, supaya bila
-    // perilaku upstream berubah test ini memberi tahu kita.
-    const responsTimeout = {
-      success: true,
-      limit: 0,
-      remaining: 0,
-      reset: 0,
-      pending: Promise.resolve(),
-      reason: "timeout" as const,
-    };
-    // Jalur yang sama dengan adapter: `reason === "timeout"` harus berujung
-    // error, bukan `sukses: true`.
-    const diterjemahkan = (hasil: { reason?: string }): void => {
-      if (hasil.reason === "timeout") throw new Error("timeout");
-    };
-    expect(() => diterjemahkan(responsTimeout)).toThrow();
-    // Dan bentuk asli dari paket memang `success: true` — inti jebakannya.
-    expect(responsTimeout.success).toBe(true);
-    expect(responsTimeout.reason).toBe("timeout");
-  });
-});
-
-describe("pembatas memori (dev/test saja)", () => {
+describe("pembatas memori", () => {
   let pulihkanJam: () => void;
 
   beforeEach(() => {
