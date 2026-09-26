@@ -2,37 +2,16 @@
  * index.ts — permukaan Rate Limit untuk seluruh server, **server-only**.
  *
  * ## Kontrak server-only
- * Repo ini tidak memakai paket `server-only` (tidak ada di `package.json`), dan
- * konvensi yang berlaku adalah komentar modul eksplisit — sama seperti
- * `src/lib/learning/session.ts` dan `src/lib/performa/store.ts`. Modul ini
- * mengimpor `@upstash/redis`, jadi ia **tidak boleh** diimpor dari komponen
- * klien. Memasang paket `server-only` akan membuat Vitest gagal me-resolve
- * (environment `node` memakai kondisi "node", bukan "react-server"), jadi
- * penjagaan dilakukan dengan konvensi, sama seperti modul server-only lain di
- * repo ini.
+ * Repo ini tidak memakai paket `server-only`; modul server-only ditandai lewat
+ * komentar eksplisit, sama seperti `src/lib/learning/session.ts` dan
+ * `src/lib/performa/store.ts`. Jangan impor modul ini dari komponen klien.
  *
- * ## Satu jalur, tanpa fallback produksi
- * `resolvePembatas()` adalah **satu-satunya** tempat yang memilih implementasi:
- *   - `NODE_ENV === "production"` → Upstash Redis. Env yang hilang **melempar**.
- *     Tidak ada `try/catch` yang turun ke memori. Fallback semacam itu akan
- *     terlihat seperti proteksi yang bekerja sementara justru menghapusnya.
- *   - selain itu → pembatas memori, yang hanya hidup di dev/test dan tidak
- *     pernah dipilih di produksi.
- *
- * ## Dua mode kegagalan yang dibedakan dengan sengaja
- *   1. **Redis tidak dikonfigurasi** (`UPSTASH_REDIS_REST_*` kosong atau URL
- *      malformasi) → startup produksi gagal lewat `assertRateLimitSiapProduksi()`
- *      (dipanggil dari `instrumentation.ts`). Panggilan per-request tidak
- *      melempar keluar: `resolvePembatas()` dipanggil di dalam `try` di
- *      `batasiPermintaan()`, sehingga kegagalan konstruksi tunduk pada
- *      `failOpen` kebijakan yang sama seperti kegagalan koneksi — fail-open
- *      diloloskan dengan catatan log, fail-closed menjadi 503. Gerbang startup
- *      tetap menjadi pertahanan utamanya; per-request adalah jaring pengaman
- *      agar satu kebijakan yang salah tidak menjatuhkan seluruh permukaan.
- *   2. **Redis tidak dapat dihubungi saat request** → ditangani per kebijakan
- *      lewat `failOpen`. Kebijakan yang gagal-tertutup mengembalikan `gagal`
- *      (pemanggil membalas 503); yang gagal-terbuka meloloskan request dan
- *      mencatat alasan eksplisit. Tidak ada nilai default implisit.
+ * ## Satu proses VPS
+ * Rate limit selalu memakai bucket memori proses. Batas dan kebijakan tetap
+ * sama, tetapi bucket hanya dibagi antar-request dalam proses ini: deployment
+ * MVP harus menjalankan satu proses server. Restart menghapus semua bucket;
+ * mekanisme ini bukan proteksi distributed dan tidak cocok untuk multi-instance.
+ * Kegagalan pembatas tetap mengikuti kebijakan `failOpen` masing-masing.
  */
 
 import {
@@ -48,7 +27,6 @@ import type {
   Pembatas,
 } from "./contract";
 import { buatPembatasMemori } from "./memori";
-import { checkUpstashEnv, createUpstashLimiter, pesanEnvUpstash } from "./upstash";
 
 export type { HasilBatasi, KonteksPembatasan, Pembatas } from "./contract";
 export { AMBANG, NAMA_KEBIJAKAN, identifierUntuk } from "./kebijakan";
@@ -58,8 +36,8 @@ export { ENV_PERCAYA_X_REAL_IP, ipTercepat } from "./identitas";
 /**
  * Hasil satu pemeriksaan penjagaan.
  *
- * `gagal` hanya muncul untuk kebijakan gagal-tertutup saat Redis tidak dapat
- * dihubungi — pemanggil **wajib** membalas 503, bukan 429: penyebabnya bukan
+ * `gagal` hanya muncul untuk kebijakan gagal-tertutup saat pembatas tidak
+ * dapat digunakan — pemanggil **wajib** membalas 503, bukan 429: penyebabnya bukan
  * pemakaian berlebih, dan mencampurnya dengan 429 akan menyesatkan klien yang
  * menghormati `Retry-After`.
  */
@@ -80,63 +58,16 @@ export interface KegagalanBatasi {
   readonly pesan: string;
 }
 
-/** Keadaan environment yang relevan untuk gerbang startup. Dapat diisi test. */
-export interface KeadaanRateLimit {
-  readonly nodeEnv: string | undefined;
-  readonly nextPhase: string | undefined;
-  readonly upstash: ReturnType<typeof checkUpstashEnv>;
-}
-
-function keadaanSekarang(): KeadaanRateLimit {
-  return {
-    nodeEnv: process.env.NODE_ENV,
-    nextPhase: process.env.NEXT_PHASE,
-    upstash: checkUpstashEnv(),
-  };
-}
-
-/**
- * Penjaga startup produksi.
- *
- * Dipanggil dari `instrumentation.ts` `register()` — satu titik, sekali per
- * proses, sebelum server siap menerima request. Kegagalan rate-limit **saja**
- * yang membuat start gagal; ini bukan validasi secret (itu di luar lingkup
- * perubahan ini) dan sengaja tidak menyentuh `SESSION_SECRET`, attestation,
- * signup/demo/review authorization, atau security header.
- *
- * `NEXT_PHASE === "phase-production-build"` dikecualikan: `next build` memang
- * menjalankan modul server dengan `NODE_ENV=production`, dan build tidak boleh
- * menuntut kredensial runtime (build di CI tidak memilikinya). Env ini diisi
- * Next saat build; pada `next start` ia tidak ada, sehingga pemeriksaan tetap
- * berjalan sebelum server menerima request.
- *
- * @throws Error bila produksi (bukan build) dan env Upstash tidak diisi.
- */
-export function assertRateLimitSiapProduksi(
-  keadaan: KeadaanRateLimit = keadaanSekarang(),
-): void {
-  if (keadaan.nodeEnv !== "production") return;
-  if (keadaan.nextPhase === "phase-production-build") return;
-  if (!keadaan.upstash.ok) {
-    throw new Error(pesanEnvUpstash(keadaan.upstash.missing));
-  }
-}
-
-/** Cache per kebijakan: klien Redis HTTP boleh dipakai ulang antar request. */
+/** Cache pembatas per kebijakan untuk proses server ini. */
 const cache = new Map<NamaKebijakan, Pembatas>();
 
 /**
- * Ambil pembatas untuk sebuah kebijakan, membuatnya sekali bila belum ada.
- *
- * @throws Error bila `NODE_ENV=production` dan env Upstash tidak diisi.
+ * Ambil pembatas memori untuk sebuah kebijakan, membuatnya sekali bila perlu.
  */
 export function resolvePembatas(nama: NamaKebijakan): Pembatas {
   const tersimpan = cache.get(nama);
   if (tersimpan) return tersimpan;
-  const baru =
-    process.env.NODE_ENV === "production"
-      ? createUpstashLimiter(nama)
-      : buatPembatasMemori(nama);
+  const baru = buatPembatasMemori(nama);
   cache.set(nama, baru);
   return baru;
 }
@@ -148,11 +79,9 @@ export function resolvePembatas(nama: NamaKebijakan): Pembatas {
  * @param konteks IP tepercaya / principal / kunci kebijakan. Turunkan IP dengan
  *   `ipTercepat()` dari header request, bukan dengan membaca cookie atau body.
  * @param pembatas override untuk test. Bila tidak diisi, `resolvePembatas(nama)`
- *   dipanggil **di dalam** `try`: konstruksi pembatas produksi dapat melempar
- *   (env Upstash hilang/malformasi, `new Redis` gagal), dan kegagalan itu harus
- *   tunduk pada `failOpen` kebijakan yang sama — bukan melempar keluar dari
- *   fungsi ini. Kebijakan fail-open lalu meloloskan dengan catatan log, dan
- *   fail-closed membalas 503 lewat `gagal`.
+ *   dipanggil **di dalam** `try`, sehingga kegagalan memori tunduk pada
+ *   `failOpen` kebijakan yang sama. Kebijakan fail-open meloloskan dengan
+ *   catatan log, dan fail-closed membalas 503 lewat `gagal`.
  */
 export async function batasiPermintaan(
   nama: NamaKebijakan,
@@ -166,27 +95,25 @@ export async function batasiPermintaan(
     // Tidak ada satu pun identitas yang dapat dipakai (tidak ada header IP
     // tepercaya dan tidak ada principal). Rate limiting per pemanggil tidak
     // mungkin dijalankan, jadi memblokir hanya akan menjadi pemadaman total
-    // untuk deployment yang salah konfigurasi — mis. VPS yang dipakai langsung
-    // tanpa reverse proxy yang menyetel header. Karena itu request dilewatkan
-    // dengan catatan yang keras dan eksplisit; pada topologi yang ditetapkan
-    // (Vercel di depan) kasus ini tidak terjadi karena Vercel selalu menyetel
-    // `x-vercel-forwarded-for`.
+    // untuk deployment yang salah konfigurasi — misalnya tanpa reverse proxy
+    // yang menyetel header. Karena itu request dilewatkan dengan catatan keras
+    // dan eksplisit; pastikan VPS berada di belakang proxy yang menyetel header.
     const pesan =
       `[rate-limit] ${nama}: IP tepercaya tidak dapat ditentukan (tidak ada ` +
       `x-vercel-forwarded-for, dan x-real-ip hanya dibaca bila ` +
       `${ENV_PERCAYA_X_REAL_IP}=1). Kebijakan tidak dapat ditegakkan untuk ` +
       `request ini. Pastikan deployment berada di belakang proxy yang menyetel ` +
       `header tersebut.`;
-    // Tidak ada bucket sama sekali, jadi tidak ada Redis yang perlu dihubungi —
-    // identitas yang hilang selalu berarti "tidak dapat dibatasi", bukan "Redis
-    // mati", sehingga keputusan ini tidak boleh bergantung pada `failOpen`.
+    // Tidak ada bucket yang dapat diperiksa. Identitas yang hilang selalu
+    // berarti "tidak dapat dibatasi", sehingga keputusan ini tidak boleh
+    // bergantung pada `failOpen`.
     console.error(pesan);
     return { tipe: "lolos", hasil: [] };
   }
 
   try {
     // Konstruksi di dalam `try`: lihat docstring. Override test dihormati apa
-    // adanya, sehingga test tidak perlu menyentuh env Upstash.
+    // adanya.
     const dipakai = pembatas ?? resolvePembatas(nama);
     const hasil: HasilBatasi[] = [];
     for (const identifier of identifiers) {

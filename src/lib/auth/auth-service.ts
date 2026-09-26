@@ -29,7 +29,7 @@
  */
 
 import { getDb } from "@/lib/db/client";
-import { tulisOutbox } from "@/lib/outbox/writer";
+import { catatAudit } from "@/lib/auth/audit";
 import { hashPassword, hashUmpanWaktu, verifyPassword } from "./password";
 import { safeEqual, hashToken } from "./token";
 import { findDemoAccount } from "./demo-accounts";
@@ -179,12 +179,12 @@ export async function daftarPengguna(input: {
       });
       await simpanKredensial(tx, { userId: user.id, passwordHash });
       await grantRoleAwal(tx, { userId: user.id, role: ROLE_PENDAFTARAN_PUBLIK });
-      await tulisOutbox(tx, {
-        type: "auth.registered",
-        aggregateType: "user",
-        aggregateId: user.id,
-        payloadRedacted: { userId: user.id },
-        idempotencyKey: `auth.registered:${user.id}`,
+      await catatAudit(tx, {
+        actorUserId: user.id,
+        action: "user.registered",
+        entityType: "user",
+        entityId: user.id,
+        payloadRedacted: {},
       });
 
       return {

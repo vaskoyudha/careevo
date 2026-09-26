@@ -20,7 +20,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { eq, sql } from "drizzle-orm";
 
 import { getDb, tutupDb, type KoneksiDb } from "@/lib/db/client";
-import { attestations, badges, courseCompletions, reviews, submissions } from "@/lib/db/schema";
+import { auditEvents, attestations, badges, courseCompletions, outboxEvents, reviews, submissions } from "@/lib/db/schema";
 import { daftarPengguna } from "@/lib/auth/auth-service";
 import { beriRole } from "@/lib/auth/invitation";
 import { daftarEnrollment, rekamCompletion } from "@/lib/learning/repository";
@@ -148,6 +148,22 @@ describe("state machine submission — transisi ditegakkan di database", () => {
     expect(hasil.badge).not.toBeNull();
     expect(hasil.attestation).not.toBeNull();
     expect(hasil.attestation?.status).toBe("active");
+
+    const audit = await db.select().from(auditEvents);
+    expect(audit.map((event) => [event.action, event.entityType, event.actorUserId])).toEqual([
+      ["user.registered", "user", learner.userId],
+      ["user.registered", "user", staff.userId],
+      ["user_role.granted", "user_role", null],
+      ["submission.created", "submission", learner.userId],
+      ["submission.submitted", "submission", learner.userId],
+      ["submission.assigned", "submission", staff.userId],
+      ["review.decided", "review", staff.userId],
+      ["attestation.issued", "attestation", staff.userId],
+    ]);
+    expect(audit.filter((event) => event.entityType !== "user_role").every(
+      (event) => event.payloadRedacted && Object.keys(event.payloadRedacted).length === 0,
+    )).toBe(true);
+    expect(await db.select().from(outboxEvents)).toHaveLength(0);
   });
 
   it("transisi terlarang ditolak oleh service (bukan cuma table TRANSISI)", async () => {
@@ -356,6 +372,14 @@ describe("attestation — idempoten dan payload server-side", () => {
       reason: "Percobaan ulang.",
     });
     expect(kedua).toBeNull();
+    const audit = await db.select().from(auditEvents);
+    expect(audit.filter((event) => event.action === "attestation.revoked")).toHaveLength(1);
+    expect(audit.find((event) => event.action === "attestation.revoked")).toMatchObject({
+      actorUserId: staff.userId,
+      entityType: "attestation",
+      entityId: attestation.id,
+      payloadRedacted: {},
+    });
   });
 });
 

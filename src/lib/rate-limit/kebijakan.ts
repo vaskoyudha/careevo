@@ -37,7 +37,7 @@ export type NamaKebijakan = (typeof NAMA_KEBIJAKAN)[number];
  * Durasi window dalam bentuk yang diterima `Ratelimit.slidingWindow`.
  *
  * Ditulis sebagai literal union di sini (bukan `string`) supaya nilai yang salah
- * format gagal saat typecheck, bukan saat request pertama. `@upstash/ratelimit`
+ * format gagal saat typecheck, bukan saat request pertama. `buatPembatasMemori`
  * memakai bentuk yang sama; mendefinisikannya ulang menjaga `kebijakan.ts` tetap
  * bebas dependensi.
  */
