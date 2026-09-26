@@ -1722,3 +1722,73 @@ git commit -m "feat(loker): show course recommendations and a job-sourced master
 - The mastery path generation is LLM-only (the user chose "LLM extracts from description"); without a model the panel shows the typed `tanpa_kunci` error. No heuristic fallback invents points.
 - The job detail page serves the 9 audited fixture postings; the 17 inbox rows link out to Jobstreet and are not part of this feature (the user chose "detail page").
 - Browser verification is mandatory and must measure counts in the DOM, not eyeball them — the filter-chip hydration issue from the earlier session is unrelated and must not be blamed on this work if it still reproduces.
+
+---
+
+## Execution Record
+
+All 7 tasks implemented and committed on `vasco`:
+
+| Task | Commit | What landed |
+| --- | --- | --- |
+| 1 | `7a0edc7` | `src/lib/jobs/rekomendasi-kursus.ts` — deterministic shortlist |
+| 2 | `bf088fb` | `MasteryTopic.jobId` + store round-trip + "Buka lowongan" link |
+| 3 | `7551c7b` | `src/lib/llm/gagal.ts` — shared failure classification |
+| 4 | `89bc538` | `src/lib/agents/jalur-loker/` — LLM extracts the path |
+| 5 | `69bf16d` | `src/lib/agents/kursus-loker/` — LLM explains the shortlist |
+| 6 | `a508224` | `src/actions/loker-persiapan.ts` — two server actions |
+| 7 | `c70b30e` | Two client panels + wiring into `/loker/[id]` |
+| fix | `fcd2ab3` | Learner-facing error copy (found in the browser, see below) |
+
+Gates: `npm run check` exit 0 (91 files, 1205 tests), `npm run build` exit 0.
+
+### Design decisions made during execution, not in the plan
+
+1. **A course sharing no content with a posting scores 0.** The first RED test
+   caught it: a Godot course was passing the relevance floor on level + free
+   alone. Level and free are tiebreakers, never relevance.
+2. **"No usable reason" is success, not failure, for the reasons agent.** The
+   shortlist is already decided and correct, so zero reasons degrades to exactly
+   the same honest UI as "no model". The mastery-path schema is deliberately the
+   opposite: there the points ARE the artifact, so an empty one is a real failure.
+3. **Point ids come from the job id and the index, never from model output**, so
+   regenerating a path cannot move a point's attempt history.
+4. **A well-formed answer with no usable reason does not throw**, and unknown
+   course ids are dropped rather than trusted — the model decorates the picks,
+   it does not make them.
+
+### What the browser run changed
+
+Verified against the real production build (`next start -p 3211`, isolated
+`CAREERS_DATA_DIR`), a real chromium, and the real sign-in + onboarding path.
+
+Proven by measurement, not inspection:
+- Both cards render with their Indonesian subtitles; both buttons are present.
+- 3 courses recommended (cap respected), every one linking into `/belajar/…`,
+  each showing real meta (`Careevo Academy · 180 menit · Dasar`).
+- **No uncaught page errors.**
+- The failure path is honest under a real outage: with the model unreachable the
+  course list still renders (no reasons) and the mastery panel shows a typed
+  message — no fabricated path.
+
+The run also found a defect and it is fixed in `fcd2ab3`: the shared 9Router
+gateway answered `503` wrapping a nested `429 quota reached`, and
+`klasifikasiGagal` passed that body through as learner copy, so the page showed
+~200 characters of escaped JSON. `pesan` is now written per reason and never
+assembled from the provider's words; the provider text rides along as `detail`,
+which is carried but never rendered. The A–H panel had the same wart and
+inherits the fix.
+
+### Honest limits of this verification
+
+- **The LLM success path was not exercised live.** The gateway quota is
+  exhausted ("Resets in 150h56m15s"), so course reasons, the 3–12 point path,
+  the "Buka lowongan" back-link, and duplicate-click reuse are unverified
+  end-to-end. They are covered by unit tests against a stubbed gateway
+  (`jalur.test.ts` 16, `alasan.test.ts` 11), not by a live model. Re-run the
+  browser script once quota resets to close this.
+- The detail page serves the 9 audited fixture postings. The 17 inbox rows were
+  not touched, as scoped.
+- Verification ran against `next start`, not `next dev`, because a dev server
+  for this repo was already running on :3200 from another session and Next 16
+  refuses a second dev server in the same directory.
