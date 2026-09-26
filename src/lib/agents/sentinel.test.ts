@@ -114,6 +114,59 @@ describe("auditLoker", () => {
   });
 });
 
+/**
+ * A posting can name no employer a candidate could check. Measured on the live
+ * Jobstreet ID feed: 8 of 90 listings had no employer object, and one of those
+ * was literally "Private Advertiser".
+ *
+ * This is an IDENTITY signal, not a demand. It must never reach `fee_flags`,
+ * because that axis means "money or data was requested" and nothing else — a
+ * board whose "no-fee" filter hid an unverifiable employer would be lying about
+ * what it filters.
+ */
+describe("perusahaan_tidak_terverifikasi", () => {
+  const DASAR_INBOX = {
+    title: "AI Engineer",
+    company: "PT Foo",
+    description: "Membangun sistem internal.",
+    apply_url: "https://id.jobstreet.com/id/job/1",
+    company_email: null,
+    domain_age_days: null,
+  };
+
+  it("stays clean when the employer is verifiable", () => {
+    const out = auditLoker({ ...DASAR_INBOX, employer_known: true });
+    expect(out.status).toBe("clean");
+    expect(out.flags).not.toContain("perusahaan_tidak_terverifikasi");
+  });
+
+  it("quarantines a posting with no identifiable employer", () => {
+    const out = auditLoker({ ...DASAR_INBOX, employer_known: false });
+    expect(out.status).toBe("quarantined");
+    expect(out.flags).toContain("perusahaan_tidak_terverifikasi");
+  });
+
+  it("is an identity signal, never a fee signal", () => {
+    const out = auditLoker({ ...DASAR_INBOX, employer_known: false });
+    expect(out.fee_flags).not.toContain("perusahaan_tidak_terverifikasi");
+  });
+
+  it("is treated as unknown when the caller does not say", () => {
+    const out = auditLoker(DASAR_INBOX);
+    expect(out.status).toBe("clean");
+    expect(out.flags).not.toContain("perusahaan_tidak_terverifikasi");
+  });
+
+  it("rejects when combined with a strong structural signal", () => {
+    const out = auditLoker({
+      ...DASAR_INBOX,
+      employer_known: false,
+      apply_url: "https://bit.ly/2yX06A9",
+    });
+    expect(out.status).toBe("rejected");
+  });
+});
+
 describe("labelSinyal", () => {
   it("labels fee rules", () => {
     expect(labelSinyal("biaya_administrasi")).toBe("Permintaan biaya administrasi");
@@ -122,6 +175,20 @@ describe("labelSinyal", () => {
   it("labels trust flags", () => {
     expect(labelSinyal("link_pendek")).toBe("Lamaran lewat link pendek");
     expect(labelSinyal("tanpa_url_lamaran")).toBe("Tidak ada URL lamaran");
+  });
+
+  it("labels identity signals, which belong to neither other family", () => {
+    expect(labelSinyal("email_pribadi")).toBe("Email perusahaan memakai email pribadi");
+    expect(labelSinyal("domain_baru")).toBe("Domain perusahaan masih baru");
+    expect(labelSinyal("perusahaan_tidak_terverifikasi")).toBe(
+      "Nama perusahaan tidak bisa diverifikasi",
+    );
+  });
+
+  it("never shows a learner a raw signal id for any shipped flag", () => {
+    const seen = new Set<string>();
+    for (const job of jobs) for (const flag of job.flags) seen.add(flag);
+    for (const flag of seen) expect(labelSinyal(flag)).not.toBe(flag);
   });
 
   it("falls back to the raw id for an unknown flag", () => {

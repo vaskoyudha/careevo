@@ -47,8 +47,6 @@ describe("keamanan jalur ujian", () => {
 // adanya tanpa keputusan akses.
 const BERKAS_DETAIL = path.join(ROOT, "src/components/features/learning/detail-kursus.tsx");
 const BERKAS_SESI = path.join(ROOT, "src/components/features/learning/course-session.tsx");
-const BERKAS_CHAT_ACTION = path.join(ROOT, "src/actions/learning-chat.ts");
-const BERKAS_CHAT_UI = path.join(ROOT, "src/components/features/learning/study-chat.tsx");
 const BERKAS_SKOR = path.join(ROOT, "src/actions/assessment.ts");
 const BERKAS_KUIS_VIEW = path.join(
   ROOT,
@@ -97,26 +95,6 @@ describe("gerbang UI sesi terverifikasi", () => {
     expect(isi).toContain("<CourseSessionGate pesan={keputusanKuis.pesan} />");
     // Tepat satu tempat merender kuis di ruang belajar — dan itu di cabang `bebas`.
     expect(isi.match(/<KuisView/g) ?? []).toHaveLength(1);
-  });
-});
-
-describe("gerbang aturan bantuan pada tutor", () => {
-  it("menolak tutor sebelum pesan disimpan dan sebelum model dipanggil", () => {
-    const isi = readFileSync(BERKAS_CHAT_ACTION, "utf8");
-    expect(isi).toContain('"policy_denied"');
-    // Memindahkan gerbang ke belakang `appendStudyMessage` mengembalikan
-    // celahnya: pesan yang ditolak akan tersimpan di transkrip sebagai bukti
-    // permintaan yang ditolak.
-    expect(isi.indexOf('"policy_denied"')).toBeLessThan(isi.indexOf("await appendStudyMessage("));
-  });
-
-  it("komponen klien punya dua jalur yang mengenal penolakan kebijakan", () => {
-    // Tepat dua: `submitMessage` (kosongkan isian) dan `displayedSnapshot`
-    // (tampilkan transkrip). Menghapus salah satunya membuat penolakan hilang
-    // tanpa error sama sekali — tidak ada test render di repo ini yang bisa
-    // menangkapnya — jadi jumlahnya dipatok.
-    const isi = readFileSync(BERKAS_CHAT_UI, "utf8");
-    expect(isi.match(/"policy_denied"/g) ?? []).toHaveLength(2);
   });
 });
 

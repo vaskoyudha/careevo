@@ -32,7 +32,7 @@ export function MarketingLogos() {
       <Reveal className="mx-auto max-w-7xl px-6">
         <div className="mx-auto max-w-2xl text-center">
           <p className="mb-10 text-base text-gray-700">
-            Dipercaya peserta, verifikator, dan tim rekrutmen di seluruh Indonesia
+            Contoh nama mitra yang akan tampil di sini
           </p>
           <div className="inline-flex w-full flex-nowrap overflow-hidden [-webkit-mask-image:linear-gradient(to_right,transparent_0,black_128px,black_calc(100%-200px),transparent_100%)] [mask-image:linear-gradient(to_right,transparent_0,black_128px,black_calc(100%-200px),transparent_100%)]">
             <LogoRow />

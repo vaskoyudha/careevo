@@ -32,7 +32,7 @@ export async function DashboardRecommendations({
         </div>
         <Link
           href="/onboarding?edit=1"
-          className="row-title inline-flex items-center gap-1 text-sm font-medium"
+          className="row-title inline-flex shrink-0 items-center gap-1 text-sm font-medium whitespace-nowrap"
         >
           Ubah minat
           <ArrowRight className="size-3.5" />
@@ -84,7 +84,12 @@ export async function DashboardRecommendations({
                 </Link>
                 <span className="row-aside">
                   <span className="tag">{job.level}</span>
-                  {job.salary_range ? <span className="mono">{job.salary_range}</span> : null}
+                  {job.salary_range ? (
+                    /* Mono is legitimate here — it is a figure, not a label —
+                       but at body size it outshouted the level chip beside it.
+                       Same chip, so both read at one weight. */
+                    <span className="tag mono">{job.salary_range}</span>
+                  ) : null}
                 </span>
                 <span className="row-meta">
                   {job.company} · {job.location}

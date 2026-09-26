@@ -7,11 +7,9 @@ import { katalogBelajar } from "@/lib/courses/katalog";
 import type { Pendaftaran } from "@/lib/courses/enrollment";
 import { pastikanBackfill } from "@/lib/learning/backfill-lazy";
 import { listKursusTerdaftarDb, progresKursusDb } from "@/lib/learning/service";
-import { readStudyChatSnapshot } from "@/lib/learning/chat-store";
 import { bangunJalurPersonalisasi } from "@/lib/learning/personalized-path";
 import { LearnerShell } from "@/components/ui/learner-shell";
 import { JalurBelajarView } from "@/components/features/learning/jalur-belajar-view";
-import { StudyChat } from "@/components/features/learning/study-chat";
 
 export const metadata: Metadata = { title: "Jalur Belajar" };
 
@@ -54,28 +52,10 @@ export default async function JalurBelajarPage() {
   }
 
   const path = bangunJalurPersonalisasi({ profile, catalog, enrollments });
-  const snapshot = await readStudyChatSnapshot(session.email);
-  const currentModule = path.modules.find((module) => module.status === "current");
-
-  const chatContext = {
-    courseId: path.course?.id ?? null,
-    courseSlug: path.course?.slug,
-    courseTitle: path.course?.title,
-    moduleId: currentModule?.id,
-    moduleTitle: currentModule?.title,
-    completedModuleIds: path.modules
-      .filter((module) => module.status === "completed")
-      .map((module) => module.id),
-    pathSource: path.source,
-  };
 
   return (
     <LearnerShell session={session}>
-      <JalurBelajarView
-        path={path}
-        profile={profile}
-        chat={<StudyChat initialSnapshot={snapshot} context={chatContext} />}
-      />
+      <JalurBelajarView path={path} profile={profile} />
     </LearnerShell>
   );
 }
