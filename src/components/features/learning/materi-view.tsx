@@ -117,7 +117,7 @@ function MateriVideo({
         target="_blank"
         rel="noreferrer"
         className={cn(
-          "block rounded-xl border border-gray-200 bg-white p-4 text-sm font-medium text-[#0056D2] hover:underline",
+          "block rounded-xl border border-gray-200 bg-white p-4 text-sm font-medium text-[#0056D2]",
           className,
         )}
       >

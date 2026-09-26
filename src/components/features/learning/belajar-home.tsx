@@ -28,6 +28,7 @@ import {
 import { cn } from "@/lib/utils";
 import { closestPromoIndex } from "@/lib/learning/hero-promo";
 import { DitheredHeroBackdrop } from "./dithered-hero-backdrop";
+import { LandingBtnLink } from "@/components/ui/landing-btn";
 import type { ResourceFixture, TaskFixture } from "@/lib/fixtures";
 
 export interface KursusTerdaftar {
@@ -682,18 +683,16 @@ function HeroSection({
         </p>
 
         <div className="mt-8 flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
-          <Link
-            href="#katalog"
-            className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#0056D2] px-7 py-3.5 text-base font-semibold text-white shadow-[0_14px_28px_-16px_rgba(0,65,158,0.8)] transition-[background-color,transform] duration-200 hover:bg-[#00419e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0056D2] focus-visible:ring-offset-2 active:scale-[0.98]"
-          >
+          <LandingBtnLink href="/dashboard" className="w-full sm:w-auto">
             Mulai belajar
-          </Link>
-          <Link
+          </LandingBtnLink>
+          <LandingBtnLink
             href="/belajar/jalur"
-            className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#9fb5c4]/80 bg-white/72 px-7 py-3.5 text-base font-semibold text-[#243d50] backdrop-blur-md transition-[background-color,border-color,transform] duration-200 hover:border-white hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0056D2] focus-visible:ring-offset-2 active:scale-[0.98]"
+            variant="secondary"
+            className="w-full sm:w-auto"
           >
             Lihat jalur belajar
-          </Link>
+          </LandingBtnLink>
         </div>
 
         <form
@@ -1604,7 +1603,7 @@ export function BelajarHome({
                   Lanjutkan modul dan tantangan kursus yang sedang kamu tempuh.
                 </p>
               </div>
-              <Link href="/dashboard" className="text-sm font-semibold text-[#0056D2] hover:underline">
+              <Link href="/dashboard" className="text-sm font-semibold text-[#0056D2]">
                 Lihat semua di dashboard →
               </Link>
             </div>
@@ -1854,10 +1853,22 @@ export function BelajarHome({
       </section>
 
       <section aria-label="Bento Promosi Unggulan" className="bg-white py-12">
-        <div className="mx-auto grid w-full max-w-7xl gap-6 px-4 sm:px-6 md:grid-cols-2 lg:px-8">
-          <div className="flex flex-col justify-between rounded-2xl bg-[#00255d] p-7 text-white shadow-md sm:p-9">
-            <div>
-              <div className="relative mb-3 h-5 w-32">
+        <div className="mx-auto grid w-full max-w-7xl gap-5 px-4 sm:px-6 md:grid-cols-2 lg:px-8">
+          <div className="relative isolate flex min-h-[9.5rem] flex-col justify-center overflow-hidden rounded-xl bg-[#0b3fc4] p-4 text-white shadow-md sm:min-h-[10rem] sm:p-5">
+            <Image
+              src="/images/belajar/promo-plus-hero.webp"
+              alt=""
+              fill
+              unoptimized
+              sizes="(min-width: 768px) 628px, 100vw"
+              className="object-cover object-right"
+            />
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 bg-gradient-to-r from-black/40 via-black/12 to-transparent"
+            />
+            <div className="relative md:max-w-[60%]">
+              <div className="relative mb-1.5 h-3.5 w-24">
                 <Image
                   src="https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/NxPkwTU0sAEpcAUWZkfR1/f1abc250476ce6841a0faff27924487b/Coursera_Plus_White_Logo.png?auto=format%2Ccompress&dpr=1&w=161&h=16"
                   alt="Careevo Plus"
@@ -1866,36 +1877,39 @@ export function BelajarHome({
                   className="object-contain object-left"
                 />
               </div>
-              <h3 className="text-2xl font-bold text-white sm:text-3xl">
+              <h3 className="text-base font-bold leading-[1.18] text-balance text-white sm:text-lg">
                 Hancurkan hambatan belajar dengan penghematan besar
               </h3>
-              <p className="mt-3 text-sm leading-relaxed text-blue-100 sm:text-base">
+              <p className="mt-1 text-[11px] leading-[1.45] text-white/85 sm:text-xs">
                 Buka akses ke ribuan materi belajar, challenge praktik terverifikasi, dan sertifikat profesional tanpa batas.
               </p>
             </div>
 
-            <div className="mt-6 flex items-center justify-between gap-4">
-              <Link
-                href="/careevo-plus"
-                className="inline-flex rounded-lg bg-white px-6 py-3 text-sm font-bold text-[#00255d] transition-colors hover:bg-blue-50 active:scale-[0.98]"
-              >
-                Dapatkan Careevo Plus
-              </Link>
-              <div className="relative size-24 shrink-0 sm:size-32">
-                <Image
-                  src="https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/5aCPp47zimm4yziPpwrYkO/dac1f4ef6e4dd66b49c80d0f34afcad9/Global__Catch-All__Main_Campaign_Canned_Collection-480x350.webp?auto=format%2Ccompress&dpr=1&w=960&h=700"
-                  alt="Diskon Careevo Plus"
-                  fill
-                  sizes="128px"
-                  className="object-contain"
-                />
-              </div>
-            </div>
+            <Link
+              href="/careevo-plus"
+              className="relative mt-2.5 inline-flex h-8 w-fit items-center gap-1.5 self-start rounded-full bg-white px-3.5 text-[11px] font-semibold text-[#0b3fc4] transition-colors hover:bg-white/90 active:scale-[0.98] sm:text-xs"
+            >
+              <Sparkles className="size-3 shrink-0" aria-hidden="true" />
+              Dapatkan Careevo Plus
+              <ArrowRight className="size-3 shrink-0" aria-hidden="true" />
+            </Link>
           </div>
 
-          <div className="flex flex-col justify-between rounded-2xl bg-[#032e3b] p-7 text-white shadow-md sm:p-9">
-            <div>
-              <div className="relative mb-3 h-5 w-44">
+          <div className="relative isolate flex min-h-[9.5rem] flex-col justify-center overflow-hidden rounded-xl bg-[#0a4d3a] p-4 text-white shadow-md sm:min-h-[10rem] sm:p-5">
+            <Image
+              src="/images/belajar/promo-teams-hero.webp"
+              alt=""
+              fill
+              unoptimized
+              sizes="(min-width: 768px) 628px, 100vw"
+              className="object-cover object-right"
+            />
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 bg-gradient-to-r from-black/40 via-black/12 to-transparent"
+            />
+            <div className="relative md:max-w-[60%]">
+              <div className="relative mb-1.5 h-3.5 w-32">
                 <Image
                   src="https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/3OYpxt8mmtxQGEyCZ76oqE/6e4a82d152d8f0dbe770bc0507655853/WES_Coursera_for_Teams_Logo__1_.png?auto=format%2Ccompress&dpr=1&w=1614&h=18"
                   alt="Careevo untuk Tim"
@@ -1904,31 +1918,22 @@ export function BelajarHome({
                   className="object-contain object-left"
                 />
               </div>
-              <h3 className="text-2xl font-bold text-white sm:text-3xl">
+              <h3 className="text-base font-bold leading-[1.18] text-balance text-white sm:text-lg">
                 Mulai dengan penghematan untuk tim yang bekerja keras
               </h3>
-              <p className="mt-3 text-sm leading-relaxed text-teal-100 sm:text-base">
+              <p className="mt-1 text-[11px] leading-[1.45] text-white/85 sm:text-xs">
                 Bangun talenta teknologi internal organisasi dengan kurikulum terarah, dashboard pelacakan progres, dan jalur evaluasi riil.
               </p>
             </div>
 
-            <div className="mt-6 flex items-center justify-between gap-4">
-              <Link
-                href="/careevo-plus#paket"
-                className="inline-flex rounded-lg bg-white px-6 py-3 text-sm font-bold text-[#032e3b] transition-colors hover:bg-teal-50 active:scale-[0.98]"
-              >
-                Lihat paket tim
-              </Link>
-              <div className="relative size-24 shrink-0 sm:size-32">
-                <Image
-                  src="https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/6C5dMIj3ba9tyWCJv0wjF9/8280504e1cf3b61bcef620e178b1711f/WES_MainCampaign_CannedCollection-480x350.webp?auto=format%2Ccompress&dpr=1&w=960&h=700"
-                  alt="Pelatihan Tim Careevo"
-                  fill
-                  sizes="128px"
-                  className="object-contain"
-                />
-              </div>
-            </div>
+            <Link
+              href="/careevo-plus#paket"
+              className="relative mt-2.5 inline-flex h-8 w-fit items-center gap-1.5 self-start rounded-full bg-white px-3.5 text-[11px] font-semibold text-[#0a4d3a] transition-colors hover:bg-white/90 active:scale-[0.98] sm:text-xs"
+            >
+              <Users className="size-3 shrink-0" aria-hidden="true" />
+              Lihat paket tim
+              <ArrowRight className="size-3 shrink-0" aria-hidden="true" />
+            </Link>
           </div>
         </div>
       </section>
@@ -1975,7 +1980,7 @@ export function BelajarHome({
 
                   <Link
                     href="#katalog"
-                    className="mt-4 inline-flex items-center text-xs font-bold text-[#0056D2] hover:underline"
+                    className="mt-4 inline-flex items-center text-xs font-bold text-[#0056D2]"
                   >
                     Pelajari jalur karier <ArrowRight className="ml-1 size-3.5" />
                   </Link>
@@ -2002,7 +2007,7 @@ export function BelajarHome({
             </div>
             <Link
               href="#katalog"
-              className="inline-flex items-center text-sm font-semibold text-[#0056D2] hover:underline"
+              className="inline-flex items-center text-sm font-semibold text-[#0056D2]"
             >
               Lihat seluruh program gelar <ChevronRight className="ml-1 size-4" />
             </Link>
@@ -2042,7 +2047,7 @@ export function BelajarHome({
                 <div className="mt-6 border-t border-gray-100 pt-4">
                   <Link
                     href="#katalog"
-                    className="inline-flex items-center text-xs font-bold text-[#0056D2] hover:underline"
+                    className="inline-flex items-center text-xs font-bold text-[#0056D2]"
                   >
                     Informasi pendaftaran <ArrowRight className="ml-1 size-3.5" />
                   </Link>
@@ -2346,7 +2351,7 @@ export function BelajarHome({
               <button
                 type="button"
                 onClick={() => setQuery("")}
-                className="text-xs font-semibold text-[#0056D2] hover:underline sm:text-sm"
+                className="text-xs font-semibold text-[#0056D2] sm:text-sm"
               >
                 Reset pencarian
               </button>

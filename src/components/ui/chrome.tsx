@@ -5,9 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { Building2, Briefcase, GraduationCap, Sparkle } from "./icons";
+import { Building2, Briefcase, GraduationCap, MessageSquare, Sparkle } from "./icons";
 import { ExploreMenu } from "./explore-menu";
-import { AiMasteryLink } from "./ai-mastery-link";
 
 type NavItem = {
   href: string;
@@ -21,6 +20,11 @@ const navItems: NavItem[] = [
     href: "/belajar",
     label: "Belajar",
     icon: <GraduationCap size={15} strokeWidth={1.5} aria-hidden="true" />,
+  },
+  {
+    href: "/ai-mastery",
+    label: "AI Mastery",
+    icon: <MessageSquare size={15} strokeWidth={1.5} aria-hidden="true" />,
   },
   {
     href: "/loker",
@@ -110,7 +114,6 @@ export function Chrome() {
           })}
         </nav>
         <div className="chrome-actions">
-          <AiMasteryLink />
           <Link
             className="chrome-btn chrome-btn-text chrome-btn-ghost"
             href="/masuk"

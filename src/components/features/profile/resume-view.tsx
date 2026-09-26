@@ -196,7 +196,7 @@ export function ResumeView({
                       href={href(item.url)}
                       target="_blank"
                       rel="noreferrer noopener"
-                      className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:underline"
+                      className="inline-flex items-center gap-1 text-xs font-medium text-blue-600"
                     >
                       <ExternalLink className="size-3.5" aria-hidden="true" /> Demo
                     </a>
@@ -206,7 +206,7 @@ export function ResumeView({
                       href={href(item.repo)}
                       target="_blank"
                       rel="noreferrer noopener"
-                      className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:underline"
+                      className="inline-flex items-center gap-1 text-xs font-medium text-blue-600"
                     >
                       <FolderGit2 className="size-3.5" aria-hidden="true" /> Repo
                     </a>
@@ -282,7 +282,7 @@ export function ResumeView({
                     href={href(item.url)}
                     target="_blank"
                     rel="noreferrer noopener"
-                    className="text-xs font-medium text-blue-600 hover:underline"
+                    className="text-xs font-medium text-blue-600"
                   >
                     Lihat
                   </a>

@@ -210,10 +210,15 @@ body {
     text-decoration: none;
   }
 
+  /* Hover hanya lewat warna, tidak pernah garis bawah. Aturan ini dulu menaruh
+     `text-decoration: underline` di sini, dan karena kartu learning memakai satu
+     `<a>` besar untuk seluruh isi kartu, satu hover di mana saja pada kartu akan
+     menggaris bawah semua teks di dalamnya — dekorasi teks mewarisi ke seluruh
+     Keturunan dan tidak bisa dimatikan dari anak (`text-decoration: none` di
+     anak tidak membatalkan dekorasi leluhur). Sumbernya harus dihapus di sini. */
   a:hover {
     color: var(--ocean-mid);
-    text-decoration: underline;
-    text-underline-offset: 3px;
+    text-decoration: none;
   }
 }
 
@@ -610,6 +615,29 @@ h6 {
   color: var(--leaf-dark);
 }
 
+/* The dashboard shell's page label, carried inside the AI Mastery navbar where
+   the old topbar used to sit. Same vocabulary as the previous
+   `.dashboard-topbar-label` chip. */
+.chrome-page-sep {
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
+  user-select: none;
+}
+
+.chrome-page-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--primary);
+  background: rgba(10, 61, 98, 0.07);
+  border: 1px solid rgba(203, 230, 239, 0.9);
+  padding: 0.28rem 0.7rem;
+  border-radius: 999px;
+}
+
 .nav-float {
   display: flex;
   align-items: center;
@@ -987,7 +1015,7 @@ h6 {
   color: rgba(255, 255, 255, 0.7);
 }
 
-.footer-grid a:hover { color: #fff; text-decoration: underline; }
+.footer-grid a:hover { color: #fff; text-decoration: none; }
 
 .footer-bottom {
   border-top: 1px solid rgba(255, 255, 255, 0.12);
@@ -2423,13 +2451,26 @@ h6 {
   background:
     radial-gradient(1100px 460px at 88% -8%, rgba(42, 127, 184, 0.08), transparent 62%),
     var(--background);
+  /* The `AiMasteryNavbar` above the shell is sticky, so the shell's own sticky
+     rails (sidebar + topbar) must park below it instead of sliding underneath.
+     Mirrors `--app-chrome-h`: 85px where the bar wraps to two rows, 64px above.
+     Also repaints the winged bar's fill to the shell's card surface so the bar
+     and the sidebar/topbar read as one light system. */
+  --dashboard-chrome-h: 85px;
+  --wing-fill: var(--card);
+}
+
+@media (min-width: 769px) {
+  .dashboard-shell {
+    --dashboard-chrome-h: 64px;
+  }
 }
 
 .dashboard-sidebar-aside {
   position: sticky;
-  top: 0;
+  top: var(--dashboard-chrome-h);
   align-self: flex-start;
-  height: 100vh;
+  height: calc(100vh - var(--dashboard-chrome-h));
   width: 260px;
   flex-shrink: 0;
   overflow: hidden;
@@ -2439,13 +2480,14 @@ h6 {
     transform 260ms ease;
 }
 
-/* Collapsing has to zero the desktop inset too — with `box-sizing: border-box`
-   a `width: 0` that keeps 12px of horizontal padding still reserves a 24px
-   gutter, so the panel would "collapse" to a visible empty strip. */
+/* Collapsing keeps a slim rail rather than zeroing the sidebar: the
+   collapse/expand controls live in the sidebar itself (top-right corner when
+   expanded, top of the rail when collapsed), so the affordance never leaves
+   the panel. The rail holds the 36px icon rows plus the panel's own inset. */
 .dashboard-shell[data-collapsed="true"] .dashboard-sidebar-aside {
-  width: 0;
-  padding-left: 0;
-  padding-right: 0;
+  width: 88px;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
 }
 
 /* Sidebar panel: a floating card, inset from the viewport edges on desktop —
@@ -2462,6 +2504,12 @@ h6 {
   background: var(--card);
   padding: 0.75rem;
   font-family: var(--font);
+}
+
+/* Collapsed rail panel: icon-only, centred, tighter padding. */
+.dashboard-sidebar-rail {
+  align-items: center;
+  padding: 0.75rem 0.5rem;
 }
 
 @media (min-width: 1024px) {
@@ -2483,63 +2531,9 @@ h6 {
   flex-direction: column;
 }
 
-/* Top bar: a sticky opaque strip with a single hairline edge, so it reads as a
-   real navbar instead of dissolving into the cards below. The elevation is the
-   border plus one tight shadow — not a blur that would show the page through. */
-.dashboard-topbar {
-  position: sticky;
-  top: 0;
-  z-index: 40;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  height: 64px;
-  padding: 0 1.25rem;
-  background: var(--card);
-  border-bottom: 1px solid var(--border);
-  box-shadow: 0 1px 2px rgba(10, 61, 98, 0.04);
-}
-
-.dashboard-topbar-brand {
-  display: inline-flex;
-  align-items: baseline;
-  font-weight: 700;
-  font-size: 1.04rem;
-  letter-spacing: -0.02em;
-  color: var(--ocean-deep);
-  text-decoration: none;
-  transition: color 180ms ease-out;
-}
-
-.dashboard-topbar-brand:hover {
-  color: var(--ocean-mid);
-  text-decoration: none;
-}
-
-.dashboard-topbar-brand-dot {
-  color: var(--aqua);
-}
-
-.dashboard-topbar-sep {
-  color: var(--text-tertiary);
-  font-size: 0.9rem;
-  user-select: none;
-}
-
-.dashboard-topbar-label {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--primary);
-  background: rgba(10, 61, 98, 0.07);
-  border: 1px solid rgba(203, 230, 239, 0.9);
-  padding: 0.28rem 0.7rem;
-  border-radius: 999px;
-}
+/* The dashboard shell no longer renders its own topbar — the page label and the
+   sidebar toggle moved into `AiMasteryNavbar` (`app-shell.tsx` passes them in),
+   so the chrome above the sidebar is one bar, not two stacked. */
 
 .dashboard-overlay {
   position: fixed;
@@ -2565,11 +2559,6 @@ h6 {
 
   .dashboard-sidebar-aside[data-open="true"] {
     transform: translateX(0);
-  }
-
-  .dashboard-topbar {
-    height: 60px;
-    padding: 0 0.75rem;
   }
 }
 

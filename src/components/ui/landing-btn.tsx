@@ -19,7 +19,7 @@ const VARIANT_CLASS: Record<LandingBtnVariant, string> = {
 };
 
 const BASE_CLASS =
-  "inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-base font-medium transition duration-300 ease-in-out disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-base font-medium transition duration-300 ease-in-out disabled:cursor-not-allowed disabled:opacity-60 hover:no-underline";
 
 export function LandingBtn({
   variant = "primary",

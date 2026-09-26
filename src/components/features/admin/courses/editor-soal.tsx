@@ -114,7 +114,7 @@ export function EditorSoal({
           <button
             type="button"
             onClick={() => perbarui(index, { pilihan: [...s.pilihan, ""] })}
-            className="cursor-pointer text-xs font-semibold text-[#0056D2] hover:underline"
+            className="cursor-pointer text-xs font-semibold text-[#0056D2]"
           >
             Tambah pilihan
           </button>

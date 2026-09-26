@@ -2372,7 +2372,12 @@ export default function ChatWorkspace({
             data-watching-open={isWatchingMode ? "true" : "false"}
             className="chat-preview-shell flex h-full flex-col overflow-hidden bg-[var(--background)]"
           >
-            <div className="mx-auto flex w-full max-w-[960px] flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-6 pt-3 pb-0">
+            {/* The chat header is deliberately NOT capped to the 960px column
+                the messages use: capping it centred the session title and the
+                action icons in the middle of a wide chat area and left a blank
+                gutter on both sides. Full width with `justify-between` pins the
+                title to the far left and the icons to the far right. */}
+            <div className="flex w-full flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-6 pt-3 pb-0">
               <div className="group/title min-w-0 flex flex-1 items-center gap-2">
                 {/* Where this conversation lives, ahead of its title — the same
                     breadcrumb the composer pill writes, so an opened
