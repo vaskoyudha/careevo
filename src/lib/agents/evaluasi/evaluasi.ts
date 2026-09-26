@@ -32,8 +32,9 @@
  */
 
 import type { JobFixture, ProfileFixture } from "@/lib/fixtures";
-import { getLlm, hasLlm, type LlmResult } from "@/lib/llm/port";
+import { getLlm, hasLlm } from "@/lib/llm/port";
 import { parseJsonMaybeFenced } from "@/lib/llm/json";
+import { klasifikasiGagal, type JenisGagal } from "@/lib/llm/gagal";
 import { bangunPrompt } from "./prompt";
 import { validasiHasil, type HasilEvaluasi } from "./skema";
 
@@ -44,43 +45,10 @@ export type HasilEvaluasiAtauGagal =
   | { ok: true; hasil: HasilEvaluasi }
   | { ok: false; alasan: JenisGagal; pesan: string };
 
-export type JenisGagal =
-  /** No model configured — the feature is off, not broken. */
-  | "tanpa_kunci"
-  /** Free-tier quota exhausted, or rate limited. */
-  | "kuota"
-  /** The model returned something that does not match the schema. */
-  | "hasil_tidak_valid"
-  /** Network, auth, or anything else. */
-  | "gagal";
-
-/**
- * Map a port failure onto the cause the UI can act on.
- *
- * Upstream distinguishes quota from key from generic so it can print a helpful
- * CLI message; here the distinction drives what the user is told, so the mapping
- * is the load-bearing part. `provider_error` stays `gagal` rather than becoming a
- * new reason: the UI has three messages, and inventing a fourth for one HTTP
- * status would be a translation exercise, not new information.
- */
-function klasifikasiGagal(hasil: Extract<LlmResult, { ok: false }>): {
-  alasan: JenisGagal;
-  pesan: string;
-} {
-  switch (hasil.reason) {
-    case "missing_api_key":
-      return {
-        alasan: "tanpa_kunci",
-        pesan: "Belum ada model yang dikonfigurasi. Atur GEMINI_API_KEY atau CAREERVO_LLM_BASE_URL + CAREERVO_LLM_MODEL.",
-      };
-    case "rate_limited":
-      return { alasan: "kuota", pesan: hasil.message };
-    case "invalid_output":
-      return { alasan: "hasil_tidak_valid", pesan: hasil.message };
-    default:
-      return { alasan: "gagal", pesan: hasil.message };
-  }
-}
+// The failure classification lives in `@/lib/llm/gagal` now, shared with the
+// other model-backed features. Re-exported here because `actions/evaluasi.ts`
+// and any other importer has always reached for it through this module.
+export type { JenisGagal };
 
 /**
  * Evaluate one posting. Never throws — every failure is a typed result.
