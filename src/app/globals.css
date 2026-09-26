@@ -466,29 +466,44 @@ h6 {
    `src/components/ui/ai-mastery-navbar.tsx` for why the page forces it: the
    framed app owns its own scrolling, so `is-scrolled` would be unreachable. */
 
-/* Publishes the navbar's real height to the frame below it. 769px is the
-   breakpoint where `.chrome` stops wrapping — measured, not guessed, and the
-   same one `.learner-shell--overlay` uses. Below it the bar is two rows. */
+/* Publishes the navbar's total vertical footprint to the frame below it: its
+   height plus the `margin-top` that lifts it off the viewport edge. 769px is
+   the breakpoint where `.chrome` stops wrapping — measured, not guessed, and
+   the same one `.learner-shell--overlay` uses. Below it the bar is two rows. */
 .ai-mastery-shell {
-  --app-chrome-h: 84px;
+  --app-chrome-h: 94px;
+  /* `flow-root` is load-bearing, not tidiness. The bar is the shell's first
+     child and carries a `margin-top` to lift it off the viewport edge. With no
+     top border or padding on the shell, that margin collapses *through* the
+     parent: the shell keeps its 900px height but its box is pushed down 10px,
+     so the document scrolls 10px for no reason. A BFC root stops the collapse
+     and the margin stays inside the shell, where `--app-chrome-h` accounts
+     for it. */
+  display: flow-root;
 }
 
 @media (min-width: 769px) {
   .ai-mastery-shell {
-    --app-chrome-h: 4rem;
+    --app-chrome-h: 74px;
   }
 }
 
 .chrome.is-winged {
-  top: 0;
-  width: 100%;
-  margin: 0;
-  padding: 0 1.25rem;
+  /* Inset from both screen edges, and lifted off the top. This is what makes
+     the wings visible at all: at `width: 100%` the path's first and last
+     control points sit exactly on x=0 and x=1000, so the viewport clips both
+     wing tips and all that survives is a rounded card. The page showing either
+     side is what gives the curve an edge to read against. */
+  top: 10px;
+  width: min(var(--max), calc(100% - 2 * var(--page-pad)));
+  margin: 10px auto 0;
+  padding: 0 1.15rem;
   border: none;
-  /* Exactly `4rem`, because `ai-mastery-frame.tsx` sizes the frame to
-     `calc(100dvh - 4rem)`. Any other bar height and the page either overflows
-     by the difference or leaves a gap under the frame. The SVG's own bottom
-     rounding supplies the lower silhouette. */
+  /* Plus the 10px `margin-top` above, which is why `--app-chrome-h` is 74px
+     here and not 4rem: `ai-mastery-frame.tsx` sizes the frame to
+     `calc(100dvh - var(--app-chrome-h))`, and getting this wrong by the margin
+     either overflows the page or leaves a gap under the frame. The SVG's own
+     bottom rounding supplies the lower silhouette. */
   min-height: 4rem;
   /* Same light glass as the floating `.chrome.is-scrolled` state — the bar
      keeps the site's own colour and only the silhouette changes. */
