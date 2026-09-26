@@ -47,6 +47,7 @@ import {
   ambilRunAktif,
   buatRun,
   catatKejadianRun,
+  listEventRun,
   listRun,
 } from "./repository";
 import { BATAS_SESI_BAWAAN_MENIT, buktiBaru, verifikasiBuktiSesi } from "./session";
@@ -283,4 +284,29 @@ export async function buktikanSesiDb(input: {
 /** Semua run — pembacaan lintas-pemilik untuk dashboard staf (tanpa gate). */
 export async function listRunStaf(): Promise<LearningRun[]> {
   return listRun();
+}
+
+/**
+ * `run id` → apakah run itu punya kejadian `kamera_mulai`, untuk satu pemilik.
+ *
+ * **Aksesor sempit, bukan tabel run.** Halaman laporan belajar tidak boleh
+ * membaca data sesi sama sekali; itu dipisah oleh guard di
+ * `src/lib/learning/security.test.ts` ("laporan belajar dan laporan integritas
+ * tidak bercampur"), yang melarang `listRun`, `kejadian`, dan
+ * `ringkasIntegritasByOwner` muncul di halaman-halaman itu. Yang halaman itu
+ * butuhkan hanyalah satu bit per run: apakah kamera tercatat menyala.
+ *
+ * Peta ini **penuh** untuk pemilik tersebut — bukan hanya run aktif, bukan satu
+ * periode, dan bukan hanya run yang dirujuk baris progres. Peta yang lebih
+ * sempit membuat run yang sebenarnya bisa ditelusuri tampil sebagai
+ * `terverifikasi_tanpa_bukti_kamera`, dan kalimat itu terbaca seperti temuan
+ * tentang orangnya, bukan seperti data yang tidak ada.
+ */
+export async function petaKameraMulaiPemilik(userId: string): Promise<Map<string, boolean>> {
+  const peta = new Map<string, boolean>();
+  for (const run of (await listRunStaf()).filter((r) => r.userId === userId)) {
+    const isi = await listEventRun(run.id);
+    peta.set(run.id, isi.some((k) => k.kind === "kamera_mulai"));
+  }
+  return peta;
 }
