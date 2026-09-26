@@ -22,22 +22,58 @@ export type JenisGagal =
   /** Network, auth, or anything else. */
   | "gagal";
 
+/**
+ * Learner-facing copy per reason.
+ *
+ * `pesan` is rendered straight onto a shared page, so it is written here once
+ * and never assembled from the provider's own words. A browser run caught why
+ * that matters: a 503 whose body was a nested quota error was shown verbatim,
+ * dumping ~200 characters of escaped JSON at a job seeker. The provider text is
+ * still available — as `detail` — for whoever is debugging, but it is not what
+ * the learner reads.
+ *
+ * The wording promises nothing and blames nobody: the user did not cause a
+ * gateway outage, and "layanan sedang tidak tersedia" is true whether the cause
+ * is a quota, a bad key, or a socket.
+ */
+const PESAN: Record<JenisGagal, string> = {
+  tanpa_kunci:
+    "Belum ada model AI yang dikonfigurasi, jadi bagian ini belum aktif. Atur GEMINI_API_KEY atau CAREERVO_LLM_BASE_URL + CAREERVO_LLM_MODEL.",
+  kuota:
+    "Kuota model AI sedang habis. Coba lagi beberapa saat lagi — hasil tidak ditampilkan supaya tidak ada yang menebak-tebak.",
+  hasil_tidak_valid:
+    "Model AI menjawab dengan format yang tidak dikenali. Hasilnya tidak ditampilkan.",
+  gagal: "Layanan AI sedang tidak tersedia. Hasilnya tidak ditampilkan.",
+};
+
+/**
+ * Reasons that add no diagnostic value: a missing key is fully described by
+ * `pesan` already, and the port's message for it is boilerplate.
+ *
+ * Written as an exclusion list on purpose. An allow-list would silently drop the
+ * provider text the first time the port grows a new reason — the same drift
+ * this module was extracted to prevent, just moved.
+ */
+const TANPA_DETAIL: ReadonlySet<string> = new Set(["missing_api_key"]);
+
 export function klasifikasiGagal(hasil: Extract<LlmResult, { ok: false }>): {
   alasan: JenisGagal;
   pesan: string;
+  /** The provider's own words, for logs and bug reports. Never learner copy. */
+  detail?: string;
 } {
-  switch (hasil.reason) {
-    case "missing_api_key":
-      return {
-        alasan: "tanpa_kunci",
-        pesan:
-          "Belum ada model yang dikonfigurasi. Atur GEMINI_API_KEY atau CAREERVO_LLM_BASE_URL + CAREERVO_LLM_MODEL.",
-      };
-    case "rate_limited":
-      return { alasan: "kuota", pesan: hasil.message };
-    case "invalid_output":
-      return { alasan: "hasil_tidak_valid", pesan: hasil.message };
-    default:
-      return { alasan: "gagal", pesan: hasil.message };
-  }
+  const alasan: JenisGagal =
+    hasil.reason === "missing_api_key"
+      ? "tanpa_kunci"
+      : hasil.reason === "rate_limited"
+        ? "kuota"
+        : hasil.reason === "invalid_output"
+          ? "hasil_tidak_valid"
+          : "gagal";
+
+  return {
+    alasan,
+    pesan: PESAN[alasan],
+    ...(TANPA_DETAIL.has(hasil.reason) ? {} : { detail: hasil.message }),
+  };
 }

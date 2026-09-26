@@ -43,7 +43,7 @@ const SUHU = 0.4;
 
 export type HasilEvaluasiAtauGagal =
   | { ok: true; hasil: HasilEvaluasi }
-  | { ok: false; alasan: JenisGagal; pesan: string };
+  | { ok: false; alasan: JenisGagal; pesan: string; detail?: string };
 
 // The failure classification lives in `@/lib/llm/gagal` now, shared with the
 // other model-backed features. Re-exported here because `actions/evaluasi.ts`

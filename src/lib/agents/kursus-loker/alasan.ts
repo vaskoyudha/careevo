@@ -19,7 +19,7 @@ export type { AlasanKursus, HasilAlasanKursus };
 
 export type HasilAlasanAtauGagal =
   | { ok: true; hasil: HasilAlasanKursus }
-  | { ok: false; alasan: JenisGagal; pesan: string };
+  | { ok: false; alasan: JenisGagal; pesan: string; detail?: string };
 
 /**
  * Write one reason per shortlisted course. Never throws.

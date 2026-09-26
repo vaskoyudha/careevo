@@ -59,7 +59,12 @@ export async function rekomendasiKursusLokerAction(
 
 export type JalurLokerState =
   | { status: "idle" }
-  | { status: "error"; message: string }
+  /**
+   * `message` is learner copy and is what the panel renders. `detail` is the
+   * provider's own words, carried but never displayed — a 503 body full of
+   * nested JSON is useful in devtools and useless on a page.
+   */
+  | { status: "error"; message: string; detail?: string }
   | { status: "success"; topicId: string };
 
 export async function buatJalurLokerAction(
@@ -86,7 +91,9 @@ export async function buatJalurLokerAction(
   if (ada) return { status: "success", topicId: ada.id };
 
   const hasil = await susunJalurLoker(job);
-  if (!hasil.ok) return { status: "error", message: hasil.pesan };
+  if (!hasil.ok) {
+    return { status: "error", message: hasil.pesan, detail: hasil.detail };
+  }
 
   const points = hasil.hasil.points.map((poin, index) => ({
     id: pointIdLoker(jobId, index),
