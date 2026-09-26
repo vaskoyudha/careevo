@@ -8,6 +8,13 @@
       "when": 1790352542120,
       "tag": "0000_faulty_quicksilver",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790358791542,
+      "tag": "0001_brief_doctor_octopus",
+      "breakpoints": true
     }
   ]
 }

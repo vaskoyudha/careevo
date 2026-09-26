@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
-import { isStaffRole } from "@/lib/auth/roles";
+import { punyaRoleStaff } from "@/lib/auth/authorization";
 
 export default async function VerifikatorLayout({
   children,
@@ -11,7 +11,10 @@ export default async function VerifikatorLayout({
   if (!session) {
     redirect("/masuk");
   }
-  if (!isStaffRole(session.role)) {
+  // `roles` dari principal database, bukan field kompatibilitas `role`: layout
+  // ini gerbang navigasi, dan memakainya bersama `gateStaff()` berarti
+  // aturan staffnya satu definisi, bukan dua.
+  if (!session.userId || !punyaRoleStaff(session.roles ?? [])) {
     redirect("/dashboard");
   }
 

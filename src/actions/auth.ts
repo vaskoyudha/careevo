@@ -14,6 +14,7 @@ import {
   bacaTokenSesi,
   destroySession,
   pasangCookieSesi,
+  sesiLamaIdToken,
 } from "@/lib/auth/session";
 import { isDemoEmail } from "@/lib/auth/demo-accounts";
 import { demoAccountsAllowed } from "@/lib/config/environment";
@@ -86,6 +87,17 @@ export async function loginAction(
     return { ok: false, errors: fieldErrors(parsed.error), values: { email } };
   }
 
+  // Id sesi lama dibaca dari predikat sesi **aktif** (`sesiLamaIdToken` →
+  // `cariSessionAktifByTokenHash`), bukan dari cookie mentah. Cookie adalah
+  // input yang bisa dipalsukan; id baris ini adalah nilai yang sudah terbukti
+  // ada, belum dicabut, belum dirotasi, dan belum kedaluwarsa. `rotasiSession`
+  // mencocokkannya lagi dengan user yang baru lolos autentikasi.
+  //
+  // Login yang sah tetap berjalan bila cookie lamanya sudah tidak berlaku
+  // dalam bentuk apa pun — `sesiLamaIdToken` mengembalikan `null`, dan rotasi
+  // hanya kehilangan sesi lama yang memang sudah mati.
+  const sessionLamaId = await sesiLamaIdToken();
+
   // Akun demo hanya diteruskan sebagai izin bila environment memang
   // mengizinkannya. `authenticatePengguna` memakai `findDemoAccount`, yang
   // sendiri fail-closed; flag ini hanya memastikan keputusan itu diambil di
@@ -94,6 +106,7 @@ export async function loginAction(
     email: parsed.data.email,
     password: parsed.data.password,
     izinkanDemo: demoAccountsAllowed(),
+    sessionLamaId,
   });
 
   if (!hasil.ok || !token) {
@@ -114,6 +127,11 @@ export async function loginAction(
   redirect(await landingFor(hasil.principal.role, hasil.principal.email));
 }
 
+/**
+ * Bila pembuatan user gagal, tidak ada cookie yang dipasang dan tidak ada sesi
+ * yang terbit — kegagalan registrasi tidak boleh meninggalkan sesi setengah
+ * jadi.
+ */
 export async function registerAction(
   _prev: AuthFormState,
   formData: FormData,

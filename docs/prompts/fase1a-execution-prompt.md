@@ -17,7 +17,7 @@ Lanjutkan eksekusi `docs/backend-production-plan.md` di repo careevo (Next.js 16
 - `src/lib/db/client.ts` menyediakan `getDb()`, `denganTransaksi(fn)` (helper transaksi), dan tipe `KoneksiDb` / `TransaksiDb`. `src/lib/auth/audit.ts` punya `catatAudit(tx, {...})` untuk menulis `audit_events`.
 
 ## Tugas
-Bangun fondasi outbox/worker per §6. Target: perubahan bisnis + event outbox ditulis **dalam satu transaksi PostgreSQL**; worker minimal dengan claim/lease aman, retry, dead-letter, replay; idempotensi per sink; payload ter-redact.
+Bangun fondasi outbox/worker per §6. Target: perubahan bisnis + event outbox ditulis **dalam satu transaksi PostgreSQL**; worker minimal dengan claim/lease aman, retry, dead-letter, replay; idempotensi untuk sink audit internal yang ada di Fase 1A; payload ter-redact. Sink attestation/email/file scan masuk bersama fase pemiliknya, bukan handler semu di M1A.
 
 **PLUS — tutup utang review Fase 1** (sudah dicatat di `docs/backend-production-plan.md` §6 "Utang dari review Fase 1"). Ini pekerjaan terpisah dari outbox dan boleh dikerjakan paralel oleh subagent lain:
 1. **Rotasi sesi saat login** — teruskan `sessionLamaId` dari sesi aktif ke `masukPengguna`; tandai `rotated_at`; buat `cariSessionAktifByTokenHash` menolak sesi yang sudah `rotated_at`.
@@ -30,7 +30,7 @@ Bangun fondasi outbox/worker per §6. Target: perubahan bisnis + event outbox di
 - **ORM: Drizzle** (lanjut). Jangan tambah ORM kedua, queue eksternal, atau broker baru.
 - **PostgreSQL: local Docker Postgres** untuk development. Production tetap placeholder (VPS belum ada).
 - **Worker untuk dev/local = script CLI** yang bisa dijalankan manual (mis. `npm run worker` via `tsx scripts/worker.ts`), BUKAN service eksternal/daemon. Catat bahwa di production worker berjalan di VPS yang sama (ADR 0001 §1.2), sebagai placeholder.
-- **Idempotensi per sink tujuan** (email/audit/attestation/file-scan/notification), bukan hanya per event — event boleh retry, side effect tidak boleh dobel.
+- **Idempotensi per sink tujuan**, bukan hanya per event: M1A membuktikannya untuk sink audit internal. Email/attestation/file-scan/notification belum mempunyai handler; daftarkan tiap sink bersama sumber otoritatif dan pengujian idempotensi downstream pada fase pemiliknya (gerbang lintas fase plan §6).
 - Nama fungsi business-logic tetap Indonesia, kode infra English (ikuti idiom file sekitar).
 
 ## Schema minimum (§6) — tambahkan lewat migration baru, jangan ubah tabel yang ada di tempat
@@ -45,20 +45,20 @@ outbox_events
 ## Cara kerja (WAJIB diikuti)
 - **Buat branch baru** dari `origin/main` (mis. `backend-production-fase1a`), jangan commit/push ke `main`. Jaga worktree bersih.
 - **Fan out subagent** (WAJIB) untuk task paralel independen; HANYA `model: "sonnet"` (standar) dan `model: "haiku"` (lookup/perubahan kecil). JANGAN `opus`.
-- **Eksekusi bertahap**, urutan saran: (a) schema outbox + migration + helper writer transaksional (`tulisOutbox` / service yang menulis bisnis + event dalam `denganTransaksi`); (b) worker claim/lease aman (claim via `UPDATE ... WHERE lease_expires_at IS NULL OR < now() RETURNING`, release saat selesai, recover lease kedaluwarsa); (c) registry handler per type + idempotency per sink + exponential backoff + max retry + dead-letter; (d) CLI replay/dead-letter ber-audit + redaction payload; (e) integration test.
+- **Eksekusi bertahap**, urutan saran: (a) schema outbox + migration + helper writer transaksional (`tulisOutbox` / service yang menulis bisnis + event dalam `denganTransaksi`); (b) worker claim/lease aman (claim via `UPDATE ... WHERE lease_expires_at IS NULL OR < now() RETURNING`, release saat selesai, recover lease kedaluwarsa); (c) registry handler per type + idempotency sink audit internal + exponential backoff + max retry + dead-letter; (d) CLI replay/dead-letter ber-audit + redaction payload; (e) integration test.
 - **Verifikasi di akhir saja**, setelah semua task selesai (bukan per task).
 
 ## Batasan non-negosiasi (plan §2.2 + AGENTS.md — jangan regresi)
-- Event outbox wajib ditulis dalam transaksi yang **sama** dengan perubahan bisnis (pakai `denganTransaksi` / writer tunggal); jangan ada commit bisnis tanpa event yang diwajibkan, dan jangan ada event tanpa commit.
+- Setiap alur yang memakai writer transaksional wajib menulis event outbox dalam transaksi yang **sama** dengan perubahan bisnis (pakai `denganTransaksi` / writer tunggal). Untuk alur yang belum diintegrasikan, jangan commit bisnis lalu mengklaim event-nya ada — daftarkan integrasinya dulu.
 - Payload outbox/log **ter-redact** dari secret dan PII yang tidak dibutuhkan handler — redact **sebelum** insert, bukan belakangan.
 - Jangan import DB/`node:fs` ke komponen client atau ke `src/lib/courses/{kurikulum,blok,halaman,kuis}.ts`.
 - Jangan `dangerouslySetInnerHTML` / HTML mentah.
 - Baca skill area relevan di `.agents/skills/` (`careevo-review` minimal, sebelum commit).
 
 ## Acceptance criteria (§6)
-- Duplicate delivery, worker crash **setelah** claim, dan retry setelah timeout **tidak** menggandakan side effect (attestation/email/audit).
-- Event yang gagal terminal dapat ditemukan dan direplay dengan actor/reason tercatat.
-- Integration test membuktikan: transaksi gagal tidak meninggalkan event; business commit selalu punya event yang diwajibkan.
+- Duplicate delivery, simulasi worker mati **setelah** claim (lease kedaluwarsa), retry sesudah handler gagal sementara, dan recovery lease **tidak** menggandakan efek samping sink audit internal. Tidak ada uji proses OS yang dibunuh atau timeout provider di M1A; attestation/email/file scan menjadi gerbang fase pemiliknya sebelum fitur production terkait diaktifkan (plan §6).
+- Event yang gagal terminal dapat ditemukan dan direplay dengan actor/reason tercatat; tipe tanpa handler mati `handler_tidak_terdaftar`, bukan sukses semu.
+- Integration test membuktikan: transaksi gagal tidak meninggalkan event; alur yang sudah memakai writer (`daftarPengguna`) selalu meninggalkan event yang diwajibkan.
 - Uji worker/claim membuktikan lease kedaluwarsa dapat dipulihkan aman oleh worker lain (tidak ada double-claim).
 
 ## Verifikasi akhir (setelah semua task selesai)
