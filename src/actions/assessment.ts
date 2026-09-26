@@ -102,9 +102,11 @@ function pesanGalatAsesmen(err: unknown): string {
       attempt_tidak_ditemukan: "Attempt kuis tidak ditemukan.",
       bukan_pemilik: "Attempt ini bukan milik Anda.",
       jawaban_tidak_lengkap: "Jawaban belum lengkap.",
+      bentrok_attempt: "Gagal membuka kuis karena bentrok. Silakan coba lagi.",
       attempt_belum_dikirim: "Kuis belum dikirim, jadi belum bisa diselesaikan.",
       attempt_belum_lulus: "Kuis belum lulus; modul belum bisa diselesaikan.",
       kuis_tidak_cocok: "Attempt ini bukan untuk kuis yang terpasang di modul.",
+      modul_tidak_ditemukan: "Modul tidak ditemukan pada kursus ini.",
     };
     return pesan[err.kode] ?? "Terjadi kesalahan saat memproses kuis.";
   }

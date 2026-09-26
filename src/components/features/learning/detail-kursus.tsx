@@ -464,7 +464,7 @@ function RuangBelajar({
                                 <KuisView
                                   key={kuis.id}
                                   kuis={kuis}
-                                  catat={{ courseId: kursus.id, modulId: m.id }}
+                                  konteks={{ courseId: kursus.id, modulId: m.id }}
                                 />
                               ))
                             ) : (

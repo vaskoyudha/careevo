@@ -249,8 +249,8 @@ describe("detailPembelajaranDariDb", () => {
       ["kuis-1", 90],
       ["kuis-2", null],
     ]);
-    // Label sumber tetap janji lama: belum diklaim terverifikasi di sini.
-    expect(satu?.kuis.every((q) => q.sumber === "klien")).toBe(true);
+    // Setiap baris `quiz_attempts` dinilai server dari snapshot attempt.
+    expect(satu?.kuis.every((q) => q.skor === "server")).toBe(true);
   });
 
   it("jalur tak dikenal turun ke informal, tidak pernah naik ke terverifikasi", () => {

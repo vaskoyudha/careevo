@@ -5,9 +5,9 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   bacaPerforma,
   catatPenyelesaian,
-  catatSkorKuis,
   indeksPerforma,
   tempatPerforma,
+  tulisPerforma,
 } from "./store";
 
 const PEMBELAJAR = "siswa@careevo.test";
@@ -60,35 +60,10 @@ describe("toko performa", () => {
     expect((await bacaPerforma(PEMBELAJAR))?.kursus[0].selesai).toHaveLength(0);
   });
 
-  it("menyimpan skor kuis dan mengindeks lintas-pemilik", async () => {
-    await catatSkorKuis({
-      owner: PEMBELAJAR,
-      nama: NAMA,
-      courseId: "crs-1",
-      judulKursus: "Fullstack Web",
-      kuisId: "kuis-1",
-      modulId: "crs-1-m1",
-      nilai: 80,
-      totalSoal: 5,
-    });
+  it("mengindeks catatan lintas-pemilik", async () => {
+    await catatPenyelesaian({ ...dasarPenyelesaian, sumber: "terverifikasi" });
     const semua = await indeksPerforma();
     expect(semua.some((r) => r.owner === PEMBELAJAR)).toBe(true);
-    expect(semua.find((r) => r.owner === PEMBELAJAR)?.kursus[0].kuis[0].sumber).toBe("klien");
-  });
-
-  it("menolak skor di luar rentang 0-100", async () => {
-    await expect(
-      catatSkorKuis({
-        owner: PEMBELAJAR,
-        nama: NAMA,
-        courseId: "crs-1",
-        judulKursus: "F",
-        kuisId: "k-1",
-        modulId: "m-1",
-        nilai: 120,
-        totalSoal: 5,
-      }),
-    ).resolves.toBeNull();
   });
 
   it("menaruh berkas di direktori yang bisa dialihkan", () => {
@@ -98,5 +73,53 @@ describe("toko performa", () => {
   it("tidak membaca berkas milik pemilik lain", async () => {
     await catatPenyelesaian({ ...dasarPenyelesaian, sumber: "informal" });
     expect(await bacaPerforma("orang-lain@careevo.test")).toBeNull();
+  });
+
+  it("tetap membaca record lama yang memuat sumber kuis 'klien'", async () => {
+    // Kontrak historis: jalur skor lama menulis `sumber: "klien"` pada tiap
+    // percobaan kuis. Penilaian kini pindah ke `quiz_attempts`, tetapi berkas
+    // `.data/performa` yang sudah ada harus tetap terbaca — menghapus field itu
+    // dari tipe (tanpa menjaga pembacaan) adalah cara termudah kehilangan data.
+    await tulisPerforma({
+      owner: PEMBELAJAR,
+      nama: NAMA,
+      versi_skema: 1,
+      kursus: [
+        {
+          course_id: "crs-1",
+          judul: "Fullstack Web",
+          selesai: [],
+          kuis: [
+            {
+              kuis_id: "kuis-1",
+              modul_id: "crs-1-m1",
+              nilai: 80,
+              total_soal: 5,
+              at: "2026-01-01T00:00:00.000Z",
+              sumber: "klien",
+            },
+          ],
+        },
+      ],
+    });
+
+    // Jalur produksi yang tersisa melakukan read-modify-write. Pastikan
+    // menambah cermin modul tidak menghapus kuis historis yang tidak lagi
+    // ditulis oleh sistem baru.
+    await catatPenyelesaian({
+      ...dasarPenyelesaian,
+      modulId: "crs-1-m2",
+      sumber: "informal",
+    });
+
+    const record = await bacaPerforma(PEMBELAJAR);
+    expect(record?.kursus[0].kuis[0]).toMatchObject({
+      kuis_id: "kuis-1",
+      nilai: 80,
+      sumber: "klien",
+    });
+    expect(record?.kursus[0].selesai).toContainEqual(
+      expect.objectContaining({ modul_id: "crs-1-m2", sumber: "informal" }),
+    );
   });
 });

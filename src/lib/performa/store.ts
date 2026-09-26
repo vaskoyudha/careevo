@@ -11,13 +11,21 @@ import path from "node:path";
  * cookie-nya — `tandaiModul` menulis ke keduanya dalam satu operasi supaya
  * keduanya tidak mungkin berbeda.
  *
+ * **Cermin penyelesaian modul dan penyelesaian kuis kini punya nasib berbeda.**
+ * Laporan staf (`/performa`) membaca progres modul dari `module_progress` dan
+ * skor kuis dari `quiz_attempts` di PostgreSQL, bukan dari berkas ini. Cermin
+ * **penyelesaian modul** sengaja tetap ditulis dari `tandaiModul` peramban: ia
+ * jalur informal/backfill yang belum pernah bermigrasi. Cermin **skor kuis**
+ * tidak lagi ditulis siapa pun — penilaian pindah penuh ke `quiz_attempts`
+ * (lihat `KuisView` → `kirimDanSelesaikanKuisAction`) — sehingga field kuis di
+ * sini hanya bertahan untuk membaca catatan lama dan tidak boleh diandalkan;
+ * jangan hapus `versi_skema` atau field `kuis` tanpa memeriksa record historis.
+ *
  * Direktori dialihkan lewat `CAREEVO_PERFORMA_DIR` (dikonfigurasi di
  * `vitest.config.mts`) supaya test tidak pernah menyentuh `.data/` milik repo.
  */
 
 export type SumberPenyelesaian = "terverifikasi" | "informal";
-/** Selalu `"klien"` di pass ini: penilaian server adalah pekerjaan terpisah. */
-export type SumberSkor = "klien";
 
 /**
  * Cara menyebut jalur penyelesaian dalam satu kalimat.
@@ -42,7 +50,17 @@ export interface PercobaanKuis {
   nilai: number;
   total_soal: number;
   at: string;
-  sumber: SumberSkor;
+  /**
+   * Asal nilai pada record lama — **legacy, jangan dihapus dari kontrak**.
+   *
+   * Jalur lama (klien menghitung, action skor menyimpan) menulis `"klien"` di
+   * sini. Sejak penilaian pindah ke `quiz_attempts` tidak ada penulis baru,
+   * tetapi record `.data/performa` yang sudah ada tetap memuat field ini, dan
+   * menghapusnya dari tipe berarti mengubah kontrak historis yang membacanya
+   * diam-diam (TS tidak menjaga struktur JSON runtime). Karena itu ia
+   * opsional: penulis baru tidak perlu mengisinya, pembaca lama tetap utuh.
+   */
+  sumber?: "klien";
 }
 
 export interface KursusPerforma {
@@ -58,9 +76,6 @@ export interface RecordPerforma {
   versi_skema: 1;
   kursus: KursusPerforma[];
 }
-
-/** Batas percobaan per kuis: yang lebih lama dipangkas, bukan ditolak. */
-const MAKS_PERCOBAAN = 50;
 
 /** Direktori catatan; dihitung per panggilan agar override test ikut terbaca. */
 export function tempatPerforma(): string {
@@ -191,44 +206,5 @@ export async function catatPenyelesaian(input: {
       sumber: input.sumber,
     });
   }
-  return tulisPerforma(lama);
-}
-
-/**
- * Catat satu skor kuis.
- *
- * `nilai` **dilaporkan klien** dan belum dinilai server (kunci jawaban ikut
- * terkirim ke peramban), jadi yang diperiksa di sini hanya **bentuk** angkanya —
- * rentang 0–100 dan jumlah soal yang masuk akal. Substansinya tidak. Field
- * `sumber` ada supaya penilaian server yang menyusul tidak perlu melabeli ulang
- * catatan lama.
- */
-export async function catatSkorKuis(input: {
-  owner: string;
-  nama: string;
-  courseId: string;
-  judulKursus: string;
-  kuisId: string;
-  modulId: string;
-  nilai: number;
-  totalSoal: number;
-  at?: string;
-}): Promise<RecordPerforma | null> {
-  if (!Number.isFinite(input.nilai) || input.nilai < 0 || input.nilai > 100) return null;
-  if (!Number.isInteger(input.totalSoal) || input.totalSoal < 1) return null;
-
-  const lama = (await bacaPerforma(input.owner)) ?? recordKosong(input.owner, input.nama);
-  const entri = entriKursus(lama, input.courseId, input.judulKursus);
-  // Anotasi eksplisit: tanpa itu `sumber: "klien"` di dalam literal array
-  // melebar jadi `string` dan tidak cocok dengan union `SumberSkor`.
-  const percobaan: PercobaanKuis = {
-    kuis_id: input.kuisId,
-    modul_id: input.modulId,
-    nilai: Math.round(input.nilai),
-    total_soal: input.totalSoal,
-    at: input.at ?? new Date().toISOString(),
-    sumber: "klien",
-  };
-  entri.kuis = [...entri.kuis, percobaan].slice(-MAKS_PERCOBAAN);
   return tulisPerforma(lama);
 }

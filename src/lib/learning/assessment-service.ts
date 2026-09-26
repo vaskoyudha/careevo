@@ -39,13 +39,13 @@
  */
 
 import type { SessionPrincipal } from "@/lib/auth/principal";
+import { modulUntuk } from "@/lib/courses/modul-resolver";
 import { getKuis } from "@/lib/courses/store";
 import {
   ambilAttempt,
   ambilEnrollmentById,
-  buatAttempt,
+  buatAttemptBerikutnya,
   kirimAttempt,
-  nomorAttemptBerikutnya,
   type Enrollment,
   type QuizAttempt,
 } from "@/lib/learning/repository";
@@ -93,11 +93,20 @@ export type KodeGalatAsesmen =
   | "attempt_tidak_ditemukan"
   | "bukan_pemilik"
   | "jawaban_tidak_lengkap"
+  // Penomoran attempt terkunci pada baris enrollment, jadi ini seharusnya tidak
+  // pernah muncul; ia tetap disediakan supaya pelanggaran unique yang lolos
+  // (mis. bug penguncian) sampai ke pemanggil sebagai galat domain yang bisa
+  // dipetakan ke pesan UI, bukan galat driver mentah.
+  | "bentrok_attempt"
   // Dipakai `selesaikanModulKuisVerified`: attempt harus sudah dikirim, lulus,
   // dan berasal dari kuis yang benar-benar dipasang di modul target.
   | "attempt_belum_dikirim"
   | "attempt_belum_lulus"
-  | "kuis_tidak_cocok";
+  | "kuis_tidak_cocok"
+  // `selesaikanModulKuisVerified`: `modulId` harus benar-benar ada di kurikulum
+  // kursus, dan kursus itu harus bisa di-resolve (gagal-tertutup) — id yang tidak
+  // dikenal tidak boleh menghasilkan progres terverifikasi.
+  | "modul_tidak_ditemukan";
 
 /** Galat domain asesmen — bukan galat database, supaya bisa dipetakan ke pesan UI. */
 export class GalatAsesmen extends Error {
@@ -174,18 +183,31 @@ export async function mulaiAttemptVerified(input: {
   }
 
   const { definitionVersion, snapshot } = snapshotKuis(kuis);
-  const attemptNumber = await nomorAttemptBerikutnya(enrollmentId, quizId);
 
-  const attempt = await buatAttempt({
+  // Penomoran + insert dalam satu transaksi yang mengunci baris enrollment
+  // (lihat `buatAttemptBerikutnya`). Dua permintaan serentak berurutan dan
+  // mendapat nomor berbeda; konflik yang tetap lolos kembali sebagai hasil
+  // terkontrol, bukan galat driver mentah.
+  const hasil = await buatAttemptBerikutnya({
     userId: principal.userId,
     enrollmentId,
     quizId,
     assessmentDefinitionVersion: definitionVersion,
     assessmentSnapshot: snapshot,
-    attemptNumber,
   });
+  if (!hasil.ok) {
+    if (hasil.sebab === "enrollment_tidak_ditemukan") {
+      // Pesan sama dengan pemeriksaan kepemilikan di atas: pemanggil tidak
+      // berhak tahu bahwa enrollment milik orang lain itu ada.
+      throw new GalatAsesmen("enrollment_tidak_ditemukan", "Enrollment tidak ditemukan.");
+    }
+    throw new GalatAsesmen(
+      "bentrok_attempt",
+      "Attempt gagal dibuat karena bentrok nomor. Silakan coba lagi.",
+    );
+  }
 
-  return { attempt: ringkas(attempt), totalSoal: kuis.soal.length };
+  return { attempt: ringkas(hasil.attempt), totalSoal: kuis.soal.length };
 }
 
 /**
@@ -331,6 +353,16 @@ export async function selesaikanModulKuisVerified(input: {
   if (attempt.userId !== principal.userId) {
     throw new GalatAsesmen("bukan_pemilik", "Attempt ini bukan milik Anda.");
   }
+  // Ikat bukti attempt ke kursus yang hendak ditandai. `courseId` datang dari
+  // pemanggil action dan tidak boleh dipercaya hanya karena `modulId` tampak
+  // cocok; enrollment adalah sumber kebenaran relasi attempt↔kursus.
+  const enrollmentAttempt = await ambilEnrollmentById(attempt.enrollmentId);
+  if (!enrollmentAttempt || enrollmentAttempt.userId !== principal.userId) {
+    throw new GalatAsesmen("enrollment_tidak_ditemukan", "Enrollment tidak ditemukan.");
+  }
+  if (enrollmentAttempt.courseId !== courseId) {
+    throw new GalatAsesmen("kuis_tidak_cocok", "Attempt ini bukan untuk kursus tersebut.");
+  }
   // Attempt yang belum dikirim tidak punya skor; ia tidak bisa membuktikan apa pun.
   if (attempt.status !== "submitted") {
     throw new GalatAsesmen("attempt_belum_dikirim", "Attempt ini belum dikirim.");
@@ -346,6 +378,27 @@ export async function selesaikanModulKuisVerified(input: {
   // pencocokan ini, kelulusan kuis mana pun bisa dipakai untuk modul mana pun.
   if (attempt.quizId !== quizId) {
     throw new GalatAsesmen("kuis_tidak_cocok", "Attempt ini bukan untuk kuis tersebut.");
+  }
+  // Kecocokan di atas hanya membuktikan `quizId` = kuis attempt; ia **tidak**
+  // membuktikan kuis itu memang dipasang di `modulId`. Tanpa pemeriksaan ini,
+  // attempt yang lulus untuk modul A bisa menandai modul B `terverifikasi`
+  // dengan mengirim `modulId` B — bukti yang menempel pada modul yang salah.
+  //
+  // Resolver modul adalah sumber tunggal pemasangan kuis (`Modul.kuis`). Jalur
+  // ini **gagal-tertutup**: daftar modul yang kosong berarti kurikulum tidak
+  // bisa di-resolve (kursus tak dikenal / fixture), dan bukti terverifikasi
+  // tidak boleh ditulis tanpa daftar pembanding. Ini sengaja lebih ketat dari
+  // `tandaiModulDb`, yang menerima id apa adanya saat daftar kosong untuk tidak
+  // memblokir enrollment fixture — di sini yang dipertaruhkan adalah
+  // `completion_path: "terverifikasi"`, jadi id yang tidak bisa diverifikasi
+  // harus ditolak, bukan dipercaya.
+  const modulKursus = await modulUntuk(courseId);
+  const modulTarget = modulKursus.find((m) => m.id === modulId);
+  if (!modulTarget) {
+    throw new GalatAsesmen("modul_tidak_ditemukan", "Modul tidak ditemukan pada kursus ini.");
+  }
+  if (!(modulTarget.kuis ?? []).some((k) => k.id === quizId)) {
+    throw new GalatAsesmen("kuis_tidak_cocok", "Kuis ini tidak terpasang pada modul tersebut.");
   }
 
   const modul = await tandaiModulDb({
