@@ -80,6 +80,21 @@ function kebijakanKursus(kursus: Course): KebijakanCourse {
 }
 
 /**
+ * Apakah run yang sedang diverifikasi punya bukti kamera menyala.
+ *
+ * **Diturunkan dari run, bukan dari klaim pemanggil.** `kamera_mulai` ditulis
+ * ke `learning_events` hanya lewat `catatKejadianDb` pada run aktif milik
+ * pemanggil, dan run itu sudah dibaca server di `buktikanSesiDb` — jadi ini
+ * bukti yang bisa diaudit, bukan parameter yang bisa diisi `true` oleh klien.
+ * Run yang tidak bisa dibaca menghasilkan `false` (gagal-tertutup): bukti yang
+ * tidak bisa diperiksa tidak boleh dianggap memenuhi syarat.
+ */
+async function kameraMenyalaPadaRun(runId: string): Promise<boolean> {
+  const kejadian = await listEventRun(runId);
+  return kejadian.some((k) => k.kind === "kamera_mulai");
+}
+
+/**
  * Mulai sesi terverifikasi untuk sebuah kursus.
  *
  * Sesi dibuat hanya untuk peserta yang benar-benar terdaftar — tanpa
@@ -263,14 +278,23 @@ export async function selesaikanMateriAction(input: {
   // serahkan ke `putuskanAkses` di sini. `keputusan.tipe` selalu `bebas` untuk
   // course `opsional` (lihat `wajibSesiTerverifikasi`), jadi rute klien yang
   // mengirim permintaan ini pada course `opsional` tidak ikut ditolak.
+  //
+  // Bukti kamera dibaca dari run **setelah** `bukti` terverifikasi: tanpa run
+  // yang sah tidak ada catatan yang bisa diperiksa, dan course `wajib` biasa
+  // tidak membayar query kejadian yang sia-sia.
+  const kameraMenyala = bukti ? await kameraMenyalaPadaRun(bukti.id) : false;
+
   const keputusan = putuskanAkses({
     jenisKegiatan: "materi",
     kebijakan,
     adaBuktiSesi: Boolean(bukti),
+    adaBuktiKamera: kameraMenyala,
   });
   // Pesan keputusan dipakai apa adanya agar copy tidak menyimpang dari mesin
-  // akses: `perlu_sesi` untuk peserta tanpa bukti, `ditolak` untuk larangan.
+  // akses: `perlu_sesi`/`perlu_kamera` untuk syarat yang belum terpenuhi,
+  // `ditolak` untuk larangan.
   if (keputusan.tipe === "perlu_sesi") return { ok: false, error: keputusan.pesan };
+  if (keputusan.tipe === "perlu_kamera") return { ok: false, error: keputusan.pesan };
   if (keputusan.tipe === "ditolak") return { ok: false, error: keputusan.pesan };
 
   // Batas per modul ditegakkan terpisah dari masa berlaku sesi.
