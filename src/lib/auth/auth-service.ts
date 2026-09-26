@@ -29,6 +29,7 @@
  */
 
 import { getDb } from "@/lib/db/client";
+import { tulisOutbox } from "@/lib/outbox/writer";
 import { hashPassword, hashUmpanWaktu, verifyPassword } from "./password";
 import { safeEqual, hashToken } from "./token";
 import { findDemoAccount } from "./demo-accounts";
@@ -178,6 +179,13 @@ export async function daftarPengguna(input: {
       });
       await simpanKredensial(tx, { userId: user.id, passwordHash });
       await grantRoleAwal(tx, { userId: user.id, role: ROLE_PENDAFTARAN_PUBLIK });
+      await tulisOutbox(tx, {
+        type: "auth.registered",
+        aggregateType: "user",
+        aggregateId: user.id,
+        payloadRedacted: { userId: user.id },
+        idempotencyKey: `auth.registered:${user.id}`,
+      });
 
       return {
         ok: true as const,
@@ -204,6 +212,13 @@ export async function daftarPengguna(input: {
  * itu ditandai `rotated_at` dan sesi baru diterbitkan. Token yang baru selalu
  * berbeda, jadi menyalin cookie lama tidak memberi penyerang sesi yang ikut
  * diperbarui.
+ *
+ * `sessionLamaId` harus berasal dari `sesiAktifDariToken` (atau pembacaan
+ * setara yang memakai `cariSessionAktifByTokenHash`), bukan dari cookie mentah:
+ * hanya predikat itu yang menolak sesi yang sudah dicabut, sudah dirotasi, atau
+ * kedaluwarsa. `rotasiSession` sendiri juga memverifikasi ulang bahwa sesi itu
+ * milik user yang baru lolos autentikasi, sehingga id yang dipalsukan tidak
+ * bisa menandai sesi orang lain.
  *
  * Email/password hanya dari argumen. Handler demo akun (lihat
  * `demo-accounts.ts`) diperiksa lebih dulu oleh pemanggil bila memang diizinkan
@@ -270,24 +285,6 @@ export async function masukPengguna(input: {
     },
     token,
   };
-}
-
-/**
- * Terbitkan sesi untuk principal yang sudah terautentikasi lewat jalur lain
- * (mis. akun demo di development). Tidak melakukan verifikasi apa pun — jangan
- * panggil dengan principal yang belum diverifikasi.
- */
-export async function terbitkanSessionUntukPrincipal(
-  principal: SessionPrincipal,
-  konteks?: KonteksRequest,
-): Promise<string> {
-  const { token } = await buatSession(getDb(), {
-    userId: principal.userId,
-    expiresAt: new Date(Date.now() + TTL_SESI_MS),
-    userAgent: konteks?.userAgent ?? null,
-    ipPrefix: konteks?.ipPrefix ?? null,
-  });
-  return token;
 }
 
 /**
@@ -397,12 +394,19 @@ export async function sesiAktifDariToken(token: string) {
  * Bila `izinkanDemo` benar tetapi akunnya bukan akun demo, jalur ini sama dengan
  * login biasa. Bila emailnya akun demo tetapi passwordnya salah, hasilnya
  * penolakan — bukan pembuatan user.
+ *
+ * Rotasi sesi (`sessionLamaId`) juga berlaku untuk akun demo: ia datang dari
+ * pemanggil sebagai id yang **sudah diverifikasi** milik sesi aktif
+ * (`sesiAktifDariToken`), bukan dari cookie mentah, dan `rotasiSession` tetap
+ * mencocokkannya dengan `userId` principal demo.
  */
 export async function authenticatePengguna(input: {
   email: string;
   password: string;
   /** Izinkan akun demo development. Pemanggil yang menyalakannya; `false` default. */
   izinkanDemo?: boolean;
+  /** Id sesi lama yang sudah diverifikasi, untuk dirotasi. Lihat `masukPengguna`. */
+  sessionLamaId?: string | null;
 }): Promise<{ hasil: HasilMasuk; token?: string; demo: boolean }> {
   const emailNormalized = normalisasiEmail(input.email);
 
@@ -418,7 +422,11 @@ export async function authenticatePengguna(input: {
         username: akun.username,
         role: akun.role,
       });
-      const token = await terbitkanSesi(principal);
+      const { token } = await rotasiSession(getDb(), {
+        sessionLamaId: input.sessionLamaId ?? null,
+        userId: principal.userId,
+        expiresAt: new Date(Date.now() + TTL_SESI_MS),
+      });
       return { hasil: { ok: true, principal }, token, demo: true };
     }
   }
@@ -426,6 +434,7 @@ export async function authenticatePengguna(input: {
   const { hasil, token } = await masukPengguna({
     email: input.email,
     password: input.password,
+    sessionLamaId: input.sessionLamaId,
   });
   return { hasil, token, demo: false };
 }

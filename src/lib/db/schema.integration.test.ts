@@ -43,6 +43,8 @@ const KODE = {
 const TABEL_WAJIB = [
   "audit_events",
   "email_verification_tokens",
+  "outbox_deliveries",
+  "outbox_events",
   "password_reset_tokens",
   "sessions",
   "staff_invitations",
@@ -110,6 +112,30 @@ const KOLOM_WAJIB: Record<string, string[]> = {
     "request_id",
     "created_at",
   ],
+  outbox_events: [
+    "id",
+    "type",
+    "aggregate_type",
+    "aggregate_id",
+    "payload_redacted",
+    "occurred_at",
+    "available_at",
+    "attempts",
+    "lease_owner",
+    "lease_expires_at",
+    "processed_at",
+    "last_error_code",
+    "dead_lettered_at",
+    "idempotency_key",
+  ],
+  outbox_deliveries: [
+    "event_id",
+    "sink",
+    "status",
+    "updated_at",
+    "delivered_at",
+    "result_code",
+  ],
 };
 
 let db: KoneksiDb = getDb();
@@ -126,6 +152,8 @@ async function kosongkanSemua() {
     sql`truncate table
       audit_events,
       email_verification_tokens,
+      outbox_deliveries,
+      outbox_events,
       password_reset_tokens,
       sessions,
       staff_invitations,
@@ -223,9 +251,27 @@ describe("migrasi fresh install", () => {
       "user_roles_user_id_idx",
       "staff_invitations_email_normalized_idx",
       "audit_events_actor_user_id_idx",
+      "outbox_events_claim_idx",
+      "outbox_events_aggregate_idx",
+      "outbox_deliveries_sink_idx",
     ]) {
       expect(nama, `index ${idx} hilang`).toContain(idx);
     }
+  });
+
+  it("membuat predikat index claim outbox tanpa fungsi non-imutable", async () => {
+    // PostgreSQL menolak `now()` di predikat index parsial, jadi migrasi yang
+    // memuatnya gagal saat fresh install. Tes ini memaku bentuk predikat yang
+    // benar supaya perubahan schema yang menambahkan fungsi waktu di situ
+    // tertangkap di sini, bukan di database produksi.
+    const rows = await db.execute<{ indexdef: string }>(
+      sql`select indexdef from pg_indexes where schemaname = 'public' and indexname = 'outbox_events_claim_idx'`,
+    );
+    expect(rows).toHaveLength(1);
+    const def = rows[0]!.indexdef;
+    expect(def).toContain("processed_at IS NULL");
+    expect(def).toContain("dead_lettered_at IS NULL");
+    expect(def.toLowerCase()).not.toContain("now()");
   });
 });
 
@@ -534,6 +580,158 @@ describe("user_profiles dan user_credentials", () => {
       () =>
         db.execute(
           sql`insert into user_profiles (user_id) values ('00000000-0000-0000-0000-000000000000')`,
+        ),
+      KODE.foreignKey,
+    );
+  });
+});
+
+describe("outbox", () => {
+  /** Insert event minimal dengan kunci idempotensi yang bisa ditentukan. */
+  async function buatEvent(kunci: string, type = "auth.registered") {
+    const [row] = await db.execute<{ id: string }>(
+      sql`insert into outbox_events (type, aggregate_type, aggregate_id, idempotency_key)
+          values (${type}, 'user', 'agregat-1', ${kunci})
+          returning id`,
+    );
+    return row;
+  }
+
+  it("menolak idempotency_key duplikat", async () => {
+    await buatEvent("auth.registered:tetap");
+    await harapDitolak(() => buatEvent("auth.registered:tetap"), KODE.unique);
+  });
+
+  it("memberi default attempts 0, available_at/occurred_at terisi, dan lease kosong", async () => {
+    const event = await buatEvent("auth.registered:default");
+    const rows = await db.execute<{
+      attempts: number;
+      lease_owner: string | null;
+      lease_expires_at: Date | null;
+      processed_at: Date | null;
+      dead_lettered_at: Date | null;
+      payload_redacted: unknown;
+    }>(
+      sql`select attempts, lease_owner, lease_expires_at, processed_at, dead_lettered_at, payload_redacted
+          from outbox_events where id = ${event.id}`,
+    );
+    const baris = rows[0]!;
+    expect(baris.attempts).toBe(0);
+    expect(baris.lease_owner).toBeNull();
+    expect(baris.lease_expires_at).toBeNull();
+    expect(baris.processed_at).toBeNull();
+    expect(baris.dead_lettered_at).toBeNull();
+  });
+
+  it("mengizinkan payload_redacted berisi jsonb", async () => {
+    const [row] = await db.execute<{ id: string }>(
+      sql`insert into outbox_events (type, aggregate_type, aggregate_id, idempotency_key, payload_redacted)
+          values ('auth.registered', 'user', 'agregat-json', 'kunci-json', ${sql`'{"userId":"x"}'::jsonb`})
+          returning id`,
+    );
+    const rows = await db.execute<{ userId: string }>(
+      sql`select payload_redacted -> 'userId' as "userId" from outbox_events where id = ${row.id}`,
+    );
+    expect(rows[0]?.userId).toBe("x");
+  });
+
+  it("menolak status delivery di luar daftar lewat CHECK", async () => {
+    const event = await buatEvent("auth.registered:status-bogus");
+    await harapDitolak(
+      () =>
+        db.execute(
+          sql`insert into outbox_deliveries (event_id, sink, status)
+              values (${event.id}, 'audit', 'selesai')`,
+        ),
+      KODE.check,
+    );
+  });
+
+  it("membatasi satu baris ledger per (event, sink) lewat composite PK", async () => {
+    // Composite PK — bukan index parsial — adalah penjaga idempotensi per sink.
+    // Karena satu baris per pasangan, retry sesudah gagal atau klaim kedua
+    // **tidak** bisa menyisipkan baris baru: statusnya di-UPDATE pada baris yang
+    // sama. Tes ini memaku bentuk itu supaya tidak ada yang "memperbaikinya"
+    // dengan index parsial yang mustahil dilanggar terpisah.
+    const event = await buatEvent("auth.registered:ledger-pk");
+    await db.execute(
+      sql`insert into outbox_deliveries (event_id, sink, status)
+          values (${event.id}, 'audit', 'succeeded')`,
+    );
+    await harapDitolak(
+      () =>
+        db.execute(
+          sql`insert into outbox_deliveries (event_id, sink, status)
+              values (${event.id}, 'audit', 'failed')`,
+        ),
+      KODE.unique,
+    );
+    await harapDitolak(
+      () =>
+        db.execute(
+          sql`insert into outbox_deliveries (event_id, sink, status)
+              values (${event.id}, 'audit', 'in_progress')`,
+        ),
+      KODE.unique,
+    );
+  });
+
+  it("mengizinkan dua sink berbeda untuk satu event", async () => {
+    const event = await buatEvent("auth.registered:dua-sink");
+    await db.execute(
+      sql`insert into outbox_deliveries (event_id, sink) values (${event.id}, 'audit')`,
+    );
+    await db.execute(
+      sql`insert into outbox_deliveries (event_id, sink) values (${event.id}, 'email')`,
+    );
+    const rows = await db.execute<{ jumlah: number }>(
+      sql`select count(*)::int as jumlah from outbox_deliveries where event_id = ${event.id}`,
+    );
+    expect(rows[0]?.jumlah).toBe(2);
+  });
+
+  it("menjaga satu baris ledger saat klaim, gagal, lalu diklaim ulang", async () => {
+    // Bentuk idempotensi per sink yang benar: satu baris, status berpindah.
+    // Menyisipkan baris in_progress kedua ditolak PK (lihat tes di atas), jadi
+    // jalur retry adalah UPDATE — dan tes ini memaku bahwa UPDATE itu boleh.
+    const event = await buatEvent("auth.registered:in-progress");
+    await db.execute(
+      sql`insert into outbox_deliveries (event_id, sink, status)
+          values (${event.id}, 'audit', 'in_progress')`,
+    );
+    await db.execute(
+      sql`update outbox_deliveries set status = 'failed' where event_id = ${event.id} and sink = 'audit'`,
+    );
+    await db.execute(
+      sql`update outbox_deliveries set status = 'in_progress', updated_at = now()
+          where event_id = ${event.id} and sink = 'audit'`,
+    );
+    const rows = await db.execute<{ jumlah: number; status: string }>(
+      sql`select count(*)::int as jumlah, min(status) as status
+          from outbox_deliveries where event_id = ${event.id}`,
+    );
+    expect(rows[0]?.jumlah).toBe(1);
+    expect(rows[0]?.status).toBe("in_progress");
+  });
+
+  it("menghapus ledger saat event-nya dihapus (cascade)", async () => {
+    const event = await buatEvent("auth.registered:cascade");
+    await db.execute(
+      sql`insert into outbox_deliveries (event_id, sink) values (${event.id}, 'audit')`,
+    );
+    await db.execute(sql`delete from outbox_events where id = ${event.id}`);
+    const rows = await db.execute<{ jumlah: number }>(
+      sql`select count(*)::int as jumlah from outbox_deliveries where event_id = ${event.id}`,
+    );
+    expect(rows[0]?.jumlah).toBe(0);
+  });
+
+  it("menolak ledger untuk event yang tidak ada", async () => {
+    await harapDitolak(
+      () =>
+        db.execute(
+          sql`insert into outbox_deliveries (event_id, sink)
+              values ('00000000-0000-0000-0000-000000000000', 'audit')`,
         ),
       KODE.foreignKey,
     );

@@ -49,6 +49,7 @@ const mocks = vi.hoisted(() => ({
   pasangCookieSesi: vi.fn(),
   destroySession: vi.fn(),
   bacaTokenSesi: vi.fn(),
+  sesiLamaIdToken: vi.fn(),
   landingFor: vi.fn(),
 }));
 
@@ -65,6 +66,7 @@ vi.mock("@/lib/auth/session", () => ({
   pasangCookieSesi: mocks.pasangCookieSesi,
   destroySession: mocks.destroySession,
   bacaTokenSesi: mocks.bacaTokenSesi,
+  sesiLamaIdToken: mocks.sesiLamaIdToken,
 }));
 
 vi.mock("@/lib/auth/landing", () => ({ landingFor: mocks.landingFor }));
@@ -116,6 +118,7 @@ beforeEach(() => {
   mocks.pasangCookieSesi.mockReset();
   mocks.destroySession.mockReset();
   mocks.bacaTokenSesi.mockReset().mockResolvedValue(null);
+  mocks.sesiLamaIdToken.mockReset().mockResolvedValue(null);
   mocks.landingFor.mockReset().mockResolvedValue("/dashboard");
 });
 
@@ -250,6 +253,76 @@ describe("loginAction — delegasi dan pesan demo", () => {
     );
 
     expect(res.message).toContain("demo");
+  });
+});
+
+/**
+ * Rotasi sesi saat login.
+ *
+ * Sebelum ini `loginAction` memanggil `authenticatePengguna` tanpa
+ * `sessionLamaId`, sehingga `rotasiSession` tidak pernah menandai `rotated_at`
+ * dan token perangkat lama tetap sah sampai `expires_at`. Properti yang dijaga
+ * di sini: id sesi lama dibaca lewat predikat **sesi aktif** (bukan cookie
+ * mentah), diteruskan ke service, dan rotasi tidak pernah menghalangi login
+ * yang sah — termasuk saat cookie lamanya sudah mati.
+ */
+describe("loginAction — rotasi sesi", () => {
+  /** Jalankan login dan telan redirect yang memang diharapkan. */
+  async function jalankanLogin(form: FormData): Promise<void> {
+    try {
+      await loginAction({ ok: false }, form);
+      throw new Error("loginAction seharusnya mengalihkan halaman (redirect).");
+    } catch (error) {
+      if (!isRedirectError(error)) throw error;
+    }
+  }
+
+  beforeEach(() => {
+    mocks.authenticatePengguna.mockResolvedValue({
+      hasil: { ok: true, principal: principal(["user"]) },
+      token: "token-baru",
+      demo: false,
+    });
+  });
+
+  it("meneruskan id sesi aktif ke service untuk dirotasi", async () => {
+    mocks.sesiLamaIdToken.mockResolvedValue("sesi-lama-1");
+
+    await jalankanLogin(formData({ email: "rina@contoh.test", password: "rahasia-panjang" }));
+
+    expect(mocks.sesiLamaIdToken).toHaveBeenCalledTimes(1);
+    expect(mocks.authenticatePengguna).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionLamaId: "sesi-lama-1" }),
+    );
+    expect(mocks.pasangCookieSesi).toHaveBeenCalledWith("token-baru");
+  });
+
+  it("login tanpa cookie lama tetap berjalan dengan sessionLamaId null", async () => {
+    mocks.sesiLamaIdToken.mockResolvedValue(null);
+
+    await jalankanLogin(formData({ email: "rina@contoh.test", password: "rahasia-panjang" }));
+
+    expect(mocks.authenticatePengguna).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionLamaId: null }),
+    );
+    expect(mocks.pasangCookieSesi).toHaveBeenCalledWith("token-baru");
+  });
+
+  it("tidak menerbitkan sesi baru saat kredensial ditolak", async () => {
+    mocks.sesiLamaIdToken.mockResolvedValue("sesi-lama-1");
+    mocks.authenticatePengguna.mockResolvedValue({
+      hasil: { ok: false, alasan: "kredensial_salah" },
+      demo: false,
+    });
+
+    const res = await loginAction(
+      { ok: false },
+      formData({ email: "rina@contoh.test", password: "salah-panjang" }),
+    );
+
+    expect(res.ok).toBe(false);
+    expect(mocks.pasangCookieSesi).not.toHaveBeenCalled();
+    expect(jar.has("ls_session")).toBe(false);
   });
 });
 

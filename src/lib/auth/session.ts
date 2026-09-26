@@ -29,17 +29,22 @@
  *   tugas `auth-service` (`keluarSession`), yang dipanggil `logoutAction` lebih
  *   dulu. Memisahkannya mencegah "logout" yang hanya menghapus cookie di klien
  *   sementara tokennya tetap sah di server.
- * - **`authenticate`/`createSession` dipertahankan namanya** karena dipakai
- *   `src/actions/auth.ts`, tetapi keduanya hanya jembatan tipis ke
- *   `auth-service.ts`.
+ *
+ * Adapter ini sengaja hanya mengekspos jalur yang dipakai: `getSession`,
+ * `pasangCookieSesi`, `destroySession`, `bacaTokenSesi`, dan
+ * `sesiLamaIdToken`. Penerbit sesi tanpa verifikasi (`createSession`) dan
+ * verifikator tanpa cookie (`authenticate`) pernah ada di sini dengan nol
+ * pemanggil; keduanya dihapus supaya tidak ada jalan menerbitkan sesi tanpa
+ * membuktikan verifikasi. Semua penerbitan sesi sekarang lewat
+ * `auth-service.terbitkanSesi`, yang hanya dipanggil setelah login/registrasi
+ * berhasil.
  */
 
 import { cookies } from "next/headers";
 import {
-  authenticatePengguna,
   keluarSession,
   principalDariToken,
-  terbitkanSesi,
+  sesiAktifDariToken,
 } from "./auth-service";
 import { TTL_SESI_MS } from "./session-repository";
 import type { SessionPrincipal } from "./principal";
@@ -115,6 +120,26 @@ async function principalDariTokenAman(token: string): Promise<SessionPrincipal |
 }
 
 /**
+ * Id baris sesi aktif milik cookie sekarang, atau `null`.
+ *
+ * Dipakai `loginAction` untuk **rotasi saat login**: login tidak menghapus
+ * cookie lama terbit sendiri, jadi tanpa `sessionLamaId` baris sesi lama tetap
+ * sah sampai `expires_at`. Nilai ini datang dari
+ * `cariSessionAktifByTokenHash` — predikat yang sama dengan `getSession()` —
+ * sehingga hanya sesi yang benar-benar aktif (belum dicabut, belum dirotasi,
+ * belum kedaluwarsa) yang ikut ditandai.
+ *
+ * Id yang dikembalikan **bukan** identitas: ia hanya dipakai `rotasiSession`,
+ * yang memverifikasi ulang bahwa baris itu milik user yang baru lolos
+ * autentikasi.
+ */
+export async function sesiLamaIdToken(): Promise<string | null> {
+  const token = await bacaTokenSesi();
+  if (!token) return null;
+  return (await sesiAktifDariToken(token))?.id ?? null;
+}
+
+/**
  * Tulis token sesi ke cookie. **Satu-satunya** tempat cookie sesi di-set.
  *
  * Token datang dari `auth-service` (yang sudah menyimpan hash-nya di database);
@@ -135,38 +160,6 @@ export async function pasangCookieSesi(token: string): Promise<void> {
 export async function destroySession(): Promise<void> {
   const jar = await cookies();
   jar.set(COOKIE_NAME, "", opsiCookie(0));
-}
-
-/**
- * Verifikasi email/password dan kembalikan principal.
- *
- * `izinkanDemo` disalurkan dari `demoAccountsAllowed()` oleh pemanggil
- * (`loginAction`), bukan dibaca di sini — dengan begitu hanya ada satu tempat
- * yang memutuskan apakah akun demo boleh masuk.
- */
-export async function authenticate(
-  email: string,
-  password: string,
-  opsi: { izinkanDemo?: boolean } = {},
-): Promise<SessionPrincipal | null> {
-  const { hasil } = await authenticatePengguna({
-    email,
-    password,
-    izinkanDemo: opsi.izinkanDemo,
-  });
-  return hasil.ok ? hasil.principal : null;
-}
-
-/**
- * Terbitkan sesi untuk principal yang sudah terverifikasi dan pasang cookie.
- *
- * Mengembalikan token yang tertulis ke cookie, supaya pemanggil dapat
- * mencabutnya nanti (logout) tanpa membacanya kembali dari cookie.
- */
-export async function createSession(principal: SessionPrincipal): Promise<string> {
-  const token = await terbitkanSesi(principal);
-  await pasangCookieSesi(token);
-  return token;
 }
 
 /**

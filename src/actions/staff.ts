@@ -59,9 +59,20 @@ export interface StaffActionState {
  * Skema undangan. `role` memakai daftar tertutup `ROLE_UNDANGAN_STAFF`, bukan
  * `z.string()`, sehingga nilai di luar verifikator/admin ditolak sebelum
  * menyentuh service.
+ *
+ * Normalisasi email ada **sebelum** `z.email`, bukan sesudahnya: bentuk
+ * `z.email().trim().toLowerCase()` menerima `"  calon@contoh.test  "` dengan
+ * memangkasnya diam-diam, padahal `z.email()` polos di
+ * `lib/validation/auth.ts` menolaknya. Dua aturan untuk masukan yang sama
+ * adalah dua definisi yang bisa menyimpang; yang ini menyamakannya ke arah
+ * **menolak**, bukan menormalkan. Alamat yang sah tanpa spasi tetap bekerja,
+ * dan `buatUndanganStaff` menormalkan ulang sebagai jaring pengaman terakhir.
  */
 const undanganSchema = z.object({
-  email: z.email("Format email tidak valid").trim().toLowerCase(),
+  email: z
+    .string()
+    .refine((nilai) => nilai === nilai.trim(), "Email tidak boleh diawali/diakhiri spasi")
+    .pipe(z.email("Format email tidak valid")),
   role: z.enum(ROLE_UNDANGAN_STAFF, {
     message: "Peran undangan harus verifikator atau admin.",
   }),

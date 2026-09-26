@@ -44,6 +44,7 @@ import {
   bigserial,
   check,
   index,
+  integer,
   jsonb,
   primaryKey,
   pgTable,
@@ -286,6 +287,153 @@ export const auditEvents = pgTable("audit_events", {
   index("audit_events_actor_user_id_idx").on(table.actorUserId),
 ]);
 
+/**
+ * Bagian predikat "event belum selesai" yang **imutable** — aman dipakai di
+ * index parsial.
+ *
+ * Dipisah dari `OUTBOX_LEASE_BEBAS` karena PostgreSQL menolak `now()` di dalam
+ * predikat index (`functions in index predicate must be marked IMMUTABLE`).
+ * Yang bisa dibekukan ke index hanya kondisi kolom; perbandingan waktu harus
+ * dievaluasi saat query. Hasilnya tetap selektif: index menyaring seluruh
+ * baris yang sudah `processed_at` atau `dead_lettered_at` — bagian terbesar
+ * tabel yang berumur panjang — dan sisanya sangat kecil.
+ */
+export const OUTBOX_BELUM_SELESAI = sql`"processed_at" is null and "dead_lettered_at" is null`;
+
+/**
+ * Lease bebas atau sudah kedaluwarsa — bagian predikat claim yang memakai
+ * waktu, jadi **tidak boleh** masuk predikat index parsial di atas. Selalu
+ * dipasang di klausa `WHERE` saat claim.
+ */
+export const OUTBOX_LEASE_BEBAS = sql`("lease_owner" is null or "lease_expires_at" <= now())`;
+
+/**
+ * Transactional outbox — **satu-satunya jalur keluar efek samping**.
+ *
+ * Perubahan bisnis dan baris di sini ditulis dalam transaksi PostgreSQL yang
+ * sama, sehingga tidak ada commit bisnis tanpa event yang diwajibkan dan
+ * tidak ada event tanpa commit bisnis (plan §6).
+ *
+ * Aturan yang dikunci:
+ *
+ * - **`idempotency_key` unique.** Kunci ini yang membuat penulisan event
+ *   idempoten: retry penulisan event yang sama (mis. request diulang) tidak
+ *   menghasilkan baris kedua, jadi handler tidak pernah dipanggil dua kali
+ *   karena kesalahan penulis. Bentuknya ditentukan pemanggil (mis.
+ *   `attestation:issued:<id>`), bukan dibangkitkan acak — kunci acak selalu
+ *   lolos dan tidak menjamin apa pun.
+ * - **`payload_redacted` disaring sebelum insert**, sama seperti
+ *   `audit_events`. Handler hanya boleh menerima data yang memang
+ *   dibutuhkannya; token/secret/PII mentah tidak pernah masuk baris ini.
+ * - **Claim memakai lease, bukan lock tahan lama.** `lease_owner` +
+ *   `lease_expires_at` membuat worker yang crash di tengah event dapat
+ *   dipulihkan worker lain setelah lease kedaluwarsa, tanpa tabel lock
+ *   terpisah dan tanpa double-claim selama lease belum habis.
+ * - **State selesai berbeda dari state mati.** `processed_at` berarti sukses;
+ *   `dead_lettered_at` + `last_error_code` berarti gagal terminal yang harus
+ *   direplay manusia. Menggabungkan keduanya akan membuat "gagal permanen"
+ *   terlihat seperti "selesai".
+ * - **`available_at` memisahkan penjadwalan dari eksekusi.** Backoff
+ *   eksponensial cukup menggeser `available_at` ke depan; tidak perlu
+ *   `sleep` di worker.
+ *
+ * Index parsial `outbox_events_claim_idx` memakai predikat imutable yang sama
+ * (`OUTBOX_BELUM_SELESAI`), sehingga pencarian event siap-proses tidak
+ * menyentuh baris yang sudah selesai — bagian terbesar tabel yang tumbuh
+ * terus. Perbandingan waktu lease tetap dievaluasi di klausa `WHERE` claim.
+ */
+export const outboxEvents = pgTable("outbox_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  type: text("type").notNull(),
+  aggregateType: text("aggregate_type").notNull(),
+  aggregateId: text("aggregate_id").notNull(),
+  payloadRedacted: jsonb("payload_redacted"),
+  occurredAt: timestamp("occurred_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  availableAt: timestamp("available_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  attempts: integer("attempts").notNull().default(0),
+  leaseOwner: text("lease_owner"),
+  leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true, mode: "date" }),
+  processedAt: timestamp("processed_at", { withTimezone: true, mode: "date" }),
+  lastErrorCode: text("last_error_code"),
+  deadLetteredAt: timestamp("dead_lettered_at", { withTimezone: true, mode: "date" }),
+  idempotencyKey: text("idempotency_key").notNull().unique(),
+}, (table) => [
+  index("outbox_events_claim_idx")
+    .on(table.availableAt)
+    .where(OUTBOX_BELUM_SELESAI),
+  index("outbox_events_aggregate_idx").on(table.aggregateType, table.aggregateId),
+]);
+
+/**
+ * Ledger delivery per sink — pembuktian bahwa efek samping tidak dobel.
+ *
+ * Satu event boleh dikirim ke beberapa sink (email, audit fan-out, file scan,
+ * …). Idempotensi tidak boleh bergantung pada "event ini sudah ter-claim",
+ * karena claim boleh dilepas saat retry; yang harus unik adalah **pasangan
+ * (event, sink)**. Karena itu PK-nya komposit, bukan uuid: barisnya adalah
+ * kunci idempotensi, bukan entitas yang dirujuk dari luar.
+ *
+ * `event_id` memakai `on delete cascade` — baris ledger tidak punya arti tanpa
+ * event-nya, dan event boleh dibersihkan sesuai retention (ADR 0001).
+ *
+ * `sink` adalah nama kanonik yang dipakai handler (mis. `email`, `audit`);
+ * menambah sink baru tidak mengubah schema.
+ *
+ * `status` memisahkan tiga keadaan yang sering keliru disamakan:
+ *
+ * - `in_progress` — handler sudah mulai. Baris ditulis **sebelum** efek
+ *   samping dijalankan, lalu statusnya diperbarui dalam transaksi yang sama
+ *   dengan efeknya. Inilah yang membuat callback + ledger commit atomik: bila
+ *   transaksi gagal, baris ikut hilang dan percobaan berikutnya boleh jalan;
+ *   bila berhasil, baris `succeeded` menjadi bukti permanen.
+ * - `succeeded` — efek samping selesai. Handler berikutnya untuk
+ *   `(event, sink)` yang sama **melewatinya**, sehingga retry tidak
+ *   menggandakan email/audit.
+ * - `failed` — percobaan terakhir gagal. Baris tetap ada supaya retry berikut
+ *   boleh mencoba lagi tanpa kehilangan riwayat.
+ *
+ * Ledger ini menutup celah "dua worker menjalankan sink yang sama" **tanpa
+ * index parsial tambahan**: composite PK sudah membuat `(event, sink)` unik
+ * apa pun statusnya, jadi klaim kedua tidak bisa lewat sebagai baris kedua —
+ * ia wajib meng-UPDATE baris yang ada. Index parsial di kolom yang sama akan
+ * mustahil dilanggar terpisah (PK menolak lebih dulu) dan hanya menambah biaya
+ * tulis, jadi sengaja tidak dibuat. Idempotensi handler karena itu berbentuk
+ * transisi state, bukan penambahan baris.
+ */
+export const STATUS_DELIVERY = ["in_progress", "succeeded", "failed"] as const;
+
+/** Daftar nilai `outbox_deliveries.status` untuk klausa CHECK, ditulis eksplisit. */
+const CHECK_STATUS_DELIVERY = sql`"status" in ('in_progress', 'succeeded', 'failed')`;
+
+export const outboxDeliveries = pgTable("outbox_deliveries", {
+  eventId: uuid("event_id")
+    .notNull()
+    .references(() => outboxEvents.id, { onDelete: "cascade" }),
+  sink: text("sink").notNull(),
+  status: text("status").notNull().default("in_progress"),
+  /** Kapan baris ledger ini terakhir diperbarui. */
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  /** Saat status menjadi `succeeded`. Null selama belum sukses. */
+  deliveredAt: timestamp("delivered_at", { withTimezone: true, mode: "date" }),
+  /** Kode hasil idempoten dari sink, mis. id pesan provider; nullable bila sink tidak memberi id. */
+  resultCode: text("result_code"),
+}, (table) => [
+  primaryKey({ columns: [table.eventId, table.sink] }),
+  index("outbox_deliveries_sink_idx").on(table.sink),
+  check("outbox_deliveries_status_check", CHECK_STATUS_DELIVERY),
+]);
+
+/**
+ * Kunci idempotensi di level **penulisan event** sudah cukup di
+ * `outbox_events.idempotency_key` (unique), dan di level **pengiriman** sudah
+ * cukup di `outbox_deliveries` (PK `(event_id, sink)`). Tabel ledger
+ * idempotensi terpisah sengaja tidak dibuat: belum ada pemanggil yang
+ * membutuhkannya, dan tabel yang tidak dibaca adalah tabel yang menyimpang.
+ * Bila nanti ada sink yang perlu mem-`dedupe` lintas-event, tambahkan tabelnya
+ * lewat migration baru — bukan dengan memperluas salah satu di atas secara
+ * diam-diam.
+ */
+
 /** Baris `users` sebagaimana dibaca dari database. */
 export type User = typeof users.$inferSelect;
 /** Baris `users` untuk insert — kolom ber-default boleh dikosongkan. */
@@ -306,6 +454,10 @@ export type StaffInvitation = typeof staffInvitations.$inferSelect;
 export type NewStaffInvitation = typeof staffInvitations.$inferInsert;
 export type AuditEvent = typeof auditEvents.$inferSelect;
 export type NewAuditEvent = typeof auditEvents.$inferInsert;
+export type OutboxEvent = typeof outboxEvents.$inferSelect;
+export type NewOutboxEvent = typeof outboxEvents.$inferInsert;
+export type OutboxDelivery = typeof outboxDeliveries.$inferSelect;
+export type NewOutboxDelivery = typeof outboxDeliveries.$inferInsert;
 
 /** Nilai yang sah untuk `users.status`. */
 export type StatusPengguna = (typeof STATUS_PENGGUNA)[number];
@@ -313,3 +465,5 @@ export type StatusPengguna = (typeof STATUS_PENGGUNA)[number];
 export type RolePengguna = (typeof ROLE_PENGGUNA)[number];
 /** Nilai yang sah untuk `staff_invitations.role`. */
 export type RoleUndanganStaff = (typeof ROLE_UNDANGAN_STAFF)[number];
+/** Nilai yang sah untuk `outbox_deliveries.status`. */
+export type StatusDelivery = (typeof STATUS_DELIVERY)[number];

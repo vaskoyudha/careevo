@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { isStaffRole } from "@/lib/auth/roles";
+import { punyaRoleStaff } from "@/lib/auth/authorization";
 import { getSession } from "@/lib/auth/session";
 import { slugify } from "@/lib/courses/store";
 import { modulUntuk } from "@/lib/courses/modul-resolver";
@@ -138,7 +138,10 @@ export async function POST(request: Request): Promise<Response> {
   if (!sesi) {
     return galat(401, "Sesi tidak ditemukan. Silakan masuk terlebih dahulu.");
   }
-  if (!isStaffRole(sesi.role)) {
+  // `roles` dari principal database, bukan field kompatibilitas `role`:
+  // pencabutan role harus berlaku pada permintaan berikutnya, dan aturannya
+  // adalah definisi yang sama dengan `gateStaff()`.
+  if (!sesi.userId || !punyaRoleStaff(sesi.roles ?? [])) {
     return galat(403, "Hanya verifikator atau admin yang boleh mengunggah berkas.");
   }
 
