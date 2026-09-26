@@ -156,6 +156,7 @@ export async function catatKejadianAction(input: {
   jenis: KJenisKejadian;
   visibilitas: "visible" | "hidden" | null;
   detail?: string;
+  asal?: string;
 }): Promise<SesiActionState> {
   const session = await getSession();
   if (!session) return { ok: false, error: "Sesi pengguna tidak ditemukan." };
@@ -184,6 +185,7 @@ export async function catatKejadianAction(input: {
     // Pemakaian cast di sini aman karena daftar sah sudah diperiksa di atas.
     jenis: input.jenis as KJenisKejadian,
     visibilitas: input.visibilitas,
+    asal: input.asal,
     // `detail` dipotong di service (`catatKejadianDb`), tidak diulang di sini.
     detail: input.detail,
   });

@@ -113,14 +113,16 @@ export function KejadianPanel() {
       </dl>
 
       <p className="mt-3 text-sm leading-relaxed text-gray-700">
-        Pindah tab dan kamera yang terputus dicatat untuk konteks. Kejadian ini tidak otomatis
-        menggagalkan penilaian dan tidak mengurangi reputasimu.
+        Pindah tab, keluar layar penuh, menempel/menyalin teks panjang, dan pintasan tertentu
+        dicatat untuk konteks. Kejadian ini tidak otomatis menggagalkan penilaian dan tidak
+        mengurangi reputasimu.
       </p>
       <p className="mt-2 text-xs leading-relaxed text-gray-600">
-        Yang dicatat saat ini: pindah tab dan fokus yang hilang. Careevo <strong>belum</strong>{" "}
-        mengakses kameramu — tidak ada aliran gambar yang dibuka, tidak ada wajah yang direkam, dan
-        tidak ada yang dianalisis. Laporan kamera di bawah hanya mencatat apa yang kamu alami
-        sendiri, supaya pengajar tahu konteksnya.
+        Yang dicatat saat ini: pindah tab, fokus yang hilang, keluar layar penuh, dan pola
+        menempel/menyalin teks panjang. Careevo <strong>belum</strong> mengakses kameramu — tidak
+        ada aliran gambar yang dibuka, tidak ada wajah yang direkam, dan tidak ada yang dianalisis.
+        Laporan kamera di bawah hanya mencatat apa yang kamu alami sendiri, supaya pengajar tahu
+        konteksnya.
       </p>
 
       <fieldset className="mt-4">
