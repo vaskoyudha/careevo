@@ -73,10 +73,10 @@ A skill with invalid frontmatter fails **silently** — `npm run skills:check` i
   klien.** Dua gerbang: `selesaikanMateriAction` (cabang `perlu_kamera` dari
   `putuskanAkses`) dan `selesaikanModulKuisVerified` (kode `perlu_kamera`).
 - **`module_progress.evidence_id` berisi dua jenis id.** Jalur materi mengisi
-  `learning_runs.id`, jalur kuis mengisi `quiz_attempts.id`. Apa pun yang memetakan
-  bukti ke run harus memeriksa jenisnya lebih dulu, bukan menganggap id yang
-  tidak ditemukan di peta run berarti "tidak ada kamera".
-
+  `learning_runs.id`, atau `null` pada course `opsional` yang memang tidak punya
+  run; jalur kuis mengisi `quiz_attempts.id`. Apa pun yang memetakan bukti ke run
+  harus memeriksa jenisnya lebih dulu, bukan menganggap id yang tidak ditemukan
+  di peta run berarti "tidak ada kamera".
 
 ## Navigation — navbar contract (do not regress)
 

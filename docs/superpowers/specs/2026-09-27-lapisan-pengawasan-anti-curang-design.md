@@ -195,11 +195,18 @@ bukan dari klaim klien.
 **Pelusan spec ini.** Paragraf di atas menyebut label `terverifikasi` atau
 `terverifikasi_kamera` "dari run yang mendasarinya", dan itu belum cukup lengkap.
 `module_progress.evidence_id` punya dua writer: jalur materi menyimpannya sebagai
-`learning_runs.id`, jalur kuis sebagai `quiz_attempts.id` (`schema.ts:524-526`).
-Penyelesaian kuis karena itu **tidak punya run yang bisa ditelusuri**, dan label
-untuknya adalah `terverifikasi_tanpa_bukti_kamera` — "jalur terverifikasi, kamera
-tidak bisa ditelusuri ke run". Itu **bukan** nilai `completion_path` keempat:
-kolomnya tetap dua nilai, dan label turunan boleh lebih dari dua.
+`learning_runs.id` — atau `null` bila aturan pengawasannya `opsional`, yang memang
+tidak punya run untuk ditelusuri — dan jalur kuis sebagai `quiz_attempts.id`
+(`schema.ts:524-526`). Penyelesaian kuis karena itu **tidak punya run yang bisa
+ditelusuri**, dan materi pada course `opsional` berakhir di titik yang sama:
+ketika peta kamera disertakan, label untuk keduanya adalah
+`terverifikasi_tanpa_bukti_kamera` — "jalur terverifikasi, kamera tidak bisa
+ditelusuri ke run". `evidence_id` kosong karena itu bukan hanya kasus kuis. Ketiga
+sebab yang menghasilkan label itu tercantum di kontrak modul
+`src/lib/performa/jalur-selesai.ts`, dan `jalurDariBukti` mengujinya sebagai satu
+syarat saja, yaitu bukti ini ada di peta run atau tidak. Itu **bukan** nilai
+`completion_path` keempat: kolomnya tetap dua nilai, dan label turunan boleh lebih
+dari dua.
 
 Tiga hal yang **sengaja tidak** dikerjakan dan tidak boleh dianggap terlewat:
 
