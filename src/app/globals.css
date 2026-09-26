@@ -2033,7 +2033,8 @@ h6 {
 }
 
 .field input,
-.field select {
+.field select,
+.field textarea {
   width: 100%;
   min-height: 44px;
   padding: 0.6rem 0.85rem;
@@ -2047,13 +2048,25 @@ h6 {
   transition: border-color 180ms ease-out, box-shadow 180ms ease-out, background-color 180ms ease-out;
 }
 
+.field textarea {
+  /* `Textarea` hanya membawa `px-3 py-2` utility, yang lebih rapat dari
+     `0.6rem 0.85rem` di atas. Akibatnya textarea di dalam `.field` terlihat
+     lebih kecil dan lebih tipis daripada input di sebelahnya — termasuk di
+     form review, pada field "Alasan (wajib)". */
+  min-height: 88px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
 .field input:hover,
-.field select:hover {
+.field select:hover,
+.field textarea:hover {
   border-color: var(--spray);
 }
 
 .field input:focus,
-.field select:focus {
+.field select:focus,
+.field textarea:focus {
   outline: none;
   background: #fff;
   border-color: var(--aqua);
@@ -2061,7 +2074,8 @@ h6 {
 }
 
 .field input[aria-invalid="true"],
-.field select[aria-invalid="true"] {
+.field select[aria-invalid="true"],
+.field textarea[aria-invalid="true"] {
   border-color: var(--danger);
   box-shadow: 0 0 0 3px rgba(228, 87, 46, 0.18);
 }
@@ -2113,19 +2127,44 @@ h6 {
   box-shadow: 0 0 0 3px var(--aqua-glow);
 }
 
-/* The field label acts as a placeholder: it sits inline while the input is
-   empty and untouched, then fades out as soon as the field is focused or has
-   content. `:placeholder-shown` needs the input's `placeholder=" "`. */
+/* The field label doubles as a floating placeholder: it sits vertically
+   centered while the input is empty and untouched, then shrinks and moves to
+   the top-left of the box on focus or once the field has content, instead of
+   disappearing. `:placeholder-shown` needs the input's `placeholder=" "`. */
 .auth-field-label {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  transform-origin: left center;
+  color: rgba(0, 0, 0, 0.6);
+  line-height: 1;
+  white-space: nowrap;
   transition:
-    opacity 0.18s ease,
+    color 0.18s ease,
     transform 0.18s ease;
+}
+
+/* The typed value gets pushed down while the label floats above it, so the
+   two never overlap inside the 44px field. */
+.auth-field input {
+  transition: padding-top 0.18s ease;
 }
 
 .auth-field:focus-within .auth-field-label,
 .auth-field:has(input:not(:placeholder-shown)) .auth-field-label {
-  opacity: 0;
-  transform: translateY(-4px);
+  top: 0.2rem;
+  transform: translateY(0) scale(0.7);
+  transform-origin: left top;
+}
+
+.auth-field:focus-within input,
+.auth-field:has(input:not(:placeholder-shown)) input {
+  padding-top: 0.8rem;
+}
+
+.auth-field:focus-within .auth-field-label {
+  color: var(--aqua);
 }
 
 @media (max-width: 560px) {

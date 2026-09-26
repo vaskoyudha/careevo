@@ -1,10 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState, useMemo, useState } from "react";
 import { decideReview, type ReviewState } from "@/actions/review";
 import { hitungSkorKarya, type RubricCriterion } from "@/lib/scoring/karya";
-import type { SubmissionFixture } from "@/lib/fixtures";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -19,7 +17,20 @@ const CRITERIA: Array<{ key: RubricCriterion; label: string; bobot: string }> = 
   { key: "dokumentasi", label: "Dokumentasi", bobot: "10%" },
 ];
 
-export function ReviewForm({ submission, username }: { submission: SubmissionFixture; username: string }) {
+/**
+ * Form keputusan review. Yang menentukan credential hanya `submissionId`,
+ * `decision`, `reason`, dan lima nilai rubrik: action `decideReview` membaca
+ * payload attestation dari record server-side, bukan dari field di sini. Skor
+ * yang ditampilkan murni kosmetik — server menghitungnya ulang dari rubrik.
+ * `username` hanya dipakai untuk label tombol kirim.
+ */
+export function ReviewForm({
+  submissionId,
+  username,
+}: {
+  submissionId: string;
+  username?: string;
+}) {
   const [state, formAction, pending] = useActionState(decideReview, INITIAL);
   const [scores, setScores] = useState<Record<RubricCriterion, number>>({
     kelengkapan: 3,
@@ -28,19 +39,23 @@ export function ReviewForm({ submission, username }: { submission: SubmissionFix
     ketepatan_brief: 2,
     dokumentasi: 3,
   });
-  const [decision, setDecision] = useState("revision");
+  const [decision, setDecision] = useState("approved");
   const [reason, setReason] = useState("");
 
   const skorKarya = useMemo(() => hitungSkorKarya(scores), [scores]);
   const skorTotal = useMemo(() => Math.round((skorKarya / 40) * 100), [skorKarya]);
 
   return (
-    <form className="card" action={formAction}>
-      <input type="hidden" name="total" value={skorTotal} />
+    <form
+      className="card"
+      action={formAction}
+      aria-label={
+        username ? `Form keputusan review untuk ${username}` : "Form keputusan review"
+      }
+    >
+      <input type="hidden" name="submissionId" value={submissionId} />
       <input type="hidden" name="decision" value={decision} />
       <input type="hidden" name="reason" value={reason} />
-      <input type="hidden" name="username" value={username} />
-      <input type="hidden" name="task_title" value={submission.task_title} />
 
       <div className="card-head">
         <div>
@@ -76,16 +91,20 @@ export function ReviewForm({ submission, username }: { submission: SubmissionFix
                 setScores((prev) => ({ ...prev, [criterion.key]: Number(event.target.value) }))
               }
             />
+            {/* Nilai rubrik ikut terkirim lewat input tersembunyi, bukan lewat
+                input range: slider yang dinonaktifkan (`disabled`) tidak
+                dikirim browser, sedangkan rubrik wajib ada di FormData. */}
+            <input type="hidden" name={criterion.key} value={scores[criterion.key]} />
             <span className="mono">{scores[criterion.key]}/4</span>
           </div>
         </div>
       ))}
 
-      <div className="field" style={{ marginTop: "1rem" }}>
+      <div className="field mt-5">
         <label htmlFor="r-reason">Alasan (wajib)</label>
         <Textarea
           id="r-reason"
-          rows={3}
+          rows={4}
           value={reason}
           onChange={(event) => setReason(event.target.value)}
           placeholder="Jelaskan dasar keputusan. Tidak ada silent reject."
@@ -93,7 +112,11 @@ export function ReviewForm({ submission, username }: { submission: SubmissionFix
         />
       </div>
 
-      <div className="editor-toolbar" style={{ marginBottom: "1rem" }}>
+      <div
+        className="editor-toolbar mt-4"
+        role="group"
+        aria-label="Keputusan review"
+      >
         <Button
           type="button"
           variant="ghost"
@@ -107,15 +130,6 @@ export function ReviewForm({ submission, username }: { submission: SubmissionFix
           type="button"
           variant="ghost"
           size="sm"
-          className={cn("tab-btn", decision === "revision" && "is-active")}
-          onClick={() => setDecision("revision")}
-        >
-          Minta revisi
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
           className={cn("tab-btn", decision === "rejected" && "is-active")}
           onClick={() => setDecision("rejected")}
         >
@@ -123,7 +137,13 @@ export function ReviewForm({ submission, username }: { submission: SubmissionFix
         </Button>
       </div>
 
-      <Button className="btn-primary" variant="brand" size="pill" type="submit" disabled={pending}>
+      {/* `variant="ocean"` memakai `--primary` (#0a3d62), warna utama
+          dashboard, dan warna yang sama dengan `.tab-btn.is-active` di atas —
+          jadi tombol utama dan segmen pilihan dalam satu form tidak lagi
+          berlomba warna. `btn-primary` sengaja dibuang: kelas itu juga hijau
+          (`--leaf`) dan berhadapan dengan variant, jadi siapa yang menang
+          bergantung urutan stylesheet. */}
+      <Button variant="ocean" size="pill" type="submit" disabled={pending}>
         {pending ? "Menyimpan..." : `Kirim keputusan: ${decision}`}
       </Button>
 
@@ -136,11 +156,6 @@ export function ReviewForm({ submission, username }: { submission: SubmissionFix
       {state.ok ? (
         <div className="alert alert-ok" style={{ marginTop: "1rem" }} role="status">
           <p style={{ margin: 0 }}>{state.message}</p>
-          {state.token ? (
-            <p style={{ margin: "0.5rem 0 0" }}>
-              Verifikasi publik: <Link href={`/verify/${state.token}`}>buka halaman /verify</Link>
-            </p>
-          ) : null}
         </div>
       ) : null}
     </form>

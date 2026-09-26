@@ -4,7 +4,7 @@ import { Chip } from "@/components/ui/chip";
 import { Btn } from "@/components/ui/btn";
 import { CopyLinkButton } from "./copy-link-button";
 
-export type VerifyStatus = "valid" | "invalid" | "expired";
+export type VerifyStatus = "valid" | "invalid" | "expired" | "revoked";
 
 type StatusConfig = {
   title: string;
@@ -35,6 +35,13 @@ const CONFIG: Record<VerifyStatus, StatusConfig> = {
     explanation:
       "Signature masih cocok, tetapi masa berlaku verifikasi sudah berakhir. Pemegang badge dapat menerbitkan ulang setelah validasi terbaru.",
   },
+  revoked: {
+    title: "DICABUT",
+    chip: "Kredensial dicabut",
+    tone: "danger",
+    explanation:
+      "Signature masih cocok, tetapi Careevo sudah mencabut kredensial ini. Pencabutan adalah keputusan penerbit: badge tidak lagi berlaku meskipun payload-nya tidak diubah sejak terbit.",
+  },
 };
 
 const ICON_PATH: Record<VerifyStatus, string> = {
@@ -42,6 +49,7 @@ const ICON_PATH: Record<VerifyStatus, string> = {
   invalid: "M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 10 8 10 8a18.5 18.5 0 0 1-2.16 3.19M6.61 6.61A18.5 18.5 0 0 0 2 12s3 8 10 8a9.12 9.12 0 0 0 5.39-1.61M2 2l20 20",
   expired:
     "M12 6v6l4 2M21 12a9 9 0 1 1-6.22-8.56",
+  revoked: "M18.36 6.64A9 9 0 1 1 5.64 19.36M2 2l20 20",
 };
 
 const REASON_LABEL: Record<VerifyReason, string> = {

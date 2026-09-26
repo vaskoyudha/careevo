@@ -29,7 +29,6 @@ export interface AuthFormValues {
   email?: string;
   nama?: string;
   username?: string;
-  role?: string;
 }
 
 export interface AuthFormState {

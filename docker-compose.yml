@@ -1,0 +1,32 @@
+# PostgreSQL untuk pengembangan lokal dan test integrasi.
+#
+# Kredensial di sini **nilai dev yang publik** — bukan secret. Berkas ini hanya
+# mendefinisikan database lokal di localhost; deployment sebenarnya memakai
+# managed PostgreSQL (lihat `docs/adr/0001-topologi-deployment-produksi.md`).
+# Jangan pakai berkas ini sebagai konfigurasi produksi.
+#
+#   docker compose up -d postgres
+#
+# Database `careevo_test` tidak dibuat di sini: test integrasi membuat basis
+# data ephemeral sendiri lewat `scripts/test-db-setup.ts`, di dalam container
+# yang sama ini. Prosedur lengkapnya ada di `docs/local-db.md`.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: careevo
+      POSTGRES_PASSWORD: careevo_dev
+      POSTGRES_DB: careevo
+    ports:
+      # Kredensial development dipublikasikan, jadi database lokal tidak boleh
+      # dibuka ke LAN secara tidak sengaja.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - careevo_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U careevo -d careevo"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+volumes:
+  careevo_pgdata:

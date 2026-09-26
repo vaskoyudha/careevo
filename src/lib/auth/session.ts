@@ -1,170 +1,174 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+/**
+ * Adapter sesi Next.js — **server-only**.
+ *
+ * Sebelum Fase 1, berkas ini memegang seluruh arti sesi: payload JSON
+ * (email/nama/username/role) ditandatangani HMAC dan **isinya** menjadi
+ * identitas. Itu berarti identitas tidak dapat dicabut (cookie berlaku sampai
+ * kedaluwarsa), tidak lintas perangkat, dan perubahan role baru berlaku setelah
+ * login ulang.
+ *
+ * Sekarang arahnya dibalik: cookie hanya membawa **token opaque**, dan seluruh
+ * arti sesi hidup di database:
+ *
+ * - `sessions.token_hash` — hash SHA-256 token (token asli tidak pernah disimpan);
+ * - `sessions.expires_at` + `revoked_at` — masa berlaku dan pencabutan terpusat;
+ * - `users` + `user_roles` — identitas dan role yang **selalu** dibaca ulang.
+ *
+ * Konsekuensi yang harus diingat pemanggil:
+ *
+ * - **`getSession()` menyentuh database pada setiap panggilan.** Ia tidak bisa
+ *   dipanggil dari komponen client, dan tidak ada cache — cache akan
+ *   menghidupkan kembali masalah "pencabutan role belum berlaku".
+ * - **`getSession()` mengembalikan `SessionPrincipal`,** superset dari
+ *   `SessionPayload` lama. Call site yang membaca `.email/.nama/.username/.role`
+ *   tetap bekerja; `.userId`/`.roles` adalah tambahan dari database.
+ * - **Cookie legacy (`ls_session` bertanda tangan HMAC) tidak lagi diterima.**
+ *   Nilainya bukan token opaque yang ada di database, jadi `getSession()`
+ *   mengembalikannya sebagai `null` — perilaku yang diinginkan pada cutover.
+ * - **`destroySession()` hanya menghapus cookie.** Pencabutan baris sesi adalah
+ *   tugas `auth-service` (`keluarSession`), yang dipanggil `logoutAction` lebih
+ *   dulu. Memisahkannya mencegah "logout" yang hanya menghapus cookie di klien
+ *   sementara tokennya tetap sah di server.
+ *
+ * Adapter ini sengaja hanya mengekspos jalur yang dipakai: `getSession`,
+ * `pasangCookieSesi`, `destroySession`, `bacaTokenSesi`, dan
+ * `sesiLamaIdToken`. Penerbit sesi tanpa verifikasi (`createSession`) dan
+ * verifikator tanpa cookie (`authenticate`) pernah ada di sini dengan nol
+ * pemanggil; keduanya dihapus supaya tidak ada jalan menerbitkan sesi tanpa
+ * membuktikan verifikasi. Semua penerbitan sesi sekarang lewat
+ * `auth-service.terbitkanSesi`, yang hanya dipanggil setelah login/registrasi
+ * berhasil.
+ */
+
 import { cookies } from "next/headers";
 import {
-  isRole,
-  type DemoAccount,
-  type Role,
-  type SessionPayload,
-  type SessionUser,
-} from "./types";
-import { findStoredUser, hashPassword } from "./user-store";
+  keluarSession,
+  principalDariToken,
+  sesiAktifDariToken,
+} from "./auth-service";
+import { TTL_SESI_MS } from "./session-repository";
+import type { SessionPrincipal } from "./principal";
 
-export const ROLE = {
-  USER: "user",
-  VERIFIKATOR: "verifikator",
-  ADMIN: "admin",
-} as const satisfies Record<string, Role>;
+export type { Role, SessionPayload, SessionUser } from "./types";
+export type { SessionPrincipal } from "./principal";
 
-export type { Role, SessionPayload, SessionUser };
-
+/** Nama cookie sesi. Tidak berubah supaya tidak ada dua nama yang hidup bersama. */
 export const COOKIE_NAME = "ls_session";
-export const DEMO_PASSWORD = "careevo";
 
-const SESSION_SECRET = process.env.SESSION_SECRET ?? "dev-session-secret-careevo";
-const SESSION_MAX_AGE = 60 * 60 * 8;
+/**
+ * Umur cookie dalam detik, diturunkan dari `TTL_SESI_MS`.
+ *
+ * Sengaja tidak ditulis ulang sebagai angka: cookie dan `sessions.expires_at`
+ * harus berakhir bersamaan. Cookie yang lebih panjang akan membuat klien
+ * mengirim token yang sudah mati; yang lebih pendek memaksa login ulang padahal
+ * sesinya masih sah.
+ */
+export const SESSION_MAX_AGE = Math.floor(TTL_SESI_MS / 1000);
 
-export const DEMO_ACCOUNTS: DemoAccount[] = [
-  {
-    email: "user@careevo.test",
-    nama: "Raka Pratama",
-    username: "raka",
-    role: ROLE.USER,
-    password: DEMO_PASSWORD,
-  },
-  {
-    email: "verifikator@careevo.test",
-    nama: "Dewi Larasati",
-    username: "dewi",
-    role: ROLE.VERIFIKATOR,
-    password: DEMO_PASSWORD,
-  },
-  {
-    email: "admin@careevo.test",
-    nama: "Admin Careevo",
-    username: "admin",
-    role: ROLE.ADMIN,
-    password: DEMO_PASSWORD,
-  },
-];
-
-function sign(body: string): string {
-  return createHmac("sha256", SESSION_SECRET).update(body).digest("base64url");
+/** Opsi cookie sesi — satu tempat, supaya `set` dan `clear` tidak menyimpang. */
+function opsiCookie(maxAge: number) {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge,
+  };
 }
 
-function safeEqual(a: string, b: string): boolean {
-  const bufA = Buffer.from(a);
-  const bufB = Buffer.from(b);
-  if (bufA.length !== bufB.length) return false;
-  return timingSafeEqual(bufA, bufB);
+/** Token sesi mentah dari cookie, atau `null` bila tidak ada. */
+export async function bacaTokenSesi(): Promise<string | null> {
+  const jar = await cookies();
+  const token = jar.get(COOKIE_NAME)?.value;
+  return token && token.length > 0 ? token : null;
 }
 
-function encodeToken(payload: SessionPayload): string {
-  const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
-  return `${body}.${sign(body)}`;
+/**
+ * Principal dari sesi yang sedang aktif, atau `null`.
+ *
+ * Satu-satunya jalur baca identitas. Semua kegagalan — token tidak ada, tidak
+ * dikenal, sesi dicabut, sesi kedaluwarsa, user dihapus/nonaktif — menyatu
+ * menjadi `null`: membedakannya di response hanya memberi penyerang informasi.
+ *
+ * Galat database selain masalah konfigurasi juga menjadi `null` (lihat
+ * `principalDariTokenAman`): sesi yang tidak dapat diverifikasi diperlakukan
+ * sebagai "belum masuk", dan gagal-terbuka bukan pilihan.
+ */
+export async function getSession(): Promise<SessionPrincipal | null> {
+  const token = await bacaTokenSesi();
+  if (!token) return null;
+  return principalDariTokenAman(token);
 }
 
-function decodeToken(token: string): SessionPayload | null {
-  const [body, signature] = token.split(".");
-  if (!body || !signature) return null;
-  if (!safeEqual(signature, sign(body))) return null;
-
+/**
+ * `principalDariToken` dengan galat database diubah menjadi `null`.
+ *
+ * Galat konfigurasi (`DatabaseUrlError`) **tetap dilempar**: itu kegagalan start
+ * yang harus terlihat, bukan sesi yang kebetulan tidak valid. Galat lain
+ * (koneksi putus, tabel sementara tidak dapat dibaca) menjadi `null`, supaya
+ * halaman bergate tidak berubah menjadi 500 di seluruh aplikasi hanya karena
+ * satu query gagal.
+ */
+async function principalDariTokenAman(token: string): Promise<SessionPrincipal | null> {
+  const { DatabaseUrlError } = await import("@/lib/db/client");
   try {
-    const parsed = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as unknown;
-    if (typeof parsed !== "object" || parsed === null) return null;
-
-    const candidate = parsed as Record<string, unknown>;
-    if (
-      typeof candidate.email !== "string" ||
-      typeof candidate.nama !== "string" ||
-      typeof candidate.username !== "string" ||
-      typeof candidate.iat !== "number" ||
-      !isRole(candidate.role)
-    ) {
-      return null;
-    }
-
-    if (Date.now() - candidate.iat > SESSION_MAX_AGE * 1000) {
-      return null;
-    }
-
-    return {
-      email: candidate.email,
-      nama: candidate.nama,
-      username: candidate.username,
-      role: candidate.role,
-      iat: candidate.iat,
-    };
-  } catch {
+    return await principalDariToken(token);
+  } catch (error) {
+    if (error instanceof DatabaseUrlError) throw error;
     return null;
   }
 }
 
-function toSessionUser(account: DemoAccount): SessionUser {
-  return {
-    email: account.email,
-    nama: account.nama,
-    username: account.username,
-    role: account.role,
-  };
-}
-
-export async function authenticate(
-  email: string,
-  password: string,
-): Promise<SessionUser | null> {
-  const normalized = email.trim().toLowerCase();
-
-  const account = DEMO_ACCOUNTS.find(
-    (item) => item.email.toLowerCase() === normalized,
-  );
-  if (account) {
-    if (!safeEqual(account.password, password)) return null;
-    return toSessionUser(account);
-  }
-
-  const stored = await findStoredUser(normalized);
-  if (!stored) return null;
-  if (!safeEqual(stored.passwordHash, hashPassword(password))) return null;
-
-  return {
-    email: stored.email,
-    nama: stored.nama,
-    username: stored.username,
-    role: stored.role,
-  };
-}
-
-export function isDemoEmail(email: string): boolean {
-  const normalized = email.trim().toLowerCase();
-  return DEMO_ACCOUNTS.some((item) => item.email.toLowerCase() === normalized);
-}
-
-export async function createSession(user: SessionUser): Promise<void> {
-  const jar = await cookies();
-  const token = encodeToken({ ...user, iat: Date.now() });
-  jar.set(COOKIE_NAME, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: SESSION_MAX_AGE,
-  });
-}
-
-export async function getSession(): Promise<SessionPayload | null> {
-  const jar = await cookies();
-  const token = jar.get(COOKIE_NAME)?.value;
+/**
+ * Id baris sesi aktif milik cookie sekarang, atau `null`.
+ *
+ * Dipakai `loginAction` untuk **rotasi saat login**: login tidak menghapus
+ * cookie lama terbit sendiri, jadi tanpa `sessionLamaId` baris sesi lama tetap
+ * sah sampai `expires_at`. Nilai ini datang dari
+ * `cariSessionAktifByTokenHash` — predikat yang sama dengan `getSession()` —
+ * sehingga hanya sesi yang benar-benar aktif (belum dicabut, belum dirotasi,
+ * belum kedaluwarsa) yang ikut ditandai.
+ *
+ * Id yang dikembalikan **bukan** identitas: ia hanya dipakai `rotasiSession`,
+ * yang memverifikasi ulang bahwa baris itu milik user yang baru lolos
+ * autentikasi.
+ */
+export async function sesiLamaIdToken(): Promise<string | null> {
+  const token = await bacaTokenSesi();
   if (!token) return null;
-  return decodeToken(token);
+  return (await sesiAktifDariToken(token))?.id ?? null;
 }
 
+/**
+ * Tulis token sesi ke cookie. **Satu-satunya** tempat cookie sesi di-set.
+ *
+ * Token datang dari `auth-service` (yang sudah menyimpan hash-nya di database);
+ * fungsi ini tidak membangkitkan maupun memverifikasi apa pun.
+ */
+export async function pasangCookieSesi(token: string): Promise<void> {
+  const jar = await cookies();
+  jar.set(COOKIE_NAME, token, opsiCookie(SESSION_MAX_AGE));
+}
+
+/**
+ * Hapus cookie sesi. Tidak mencabut baris di database — lihat catatan modul.
+ *
+ * `maxAge: 0` (bukan hanya nilai kosong) supaya peramban benar-benar
+ * menghapusnya; cookie dengan nilai kosong tetapi umur panjang akan tetap
+ * dikirim sebagai string kosong.
+ */
 export async function destroySession(): Promise<void> {
   const jar = await cookies();
-  jar.set(COOKIE_NAME, "", {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 0,
-  });
+  jar.set(COOKIE_NAME, "", opsiCookie(0));
+}
+
+/**
+ * Cabut sesi yang ditunjuk token ini. **Bukan** `destroySession`.
+ *
+ * Dipakai `logoutAction`: pencabutan baris di database harus terjadi lebih dulu,
+ * kalau tidak token yang sudah "logout" masih sah bila disalin dari riwayat
+ * peramban.
+ */
+export async function cabutSesiSekarang(token: string): Promise<void> {
+  await keluarSession(token);
 }

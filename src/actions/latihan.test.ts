@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import * as sessionModule from "@/lib/auth/session";
-import type { SessionPayload } from "@/lib/auth/types";
+import { principalUji } from "@/lib/auth/test-principal";
 import type { SoalLatihan } from "@/lib/latihan/types";
 
 /**
@@ -24,13 +24,7 @@ let root: string;
 let latihan: typeof import("./latihan");
 let store: typeof import("@/lib/latihan/store");
 
-const SESI: SessionPayload = {
-  email: "user@careevo.test",
-  nama: "User Demo",
-  username: "userdemo",
-  role: "user",
-  iat: Math.floor(Date.now() / 1000),
-};
+const SESI = principalUji({ email: "user@careevo.test", nama: "User Demo", username: "userdemo" });
 
 function soal(id: string, tipe: SoalLatihan["tipe"]): SoalLatihan {
   const dasar = {

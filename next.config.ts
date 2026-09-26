@@ -1,6 +1,16 @@
 import type { NextConfig } from "next";
+import { aturanKeamanan } from "./src/lib/security/headers";
 
 const nextConfig: NextConfig = {
+  // Baseline security headers untuk seluruh path. Isi dan alasan per header
+  // (termasuk kenapa CSP belum ada dan kenapa HSTS hanya di production) ada di
+  // `src/lib/security/headers.ts`.
+  headers: aturanKeamanan,
+
+  // `x-powered-by: Next.js` tidak menambah kemampuan apa pun bagi pengguna dan
+  // hanya membantu pemindaian versi. Docs Next 16: `poweredByHeader: false`.
+  poweredByHeader: false,
+
   // Jaring pengaman, bukan validasi. Server Action yang membawa berkas kecil
   // melewati jalur ini, dan batas bawaan Next hanya 1 MB sehingga unggahan
   // wajar akan gagal dengan galat 413 yang tidak informatif. Batas ukuran

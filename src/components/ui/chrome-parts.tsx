@@ -9,6 +9,7 @@ import {
   GraduationCap,
   LogOut,
   Route,
+  Send,
   Settings,
   Sparkle,
   UserRound,
@@ -55,6 +56,11 @@ export const learnerNavItems: NavItem[] = [
     href: "/belajar/jalur",
     label: "Jalur Belajar",
     icon: <Route size={15} strokeWidth={1.5} aria-hidden="true" />,
+  },
+  {
+    href: "/submission",
+    label: "Karya",
+    icon: <Send size={15} strokeWidth={1.5} aria-hidden="true" />,
   },
   {
     href: "/loker",

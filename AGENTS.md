@@ -61,35 +61,11 @@ A skill with invalid frontmatter fails **silently** — `npm run skills:check` i
 - Environment is `node` (no jsdom/browser) — pure logic only.
 - File-based store tests redirect their data dir (`CAREERS_DATA_DIR` / `CAREEVO_DATA_DIR`) to a temp dir **before** importing the module, so they never touch the repo's real `.data/` or `data/`.
 - `@/` alias maps to `src/` in both `tsconfig.json` and `vitest.config.mts`; keep them in sync.
+- `vitest.config.mts` sets `CAREEVO_PERFORMA_DIR` to a fresh temp dir on every run. It cannot be set inside `src/actions/enrollment.test.ts` because that file uses static imports, so the env has to be in place before the store module loads. Test files that need isolation from parallel siblings override it again in `beforeEach` — `tempatPerforma()` reads the env per call, so that works despite static imports.
 
 ## Architecture
 
-- App Router route groups in `src/app/`: `(marketing)` (`/`, `/careevo-plus`, `/business`, `/bisnis`), `(public)` (`/masuk`, `/kerja`, `/loker`, `/p/[username]`, `/verify/[token]`, catalog routes, `/p/[username]/berkas/[slot]`), `(onboarding)`, learner `(app)`, focus `(focus)`, staff `(verifikator)`.
-- **Auth gating lives in group layouts — there is no `middleware.ts`.** `(app)` redirects missing sessions to `/masuk` and learners without a completed profile to `/onboarding`; `(focus)` does the same (learner-only); `(verifikator)` requires `isStaffRole()`. Pages re-check `getSession()` and `return null` when absent. Route handlers (`src/app/api/**`) sit **outside** these layouts and must gate themselves (see `/api/unggah`).
-- Auth is **cookie-only**: HMAC-signed `ls_session` (`src/lib/auth/session.ts`) and registered users in `ls_users`, capped at 20 (`src/lib/auth/user-store.ts`). Passwords are salted SHA-256, not bcrypt.
-- Env: `SESSION_SECRET` / `ATTESTATION_SECRET` are optional with dev fallbacks, so the app runs with no `.env`; `.env*` is gitignored.
-- `src/actions/*.ts` are `"use server"` server actions: `auth`, `review`, `onboarding`, `profile`, `enrollment`, `courses`, `evaluasi`, `resume`, `book`, `latihan`, `learning`, `mastery`, `inbox`, `tracker`.
-- Business logic in `src/lib/{scoring,agents,attestation,audit,jobs,validation,courses,onboarding,profile,resume,learning,mastery,book,latihan,llm,career-ops}`; UI in `src/components` (shadcn/ui under `src/components/ui`, features under `src/components/features`).
 
-### Vendored trees (boundaries matter)
-
-- **`engine/`** — the career-ops engine, vendored verbatim (MIT). It is plain Node `.mjs` with its own `AGENTS.md`/`CLAUDE.md`, excluded from both `tsconfig.json` and `eslint.config.mjs`. Careevo never imports it; `src/lib/career-ops/exec-engine.ts` is the single spawn boundary (`spawn(node, engine/<script>.mjs)`). Stdout is reserved for `--json` results, stderr for logs, exit 0 = success. `dataRoot()` (`src/lib/career-ops/data-root.ts`) pins the engine's data to `.data/career-ops` (or `CAREER_OPS_ROOT`/`CAREER_OPS_DATA_DIR`); `runEngine` also pins `CAREER_OPS_TRACKER`. Never reimplement an engine rule in Careevo — orchestrate it.
-- **`career-ops/`** — the original upstream clone, kept as reference, gitignored, not committed. Not part of anything.
-- **`features/sijago/`** — **AI Mastery**, a separate Next.js app derived from DeepTutor (Apache-2.0), excluded from Careevo's lint/tsc. It runs on its own origin (`AI_MASTERY_WEB_URL`, default `http://localhost:3790`) and is framed in an iframe at `/ai-mastery`; Careevo owns the URL/navbar/session. It has its own scripts (`check:fast`, `check`, `test:unit`, etc.) — see `features/sijago/README.md` and the `careevo-sijago` skill. **The brand is AI Mastery, the path is still `features/sijago/`** — the directory, the `sijago-web` package name, lowercase `deeptutor` identifiers, the `HKUDS/DeepTutor` URL, `vendor/` and `contracts/` were deliberately left alone. Do not "finish" the rename by renaming the tree.
-
-### LLM port — never branch on env vars outside it
-
-`src/lib/llm/port.ts` is the only place that decides whether a real model is available. `getLlm()` resolves per call (a key added needs no restart), in order: OpenAI-compatible endpoint when `CAREERVO_LLM_BASE_URL` **and** `CAREERVO_LLM_MODEL` are set (optional `CAREERVO_LLM_API_KEY`) → Gemini when `GEMINI_API_KEY` is set → deterministic `StubLlm` otherwise. The compat endpoint deliberately wins over a Gemini key. `hasLlm()` = either real route; `hasLlmKey()` keeps its narrower Gemini-only meaning. Features must stay usable with no key (only generated *text* degrades). **Never read `process.env.GEMINI_API_KEY` outside the port** — that once left the study chat dead while the quiz generator worked.
-
-Model JSON is parsed tolerantly (`src/lib/llm/json.ts`): fenced ```json or trailing prose is still a correct answer, not a provider fault. The `kursus-loker` reasoner (`src/lib/agents/kursus-loker/`) and the loker evaluation (`src/lib/agents/evaluasi/`) both return schema-constrained JSON validated before use, never raw prose; with no provider they fall back to deterministic text. **Study chat is not one of them** — it lives in the framed `features/sijago/` app behind `/ai-mastery` and talks to its own backend on `:8011`, not to this port.
-
-## Persistence patterns — deliberately different, do not "unify" them
-
-- **Signed cookies** (`src/lib/auth`, `src/lib/onboarding`, `src/lib/profile`) — small, tamper-evident JSON (HMAC-SHA256). `next/headers` is mocked in tests. The editable public profile (`ls_public_profile`) fits here because it is only name/bio/two downscaled images.
-- **`data/courses.json` + `data/kuis.json`** (`src/lib/courses/storage.ts`) — courses/modules/materials/pages and the quiz bank, written to disk via a shared serialized write chain; uploads under `public/uploads/`. Data dir override: `CAREEVO_DATA_DIR`. Cached in memory **per process** — a second writer to the same file is invisible to a long-running `next dev` until restart. `resetCourses()` in tests disables disk writes. `storage.ts` is the only module that touches `node:fs`; `kurikulum.ts` must stay pure (client components import it).
-- **File-based stores under `.data/`** (`CAREERS_DATA_DIR` override, gitignored) — JSON + files, owner dirs keyed by `sha256(email)`, `path.basename`-checked, write-to-temp-then-rename: resume (`src/lib/resume`), mastery (`src/lib/mastery/store.ts`), books (`src/lib/book/store.ts`), practice quizzes (`src/lib/latihan/store.ts`). These exist because cookies would blow the ~4KB limit (resume) or the data is unbounded. Untrusted ids from URLs (`topicId`, `bookId`, `latihanId`) are validated against `isValidSessionId` (`src/lib/ids.ts` — one shared pattern for all three stores) **and** `path.basename`; a well-formed id owned by someone else is a **404**, never a leak that it exists.
-- Uploads (`POST /api/unggah`) write to `public/uploads/courses/<courseId>/<subjectId>/`, gate inside the handler, extensions from verified MIME, server-side validation. In `next dev` new files serve immediately; `next start` snapshots `public/` at startup.
-- Do not "unify" these stores — each size/security trade-off is deliberate.
 
 ## Navigation — navbar contract (do not regress)
 
@@ -113,14 +89,7 @@ Model JSON is parsed tolerantly (`src/lib/llm/json.ts`): fenced ```json or trail
 
 ## Halaman berformat & Kuis
 
-- A module owns **halaman** (formatted prose) and **materi** (attachments, `TipeMateri` = `video | pdf` only). **Kuis** is referenced from a separate bank (`data/kuis.json`): `Modul.kuis` is an array of ids, not copies.
-- Legacy `teks` materials are promoted into pages on read by `normalisasiHalamanLama()`; legacy `kuis` materials into the bank by `promosiKuisLama()`. Both migrations are lazy, idempotent, and run in `pastikanTermuat()`; a migrated quiz is never overwritten (admin edits survive).
-- `deleteKuis()` clears the reference from every module in the same operation and returns a count of **modules, not courses**. `kuisUntukModul()` ignores ids missing from the bank rather than showing dangling references.
-- `BlokHalaman` is a discriminated union of structured JSON blocks rendered as React elements — **there is no `dangerouslySetInnerHTML` anywhere**, and none should be added (this repo has no sanitizer; admin HTML would be stored XSS). The editor serialises only recognised text/`b`,`i`,`a[href]` nodes.
-- Heading anchors are **derived** from text (`daftarSection()` in `blok.ts`), not stored; renaming a heading breaks backlinks. Backlinks are page-scoped only.
-- `kuisSchema` keeps `.default()` values off the shared field object: `updateKuisSchema` is derived via `.partial()`, and `partial()` does not strip `.default()` — a shared default would reset `nilai_lulus` on every rename.
-- Passing score is client-side only (`kuis-view.tsx` grades in the browser, stores nothing). Quizzes are a practice tool, not a cheat-resistant exam.
-- Module boundaries: `blok.ts`, `halaman.ts`, `kuis.ts` are **pure and client-safe** (renderers are client components). `slugBagian()` in `blok.ts` intentionally duplicates slug logic rather than importing `slugify` from `store.ts` (that chain reaches `node:fs`). Do not "de-duplicate". `npm run build` is the gate that catches a violation; `npm run check` does not.
+
 
 ## Conventions that differ from defaults
 
