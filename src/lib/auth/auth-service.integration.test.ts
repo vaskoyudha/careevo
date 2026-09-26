@@ -20,7 +20,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { eq, sql } from "drizzle-orm";
 
 import { getDb, tutupDb, type KoneksiDb } from "@/lib/db/client";
-import { outboxEvents, sessions, userCredentials, users } from "@/lib/db/schema";
+import { auditEvents, outboxEvents, sessions, userCredentials, users } from "@/lib/db/schema";
 import {
   cabutSemuaSession,
   daftarPengguna,
@@ -88,17 +88,19 @@ describe("daftarPengguna — role default dan constraint", () => {
     expect(await verifyPassword(kredensial!.passwordHash, "rahasia-panjang")).toBe(true);
     expect(await verifyPassword(kredensial!.passwordHash, "password-salah")).toBe(false);
 
-    const events = await db.select().from(outboxEvents);
+    const events = await db.select().from(auditEvents);
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({
-      type: "auth.registered",
-      aggregateType: "user",
-      aggregateId: hasil.principal.userId,
-      idempotencyKey: `auth.registered:${hasil.principal.userId}`,
-      payloadRedacted: { userId: hasil.principal.userId },
+      actorUserId: hasil.principal.userId,
+      action: "user.registered",
+      entityType: "user",
+      entityId: hasil.principal.userId,
+      payloadRedacted: {},
     });
-    expect(JSON.stringify(events[0].payloadRedacted)).not.toContain("rina@contoh.test");
-    expect(JSON.stringify(events[0].payloadRedacted)).not.toContain(kredensial!.passwordHash);
+    expect(events[0]?.requestId).toBeNull();
+    expect(JSON.stringify(events[0]?.payloadRedacted)).not.toContain("rina@contoh.test");
+    expect(JSON.stringify(events[0]?.payloadRedacted)).not.toContain(kredensial!.passwordHash);
+    expect(await db.select().from(outboxEvents)).toHaveLength(0);
   });
 
   it("menormalkan email/username case-insensitively", async () => {
@@ -173,9 +175,10 @@ describe("daftarPengguna — concurrent signup", () => {
       .from(users)
       .where(eq(users.emailNormalized, "duplikat@contoh.test"));
     expect(baris).toBeTruthy();
-    const events = await db.select().from(outboxEvents);
+    const events = await db.select().from(auditEvents);
     expect(events).toHaveLength(1);
-    expect(events[0]?.aggregateId).toBe(baris.id);
+    expect(events[0]?.entityId).toBe(baris.id);
+    expect(await db.select().from(outboxEvents)).toHaveLength(0);
   });
 });
 

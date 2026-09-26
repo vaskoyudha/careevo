@@ -26,7 +26,7 @@ import { punyaRoleStaff } from "@/lib/auth/authorization";
 import type { SessionPrincipal } from "@/lib/auth/principal";
 import { kanonik, type AttestationPayload } from "@/lib/attestation/payload";
 import { tandaTangan, tokenPublicBaru, type KeyVersion } from "@/lib/attestation/key";
-import { jalankanDenganOutbox } from "@/lib/outbox/writer";
+import { catatAudit } from "@/lib/auth/audit";
 import { ambilRolesAktif, cariUserById } from "@/lib/auth/identity-repository";
 import {
   ambilCompletion,
@@ -202,25 +202,25 @@ export async function buatSubmissionDb(input: {
     input.courseId,
     input.enrollmentId,
   );
-  return jalankanDenganOutbox(
-    async (tx) =>
-      buatSubmission(tx, {
-        userId: input.principal.userId,
-        courseId: input.courseId ?? null,
-        enrollmentId: input.enrollmentId ?? null,
-        contentSnapshot: {
-          judul: input.konten.judul ?? null,
-          catatan: input.konten.catatan ?? null,
-        },
-      }),
-    (hasil) => ({
-      type: "submission.created",
-      aggregateType: "submission",
-      aggregateId: hasil.submission.id,
-      payloadRedacted: { submissionId: hasil.submission.id, userId: input.principal.userId },
-      idempotencyKey: `submission.created:${hasil.submission.id}`,
-    }),
-  );
+  return getDb().transaction(async (tx) => {
+    const hasil = await buatSubmission(tx, {
+      userId: input.principal.userId,
+      courseId: input.courseId ?? null,
+      enrollmentId: input.enrollmentId ?? null,
+      contentSnapshot: {
+        judul: input.konten.judul ?? null,
+        catatan: input.konten.catatan ?? null,
+      },
+    });
+    await catatAudit(tx, {
+      actorUserId: input.principal.userId,
+      action: "submission.created",
+      entityType: "submission",
+      entityId: hasil.submission.id,
+      payloadRedacted: {},
+    });
+    return hasil;
+  });
 }
 
 /**
@@ -243,33 +243,31 @@ export async function kirimSubmissionDb(input: {
   }
   await pastikanKelayakanKursus(submission.userId, submission.courseId, submission.enrollmentId);
 
-  return jalankanDenganOutbox(
-    async (tx) => {
-      if (submission.status === "changes_requested" && input.konten) {
-        await tambahVersiSubmission(tx, {
-          submissionId: submission.id,
-          userId: input.principal.userId,
-          contentSnapshot: {
-            judul: input.konten.judul ?? null,
-            catatan: input.konten.catatan ?? null,
-          },
-        });
-      }
+  return getDb().transaction(async (tx) => {
+    if (submission.status === "changes_requested" && input.konten) {
+      await tambahVersiSubmission(tx, {
+        submissionId: submission.id,
+        userId: input.principal.userId,
+        contentSnapshot: {
+          judul: input.konten.judul ?? null,
+          catatan: input.konten.catatan ?? null,
+        },
+      });
+    }
 
-      const hasil = await transisiSubmission(tx, submission.id, submission.status, "submitted");
-      if (!hasil) {
-        throw new GalatReview("transisi_ditolak", "Submission tidak dalam status yang bisa dikirim.");
-      }
-      return hasil;
-    },
-    (hasil) => ({
-      type: "submission.submitted",
-      aggregateType: "submission",
-      aggregateId: hasil.id,
-      payloadRedacted: { submissionId: hasil.id, userId: input.principal.userId },
-      idempotencyKey: `submission.submitted:${hasil.id}:${hasil.currentVersion}`,
-    }),
-  );
+    const hasil = await transisiSubmission(tx, submission.id, submission.status, "submitted");
+    if (!hasil) {
+      throw new GalatReview("transisi_ditolak", "Submission tidak dalam status yang bisa dikirim.");
+    }
+    await catatAudit(tx, {
+      actorUserId: input.principal.userId,
+      action: "submission.submitted",
+      entityType: "submission",
+      entityId: hasil.id,
+      payloadRedacted: {},
+    });
+    return hasil;
+  });
 }
 
 /** Daftar submission milik principal. */
@@ -298,21 +296,19 @@ export async function tetapkanReviewerDb(input: {
     throw new GalatReview("akses_ditolak", "Reviewer harus memiliki hak akses verifikator.");
   }
 
-  return jalankanDenganOutbox(
-    async (tx) => {
-      const hasil = await transisiSubmission(tx, submission.id, "submitted", "assigned");
-      if (!hasil) throw new GalatReview("transisi_ditolak", "Submission sudah tidak menunggu review.");
-      await setReviewer(tx, submission.id, input.reviewerUserId);
-      return hasil;
-    },
-    (hasil) => ({
-      type: "submission.assigned",
-      aggregateType: "submission",
-      aggregateId: hasil.id,
-      payloadRedacted: { submissionId: hasil.id, reviewerUserId: input.reviewerUserId },
-      idempotencyKey: `submission.assigned:${hasil.id}`,
-    }),
-  );
+  return getDb().transaction(async (tx) => {
+    const hasil = await transisiSubmission(tx, submission.id, "submitted", "assigned");
+    if (!hasil) throw new GalatReview("transisi_ditolak", "Submission sudah tidak menunggu review.");
+    await setReviewer(tx, submission.id, input.reviewerUserId);
+    await catatAudit(tx, {
+      actorUserId: input.principal.userId,
+      action: "submission.assigned",
+      entityType: "submission",
+      entityId: hasil.id,
+      payloadRedacted: {},
+    });
+    return hasil;
+  });
 }
 
 /** Klaim review — reviewer harus staff dan status `assigned`. */
@@ -387,82 +383,63 @@ export async function putuskanReviewDb(input: {
   const publicToken = tokenPublicBaru();
   const signature = tandaTangan(payloadCanonical, KEY_VERSION_AKTIF);
 
-  const hasil = await jalankanDenganOutbox(
-    async (tx) => {
-      const review = await rekamReview(tx, {
-        submissionId: submission.id,
-        submissionVersionId: versi.id,
-        reviewerUserId: staff.userId,
-        decision: input.decision,
-        rubricSnapshot: { ...input.rubric },
-        score,
-        rationale: input.rationale,
+  const hasil = await getDb().transaction(async (tx) => {
+    const review = await rekamReview(tx, {
+      submissionId: submission.id,
+      submissionVersionId: versi.id,
+      reviewerUserId: staff.userId,
+      decision: input.decision,
+      rubricSnapshot: { ...input.rubric },
+      score,
+      rationale: input.rationale,
+    });
+
+    const hasilSub = await transisiSubmission(tx, submission.id, "in_review", statusTujuan, staff.userId);
+    if (!hasilSub) {
+      throw new GalatReview("transisi_ditolak", "Status submission berubah saat review diputuskan.");
+    }
+
+    let badge: Badge | null = null;
+    let attestation: Attestation | null = null;
+
+    if (input.decision === "approved") {
+      badge = await buatBadge(tx, {
+        userId: submission.userId,
+        type: submission.courseId ? "course_submission" : "portfolio_submission",
+        sourceReviewId: review.id,
       });
 
-      const hasilSub = await transisiSubmission(tx, submission.id, "in_review", statusTujuan, staff.userId);
-      if (!hasilSub) {
-        throw new GalatReview("transisi_ditolak", "Status submission berubah saat review diputuskan.");
-      }
+      const terbit = await terbitAttestation(tx, {
+        subjectUserId: submission.userId,
+        sourceReviewId: review.id,
+        badgeId: badge.id,
+        publicToken,
+        payloadCanonical,
+        signature,
+        keyVersion: KEY_VERSION_AKTIF,
+      });
+      attestation = terbit.attestation;
+    }
 
-      let badge: Badge | null = null;
-      let attestation: Attestation | null = null;
+    await catatAudit(tx, {
+      actorUserId: staff.userId,
+      action: "review.decided",
+      entityType: "review",
+      entityId: review.id,
+      payloadRedacted: {},
+    });
+    if (attestation) {
+      await catatAudit(tx, {
+        actorUserId: staff.userId,
+        action: "attestation.issued",
+        entityType: "attestation",
+        entityId: attestation.id,
+        payloadRedacted: {},
+      });
+    }
 
-      if (input.decision === "approved") {
-        badge = await buatBadge(tx, {
-          userId: submission.userId,
-          type: submission.courseId ? "course_submission" : "portfolio_submission",
-          sourceReviewId: review.id,
-        });
-
-        const terbit = await terbitAttestation(tx, {
-          subjectUserId: submission.userId,
-          sourceReviewId: review.id,
-          badgeId: badge.id,
-          publicToken,
-          payloadCanonical,
-          signature,
-          keyVersion: KEY_VERSION_AKTIF,
-        });
-        attestation = terbit.attestation;
-      }
-
-      return { review, submission: hasilSub, badge, attestation };
-    },
-    (hasil) => {
-      const peristiwa: Array<{
-        type: string;
-        aggregateType: string;
-        aggregateId: string;
-        payloadRedacted: Record<string, unknown>;
-        idempotencyKey: string;
-      }> = [
-        {
-          type: "review.decided",
-          aggregateType: "review",
-          aggregateId: hasil.review.id,
-          payloadRedacted: {
-            reviewId: hasil.review.id,
-            submissionId: hasil.submission.id,
-            decision: hasil.review.decision,
-          },
-          idempotencyKey: `review.decided:${hasil.review.id}`,
-        },
-      ];
-      if (hasil.attestation) {
-        peristiwa.push({
-          type: "attestation.issued",
-          aggregateType: "attestation",
-          aggregateId: hasil.attestation.id,
-          payloadRedacted: {
-            attestationId: hasil.attestation.id,
-            subjectUserId: submission.userId,
-          },
-          idempotencyKey: `attestation.issued:${hasil.attestation.id}`,
-        });
-      }
-      return peristiwa;
-    },
-  );
+    return { review, submission: hasilSub, badge, attestation };
+  });
 
   return hasil;
 }
@@ -488,24 +465,23 @@ export async function cabutAttestationDb(input: {
   const attestation = await ambilAttestation(input.attestationId);
   if (!attestation) throw new GalatReview("attestation_tidak_ditemukan", "Attestation tidak ditemukan.");
 
-  return jalankanDenganOutbox(
-    async (tx) =>
-      cabutAttestation(tx, {
-        id: attestation.id,
-        revokedByUserId: staff.userId,
-        reason: input.reason,
-      }),
-    (hasil) =>
-      hasil
-        ? {
-            type: "attestation.revoked",
-            aggregateType: "attestation",
-            aggregateId: hasil.id,
-            payloadRedacted: { attestationId: hasil.id, subjectUserId: hasil.subjectUserId },
-            idempotencyKey: `attestation.revoked:${hasil.id}`,
-          }
-        : [],
-  );
+  return getDb().transaction(async (tx) => {
+    const hasil = await cabutAttestation(tx, {
+      id: attestation.id,
+      revokedByUserId: staff.userId,
+      reason: input.reason,
+    });
+    if (hasil) {
+      await catatAudit(tx, {
+        actorUserId: staff.userId,
+        action: "attestation.revoked",
+        entityType: "attestation",
+        entityId: hasil.id,
+        payloadRedacted: {},
+      });
+    }
+    return hasil;
+  });
 }
 
 /* ------------------------------------------------------------------ *
