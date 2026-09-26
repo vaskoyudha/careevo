@@ -700,7 +700,23 @@ describe("auditBaris", () => {
       [row()],
       { "94839531": listing({ bulletPoints: ["Dikenakan biaya administrasi Rp500.000"] }) },
     );
-    expect(out.audit.fee_flags.length).toBeGreaterThan(0);
+    expect(out.audit.fee_flags).toContain("biaya_administrasi");
+    // One content signal alone quarantines; it does not reject.
+    expect(out.audit.status).toBe("quarantined");
+  });
+
+  it("rejects when two independent fee rules appear in the listing", () => {
+    const [out] = auditBaris(
+      [row()],
+      {
+        "94839531": listing({
+          bulletPoints: ["Dikenakan biaya administrasi Rp500.000", "Kirim OTP ke nomor saya"],
+        }),
+      },
+    );
+    expect(out.audit.fee_flags).toEqual(
+      expect.arrayContaining(["biaya_administrasi", "panen_data"]),
+    );
     expect(out.audit.status).toBe("rejected");
   });
 
