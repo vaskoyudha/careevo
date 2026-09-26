@@ -222,6 +222,35 @@ describe("mastery store", () => {
   });
 });
 
+describe("topik dari lowongan", () => {
+  it("persists jobId and reads it back", async () => {
+    const created = await createMasteryTopic({
+      owner: OWNER,
+      title: "Kuasai kebutuhan Frontend Engineer",
+      description: "Jalur dari lowongan.",
+      jobId: "1",
+      points: [point("kp1")],
+    });
+    const bundle = await getMasteryTopic(OWNER, created.topic.id);
+    expect(bundle?.topic.jobId).toBe("1");
+
+    const topics = await listMasteryTopics(OWNER);
+    expect(topics.find((t) => t.id === created.topic.id)?.jobId).toBe("1");
+  });
+
+  it("keeps course-derived topics without a jobId", async () => {
+    const created = await createMasteryTopic({
+      owner: OWNER,
+      title: "Kuasai React",
+      courseId: "c1",
+      courseSlug: "react-dasar",
+      points: [point("kp1")],
+    });
+    const bundle = await getMasteryTopic(OWNER, created.topic.id);
+    expect(bundle?.topic.jobId).toBeUndefined();
+  });
+});
+
 describe("the mastery loop end to end", () => {
   it("moves a point from untouched to scheduled-for-review", async () => {
     const bundle = await createMasteryTopic({ owner: OWNER, title: "Loop", points: [point("kp1")] });

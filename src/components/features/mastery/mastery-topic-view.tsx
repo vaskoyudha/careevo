@@ -207,6 +207,19 @@ export function MasteryTopicView({
                   </Link>
                 </>
               ) : null}
+              {/* A job-sourced topic has no course to reopen, so it links back
+                  to the posting it was derived from instead. */}
+              {topic.jobId ? (
+                <>
+                  {" · "}
+                  <Link
+                    href={`/loker/${topic.jobId}`}
+                    className="font-semibold text-primary hover:underline"
+                  >
+                    Buka lowongan
+                  </Link>
+                </>
+              ) : null}
             </p>
           </div>
         </div>
