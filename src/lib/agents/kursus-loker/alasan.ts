@@ -7,6 +7,7 @@ import { bangunPromptAlasan } from "./prompt";
 import {
   SKEMA_ALASAN,
   validasiAlasanKursus,
+  type AlasanKursus,
   type HasilAlasanKursus,
 } from "./skema";
 
