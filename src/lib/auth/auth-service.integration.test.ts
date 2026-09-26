@@ -20,7 +20,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { eq, sql } from "drizzle-orm";
 
 import { getDb, tutupDb, type KoneksiDb } from "@/lib/db/client";
-import { sessions, userCredentials, users } from "@/lib/db/schema";
+import { outboxEvents, sessions, userCredentials, users } from "@/lib/db/schema";
 import {
   cabutSemuaSession,
   daftarPengguna,
@@ -37,6 +37,7 @@ let db: KoneksiDb = getDb();
 async function kosongkan() {
   await db.execute(
     sql`truncate table
+      outbox_events,
       audit_events,
       email_verification_tokens,
       password_reset_tokens,
@@ -86,6 +87,18 @@ describe("daftarPengguna — role default dan constraint", () => {
     expect(kredensial?.passwordHash).not.toContain("rahasia-panjang");
     expect(await verifyPassword(kredensial!.passwordHash, "rahasia-panjang")).toBe(true);
     expect(await verifyPassword(kredensial!.passwordHash, "password-salah")).toBe(false);
+
+    const events = await db.select().from(outboxEvents);
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      type: "auth.registered",
+      aggregateType: "user",
+      aggregateId: hasil.principal.userId,
+      idempotencyKey: `auth.registered:${hasil.principal.userId}`,
+      payloadRedacted: { userId: hasil.principal.userId },
+    });
+    expect(JSON.stringify(events[0].payloadRedacted)).not.toContain("rina@contoh.test");
+    expect(JSON.stringify(events[0].payloadRedacted)).not.toContain(kredensial!.passwordHash);
   });
 
   it("menormalkan email/username case-insensitively", async () => {
@@ -160,6 +173,9 @@ describe("daftarPengguna — concurrent signup", () => {
       .from(users)
       .where(eq(users.emailNormalized, "duplikat@contoh.test"));
     expect(baris).toBeTruthy();
+    const events = await db.select().from(outboxEvents);
+    expect(events).toHaveLength(1);
+    expect(events[0]?.aggregateId).toBe(baris.id);
   });
 });
 

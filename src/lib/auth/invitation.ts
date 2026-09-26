@@ -404,11 +404,18 @@ export async function cabutUndangan(input: {
  * Idempoten: memberi role yang sudah aktif tidak mengubah apa pun dan tidak
  * menulis audit — menulis "granted" untuk perubahan yang tidak terjadi akan
  * membuat audit trail berbohong.
+ *
+ * `grantedByUserId` boleh `null` untuk **bootstrap operator** (lihat
+ * `bootstrap.ts`): pada database yang baru dimigrasikan belum ada admin yang
+ * bisa menjadi aktor, dan memalsukan aktor (mis. memakai user target sendiri)
+ * akan membuat baris audit mengklaim sesuatu yang tidak terjadi. `null` di sini
+ * berarti "sistem/operator di luar aplikasi" — sama artinya dengan
+ * `audit_events.actor_user_id` yang memang nullable.
  */
 export async function beriRole(input: {
   userId: string;
   role: RoleUndanganStaff;
-  grantedByUserId: string;
+  grantedByUserId: string | null;
 }): Promise<HasilGrantRole> {
   if (!isRoleUndanganStaff(input.role)) return gagal("role_tidak_valid");
 
