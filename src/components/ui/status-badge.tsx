@@ -5,6 +5,11 @@ import { cn } from "@/lib/utils";
 type Tone = "ok" | "warn" | "danger" | "info";
 
 const STATUS_TONE: Record<string, Tone> = {
+  draft: "info",
+  submitted: "warn",
+  assigned: "info",
+  in_review: "info",
+  changes_requested: "warn",
   approved: "ok",
   applied: "info",
   reviewed: "info",
@@ -20,6 +25,11 @@ const STATUS_TONE: Record<string, Tone> = {
 };
 
 const STATUS_LABEL: Record<string, string> = {
+  draft: "DRAF",
+  submitted: "MENUNGGU REVIEW",
+  assigned: "DITUGASKAN",
+  in_review: "SEDANG DIREVIEW",
+  changes_requested: "PERLU REVISI",
   approved: "APPROVED",
   applied: "Applied",
   reviewed: "Reviewed",
@@ -55,6 +65,17 @@ export function StatusBadge({
       {label ?? statusLabel(status)}
     </Badge>
   );
+}
+
+/**
+ * Pemetaan status submission ke badge — satu sumber bersama.
+ *
+ * `changes_requested` dipetakan ke `revision` karena badge lama tidak mengenal
+ * status itu; halaman yang menampilkan submission memakai helper ini supaya
+ * label status tidak menyimpang antar halaman.
+ */
+export function statusSubmission(status: string): string {
+  return status === "changes_requested" ? "revision" : status;
 }
 
 export function StatusDot({ children, tone = "info" }: { children: ReactNode; tone?: Tone }) {

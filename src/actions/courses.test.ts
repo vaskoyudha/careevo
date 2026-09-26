@@ -6,16 +6,15 @@ import {
 } from "./courses";
 import { resetCourses, listCourses, getCourseById } from "@/lib/courses/store";
 import * as sessionModule from "@/lib/auth/session";
-import type { SessionPayload } from "@/lib/auth/types";
+import { principalUji } from "@/lib/auth/test-principal";
 
 describe("Course Server Actions", () => {
-  const adminSession: SessionPayload = {
+  const adminSession = principalUji({
     email: "admin@careevo.test",
     nama: "Admin Careevo",
     username: "admin",
     role: "admin",
-    iat: Math.floor(Date.now() / 1000),
-  };
+  });
 
   beforeEach(() => {
     resetCourses();
@@ -37,13 +36,14 @@ describe("Course Server Actions", () => {
   });
 
   it("denies access if user has standard 'user' role", async () => {
-    vi.spyOn(sessionModule, "getSession").mockResolvedValue({
-      email: "user@careevo.test",
-      nama: "Normal User",
-      username: "normal",
-      role: "user",
-      iat: Math.floor(Date.now() / 1000),
-    });
+    vi.spyOn(sessionModule, "getSession").mockResolvedValue(
+      principalUji({
+        email: "user@careevo.test",
+        nama: "Normal User",
+        username: "normal",
+        role: "user",
+      }),
+    );
 
     const formData = new FormData();
     formData.append("title", "Test Course Title");
@@ -173,13 +173,14 @@ describe("Course Server Actions", () => {
   });
 
   it("menolak penyimpanan kebijakan oleh non-staff", async () => {
-    vi.spyOn(sessionModule, "getSession").mockResolvedValue({
-      email: "user@careevo.test",
-      nama: "Normal User",
-      username: "normal",
-      role: "user",
-      iat: Math.floor(Date.now() / 1000),
-    });
+    vi.spyOn(sessionModule, "getSession").mockResolvedValue(
+      principalUji({
+        email: "user@careevo.test",
+        nama: "Normal User",
+        username: "normal",
+        role: "user",
+      }),
+    );
 
     const courses = await listCourses();
     const target = courses[0];

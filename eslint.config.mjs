@@ -26,6 +26,11 @@ const eslintConfig = defineConfig([
     // the vendored engine. It is not part of Careevo (it is not even committed);
     // its own `web/` app has its own lint/tsconfig rules.
     "career-ops/**",
+    // Artefak operasional — bukan kode aplikasi. Tanpa ini `eslint` (tanpa
+    // argumen, dipakai `npm run lint`) menyapu build worktree subagent dan
+    // scratch plugin Remember, sehingga gerbang lint menjadi tidak terbaca.
+    ".claude/**",
+    ".remember/**",
   ]),
 ]);
 

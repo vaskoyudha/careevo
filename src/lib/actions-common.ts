@@ -1,7 +1,4 @@
 import { revalidatePath } from "next/cache";
-import { getSession } from "@/lib/auth/session";
-import { isStaffRole } from "@/lib/auth/roles";
-import type { SessionPayload } from "@/lib/auth/types";
 import type { z } from "zod";
 
 /**
@@ -15,22 +12,19 @@ import type { z } from "zod";
  * supaya pesan penolakan dan perilaku revalidate tidak menyimpang antar modul.
  */
 
+/**
+ * Policy otorisasi terpusat ada di `@/lib/auth/authorization` — ia membaca
+ * `roles` dari principal database, bukan claim role di cookie. `gateStaff`
+ * dulu hidup di berkas ini dan membaca `session.role`, sehingga role yang
+ * dicabut tetap berlaku sampai cookie kedaluwarsa. Re-export di bawah menjaga
+ * pemanggil lama (`gateStaff()` di `src/actions/*.ts`) tetap bekerja dengan
+ * signature yang sama sementara keputusannya kini berbasis database.
+ */
+export { gateStaff, gateAdmin } from "@/lib/auth/authorization";
+
 /** Pesan penolakan tunggal — dipakai semua action yang butuh hak staff. */
 export const PESAN_AKSES_DITOLAK =
   "Akses ditolak. Tindakan ini membutuhkan akun dengan hak akses verifikator atau admin.";
-
-/**
- * Gate hak akses staff.
- *
- * Mengembalikan sesi bila pemanggil adalah verifikator/admin, atau `null` bila
- * belum masuk maupun bukan staff. Pemanggil memetakan `null` menjadi state
- * error miliknya sendiri (bentuk state tiap action berbeda-beda).
- */
-export async function gateStaff(): Promise<SessionPayload | null> {
-  const session = await getSession();
-  if (!session || !isStaffRole(session.role)) return null;
-  return session;
-}
 
 /** Ambil pesan error pertama per field dari `ZodError`. */
 export function extractFieldErrors(error: z.ZodError): Record<string, string> {

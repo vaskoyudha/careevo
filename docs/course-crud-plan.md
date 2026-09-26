@@ -132,7 +132,7 @@ Semua pemanggil lama dialihkan ke resolver ini. Fungsi murni `modulKursus()`, `h
 
 ### 2.5 Unggah berkas
 
-Route handler `src/app/api/unggah/route.ts` (preseden: `src/app/(public)/keluar/route.ts`), **bukan** Server Action — supaya batas 1 MB tidak menjadi penentu dan progres unggah bisa dilaporkan.
+Route handler `src/app/api/unggah/route.ts`, **bukan** Server Action — supaya batas 1 MB tidak menjadi penentu dan progres unggah bisa dilaporkan.
 
 - Gerbang sesi + `isStaffRole` **di dalam handler** (route handler tidak berada di bawah layout yang menggating).
 - Validasi berlapis: allow-list MIME, batas ukuran, sanitasi nama berkas. Tidak ada satu pun validasi unggah di repo saat ini — `saveProfileAction` menerima `avatarUrl` mentah tanpa cek skema/MIME/ukuran.

@@ -13,11 +13,10 @@ import {
   wajibSesiTerverifikasi,
 } from "@/lib/learning/akses";
 import {
-  cariPendaftaran,
-  daftarKursus,
-  pendaftaranPenuh,
-  tandaiModul,
-} from "@/lib/courses/enrollment";
+  daftarKursusDb,
+  progresKursusDb,
+  tandaiModulDb,
+} from "@/lib/learning/service";
 import type { KebijakanCourse } from "@/types/course";
 
 export interface PendaftaranActionState {
@@ -62,7 +61,7 @@ async function selesaikanKursus(courseId: string) {
     if (kursus.status !== "published") return { takTersedia: true as const };
     // Modul dari resolver tunggal: kursus yang kurikulumnya sudah diedit
     // memakai modul tersimpan, sisanya jatuh ke turunan (id lama) sehingga
-    // progres di cookie `ls_enroll` tetap dikenali.
+    // baris `module_progress` lama tetap dikenali.
     const modul = await modulUntukSumber({
       id: kursus.id,
       title: kursus.title,
@@ -74,6 +73,10 @@ async function selesaikanKursus(courseId: string) {
       id: kursus.id,
       slug: kursus.slug,
       berbayar: !kursus.is_free,
+      // Judul asli dibawa untuk cache referensi `courses` di database: judul itu
+      // datang dari store, bukan dari browser, sehingga cache tidak bisa diisi
+      // judul palsu.
+      judul: kursus.title,
       // Kebijakan dibawa mentah (bisa `undefined`): pemanggil yang menyelesaikan
       // fallback-nya lewat `kursusKebijakan()`, satu tempat, supaya tidak ada
       // cabang yang membaca `undefined` sebagai "bebas".
@@ -100,6 +103,7 @@ async function selesaikanKursus(courseId: string) {
     id: resource.id,
     slug: resource.id,
     berbayar: !resource.is_free,
+    judul: resource.title,
     kebijakan: undefined as KebijakanCourse | undefined,
     modulValid: new Set(modul.map((item) => item.id)),
     modul: async () => modul,
@@ -124,17 +128,20 @@ export async function daftarKursusAction(courseId: string): Promise<PendaftaranA
     };
   }
 
-  const sudah = await cariPendaftaran(target.id, session.email);
-  if (sudah) {
+  // Sumber datanya sekarang `enrollments` (PostgreSQL), bukan cookie
+  // `ls_enroll`. `daftarKursusDb` idempoten lewat unique `(user_id, course_id)`,
+  // jadi klik ganda / request paralel tetap satu baris — dan `baru: false`
+  // adalah tanda "sudah terdaftar" yang menggantikan pembacaan cookie.
+  const { baru } = await daftarKursusDb({
+    principal: session,
+    courseId: target.id,
+    slug: target.slug,
+    title: target.judul,
+  });
+  if (!baru) {
     return { ok: true, message: "Kamu sudah terdaftar di kursus ini." };
   }
 
-  const semua = await pendaftaranPenuh();
-  if (semua.length >= 50) {
-    return { ok: false, error: "Batas 50 pendaftaran tercapai di peramban ini." };
-  }
-
-  await daftarKursus(target.id, target.slug, session.email);
   safeRevalidate("/belajar");
   safeRevalidate(`/belajar/${target.slug}`);
   return { ok: true, message: "Pendaftaran berhasil. Selamat belajar!" };
@@ -172,8 +179,11 @@ export async function tandaiModulAction(
     return { ok: false, error: "Kursus tidak ditemukan." };
   }
 
-  const entri = await cariPendaftaran(target.id, session.email);
-  if (!entri) {
+  // Terdaftar + progres dibaca dari database lewat service. `selesai` dipakai
+  // untuk membedakan arah toggle: id yang sudah tercatat berarti pembatalan,
+  // dan `tandaiModulDb` yang membatalkannya (bukan action ini).
+  const { enrollment, selesai } = await progresKursusDb(session, target.id);
+  if (!enrollment) {
     return { ok: false, error: "Daftar dulu sebelum menandai modul." };
   }
   if (!target.modulValid.has(modulId)) {
@@ -201,20 +211,21 @@ export async function tandaiModulAction(
   // selesai tanpa satu pun bukti sesi. Kursus `wajib` akan tampak terverifikasi
   // padahal tandanya dibuat di luar sesi — persis kegagalan "tampak terverifikasi
   // tetapi tidak" yang dilarang spec. Karena itu penolakannya di sini, **sebelum**
-  // penulisan cookie `ls_enroll` dan sebelum revalidasi cache.
+  // delegasi ke service dan sebelum revalidasi cache.
   //
   // Kebijakannya diselesaikan sama seperti `kebijakanKursus()` di
   // `actions/learning.ts` dan halaman belajar: `kursus.kebijakan` kalau ada,
   // selain itu `kebijakanDefault()` (`wajib`). Tanpa fallback ini, kursus tanpa
   // kebijakan tersimpan justru jadi jalan keluar dari gerbang.
   //
-  // Arah tindakan dibedakan lewat `entri.selesai_modul` sebelum penulisan:
-  // `tandaiModul` membatalkan bila id-nya sudah tercatat, jadi id yang sudah
-  // selesai berarti pembatalan. Pembatalan sengaja dilewatkan — itu satu-satunya
-  // cara peserta mengoreksi tanda, dan menolaknya akan mengunci modul di kursus
-  // `wajib` selamanya. Keputusan checkpoint/kebijakan tidak berubah karenanya:
-  // modul kuis/proyek tetap ditolak walaupun sudah termuat di cookie (data basi).
-  const sudahSelesai = (entri.selesai_modul ?? []).includes(modulId);
+  // Arah tindakan dibedakan lewat `selesai` (dibaca dari database) sebelum
+  // penulisan: `tandaiModulDb` membatalkan bila id-nya sudah tercatat, jadi id
+  // yang sudah selesai berarti pembatalan. Pembatalan sengaja dilewatkan — itu
+  // satu-satunya cara peserta mengoreksi tanda, dan menolaknya akan mengunci
+  // modul di kursus `wajib` selamanya. Keputusan checkpoint/kebijakan tidak
+  // berubah karenanya: modul kuis/proyek tetap ditolak walaupun sudah termuat
+  // di database (data basi).
+  const sudahSelesai = selesai.includes(modulId);
   const kebijakan = kursusKebijakan(target.kebijakan);
   if (!sudahSelesai && wajibSesiTerverifikasi(kebijakan) && checkpointTerverifikasi(checkpoint)) {
     // Pesan diambil apa adanya dari `putuskanAkses` — mesin keputusan yang sama
@@ -231,7 +242,15 @@ export async function tandaiModulAction(
     };
   }
 
-  await tandaiModul(target.id, modulId, session.email);
+  await tandaiModulDb({
+    principal: session,
+    courseId: target.id,
+    modulId,
+    // Modul `materi` di jalur ini selalu informal: bukti terverifikasi hanya
+    // diikat oleh `selesaikanMateriAction` lewat jalur assessment/run.
+    sumber: "informal",
+    nama: session.nama,
+  });
   safeRevalidate("/belajar");
   safeRevalidate(`/belajar/${target.slug}`);
   return { ok: true };

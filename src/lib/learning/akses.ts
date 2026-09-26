@@ -80,6 +80,25 @@ export function checkpointTerverifikasi(checkpoint: CheckpointMateri): boolean {
   return checkpoint.mode === "materi";
 }
 
+/**
+ * Apakah waktu pengerjaan sebuah modul sudah habis.
+ *
+ * Dihitung dari `mulai_at` **sesi**, bukan dari waktu halaman dimuat: batas
+ * yang dihitung ulang tiap muat ulang bukan batas. `now` bisa disuntikkan
+ * supaya aturan ini bisa diuji tanpa memalsukan jam sistem.
+ *
+ * Perbandingannya sengaja `>` sehingga peserta yang menyelesaikan tepat pada
+ * menit terakhir tidak dihukum karena selisih milidetik.
+ *
+ * `mulaiAt` yang tidak bisa diparse dianggap **lewat** (gagal-tertutup): bukti
+ * yang tidak bisa diaudit tidak boleh dianggap masih berlaku.
+ */
+export function lewatBatas(mulaiAt: string, batasMenit: number, now: number = Date.now()): boolean {
+  const mulai = Date.parse(mulaiAt);
+  if (!Number.isFinite(mulai)) return true;
+  return now - mulai > batasMenit * 60_000;
+}
+
 export function putuskanAkses({ jenisKegiatan, kebijakan, adaBuktiSesi }: KonteksAkses): KeputusanAkses {
   // Asesmen tanpa AI selalu menutup bantuan akademik, terlepas dari sesi.
   if (jenisKegiatan === "bantuan_akademik" && kebijakan.aturan_bantuan === "tanpa_ai") {

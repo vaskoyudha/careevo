@@ -1,159 +1,128 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { AppShell } from "@/components/ui/app-shell";
 import { PageHead } from "@/components/ui/page-head";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { BarRow } from "@/components/ui/progress-bar";
-import { EmptyState } from "@/components/ui/empty-state";
-import { submission } from "@/lib/fixtures";
+import { StatusBadge, statusSubmission } from "@/components/ui/status-badge";
+import { listSubmissionDb } from "@/lib/review/service";
+import { ambilTokenAttestationSubmission, ambilVersiTerkini, listReviewSubmission } from "@/lib/review/repository";
+import { TransisiSubmission } from "@/components/features/submission/submission-actions";
 
 export const metadata: Metadata = {
   title: "Submission",
 };
 
-export default async function SubmissionPage() {
-  const session = await getSession();
-  if (!session) return null;
+/** Waktu dari kolom timestamp — `null` ditampilkan sebagai "—", bukan tanggal karangan. */
+function formatWaktu(nilai: Date | null): string {
+  if (!nilai) return "—";
+  const tanggal = new Date(nilai);
+  if (Number.isNaN(tanggal.getTime())) return "—";
+  return new Intl.DateTimeFormat("id-ID", {
+    dateStyle: "long",
+    timeStyle: "short",
+    timeZone: "UTC",
+  }).format(tanggal);
+}
 
-  const passed = submission.autocheck.tests.filter((test) => test.passed).length;
-  const total = submission.autocheck.tests.length;
-  const lh = submission.autocheck.lighthouse;
+export default async function SubmissionPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const session = await getSession();
+  if (!session?.userId) return null;
+
+  const { id } = await params;
+
+  // `listSubmissionDb` hanya mengembalikan baris milik principal, jadi submission
+  // orang lain tidak akan pernah ketemu di sini.
+  const daftar = await listSubmissionDb(session);
+  const submission = daftar.find((baris) => baris.id === id);
+  if (!submission || submission.userId !== session.userId) notFound();
+
+  const [review, versi, token] = await Promise.all([
+    listReviewSubmission(submission.id),
+    ambilVersiTerkini(submission.id),
+    submission.status === "approved" ? ambilTokenAttestationSubmission(submission.id) : Promise.resolve(null),
+  ]);
+  const snapshot = versi?.contentSnapshot as { judul?: string | null; catatan?: string | null } | undefined;
 
   return (
     <AppShell session={session} current="/belajar">
-        <PageHead
-          eyebrow={`Submission versi ${submission.task_id}`}
-          title={submission.task_title}
-          lead={`Disubmit ${submission.submitted_at}. Report terbentuk otomatis dari artefak proses.`}
-          actions={<StatusBadge status={submission.status} />}
-        />
+      <PageHead
+        eyebrow="Submission"
+        title={`Submission ${submission.id.slice(0, 8)}`}
+        lead="Ringkasan status submission dan riwayat keputusan review."
+        actions={<StatusBadge status={statusSubmission(submission.status)} />}
+      />
 
-        <div className="grid-2">
-          <section className="card" aria-labelledby="autocheck-title">
-            <div className="card-head">
-              <div>
-                <h2 className="card-title" id="autocheck-title">
-                  Auto-check
-                </h2>
-                <p className="card-sub">
-                  {passed}/{total} test lulus · Playwright dan Lighthouse
-                </p>
-              </div>
-            </div>
-            <ul className="list-app" style={{ listStyle: "none", margin: 0, padding: 0 }}>
-              {submission.autocheck.tests.map((test) => (
-                <li className="log-line" key={test.name}>
-                  <span>
-                    {test.name}
-                    {test.error ? <span className="muted"> · {test.error}</span> : null}
-                  </span>
-                  <span className={`status status-${test.passed ? "ok" : "danger"}`}>
-                    {test.passed ? "lulus" : "gagal"}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <div style={{ marginTop: "1rem" }}>
-              <BarRow label="Performance" value={lh.performance} max={100} tone={lh.performance >= 85 ? "ok" : "warn"} />
-              <BarRow label="Accessibility" value={lh.accessibility} max={100} tone={lh.accessibility >= 90 ? "ok" : "warn"} />
-              <BarRow label="Best practices" value={lh.best_practices} max={100} tone="ok" />
-              <BarRow label="SEO" value={lh.seo} max={100} tone="ok" />
-            </div>
-          </section>
-
-          <section className="card" aria-labelledby="vts-title">
-            <div className="card-head">
-              <div>
-                <h2 className="card-title" id="vts-title">
-                  Vibe Transparency Score
-                </h2>
-                <p className="card-sub">Transparansi proses, bukan vonis</p>
-              </div>
-              <span className="score-hero">
-                <b>{submission.vts.score}</b>
-                <span>/100</span>
-              </span>
-            </div>
-            {submission.vts.components.map((component) => (
-              <BarRow
-                key={component.label}
-                label={component.label}
-                value={component.value}
-                max={component.max}
-                tone="info"
-              />
-            ))}
-          </section>
-        </div>
-
-        <div className="grid-2" style={{ marginTop: "1.25rem" }}>
-          <section className="card" aria-labelledby="socrates-title">
-            <div className="card-head">
-              <div>
-                <h2 className="card-title" id="socrates-title">
-                  Socrates Defense
-                </h2>
-                <p className="card-sub">
-                  Draft score {submission.socrates.draft_score} · jawaban batas {submission.socrates.deadline}
-                </p>
-              </div>
-              <StatusBadge status={submission.socrates.answered ? "clean" : "waiting_socrates"} label={submission.socrates.answered ? "Dijawab" : "Menunggu"} />
-            </div>
-            <ol style={{ margin: 0, paddingLeft: "1.1rem" }}>
-              {submission.socrates.questions.map((question) => (
-                <li key={question} style={{ marginBottom: "0.6rem" }}>
-                  {question}
-                </li>
-              ))}
-            </ol>
-          </section>
-
-          <section className="card" aria-labelledby="timeline-title">
-            <div className="card-head">
-              <div>
-                <h2 className="card-title" id="timeline-title">
-                  Timeline report
-                </h2>
-                <p className="card-sub">Semua aktor tercatat: manusia dan agen</p>
-              </div>
-            </div>
-            <ul className="list-app" style={{ listStyle: "none", margin: 0, padding: 0 }}>
-              {submission.timeline.map((item) => (
-                <li className="list-app-row" key={`${item.at}-${item.action}`}>
-                  <span className="row-title" style={{ fontSize: "0.92rem" }}>
-                    {item.summary}
-                  </span>
-                  <span className="row-aside">
-                    <span className="tag">{item.actor_type}</span>
-                  </span>
-                  <span className="row-meta">
-                    {item.at} · {item.actor_id}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        </div>
-
-        <section className="card" style={{ marginTop: "1.25rem" }} aria-labelledby="decision-title">
-          <div className="card-head">
-            <div>
-              <h2 className="card-title" id="decision-title">
-                Keputusan verifikator
-              </h2>
-              <p className="card-sub">Keputusan wajib disertai alasan. Tidak ada silent reject.</p>
-            </div>
-            <StatusBadge status={submission.decision.status} />
+      <section className="card" aria-labelledby="ringkasan-title">
+        <div className="card-head">
+          <div>
+            <h2 className="card-title" id="ringkasan-title">
+              Ringkasan
+            </h2>
+            <p className="card-sub">Status dan versi submission saat ini</p>
           </div>
-          {submission.decision.reason ? (
-            <p className="alert alert-warn">{submission.decision.reason}</p>
-          ) : (
-            <EmptyState title="Menunggu keputusan verifikator" />
-          )}
-          <p className="caption muted" style={{ marginTop: "0.75rem" }}>
-            Total skor karya sementara: {submission.decision.total}. Validasi menunggu approve verifikator dan Socrates.
-          </p>
-        </section>
+        </div>
+        <ul className="list-app" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+          <li className="list-app-row">
+            <span className="row-title">Status</span>
+            <span className="row-aside">
+              <StatusBadge status={statusSubmission(submission.status)} />
+            </span>
+          </li>
+          <li className="list-app-row">
+            <span className="row-title">Versi saat ini</span>
+            <span className="row-aside">{submission.currentVersion}</span>
+          </li>
+          <li className="list-app-row">
+            <span className="row-title">Disubmit</span>
+            <span className="row-aside">{formatWaktu(submission.submittedAt)}</span>
+          </li>
+          <li className="list-app-row">
+            <span className="row-title">Terakhir diperbarui</span>
+            <span className="row-aside">{formatWaktu(submission.updatedAt)}</span>
+          </li>
+        </ul>
+      </section>
+
+      <section className="card" style={{ marginTop: "1.25rem" }} aria-labelledby="karya-title">
+        <h2 className="card-title" id="karya-title">{snapshot?.judul ?? "Karya tanpa judul"}</h2>
+        <p style={{ whiteSpace: "pre-wrap" }}>{snapshot?.catatan ?? "Tidak ada catatan."}</p>
+        {submission.status === "draft" && <TransisiSubmission submissionId={submission.id} jenis="kirim" />}
+        {token && <p><Link href={`/verify/${token}`}>Lihat credential terverifikasi</Link></p>}
+      </section>
+
+      <section className="card" style={{ marginTop: "1.25rem" }} aria-labelledby="riwayat-title">
+        <div className="card-head">
+          <div>
+            <h2 className="card-title" id="riwayat-title">
+              Riwayat review
+            </h2>
+            <p className="card-sub">Keputusan verifikator atas submission ini</p>
+          </div>
+        </div>
+        {review.length === 0 ? (
+          <p className="caption muted">Belum ada review tercatat.</p>
+        ) : (
+          <ul className="list-app" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+            {review.map((item) => (
+              <li className="list-app-row" key={item.id}>
+                <span className="row-title">
+                  <StatusBadge status={statusSubmission(item.decision)} />
+                  <span style={{ marginLeft: "0.5rem" }}>
+                    {item.score === null ? "belum dinilai" : `${item.score}/100`}
+                  </span>
+                </span>
+                <span className="row-meta">{formatWaktu(item.createdAt)}</span>
+                <span className="row-meta">{item.rationale}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </AppShell>
   );
 }
