@@ -9,12 +9,12 @@ import { AccountMenu, learnerNavItems } from "./chrome-parts";
 import type { SessionPayload } from "@/lib/auth/types";
 
 /**
- * The AI Mastery navbar: a dark, winged bar pinned to the top.
+ * The AI Mastery navbar: the light learner bar with a winged top edge, pinned
+ * to the top of the page.
  *
- * `/ai-mastery` frames another origin, so this page has a reason to look like
- * its own surface rather than the site chrome: the frame below is a full-bleed
- * application, and a translucent white bar floating over it reads as a leftover
- * from the host site. The near-black winged bar gives the frame a lid.
+ * The only difference from `LearnerChrome` is the silhouette. The colour,
+ * the items, the search field and the account menu are the same light glass
+ * the rest of the site uses — the wing is the feature, not a restyle.
  *
  * Two deliberate departures from the `.chrome` morph that the other navbars use,
  * both forced by the page rather than chosen for looks:
@@ -27,9 +27,8 @@ import type { SessionPayload } from "@/lib/auth/types";
  *   with `preserveAspectRatio="none"`, so the curve stays fluid from 360px to
  *   ultrawide instead of pinching at one breakpoint.
  *
- * The bar reuses `.chrome`, `.nav-item`, `.chrome-btn` and the dead
- * `.is-dark-hero` light-on-dark rules rather than restyling them — see
- * `ai-mastery-wing.css` for the shape and the search-field inversion.
+ * The bar reuses `.chrome`, `.nav-item` and `.chrome-btn` rather than
+ * restyling them — `globals.css` holds the wing path and its drop-shadow.
  */
 export function AiMasteryNavbar({ session }: { session: SessionPayload }) {
   const pathname = usePathname();
@@ -42,7 +41,7 @@ export function AiMasteryNavbar({ session }: { session: SessionPayload }) {
       <a href="#main" className="skip-link">
         Lewati ke konten utama
       </a>
-      <div className="chrome is-winged is-dark-hero relative is-top">
+      <div className="chrome is-winged relative is-top">
         <Link className="chrome-brand" href="/" aria-label="Careevo">
           <Image
             src="/careevo-logo.png"
@@ -80,18 +79,15 @@ export function AiMasteryNavbar({ session }: { session: SessionPayload }) {
             <label htmlFor="ai-mastery-search" className="sr-only">
               Cari kursus
             </label>
-            <div className="flex h-10 w-full max-w-xs items-center gap-2 rounded-full border border-white/20 bg-white/10 pr-1 pl-3.5 focus-within:border-white/60">
-              <Search
-                className="h-4 w-4 shrink-0 text-white/70"
-                aria-hidden="true"
-              />
+            <div className="flex h-10 w-full max-w-xs items-center gap-2 rounded-full border border-black/15 bg-white/80 pr-1 pl-3.5 focus-within:border-[#0056D2]">
+              <Search className="h-4 w-4 shrink-0 text-black/50" aria-hidden="true" />
               <input
                 id="ai-mastery-search"
                 name="q"
                 type="search"
                 autoComplete="off"
                 placeholder="Mau belajar apa?"
-                className="w-full bg-transparent text-[13.5px] text-white outline-none placeholder:text-white/55"
+                className="w-full bg-transparent text-[13.5px] text-black outline-none placeholder:text-black/45"
               />
               <button
                 type="submit"
@@ -101,7 +97,7 @@ export function AiMasteryNavbar({ session }: { session: SessionPayload }) {
               </button>
             </div>
           </form>
-          <AccountMenu session={session} tone="dark" />
+          <AccountMenu session={session} />
         </div>
       </div>
     </>
