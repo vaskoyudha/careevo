@@ -21,7 +21,7 @@ const buttonVariants = cva(
         ocean:
           "bg-primary text-primary-foreground shadow-[0_10px_24px_-10px_rgba(10,61,98,0.55)] hover:bg-ocean hover:-translate-y-0.5 active:translate-y-0",
         brand:
-          "bg-leaf text-white shadow-[0_10px_24px_-10px_rgba(46,139,87,0.55)] hover:bg-leaf-dark hover:-translate-y-0.5 active:translate-y-0",
+          "brand-fill hover:-translate-y-0.5 active:translate-y-0",
         glass:
           "border border-white/70 bg-white/60 text-ocean-deep backdrop-blur-md shadow-xs hover:bg-white/90 hover:-translate-y-0.5 active:translate-y-0",
       },

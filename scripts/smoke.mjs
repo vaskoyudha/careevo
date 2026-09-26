@@ -23,11 +23,20 @@ const routes = [
   "/review/1",
   "/audit",
   "/careevo-plus",
+  "/business",
+  "/bisnis",
   "/onboarding",
   "/onboarding/demo",
   "/belajar/fullstack-web-development-nextjs-15-react-19",
   "/belajar/r1",
   "/belajar/jalur",
+  "/belajar/tutor",
+  "/belajar/mastery",
+  "/belajar/buku",
+  "/belajar/latihan",
+  // SiJago di-host sebagai iframe ke app terpisah (port 3790): yang diuji di
+  // sini adalah halaman pembungkusnya, bukan backend-nya.
+  "/sijago",
   // Route staf tanpa sesi akan dijawab redirect ke /masuk, dan redirect
   // dihitung lulus di bawah. Yang dicari di sini bukan isinya, melainkan
   // bahwa halamannya benar-benar bisa dimuat — 500 akibat impor yang salah

@@ -1,11 +1,24 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, useTransition, type ReactNode } from "react";
-import { ChevronDown, LogOut, Route, Search, Settings, UserRound } from "lucide-react";
+import {
+  Briefcase,
+  Building2,
+  ChevronDown,
+  GraduationCap,
+  LogOut,
+  Search,
+  Settings,
+  Sparkle,
+  Route,
+  UserRound,
+} from "./icons";
 import { logoutAction } from "@/actions/auth";
 import { ExploreMenu } from "./explore-menu";
+import { SiJagoLink } from "./sijago-link";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,63 +39,27 @@ const navItems: NavItem[] = [
   {
     href: "/belajar",
     label: "Belajar",
-    icon: (
-      <svg
-        width="15"
-        height="15"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        <path d="M22 10 12 5 2 10l10 5 10-5z" />
-        <path d="M6 12v5c0 1 2.7 2.5 6 2.5s6-1.5 6-2.5v-5" />
-      </svg>
-    ),
+    icon: <GraduationCap size={15} strokeWidth={1.5} aria-hidden="true" />,
   },
-  { href: "/belajar/jalur", label: "Jalur Belajar",
-    icon: <Route width={15} height={15} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" /> },
+  {
+    href: "/belajar/jalur",
+    label: "Jalur Belajar",
+    icon: <Route size={15} strokeWidth={1.5} aria-hidden="true" />,
+  },
   {
     href: "/loker",
     label: "Loker",
-    icon: (
-      <svg
-        width="15"
-        height="15"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        <rect x="2" y="7" width="20" height="14" rx="2" />
-        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-      </svg>
-    ),
+    icon: <Briefcase size={15} strokeWidth={1.5} aria-hidden="true" />,
   },
   {
     href: "/careevo-plus",
     label: "Careevo Plus",
-    icon: (
-      <svg
-        width="15"
-        height="15"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        <path d="M12 3l2.4 5.6L20 10l-4.4 3.4L17 20l-5-3-5 3 1.4-6.6L4 10l5.6-1.4z" />
-      </svg>
-    ),
+    icon: <Sparkle size={15} strokeWidth={1.5} aria-hidden="true" />,
+  },
+  {
+    href: "/business",
+    label: "Bisnis",
+    icon: <Building2 size={15} strokeWidth={1.5} aria-hidden="true" />,
   },
 ];
 
@@ -191,7 +168,8 @@ export function LearnerChrome({
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const activeHref = navItems.filter((item) => pathname === item.href || pathname.startsWith(`${item.href}/`)).sort((a, b) => b.href.length - a.href.length)[0]?.href;
+  const isActive = (href: string) =>
+    pathname === href || pathname.startsWith(`${href}/`);
 
   return (
     <>
@@ -199,13 +177,20 @@ export function LearnerChrome({
         Lewati ke konten utama
       </a>
       <div className={`chrome relative ${scrolled ? "is-scrolled" : "is-top"}`}>
-        <Link className="chrome-brand" href="/">
-          Care<span>evo</span>
+        <Link className="chrome-brand" href="/" aria-label="Careevo">
+          <Image
+            src="/careevo-logo.png"
+            alt="Careevo"
+            width={250}
+            height={64}
+            priority
+            className="h-12 w-auto object-contain transition-transform duration-300 hover:scale-105"
+          />
         </Link>
         <nav className="nav-float" aria-label="Navigasi utama">
           <ExploreMenu />
           {navItems.map((item) => {
-            const active = item.href === activeHref;
+            const active = isActive(item.href);
             return (
               <Link
                 key={item.href}
@@ -243,12 +228,13 @@ export function LearnerChrome({
               />
               <button
                 type="submit"
-                className="shrink-0 cursor-pointer rounded-full bg-[#0056D2] px-3.5 py-1.5 text-[13px] font-semibold text-white hover:bg-[#00419e]"
+                className="brand-fill shrink-0 cursor-pointer rounded-full px-3.5 py-1.5 text-[13px] font-semibold"
               >
                 Cari
               </button>
             </div>
           </form>
+          <SiJagoLink />
           <AccountMenu session={session} />
         </div>
       </div>

@@ -2,82 +2,16 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
-
-interface ExploreMenuItem {
-  label: string;
-  href: string;
-}
-
-const ROLES: ExploreMenuItem[] = [
-  { label: "Data Analyst", href: "/belajar" },
-  { label: "Project Manager", href: "/belajar" },
-  { label: "Cyber Security Analyst", href: "/belajar" },
-  { label: "Data Scientist", href: "/belajar" },
-  { label: "Business Intelligence Analyst", href: "/belajar" },
-  { label: "Digital Marketing Specialist", href: "/belajar" },
-  { label: "UI / UX Designer", href: "/belajar" },
-  { label: "Machine Learning Engineer", href: "/belajar" },
-  { label: "Social Media Specialist", href: "/belajar" },
-  { label: "Computer Support Specialist", href: "/belajar" },
-];
-
-const CATEGORIES: ExploreMenuItem[] = [
-  { label: "Artificial Intelligence", href: "/belajar" },
-  { label: "Business", href: "/belajar" },
-  { label: "Data Science", href: "/belajar" },
-  { label: "Information Technology", href: "/belajar" },
-  { label: "Computer Science", href: "/belajar" },
-  { label: "Healthcare", href: "/belajar" },
-  { label: "Physical Science and Engineering", href: "/belajar" },
-  { label: "Personal Development", href: "/belajar" },
-  { label: "Social Sciences", href: "/belajar" },
-  { label: "Language Learning", href: "/belajar" },
-  { label: "Arts and Humanities", href: "/belajar" },
-];
-
-const CERTIFICATES: ExploreMenuItem[] = [
-  { label: "Business", href: "/belajar" },
-  { label: "Computer Science", href: "/belajar" },
-  { label: "Data Science", href: "/belajar" },
-  { label: "Information Technology", href: "/belajar" },
-];
-
-const DEGREES: ExploreMenuItem[] = [
-  { label: "Bachelor's Degrees", href: "/belajar" },
-  { label: "Master's Degrees", href: "/belajar" },
-  { label: "University Certificates", href: "/belajar" },
-];
-
-const TRENDING_SKILLS: ExploreMenuItem[] = [
-  { label: "Python", href: "/belajar" },
-  { label: "Artificial Intelligence", href: "/belajar" },
-  { label: "Excel", href: "/belajar" },
-  { label: "Machine Learning", href: "/belajar" },
-  { label: "SQL", href: "/belajar" },
-  { label: "Project Management", href: "/belajar" },
-  { label: "Power BI", href: "/belajar" },
-  { label: "Marketing", href: "/belajar" },
-];
-
-function CompassIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      width="15"
-      height="15"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden="true"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
-    </svg>
-  );
-}
+import { Compass, ChevronDown } from "./icons";
+import {
+  ROLES,
+  CATEGORIES,
+  CERTIFICATES,
+  DEGREES,
+  TRENDING_SKILLS,
+  CERTIFICATION_PREP_VIEW_ALL,
+  EXPLORE_FALLBACKS,
+} from "@/lib/courses/explore-taxonomy";
 
 export function ExploreMenu({ isDarkBg = false }: { isDarkBg?: boolean }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -144,6 +78,17 @@ export function ExploreMenu({ isDarkBg = false }: { isDarkBg?: boolean }) {
     };
   }, [isOpen, closeImmediately]);
 
+  const columnClass = "flex flex-col justify-start mb-6 min-w-[149px]";
+  const headingClass = "mb-2 text-base leading-7 font-normal text-[#0D0F12]";
+  // Coursera: a { padding: 8px 0 } + li { padding: 0 0 4px } -> tinggi item
+  // 20+16 = 36px, tapi jarak antar teks item = 24px (8+16). Pitch.item
+  // di DOM asli: 24px. Pakai pt-2 pb-1 (8+4) supaya pitch = 24px.
+  const listClass = "flex flex-col";
+  const itemClass =
+    "block pt-2 pb-1 text-sm leading-5 font-normal text-[#0D0F12] transition-colors hover:bg-[#F0F6FF] hover:text-[#0B408B] hover:no-underline";
+  const viewAllClass =
+    "mt-4 inline-block text-sm leading-5 font-normal text-[#0D0F12] underline underline-offset-2 hover:text-[#0B408B]";
+
   return (
     <div
       ref={containerRef}
@@ -170,57 +115,68 @@ export function ExploreMenu({ isDarkBg = false }: { isDarkBg?: boolean }) {
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         aria-label="Explore menu"
-        className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-[8px] px-3.5 py-1.5 text-[13.5px] font-medium transition-all duration-200 cursor-pointer ${
-          isOpen
-            ? "border border-blue-500/80 bg-white text-black shadow-xs"
-            : isDarkBg
-              ? "border border-transparent text-white/90 hover:text-white hover:bg-white/15"
-              : "border border-transparent text-black hover:bg-white/85 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]"
+        className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-[8px] px-2 text-sm font-normal transition-colors duration-200 cursor-pointer ${
+          isOpen || !isDarkBg
+            ? "bg-[#F0F6FF] text-[#0B408B] hover:bg-[#E1EDFF]"
+            : "text-white/90 hover:bg-white/15 hover:text-white"
         }`}
       >
-        <CompassIcon className={`size-[15px] shrink-0 ${isOpen ? "text-black" : isDarkBg ? "text-white" : "text-black"}`} />
+        <Compass
+          size={15}
+          strokeWidth={1.5}
+          className="shrink-0"
+          aria-hidden="true"
+        />
         <span>Explore</span>
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+        <ChevronDown
+          size={12}
+          strokeWidth={1.5}
           className={`shrink-0 transition-transform duration-200 ${
-            isOpen ? "rotate-180 text-blue-600" : isDarkBg ? "text-white/80" : "text-black/60"
+            isOpen ? "rotate-180" : ""
           }`}
           aria-hidden="true"
-        >
-          <path d="m6 9 6 6 6-6" />
-        </svg>
+        />
       </button>
 
       {/* Mega Dropdown Panel — Solid opaque white background */}
       {isOpen && (
-        <div
-          role="dialog"
-          aria-label="Explore catalog"
-          onMouseEnter={open}
-          onMouseLeave={scheduleClose}
-          className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 max-h-[82vh] overflow-y-auto rounded-2xl border border-gray-200 bg-white p-6 text-gray-900 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.2),0_10px_20px_-5px_rgba(0,0,0,0.08)] sm:p-8 lg:p-9 before:absolute before:-top-3 before:left-0 before:right-0 before:h-3 before:content-[''] [-ms-overflow-style:none] [scrollbar-width:thin]"
-        >
-          {/* 4-COLUMN CONTENT GRID */}
-          <div className="grid grid-cols-1 gap-8 text-left sm:grid-cols-2 lg:grid-cols-4 lg:gap-10">
+        <>
+          {/* Scrim penutup layar: fixed, rgba(0,0,0,0.2) - sama seperti Coursera */}
+          <div
+            aria-hidden="true"
+            onClick={closeImmediately}
+            className="explore-scrim fixed inset-0 z-[70] bg-black/20"
+          />
+
+          {/* Panel: fixed, lebar penuh, radius 0, tanpa border, tanpa shadow */}
+          <div
+            role="dialog"
+            aria-label="Explore catalog"
+            onMouseEnter={open}
+            onMouseLeave={scheduleClose}
+            className="explore-mega-menu fixed inset-x-0 top-[104px] z-[80] max-h-[calc(100vh-104px)] overflow-y-auto bg-white [-ms-overflow-style:none] [scrollbar-width:thin]"
+          >
+          {/* Row: max-w 1200, space-between, 6 kolom, gap-x 24px.
+              Kolom diberi lebar min sepadat Coursera supaya tinggi baris rata. */}
+          <div className="mx-auto flex max-w-[1200px] flex-nowrap items-start justify-between gap-x-6 px-[32.5px] pt-4">
             {/* COLUMN 1: Explore roles */}
-            <div>
-              <h3 className="mb-3 text-[14px] font-bold tracking-tight text-gray-900">
-                Explore roles
+            <div className={columnClass}>
+              <h3 className={headingClass}>
+                <Link
+                  href={EXPLORE_FALLBACKS.viewAllRoles}
+                  onClick={closeImmediately}
+                  className={itemClass}
+                >
+                  Explore roles
+                </Link>
               </h3>
-              <ul className="space-y-1.5">
+              <ul className={listClass}>
                 {ROLES.map((item) => (
                   <li key={item.label}>
                     <Link
                       href={item.href}
                       onClick={closeImmediately}
-                      className="block text-[13px] text-gray-700 transition-colors hover:text-[#0056D2] hover:underline"
+                      className={itemClass}
                     >
                       {item.label}
                     </Link>
@@ -228,26 +184,32 @@ export function ExploreMenu({ isDarkBg = false }: { isDarkBg?: boolean }) {
                 ))}
               </ul>
               <Link
-                href="/belajar"
+                href="/career-academy"
                 onClick={closeImmediately}
-                className="mt-3.5 inline-block text-xs font-semibold text-[#0056D2] underline underline-offset-2 transition-colors hover:text-[#003d99]"
+                className={viewAllClass}
               >
                 View all
               </Link>
             </div>
 
             {/* COLUMN 2: Explore categories */}
-            <div>
-              <h3 className="mb-3 text-[14px] font-bold tracking-tight text-gray-900">
-                Explore categories
+            <div className={columnClass}>
+              <h3 className={headingClass}>
+                <Link
+                  href={EXPLORE_FALLBACKS.browseAll}
+                  onClick={closeImmediately}
+                  className={itemClass}
+                >
+                  Explore categories
+                </Link>
               </h3>
-              <ul className="space-y-1.5">
+              <ul className={listClass}>
                 {CATEGORIES.map((item) => (
                   <li key={item.label}>
                     <Link
                       href={item.href}
                       onClick={closeImmediately}
-                      className="block text-[13px] text-gray-700 transition-colors hover:text-[#0056D2] hover:underline"
+                      className={itemClass}
                     >
                       {item.label}
                     </Link>
@@ -255,28 +217,34 @@ export function ExploreMenu({ isDarkBg = false }: { isDarkBg?: boolean }) {
                 ))}
               </ul>
               <Link
-                href="/belajar"
+                href="/browse"
                 onClick={closeImmediately}
-                className="mt-3.5 inline-block text-xs font-semibold text-[#0056D2] underline underline-offset-2 transition-colors hover:text-[#003d99]"
+                className={viewAllClass}
               >
                 View all
               </Link>
             </div>
 
             {/* COLUMN 3: Certificates & Degrees */}
-            <div className="space-y-6">
+            <div className="flex min-w-[205px] flex-col">
               {/* Group A: Earn a Professional Certificate */}
               <div>
-                <h3 className="mb-3 text-[14px] font-bold tracking-tight text-gray-900">
-                  Earn a Professional Certificate
+                <h3 className={headingClass}>
+                  <Link
+                    href="/search?productType=Professional+Certificate"
+                    onClick={closeImmediately}
+                    className={itemClass}
+                  >
+                    Earn a Professional Certificate
+                  </Link>
                 </h3>
-                <ul className="space-y-1.5">
+                <ul className={listClass}>
                   {CERTIFICATES.map((item) => (
                     <li key={item.label}>
                       <Link
                         href={item.href}
                         onClick={closeImmediately}
-                        className="block text-[13px] text-gray-700 transition-colors hover:text-[#0056D2] hover:underline"
+                        className={itemClass}
                       >
                         {item.label}
                       </Link>
@@ -284,9 +252,9 @@ export function ExploreMenu({ isDarkBg = false }: { isDarkBg?: boolean }) {
                   ))}
                 </ul>
                 <Link
-                  href="/belajar"
+                  href="/search?productType=Professional+Certificate"
                   onClick={closeImmediately}
-                  className="mt-3.5 inline-block text-xs font-semibold text-[#0056D2] underline underline-offset-2 transition-colors hover:text-[#003d99]"
+                  className={viewAllClass}
                 >
                   View all
                 </Link>
@@ -294,16 +262,22 @@ export function ExploreMenu({ isDarkBg = false }: { isDarkBg?: boolean }) {
 
               {/* Group B: Earn an online degree */}
               <div>
-                <h3 className="mb-3 text-[14px] font-bold tracking-tight text-gray-900">
-                  Earn an online degree
+                <h3 className={headingClass}>
+                  <Link
+                    href="/degrees"
+                    onClick={closeImmediately}
+                    className={itemClass}
+                  >
+                    Earn an online degree
+                  </Link>
                 </h3>
-                <ul className="space-y-1.5">
+                <ul className={listClass}>
                   {DEGREES.map((item) => (
                     <li key={item.label}>
                       <Link
                         href={item.href}
                         onClick={closeImmediately}
-                        className="block text-[13px] text-gray-700 transition-colors hover:text-[#0056D2] hover:underline"
+                        className={itemClass}
                       >
                         {item.label}
                       </Link>
@@ -311,9 +285,9 @@ export function ExploreMenu({ isDarkBg = false }: { isDarkBg?: boolean }) {
                   ))}
                 </ul>
                 <Link
-                  href="/belajar"
+                  href="/degrees"
                   onClick={closeImmediately}
-                  className="mt-3.5 inline-block text-xs font-semibold text-[#0056D2] underline underline-offset-2 transition-colors hover:text-[#003d99]"
+                  className={viewAllClass}
                 >
                   View all
                 </Link>
@@ -321,19 +295,17 @@ export function ExploreMenu({ isDarkBg = false }: { isDarkBg?: boolean }) {
             </div>
 
             {/* COLUMN 4: Trending Skills & Certification Prep */}
-            <div className="space-y-6">
+            <div className="flex min-w-[214px] flex-col">
               {/* Group A: Explore trending skills */}
               <div>
-                <h3 className="mb-3 text-[14px] font-bold tracking-tight text-gray-900">
-                  Explore trending skills
-                </h3>
-                <ul className="space-y-1.5">
+                <h3 className={headingClass}>Explore trending skills</h3>
+                <ul className={listClass}>
                   {TRENDING_SKILLS.map((item) => (
                     <li key={item.label}>
                       <Link
                         href={item.href}
                         onClick={closeImmediately}
-                        className="block text-[13px] text-gray-700 transition-colors hover:text-[#0056D2] hover:underline"
+                        className={itemClass}
                       >
                         {item.label}
                       </Link>
@@ -344,13 +316,11 @@ export function ExploreMenu({ isDarkBg = false }: { isDarkBg?: boolean }) {
 
               {/* Group B: Prepare for a certification exam */}
               <div>
-                <h3 className="mb-2 text-[14px] font-bold tracking-tight text-gray-900">
-                  Prepare for a certification exam
-                </h3>
+                <h3 className={headingClass}>Prepare for a certification exam</h3>
                 <Link
-                  href="/challenge/1"
+                  href={CERTIFICATION_PREP_VIEW_ALL}
                   onClick={closeImmediately}
-                  className="mt-1 inline-block text-xs font-semibold text-[#0056D2] underline underline-offset-2 transition-colors hover:text-[#003d99]"
+                  className={viewAllClass}
                 >
                   View all
                 </Link>
@@ -358,14 +328,15 @@ export function ExploreMenu({ isDarkBg = false }: { isDarkBg?: boolean }) {
             </div>
           </div>
 
-          {/* BOTTOM PROMO STRIP matching Coursera Plus banner in Image 1 */}
-          <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-gray-200 pt-4 text-xs sm:text-sm text-gray-600">
-            <div className="flex flex-wrap items-center gap-1.5">
+          {/* Footer strip: padding 24px 0 16px, tanpa border atas, font 14px.
+              Saudara dari row kolom, bukan anaknya. */}
+          <div className="px-[32.5px] pt-6 pb-4">
+            <div className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-x-1.5 text-sm leading-5 text-[#0D0F12]">
               <span>Not sure where to begin?</span>
               <Link
-                href="/belajar"
+                href="/courses?query=free"
                 onClick={closeImmediately}
-                className="font-medium text-gray-900 underline underline-offset-2 transition-colors hover:text-[#0056D2]"
+                className="underline underline-offset-2 transition-colors hover:text-[#0B408B]"
               >
                 Browse free courses
               </Link>
@@ -373,18 +344,26 @@ export function ExploreMenu({ isDarkBg = false }: { isDarkBg?: boolean }) {
               <Link
                 href="/careevo-plus"
                 onClick={closeImmediately}
-                className="inline-flex items-center gap-1 font-medium text-gray-900 underline underline-offset-2 transition-colors hover:text-[#0056D2]"
+                className="inline-flex items-center gap-1 underline underline-offset-2 transition-colors hover:text-[#0B408B]"
               >
                 <span>Learn more about</span>
-                <span className="font-bold text-[#0056D2]">Careevo</span>
-                <span className="rounded-[3px] bg-[#0056D2] px-1 py-0.2 text-[9px] font-bold tracking-wider text-white uppercase no-underline">
-                  PLUS
-                </span>
+                <span className="font-bold text-[#0B408B]">Careevo</span>
+                {/* Badge Plus asli Coursera: 32x12px (dari DOM), bukan teks tiruan */}
+                <span
+                  className="inline-block h-[12px] w-[32px] shrink-0 bg-contain bg-center bg-no-repeat"
+                  style={{
+                    backgroundImage:
+                      "url(https://coursera_assets.s3.amazonaws.com/coursera_plus/coursera-plus-badge-blue.png)",
+                  }}
+                  role="img"
+                  aria-label="Careevo Plus"
+                />
               </Link>
             </div>
           </div>
-        </div>
-      )}
+          </div>
+        </>
+        )}
     </div>
   );
 }

@@ -17,18 +17,9 @@ export interface StudyChatMessage {
   truncated?: boolean;
 }
 
-export interface StudyPathProposal {
-  id: string;
-  courseId: string;
-  moduleIds: string[];
-  rationale: string;
-  createdAt: string;
-}
-
 export interface StudyChatSnapshot {
   version: 1;
   messages: StudyChatMessage[];
-  pendingProposal?: StudyPathProposal;
 }
 
 export interface StudyChatEnvelope extends StudyChatSnapshot {
@@ -55,10 +46,3 @@ export type StudyChatActionState =
       message: string;
       snapshot: StudyChatSnapshot;
     };
-
-export type StudyProposalActionState =
-  | { status: "idle" }
-  | { status: "unauthenticated"; message: string }
-  | { status: "invalid_proposal"; message: string }
-  | { status: "success"; message: string }
-  | { status: "error"; message: string };

@@ -21,6 +21,7 @@ import { ambilLokerById } from "@/lib/jobs/cache";
 import { profile } from "@/lib/fixtures";
 import { evaluasiLoker, type JenisGagal } from "@/lib/agents/evaluasi/evaluasi";
 import type { HasilEvaluasi } from "@/lib/agents/evaluasi/skema";
+import { bootstrapCareerOps, simpanEvaluasi } from "@/lib/career-ops";
 
 export interface EvaluasiState {
   ok: boolean;
@@ -29,6 +30,8 @@ export interface EvaluasiState {
   /** Present only on failure — why there is no score. */
   alasan?: JenisGagal;
   pesan?: string;
+  /** Report persistence info — present when the evaluation was saved. */
+  report?: { nomor?: number; path?: string; pesan: string };
 }
 
 export async function nilaiLokerAction(jobId: string): Promise<EvaluasiState> {
@@ -53,5 +56,23 @@ export async function nilaiLokerAction(jobId: string): Promise<EvaluasiState> {
     return { ok: false, alasan: hasil.alasan, pesan: hasil.pesan };
   }
 
-  return { ok: true, hasil: hasil.hasil };
+  // Pasca-evaluasi, verbatim from career-ops modes/id/lowongan.md: save the
+  // report and record it to the tracker. Persistence is best-effort — a report
+  // write failure must not turn a successful evaluation into "no score", because
+  // the score is true regardless of whether the file landed.
+  try {
+    bootstrapCareerOps();
+    const simpan = await simpanEvaluasi(job, hasil.hasil);
+    return {
+      ok: true,
+      hasil: hasil.hasil,
+      report: {
+        nomor: simpan.nomor,
+        path: simpan.reportPath,
+        pesan: simpan.pesan,
+      },
+    };
+  } catch {
+    return { ok: true, hasil: hasil.hasil };
+  }
 }

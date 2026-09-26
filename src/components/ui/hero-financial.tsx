@@ -30,11 +30,11 @@ export const HeroFinancial = () => {
           timelineRef={timelineRef}
           className="bg-white w-fit mx-auto text-black px-1.5 py-1 rounded-full inline-flex items-center gap-2 shadow-lg shadow-blue-500/20 border-2 border-white"
         >
-          <span className="bg-linear-to-br from-blue-500 to-blue-200 text-white px-2 py-0.5 rounded-full text-xs font-medium uppercase tracking-widest">
-            Baru
+          <span className="bg-neutral-900 text-white px-2 py-0.5 rounded-full text-xs font-medium uppercase tracking-widest">
+            Gratis
           </span>
           <span className="text-sm font-medium">
-            Latihan coding interaktif & kurasi loker
+            Latihan interview kerja, satu challenge per minggu
           </span>
         </TimelineAnimation>
 
@@ -43,9 +43,11 @@ export const HeroFinancial = () => {
           id="hero-title"
           animationNum={2}
           timelineRef={timelineRef}
-          className="max-w-4xl text-4xl font-medium tracking-tight text-neutral-900 sm:text-5xl md:text-6xl"
+          className="max-w-4xl text-balance text-4xl font-medium tracking-tight text-neutral-900 sm:text-5xl md:text-6xl"
         >
-          Rekruter ingin melihat caramu berpikir, <br /> bukan sekadar kode hasil salinan.
+          Perusahaan mau lihat cara kamu berpikir,
+          <br />
+          bukan cuma proyek dan sertifikat usaha dari AI
         </TimelineAnimation>
 
         <TimelineAnimation
@@ -54,7 +56,8 @@ export const HeroFinancial = () => {
           timelineRef={timelineRef}
           className="mx-auto max-w-2xl px-4 text-base font-medium leading-relaxed text-neutral-500 md:text-lg"
         >
-          Careevo mencocokkan lowongan kerja yang sesuai dengan skill dan CV kamu saat ini, lalu membantu latihan teknis terarah sampai kamu siap lulus interview.
+          Setiap keputusan kodemu dicatat, termasuk yang salah dan kamu perbaiki
+          sendiri. Perusahaan bisa buka rekamannya lewat satu tautan.
         </TimelineAnimation>
 
         <div className="flex gap-4 justify-center">
@@ -63,9 +66,9 @@ export const HeroFinancial = () => {
             href="/daftar"
             animationNum={4}
             timelineRef={timelineRef}
-            className="rounded-lg border border-blue-300 bg-linear-to-br from-blue-500 via-blue-400 to-blue-200 px-4 py-2.5 text-base text-white shadow-sm transition"
+            className="grad-btn rounded-lg px-4 py-2.5 text-base transition"
           >
-            Coba Latihan Gratis
+            Cobain satu challenge, gratis
           </TimelineAnimation>
           <TimelineAnimation
             as={Link}
@@ -74,7 +77,7 @@ export const HeroFinancial = () => {
             timelineRef={timelineRef}
             className="rounded-lg border border-neutral-300 bg-linear-to-br from-neutral-50 via-neutral-100 to-neutral-300 px-4 py-2.5 text-base text-black shadow-sm transition"
           >
-            Cek Lowongan Kerja
+            Lihat loker yang lolos cek
           </TimelineAnimation>
         </div>
       </div>

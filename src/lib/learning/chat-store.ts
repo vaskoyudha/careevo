@@ -11,7 +11,6 @@ import {
   type StudyChatEnvelope,
   type StudyChatMessage,
   type StudyChatSnapshot,
-  type StudyPathProposal,
 } from "./chat-types";
 
 const STUDY_CHAT_SECRET =
@@ -50,38 +49,6 @@ function isBoundedMessage(value: unknown): value is StudyChatMessage {
   return isValidMessage(value) && value.content.length <= MAX_STUDY_MESSAGE_CHARS;
 }
 
-function parseProposal(value: unknown): StudyPathProposal | null {
-  if (typeof value !== "object" || value === null) return null;
-  const candidate = value as Record<string, unknown>;
-  if (
-    !isNonEmptyString(candidate.id) ||
-    !isNonEmptyString(candidate.courseId) ||
-    !Array.isArray(candidate.moduleIds) ||
-    candidate.moduleIds.length === 0 ||
-    !isNonEmptyString(candidate.rationale) ||
-    !isTimestamp(candidate.createdAt)
-  ) {
-    return null;
-  }
-  const moduleIds: string[] = [];
-  for (let index = 0; index < candidate.moduleIds.length; index += 1) {
-    if (
-      !Object.hasOwn(candidate.moduleIds, index) ||
-      !isNonEmptyString(candidate.moduleIds[index])
-    ) {
-      return null;
-    }
-    moduleIds.push(candidate.moduleIds[index]);
-  }
-  return {
-    id: candidate.id,
-    courseId: candidate.courseId,
-    moduleIds,
-    rationale: candidate.rationale,
-    createdAt: candidate.createdAt,
-  };
-}
-
 function isEnvelope(value: unknown): value is StudyChatEnvelope {
   if (typeof value !== "object" || value === null) return false;
   const candidate = value as Record<string, unknown>;
@@ -99,10 +66,7 @@ function isEnvelope(value: unknown): value is StudyChatEnvelope {
     (total, item) => total + item.content.length,
     0,
   );
-  return (
-    transcriptChars <= MAX_STUDY_TRANSCRIPT_CHARS &&
-    (candidate.pendingProposal === undefined || parseProposal(candidate.pendingProposal) !== null)
-  );
+  return transcriptChars <= MAX_STUDY_TRANSCRIPT_CHARS;
 }
 
 function sign(body: string): string {
@@ -121,9 +85,6 @@ function encode(envelope: StudyChatEnvelope): string {
     version: envelope.version,
     owner: envelope.owner,
     messages: envelope.messages,
-    ...(envelope.pendingProposal === undefined
-      ? {}
-      : { pendingProposal: envelope.pendingProposal }),
   };
   const body = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
   return `${body}.${sign(body)}`;
@@ -138,20 +99,10 @@ function decode(raw: string | undefined): StudyChatEnvelope | null {
   try {
     const parsed: unknown = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
     if (!isEnvelope(parsed)) return null;
-    if (parsed.pendingProposal === undefined) {
-      return {
-        version: parsed.version,
-        owner: parsed.owner,
-        messages: parsed.messages.map(boundMessage),
-      };
-    }
-    const pendingProposal = parseProposal(parsed.pendingProposal);
-    if (!pendingProposal) return null;
     return {
       version: parsed.version,
       owner: parsed.owner,
       messages: parsed.messages.map(boundMessage),
-      pendingProposal,
     };
   } catch {
     return null;
@@ -162,9 +113,6 @@ function toSnapshot(envelope: StudyChatEnvelope): StudyChatSnapshot {
   return {
     version: envelope.version,
     messages: envelope.messages,
-    ...(envelope.pendingProposal === undefined
-      ? {}
-      : { pendingProposal: envelope.pendingProposal }),
   };
 }
 
@@ -233,39 +181,6 @@ export async function appendStudyMessage(
       ...(envelope?.messages ?? []),
       boundMessage(message),
     ]),
-    ...(envelope?.pendingProposal === undefined
-      ? {}
-      : { pendingProposal: envelope.pendingProposal }),
   };
   return nextEnvelope.owner ? writeEnvelope(nextEnvelope) : emptySnapshot();
-}
-
-export async function setPendingStudyProposal(
-  owner: string,
-  proposal: StudyPathProposal,
-): Promise<StudyChatSnapshot> {
-  const normalizedProposal = parseProposal(proposal);
-  if (!normalizedProposal) return readStudyChatSnapshot(owner);
-  const envelope = await readEnvelope(owner);
-  const normalizedOwner = normalizeOwner(owner);
-  if (!normalizedOwner) return emptySnapshot();
-  return writeEnvelope({
-    version: STUDY_CHAT_VERSION,
-    owner: normalizedOwner,
-    messages: envelope?.messages ?? [],
-    pendingProposal: normalizedProposal,
-  });
-}
-
-export async function clearPendingStudyProposal(
-  owner: string,
-): Promise<StudyChatSnapshot> {
-  const envelope = await readEnvelope(owner);
-  const normalizedOwner = normalizeOwner(owner);
-  if (!normalizedOwner) return emptySnapshot();
-  return writeEnvelope({
-    version: STUDY_CHAT_VERSION,
-    owner: normalizedOwner,
-    messages: envelope?.messages ?? [],
-  });
 }

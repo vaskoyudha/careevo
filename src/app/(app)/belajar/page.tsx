@@ -52,7 +52,7 @@ export default async function BelajarPage({
   }
 
   return (
-    <LearnerShell session={session} queryAwal={queryAwal}>
+    <LearnerShell session={session} queryAwal={queryAwal} overlayMain promoBars>
       <BelajarHome
         resources={katalog}
         tasks={tasks}

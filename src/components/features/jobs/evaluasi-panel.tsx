@@ -82,10 +82,18 @@ export function EvaluasiPanel({ jobId }: { jobId: string }) {
     );
   }
 
-  return <HasilView hasil={state.hasil} onUlang={jalankan} />;
+  return <HasilView hasil={state.hasil} report={state.report} onUlang={jalankan} />;
 }
 
-function HasilView({ hasil, onUlang }: { hasil: HasilEvaluasi; onUlang: () => void }) {
+function HasilView({
+  hasil,
+  report,
+  onUlang,
+}: {
+  hasil: HasilEvaluasi;
+  report?: { nomor?: number; path?: string; pesan: string };
+  onUlang: () => void;
+}) {
   const pct = (hasil.skor_global / 5) * 100;
   const tone = hasil.skor_global >= 4.5 ? "ok" : hasil.skor_global >= 3.5 ? "warn" : "danger";
 
@@ -175,6 +183,13 @@ function HasilView({ hasil, onUlang }: { hasil: HasilEvaluasi; onUlang: () => vo
       <p className="alert alert-ok" style={{ marginTop: "1rem" }}>
         {hasil.rekomendasi}
       </p>
+
+      {report ? (
+        <p className="caption muted" style={{ marginTop: "0.75rem" }}>
+          📄 {report.pesan}
+          {report.path ? <span className="mono"> {report.path}</span> : null}
+        </p>
+      ) : null}
 
       <p className="caption muted" style={{ marginTop: "0.75rem" }}>
         Skor ini hasil penilaian AI terhadap profilmu, bukan jaminan. Keputusan tetap di kamu.

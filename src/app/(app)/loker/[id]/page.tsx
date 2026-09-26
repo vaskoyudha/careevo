@@ -5,17 +5,16 @@ import { AppShell } from "@/components/ui/app-shell";
 import { PageHead } from "@/components/ui/page-head";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ProgressBar } from "@/components/ui/progress-bar";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Button } from "@/components/ui/button";
 import { EvaluasiPanel } from "@/components/features/jobs/evaluasi-panel";
 import { ambilLokerById } from "@/lib/jobs/cache";
 import { labelSinyal } from "@/lib/agents/sentinel";
+import { TrackerLoker } from "@/components/features/jobs/tracker-loker";
+import { ambilStatusLamaran } from "@/actions/tracker";
+import { urutanLifecycle } from "@/lib/career-ops/states";
 
 export const metadata: Metadata = {
   title: "Detail Loker",
 };
-
-const TRACKER = ["applied", "reviewed", "interview", "outcome"] as const;
 
 export default async function LokerDetailPage({
   params,
@@ -30,6 +29,15 @@ export default async function LokerDetailPage({
   // listing 404s instead of rendering an apply flow for it.
   const job = await ambilLokerById(id);
   if (!job) notFound();
+
+  // Resolve this posting to its canonical tracker row (if any). Server-side so
+  // the tracker read never leaves the signed-in session's data root.
+  const statusLamaran = await ambilStatusLamaran(id);
+
+  // Lifecycle states are read SERVER-SIDE: the tracker component is a client
+  // chunk and must not import templates/states.yml (node:fs). Only the plain
+  // label/id/aliases data crosses into the browser.
+  const states = urutanLifecycle();
 
   return (
     <AppShell session={session} current="/loker">
@@ -123,26 +131,7 @@ export default async function LokerDetailPage({
                 Apply dan tracker
               </h2>
             </div>
-            {job.sentinel_status === "clean" ? (
-              <>
-                <p className="muted">Status lamaran kamu</p>
-                <ol style={{ listStyle: "none", padding: 0, margin: "0.5rem 0 1rem" }}>
-                  {TRACKER.map((step, index) => (
-                    <li key={step} style={{ display: "flex", gap: "0.6rem", alignItems: "center", padding: "0.3rem 0" }}>
-                      <span className={`status ${index === 0 ? "status-ok" : "status-info"}`}>{index + 1}</span>
-                      <span>{step}</span>
-                    </li>
-                  ))}
-                </ol>
-                <Button type="button" variant="brand" size="pill">
-                  Lamar sekarang
-                </Button>
-              </>
-            ) : (
-              <EmptyState title="Loker dikarantina">
-                Loker ini tidak bisa dilamar sebelum banding diverifikasi verifikator.
-              </EmptyState>
-            )}
+            <TrackerLoker job={job} awal={statusLamaran} states={states} />
           </section>
         </div>
     </AppShell>
