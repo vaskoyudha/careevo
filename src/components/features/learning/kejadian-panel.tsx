@@ -35,6 +35,13 @@ const LABEL_JENIS: Record<KJenisKejadian, string> = {
   kamera_gagal: "Kamera bermasalah (menurut laporanmu)",
   sesi_dimulai: "Sesi dimulai",
   sesi_diakhiri: "Sesi diakhiri",
+  keluar_fullscreen: "Keluar layar penuh",
+  paste_massal: "Menempel teks panjang",
+  pintasan_terlarang: "Pintasan terlarang",
+  salin_terlarang: "Menyalin teks panjang",
+  wajah_tidak_terdeteksi: "Wajah tidak terlihat",
+  wajah_kedua: "Wajah kedua terdeteksi",
+  seb_aktif: "Berjalan di lockdown browser",
 };
 
 function waktu(titik: string): string {
