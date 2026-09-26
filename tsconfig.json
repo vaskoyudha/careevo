@@ -39,6 +39,11 @@
     // upstream clone kept as a reference (its own `web/` app has its own
     // tsconfig/lint rules). Neither should be type-checked by Careevo's tsc.
     "career-ops",
-    "engine"
+    "engine",
+    // DeepTutor backend: vendored upstream app (git-tracked, 1k+ TS files) kept
+    // in `backend/`. Its own web app has its own tsconfig/lint rules and is
+    // never part of the Careevo build graph; type-checking it here floods
+    // `npm run typecheck` with upstream errors and drowns the Careevo signal.
+    "backend"
   ]
 }
