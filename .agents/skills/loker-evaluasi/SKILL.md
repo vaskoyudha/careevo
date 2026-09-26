@@ -41,6 +41,7 @@ Files:
 | `prompt.ts` | `bangunPrompt`, `DIMENSI_SKOR`, `SKEMA_HASIL` |
 | `evaluasi.ts` | `evaluasiLoker`, `evaluasiTersedia`, the model call |
 | `src/lib/llm/port.ts` | provider resolution — `getLlm()`, the only place env is read |
+| `src/lib/llm/gagal.ts` | shared failure classification — `JenisGagal`, `klasifikasiGagal` (also used by `loker-persiapan`) |
 | `src/actions/evaluasi.ts` | the server action |
 | `src/components/features/jobs/evaluasi-panel.tsx` | the UI |
 
@@ -154,6 +155,14 @@ strings like `"4.5"` are fine and are coerced.
 
 `evaluasiLoker` returns a discriminated result and **never throws**. Reasons:
 `tanpa_kunci` · `kuota` · `hasil_tidak_valid` · `gagal`.
+
+The mapping from a port failure to those reasons lives in
+`src/lib/llm/gagal.ts` (`klasifikasiGagal`), shared with the `loker-persiapan`
+feature. `evaluasi.ts` re-exports `JenisGagal` for its existing importers; it
+does not define it. If you add a failure mode, change `gagal.ts`, not this
+directory. The shared copy also owns the learner-facing copy: `pesan` is
+written per reason and never assembled from the provider's body, which is
+carried as `detail` instead.
 
 The UI shows no score on any failure. There is deliberately **no heuristic
 fallback**. A plausible number that was not produced by an evaluation is worse
