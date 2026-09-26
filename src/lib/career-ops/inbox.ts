@@ -2,6 +2,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { dataRoot } from "./data-root";
 import { parseInbox, splitLines, type InboxJobShape } from "./pipeline-table";
+import { auditBaris, type BarisDiaudit } from "./inbox-audit";
+import { jobIdFromUrl } from "./jobstreet-audit";
+import { fetchJsonDefault, perkaya, type FetchJson } from "./jobstreet-enrich";
 
 /**
  * inbox.ts — read the discovered-postings inbox the engine writes.
@@ -72,6 +75,42 @@ export function bacaInboxUnik(): InboxJob[] {
     out.push(job);
   }
   return out;
+}
+
+/**
+ * The inbox with a derived fraud verdict on every row.
+ *
+ * Deliberately a separate function from `bacaInboxDenganTanggal` rather than an
+ * `await` inside it: reading the file is pure and synchronous, and its tests
+ * should not need a network to pass. Enrichment is the slow, fallible,
+ * networked part, so it lives here where a caller can choose to skip it and
+ * where `fetchJson` can be injected.
+ *
+ * A row whose listing cannot be fetched comes back `enriched: false` and
+ * `quarantined`, never `clean` — see `inbox-audit.ts` for why that distinction
+ * is the whole point.
+ */
+export async function bacaInboxDiaudit(
+  options: { fetchJson?: FetchJson; cacheFile?: string } = {},
+): Promise<(BarisDiaudit & { firstSeen?: string })[]> {
+  const rows = bacaInboxDenganTanggal();
+  if (rows.length === 0) return [];
+
+  const jobIds = [
+    ...new Set(rows.map((row) => jobIdFromUrl(row.url)).filter((id): id is string => id !== null)),
+  ];
+  // Nothing Jobstreet-shaped, so do not touch the network at all.
+  if (jobIds.length === 0) {
+    return auditBaris(rows as unknown as InboxJobShape[], {});
+  }
+
+  if (options.cacheFile) process.env.CAREERVO_JOBSTREET_CACHE = options.cacheFile;
+  const listings = await perkaya(jobIds, options.fetchJson ?? fetchJsonDefault);
+
+  return auditBaris(rows as unknown as InboxJobShape[], listings).map((row, i) => ({
+    ...row,
+    firstSeen: rows[i]?.firstSeen,
+  }));
 }
 
 /**

@@ -2270,7 +2270,10 @@ h6 {
 .dashboard-shell {
   display: flex;
   min-height: 100vh;
-  background: var(--background);
+  background:
+    radial-gradient(1100px 460px at 88% -8%, rgba(42, 127, 184, 0.10), transparent 62%),
+    radial-gradient(820px 400px at -6% 0%, rgba(46, 196, 182, 0.08), transparent 58%),
+    var(--background);
 }
 
 .dashboard-sidebar-aside {
@@ -2291,6 +2294,20 @@ h6 {
   width: 0;
 }
 
+/* Sidebar panel: white-to-pale glass over the oceanic backdrop. */
+.dashboard-sidebar-panel {
+  display: flex;
+  height: 100%;
+  width: 260px;
+  flex-direction: column;
+  border-right: 1px solid rgba(203, 230, 239, 0.8);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(238, 246, 250, 0.94));
+  backdrop-filter: blur(14px);
+  padding: 0.75rem;
+  font-family: var(--font);
+}
+
 .dashboard-content {
   flex: 1 1 0%;
   min-width: 0;
@@ -2298,6 +2315,8 @@ h6 {
   flex-direction: column;
 }
 
+/* Top bar: sticky glass strip so it reads as a real navbar instead of blending
+   into the cards below. White-on-pale glass with a primary-tinted shadow. */
 .dashboard-topbar {
   position: sticky;
   top: 0;
@@ -2306,10 +2325,61 @@ h6 {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  height: 56px;
-  padding: 0 1rem;
-  background: var(--card);
-  border-bottom: 1px solid var(--border);
+  height: 64px;
+  padding: 0 1.25rem;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(236, 243, 247, 0.8));
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border-bottom: 1px solid rgba(203, 230, 239, 0.9);
+  box-shadow:
+    0 10px 30px -22px rgba(10, 61, 98, 0.5),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.55);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .dashboard-topbar {
+    background: rgba(255, 255, 255, 0.97);
+  }
+}
+
+.dashboard-topbar-brand {
+  display: inline-flex;
+  align-items: baseline;
+  font-weight: 700;
+  font-size: 1.04rem;
+  letter-spacing: -0.02em;
+  color: var(--ocean-deep);
+  text-decoration: none;
+  transition: color 180ms ease-out;
+}
+
+.dashboard-topbar-brand:hover {
+  color: var(--ocean-mid);
+  text-decoration: none;
+}
+
+.dashboard-topbar-brand-dot {
+  color: var(--aqua);
+}
+
+.dashboard-topbar-sep {
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
+  user-select: none;
+}
+
+.dashboard-topbar-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--primary);
+  background: rgba(10, 61, 98, 0.07);
+  border: 1px solid rgba(203, 230, 239, 0.9);
+  padding: 0.28rem 0.7rem;
+  border-radius: 999px;
 }
 
 .dashboard-overlay {
@@ -2336,6 +2406,11 @@ h6 {
 
   .dashboard-sidebar-aside[data-open="true"] {
     transform: translateX(0);
+  }
+
+  .dashboard-topbar {
+    height: 60px;
+    padding: 0 0.75rem;
   }
 }
 
@@ -2503,6 +2578,30 @@ button.tag:hover {
   background: linear-gradient(135deg, var(--ocean-mid), var(--ocean-deep));
   color: #fff;
   border-color: transparent;
+}
+
+/* Verdict badge on an inbox row. Four states, not three: `verdict-unverified`
+   means "we did not check", which is a different claim from "we checked and it
+   is fine" and must never borrow the green. */
+.verdict-clean {
+  color: var(--color-success);
+  border-color: color-mix(in srgb, var(--color-success) 40%, transparent);
+}
+
+.verdict-quarantined {
+  color: var(--color-warning);
+  border-color: color-mix(in srgb, var(--color-warning) 45%, transparent);
+}
+
+.verdict-rejected {
+  color: var(--color-danger);
+  border-color: color-mix(in srgb, var(--color-danger) 45%, transparent);
+}
+
+.verdict-unverified {
+  color: var(--muted-foreground);
+  border-color: color-mix(in srgb, var(--muted-foreground) 35%, transparent);
+  border-style: dashed;
 }
 
 /* A row of filter chips. Wraps on desktop, but 76 company facets measured a
@@ -2881,7 +2980,7 @@ button.tag:hover {
    Restyles the shared app classes to the dashboard look (solid cards,
    small type, subtle borders) for authenticated pages only. */
 .dashboard-shell .app-main {
-  padding: clamp(22px, 2.6vw, 34px) var(--page-pad) clamp(48px, 6vw, 72px);
+  padding: clamp(24px, 2.8vw, 36px) var(--page-pad) clamp(56px, 7vw, 80px);
 }
 
 .dashboard-shell .page-head {
@@ -2894,7 +2993,7 @@ button.tag:hover {
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--muted-foreground);
+  color: var(--primary);
   margin-bottom: 0.4rem;
 }
 
@@ -2935,12 +3034,21 @@ button.tag:hover {
 }
 
 .dashboard-shell .card {
-  background: var(--card);
-  backdrop-filter: none;
-  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(14px) saturate(150%);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
   border-radius: 14px;
   padding: 1.25rem;
-  box-shadow: 0 1px 2px rgba(10, 42, 58, 0.04);
+  box-shadow:
+    0 10px 30px -18px rgba(10, 61, 98, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .dashboard-shell .card {
+    background: rgba(255, 255, 255, 0.96);
+  }
 }
 
 .dashboard-shell .card-head {
@@ -2961,11 +3069,13 @@ button.tag:hover {
 }
 
 .dashboard-shell .stat-box {
-  background: var(--card);
-  border: 1px solid var(--border);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.92), rgba(236, 243, 247, 0.62));
+  border: 1px solid rgba(255, 255, 255, 0.85);
   border-radius: 14px;
   padding: 1.1rem 1.2rem;
-  box-shadow: 0 1px 2px rgba(10, 42, 58, 0.04);
+  box-shadow:
+    0 10px 26px -20px rgba(10, 61, 98, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .dashboard-shell .stat-box-label {
@@ -2981,7 +3091,7 @@ button.tag:hover {
   font-family: var(--font);
   font-size: 1.75rem;
   font-weight: 600;
-  color: var(--foreground);
+  color: var(--primary);
   line-height: 1.1;
 }
 
@@ -2992,13 +3102,13 @@ button.tag:hover {
 }
 
 .dashboard-shell .list-app-row {
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid rgba(203, 230, 239, 0.6);
   padding: 0.8rem 0.5rem;
   border-radius: 8px;
 }
 
 .dashboard-shell .list-app-row:hover {
-  background: rgba(10, 61, 98, 0.03);
+  background: linear-gradient(90deg, rgba(42, 127, 184, 0.06), rgba(46, 196, 182, 0.04));
 }
 
 .dashboard-shell .row-title {
