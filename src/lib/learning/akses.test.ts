@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { kebijakanDefault } from "@/lib/courses/kebijakan";
 import type { CheckpointMateri, KebijakanCourse } from "@/types/course";
 import {
+  butuhKamera,
   checkpointEfektif,
   checkpointTerverifikasi,
   kategoriDiblokir,
@@ -162,5 +163,58 @@ describe("lewatBatas", () => {
     // Fail closed: evidence that cannot be audited must not count as still
     // valid, otherwise a corrupt `mulai_at` grants an unbounded window.
     expect(lewatBatas("bukan tanggal", 30, menit(1))).toBe(true);
+  });
+});
+
+describe("aturan wajib_kamera", () => {
+  const kams = { ...kebijakanDefault(), aturan_pengawasan: "wajib_kamera" as const };
+
+  it("menahan kamera yang tidak menyala pada course wajib_kamera", () => {
+    const keputusan = putuskanAkses({
+      jenisKegiatan: "materi",
+      kebijakan: kams,
+      adaBuktiSesi: true,
+      adaBuktiKamera: false,
+    });
+    expect(keputusan.tipe).toBe("perlu_kamera");
+  });
+
+  it("melepas gerbang setelah sesi dan kamera keduanya ada", () => {
+    const keputusan = putuskanAkses({
+      jenisKegiatan: "materi",
+      kebijakan: kams,
+      adaBuktiSesi: true,
+      adaBuktiKamera: true,
+    });
+    expect(keputusan.tipe).toBe("bebas");
+  });
+
+  it("tetap menolak bantuan AI di course wajib_kamera", () => {
+    // `wajib_kamera` menambah syarat kamera; ia tidak pernah melonggarkan aturan AI.
+    const keputusan = putuskanAkses({
+      jenisKegiatan: "bantuan_akademik",
+      kebijakan: { ...kebijakanDefault(), aturan_bantuan: "tanpa_ai", aturan_pengawasan: "wajib_kamera" },
+      adaBuktiSesi: true,
+      adaBuktiKamera: true,
+    });
+    expect(keputusan.tipe).toBe("ditolak");
+  });
+
+  it("tidak menuntut kamera pada course wajib yang biasa", () => {
+    // Ini yang menjaga `wajib` tetap berarti "wajib" dan bukan "wajib kamera":
+    // peserta yang menolak kamera tidak kehilangan akses belajar.
+    const keputusan = putuskanAkses({
+      jenisKegiatan: "materi",
+      kebijakan: { ...kebijakanDefault(), aturan_pengawasan: "wajib" },
+      adaBuktiSesi: true,
+      adaBuktiKamera: false,
+    });
+    expect(keputusan.tipe).toBe("bebas");
+  });
+
+  it("butuhKamera hanya benar untuk wajib_kamera", () => {
+    expect(butuhKamera(kams)).toBe(true);
+    expect(butuhKamera({ ...kebijakanDefault(), aturan_pengawasan: "wajib" })).toBe(false);
+    expect(butuhKamera({ ...kebijakanDefault(), aturan_pengawasan: "opsional" })).toBe(false);
   });
 });
