@@ -12,7 +12,7 @@ import { StubBookCompiler, type BookCompiler, type CompileInput, type CompileRes
  * where a quiz belongs, or an `correctIndex` outside its own options, loses
  * that block rather than the page — the reader then sees a slightly shorter
  * chapter instead of a crash. This is the same schema-constrained approach the
- * existing `study-chat` agent uses, for the same reason.
+ * `@/lib/agents/evaluasi` agent uses, for the same reason.
  */
 export class GeminiBookCompiler implements BookCompiler {
   readonly name = "gemini" as const;

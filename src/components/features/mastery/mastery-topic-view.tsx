@@ -7,7 +7,6 @@ import {
   arsipkanTopikAction,
   catatPercobaanAction,
   hapusTopikAction,
-  mulaiSesiTopikAction,
   type MasteryActionState,
 } from "@/actions/mastery";
 import type { KnowledgeType, MasteryTopic } from "@/lib/mastery/types";
@@ -94,17 +93,16 @@ function PointRow({
           Tandai hasil belajar
         </button>
 
-        <form action={mulaiSesiTopikAction}>
-          <input type="hidden" name="topicId" value={topicId} />
-          <input type="hidden" name="knowledgePointId" value={point.id} />
-          <button
-            type="submit"
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-2.5 text-[12.5px] font-medium text-foreground transition-colors hover:bg-muted"
-          >
-            <MessageSquare size={13} strokeWidth={1.8} aria-hidden="true" />
-            Belajar di Tutor
-          </button>
-        </form>
+        {/* AI Mastery is a separate origin behind an iframe, so this is a plain
+            link: there is no server round trip to make and no per-topic opening
+            message to write — the learner arrives at the chat and opens it. */}
+        <Link
+          href="/ai-mastery"
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-2.5 text-[12.5px] font-medium text-foreground transition-colors hover:bg-muted"
+        >
+          <MessageSquare size={13} strokeWidth={1.8} aria-hidden="true" />
+          Belajar di AI Mastery
+        </Link>
       </div>
 
       {open ? (

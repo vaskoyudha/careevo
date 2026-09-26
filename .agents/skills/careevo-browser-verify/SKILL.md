@@ -17,12 +17,12 @@ metadata:
 
 # Browser verification
 
-Written after verifying the AI Tutor end to end and finding **twelve** defects
-that a careful re-read had missed — including a 36px column of every assistant
-answer hidden behind a sidebar on mobile, a rename that reported success and
-changed nothing, and UI copy that lied about where the user's data is stored.
-Not one of them was visible in the source. All of them were one measurement
-away.
+Written after verifying the (since-removed) AI Tutor end to end and finding
+**twelve** defects that a careful re-read had missed — including a 36px column
+of every assistant answer hidden behind a sidebar on mobile, a rename that
+reported success and changed nothing, and UI copy that lied about where the
+user's data is stored. Not one of them was visible in the source. All of them
+were one measurement away.
 
 This is a **manual** gate, and it has to be. This repo has no browser test
 runner: `vitest.config.mts` sets `environment: "node"` and includes only
@@ -83,8 +83,9 @@ what, and they are the difference between a bug report and a guess.
 **Geometry** — for any layout claim, in the units the user sees:
 
 ```js
-const rail = document.querySelector('[data-tutor-rail]').getBoundingClientRect();
-const row  = document.querySelector('[data-tutor-scroll] article').getBoundingClientRect();
+// Sidebar and the content it was overlapping, by their own selectors.
+const rail = document.querySelector('[data-<your-rail>]').getBoundingClientRect();
+const row  = document.querySelector('[data-<your-scroll-region>] article').getBoundingClientRect();
 ({ hiddenPx: Math.max(0, Math.round(rail.right - row.left)) });  // → 36, not "looks fine"
 ```
 
@@ -106,7 +107,7 @@ for (let i = 0; i < 6; i++) {
 **Focusability of a "closed" thing** — the same bug, found without tabbing:
 
 ```js
-const d = document.querySelector('[data-tutor-drawer]');
+const d = document.querySelector('[data-<your-drawer>]');
 ({ state: d.getAttribute('data-state'), inert: d.hasAttribute('inert'),
    stillFocusable: d.querySelectorAll('a[href],button:not([disabled])').length });
 ```
@@ -115,7 +116,7 @@ const d = document.querySelector('[data-tutor-drawer]');
 actions are `POST`s to the page's own route, so they are countable:
 
 ```js
-const n = String(await browser_network_requests({filter: "belajar/tutor"}))
+const n = String(await browser_network_requests({filter: "belajar/latihan"}))
           .match(/POST/g).length;   // before/after a round trip
 ```
 
@@ -214,12 +215,12 @@ copy of the first. Then:
 - If you change a field's shape, grep every consumer (the `careevo-review`
   rule). Adding `courseTitle` beside `courseId` touches a validator, a
   projection, a client component and a test.
-- **Do not "fix" a documented decision to satisfy a bug you found.** The tutor
-  renders unmatched `**` literally, on purpose and with a test. A model that
-  emits sloppy Markdown is a model problem; reversing a recorded rendering
-  policy to hide it is not a fix.
+- **Do not "fix" a documented decision to satisfy a bug you found.** The
+  markdown renderer (`src/lib/markdown/ringan.ts`) leaves an unmatched `**`
+  literal, on purpose and with a test. A model that emits sloppy Markdown is a
+  model problem; reversing a recorded rendering policy to hide it is not a fix.
 - If the fix required breaking a stated rule, **write the exception down**.
-  `path-context.ts` must call `modulKursus()` even though AGENTS.md forbids it
-  from actions, because the ids on both sides come from the derived branch.
+  `personalized-path.ts` must call `modulKursus()` even though AGENTS.md forbids
+  it from actions, because the ids on both sides come from the derived branch.
   Recorded in AGENTS.md, because an undocumented exception gets "fixed" back by
   the next agent to read the rule.

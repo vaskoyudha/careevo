@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import Link from "next/link";
 import { hitungProgres } from "@/lib/courses/kurikulum";
 import type { PathModule, PersonalizedPath } from "@/lib/learning/personalized-path";
@@ -19,11 +18,9 @@ const MODULE_STATUS_STYLE: Record<PathModule["status"], string> = {
 export function JalurBelajarView({
   path,
   profile,
-  chat,
 }: {
   readonly path: PersonalizedPath;
   readonly profile: OnboardingProfile;
-  readonly chat?: ReactNode;
 }) {
   const completedCount = path.modules.filter(
     (module) => module.status === "completed",
@@ -69,16 +66,16 @@ export function JalurBelajarView({
               Jalur ini disusun dari minat {interests} dan tujuan belajarmu: {goal}.
             </p>
 
-            {/* The tutor lives at /belajar/tutor, mastery at /belajar/mastery,
-                books at /belajar/buku and practice quizzes at /belajar/latihan.
-                DeepTutor hands off from the path to the workspace the same way,
-                rather than embedding everything here. */}
+            {/* AI Mastery is the study chat, at /ai-mastery; mastery lives at
+                /belajar/mastery, books at /belajar/buku and practice quizzes at
+                /belajar/latihan. Each is a separate workspace rather than
+                something embedded here. */}
             <div className="mt-5 flex flex-wrap gap-2">
               <Link
-                href="/belajar/tutor"
+                href="/ai-mastery"
                 className="inline-flex items-center gap-2 rounded-lg bg-[#1f1f1f] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-black"
               >
-                Buka Tutor
+                Buka AI Mastery
                 <span aria-hidden="true">→</span>
               </Link>
               <Link
@@ -198,8 +195,6 @@ export function JalurBelajarView({
             </Link>
           </aside>
         </div>
-
-        {chat ? <div className="mt-10 min-w-0">{chat}</div> : null}
 
         {path.course ? (
           <section aria-labelledby="judul-daftar-modul" className="mt-10 min-w-0">

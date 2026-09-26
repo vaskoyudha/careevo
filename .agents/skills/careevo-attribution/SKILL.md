@@ -53,13 +53,6 @@ reference only. It is **gitignored** and is not part of the build.
 
 | Careevo file | Adapted from | Licence |
 |---|---|---|
-| `src/components/features/learning/study-chat.tsx` | DeepTutor `web/components/chat/home/ComposerInput.tsx`, `ChatComposer.tsx`, `web/components/space/learning/MasteryComposer.tsx` | Apache-2.0 |
-| `src/lib/agents/study-chat/hint.ts` | DeepTutor `deeptutor/services/chat_hints.py` | Apache-2.0 |
-| `src/components/features/tutor/tutor-shell.tsx` | DeepTutor `web/components/layout/AppShell.tsx`, `web/features/chat/components/ChatWorkspace.tsx` | Apache-2.0 |
-| `src/components/features/tutor/tutor-rail.tsx` | DeepTutor `web/components/sidebar/WorkspaceSidebar.tsx`, `SidebarShell.tsx`, `nav-entries.ts` | Apache-2.0 |
-| `src/components/features/tutor/tutor-column.tsx` | DeepTutor `web/features/chat/components/ChatWorkspace.tsx` (centre column), `web/components/chat/home/TurnNavigator.tsx` | Apache-2.0 |
-| `src/components/features/tutor/tutor-composer.tsx` | DeepTutor `web/components/chat/home/ChatComposer.tsx`, `ComposerInput.tsx` | Apache-2.0 |
-| `src/components/features/tutor/tutor-activity.tsx` | DeepTutor `web/components/chat/home/SessionViewerPanel.tsx` | Apache-2.0 |
 | `src/lib/mastery/scoring.ts` | DeepTutor `deeptutor/learning/mastery.py`, `deeptutor/learning/scheduler.py` | Apache-2.0 |
 | `src/lib/mastery/types.ts` | DeepTutor `deeptutor/learning/models.py` | Apache-2.0 |
 | `src/components/features/mastery/cincin-progres.tsx` | DeepTutor `web/components/space/learning/ProgressRing.tsx` | Apache-2.0 |
@@ -77,6 +70,13 @@ reference only. It is **gitignored** and is not part of the build.
 
 Upstream: <https://github.com/HKUDS/DeepTutor>
 Local checkout used: commit `a5eafa89072f6d7290a6854a6afc4ba060053beb` (v1.6.8).
+
+A chat port also existed — `components/features/tutor/*`,
+`components/features/learning/study-chat.tsx` and `agents/study-chat/*` — and
+was deleted when the study chat moved to the framed `features/sijago/` app. Its
+upstream files are no longer in the build, so they carry no notice. The
+remaining chat UI lives under `features/sijago/`, a separate upstream-derived
+app with its own licence headers.
 
 ### DeepTutor's licence obligations
 

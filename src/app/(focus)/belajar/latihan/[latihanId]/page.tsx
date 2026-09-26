@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { getLatihan } from "@/lib/latihan/store";
-import { isValidSessionId } from "@/lib/tutor/ids";
+import { isValidSessionId } from "@/lib/ids";
 import { LatihanView } from "@/components/features/latihan/latihan-view";
 
 export const metadata: Metadata = { title: "Latihan Soal" };
