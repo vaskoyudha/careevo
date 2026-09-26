@@ -1005,6 +1005,8 @@ Tambahkan nilai ketiga `AturanPengawasan` dan gerbangnya. **Nilai `completion_pa
 - Modify: `src/lib/courses/kebijakan.ts:17-27`
 - Modify: `src/lib/learning/akses.ts:14-24, 102-118`
 - Modify: `src/lib/learning/akses.test.ts`
+- Modify: `src/lib/validation/course.ts:9` (`ATURAN_PENGAWASAN` + pesan enum)
+- Modify: `src/components/features/admin/courses/kursus-detail.tsx:220` (`ATURAN_PENGAWASAN_OPSI`)
 
 **Interfaces:**
 - Consumes: tidak ada.
@@ -1015,7 +1017,7 @@ Tambahkan nilai ketiga `AturanPengawasan` dan gerbangnya. **Nilai `completion_pa
   - `function butuhKamera(kebijakan: KebijakanCourse): boolean`
   - `PESAN_POLICY.wajib_kamera`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Tambahkan ke `src/lib/learning/akses.test.ts`:
 
@@ -1081,12 +1083,12 @@ import { kebijakanDefault } from "@/lib/courses/kebijakan";
 import { butuhKamera } from "./akses";
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/lib/learning/akses.test.ts`
 Expected: FAIL — `butuhKamera` is not exported / `perlu_kamera` tidak dikenal
 
-- [ ] **Step 3: Add the type**
+- [x] **Step 3: Add the type**
 
 Di `src/types/course.ts`, ganti baris 313:
 
@@ -1112,7 +1114,7 @@ Dan perbarui komentar di atasnya (baris 305-312) menjadi:
  */
 ```
 
-- [ ] **Step 4: Extend the access decision machine**
+- [x] **Step 4: Extend the access decision machine**
 
 Di `src/lib/learning/akses.ts`, ganti `KonteksAkses` (baris 14-20):
 
@@ -1185,7 +1187,7 @@ export function putuskanAkses({ jenisKegiatan, kebijakan, adaBuktiSesi, adaBukti
 }
 ```
 
-- [ ] **Step 5: Add the label and message**
+- [x] **Step 5: Add the label and message**
 
 Di `src/lib/courses/kebijakan.ts`, ganti `LABEL_ATURAN_PENGAWASAN` (baris 17-20):
 
@@ -1204,15 +1206,44 @@ Dan tambahkan entri baru ke `PESAN_POLICY` (setelah entri `wajib` di baris 23-25
     "Course ini menuntut sesi terverifikasi dengan kamera menyala. Kamera dipakai untuk menghitung apakah wajahmu ada di depan layar — bukan merekam atau mengenali wajahmu, dan videonya tidak pernah meninggalkan perangkatmu.",
 ```
 
-- [ ] **Step 6: Run tests to verify they pass**
+- [x] **Step 6: Run tests to verify they pass**
 
 Run: `npx vitest run src/lib/learning/akses.test.ts`
 Expected: PASS
 
-- [ ] **Step 7: Commit**
+- [x] **Step 6b: Buka gerbang admin + validasi wire (konsumen yang gampang terlewat)**
+
+Menambah anggota `AturanPengawasan` membuat **dua** konsumen lain ikut wajib berubah,
+kalau tidak admin tidak akan pernah bisa memilih `wajib_kamera` (dan server menolak
+nilainya). Keduanya bukan perubahan logika, hanya daftar anggota union:
+
+`src/lib/validation/course.ts` baris 9 dan pesan enumnya:
+
+```ts
+export const ATURAN_PENGAWASAN = ["wajib", "opsional", "wajib_kamera"] as const;
+```
+
+serta pesan `z.enum` (baris 95-97):
+
+```ts
+  aturan_pengawasan: z.enum(ATURAN_PENGAWASAN, {
+    message: "Aturan pengawasan harus salah satu dari: wajib, opsional, wajib_kamera",
+  }),
+```
+
+`src/components/features/admin/courses/kursus-detail.tsx` baris 220:
+
+```ts
+const ATURAN_PENGAWASAN_OPSI: AturanPengawasan[] = ["wajib", "opsional", "wajib_kamera"];
+```
+
+(Opsi label di form admin berasal dari `LABEL_ATURAN_PENGAWASAN` yang sudah
+diperbarui di Step 5, jadi tidak ada perubahan JSX lain.)
+
+- [x] **Step 7: Commit**
 
 ```bash
-git add src/types/course.ts src/lib/courses/kebijakan.ts src/lib/learning/akses.ts src/lib/learning/akses.test.ts
+git add src/types/course.ts src/lib/courses/kebijakan.ts src/lib/learning/akses.ts src/lib/learning/akses.test.ts src/lib/validation/course.ts src/components/features/admin/courses/kursus-detail.tsx
 git commit -m "feat(learning): aturan pengawasan wajib_kamera + gerbang perlu_kamera"
 ```
 
