@@ -152,6 +152,7 @@ export async function createMasteryTopic(options: {
   description?: string;
   courseId?: string;
   courseSlug?: string;
+  jobId?: string;
   points: KnowledgePoint[];
 }): Promise<MasteryTopicBundle> {
   const timestamp = nowIso();
@@ -162,6 +163,7 @@ export async function createMasteryTopic(options: {
     description: options.description ?? "",
     ...(options.courseId ? { courseId: options.courseId } : {}),
     ...(options.courseSlug ? { courseSlug: options.courseSlug } : {}),
+    ...(options.jobId ? { jobId: options.jobId } : {}),
     status: "active",
     createdAt: timestamp,
     updatedAt: timestamp,

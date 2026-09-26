@@ -77,6 +77,8 @@ export interface MasteryTopic {
   /** The course this topic was derived from, when it came from one. */
   courseId?: string;
   courseSlug?: string;
+  /** The loker posting this topic was derived from, when it came from one. */
+  jobId?: string;
   status: TopicStatus;
   createdAt: string;
   updatedAt: string;
@@ -154,6 +156,7 @@ export function isMasteryTopic(value: unknown): value is MasteryTopic {
     typeof c.description === "string" &&
     (c.courseId === undefined || typeof c.courseId === "string") &&
     (c.courseSlug === undefined || typeof c.courseSlug === "string") &&
+    (c.jobId === undefined || typeof c.jobId === "string") &&
     (c.status === "active" || c.status === "archived") &&
     isIsoTimestamp(c.createdAt) &&
     isIsoTimestamp(c.updatedAt)
