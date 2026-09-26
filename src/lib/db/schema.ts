@@ -42,6 +42,7 @@
 import { sql } from "drizzle-orm";
 import {
   bigserial,
+  boolean,
   check,
   index,
   integer,
@@ -50,6 +51,8 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -434,6 +437,516 @@ export const outboxDeliveries = pgTable("outbox_deliveries", {
  * diam-diam.
  */
 
+/**
+ * Learning evidence — Fase 2 (plan §7). Tabel ini memindahkan enrollment,
+ * progres, sesi belajar, dan asesmen dari cookie/file menjadi baris
+ * PostgreSQL yang transactional dan bisa diaudit.
+ *
+ * Konvensi yang dikunci di Fase 2:
+ *
+ * - **`course_id`/`module_id`/`quiz_id` adalah `text`, bukan uuid.** Id course
+ *   berasal dari `data/courses.json` (`crs-…`) dan fixture resource (`r1`),
+ *   bukan dari tabel ini. `courses` di bawah hanyalah *referensi sementara*
+ *   (cache ringan) sampai Fase 4 memigrasikan CMS penuh; `enrollments.course_id`
+ *   sengaja **tidak** ber-FK ke `courses.id` supaya enrollment untuk fixture
+ *   resource yang tidak pernah di-persist tetap bekerja.
+ * - **`completion_path`** memakai `text` + CHECK, bukan boolean, karena jalur
+ *   penyelesaian punya arti (`terverifikasi` vs `informal`) yang tidak muat
+ *   dalam satu bit. Satu daftar nilai diekspor (`JALUR_PENYELESAIAN`) dan
+ *   dipakai CHECK + Zod, supaya tidak ada dua daftar yang bisa menyimpang.
+ * - **`assessment_snapshot` immutable** (ADR 0003): penilaian server hanya
+ *   membaca snapshot, tidak pernah membaca ulang `data/kuis.json`.
+ */
+
+/** Nilai `completion_path` yang sah. Satu sumber untuk CHECK dan Zod. */
+export const JALUR_PENYELESAIAN = ["terverifikasi", "informal"] as const;
+
+/** Daftar nilai `enrollments.status` untuk klausa CHECK. */
+export const STATUS_ENROLLMENT = ["active", "completed", "dropped"] as const;
+/** Daftar nilai `module_progress.state` untuk klausa CHECK. */
+export const STATUS_MODUL_PROGRES = ["in_progress", "completed"] as const;
+/** Daftar nilai `learning_runs.state` untuk klausa CHECK. */
+export const STATUS_RUN = ["active", "completed", "expired"] as const;
+/** Daftar nilai `quiz_attempts.status` untuk klausa CHECK. */
+export const STATUS_ATTEMPT = ["in_progress", "submitted"] as const;
+
+const CHECK_JALUR_PENYELESAIAN = sql`"completion_path" in ('terverifikasi', 'informal')`;
+const CHECK_STATUS_ENROLLMENT = sql`"status" in ('active', 'completed', 'dropped')`;
+const CHECK_STATUS_MODUL_PROGRES = sql`"state" in ('in_progress', 'completed')`;
+const CHECK_STATUS_RUN = sql`"state" in ('active', 'completed', 'expired')`;
+const CHECK_STATUS_ATTEMPT = sql`"status" in ('in_progress', 'submitted')`;
+
+/**
+ * Referensi sementara ke id course existing — cache ringan, bukan source of
+ * truth. Diisi saat enrollment, dibaca dashboard untuk menampilkan judul/slug
+ * tanpa memanggil store JSON. Fase 4 menggantinya dengan tabel course penuh.
+ */
+export const courses = pgTable("courses", {
+  id: text("id").primaryKey(),
+  slug: text("slug").notNull(),
+  title: text("title").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+});
+
+/**
+ * Keikutsertaan peserta pada sebuah kursus — pengganti cookie `ls_enroll`.
+ *
+ * `unique(user_id, course_id)` adalah penjamin idempotensi: mendaftar dua kali
+ * (klik ganda, request paralel) hanya menghasilkan satu baris; pelanggarannya
+ * diterjemahkan pemanggil menjadi "sudah terdaftar", bukan baris kedua.
+ */
+export const enrollments = pgTable(
+  "enrollments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    courseId: text("course_id").notNull(),
+    status: text("status").notNull().default("active"),
+    enrolledAt: timestamp("enrolled_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true, mode: "date" }),
+    completionPath: text("completion_path"),
+  },
+  (table) => [
+    unique("enrollments_user_course_unique").on(table.userId, table.courseId),
+    index("enrollments_course_id_idx").on(table.courseId),
+    check("enrollments_status_check", CHECK_STATUS_ENROLLMENT),
+    check("enrollments_completion_path_check", CHECK_JALUR_PENYELESAIAN),
+  ],
+);
+
+/**
+ * Progres satu modul di dalam satu enrollment.
+ *
+ * `state: "in_progress" | "completed"` (bukan boolean) supaya pembatalan tanda
+ * informal bisa dibedakan dari "belum mulai", dan `completion_path` mencatat
+ * jalurnya. `evidence_id` adalah referensi **lunak** (uuid, tanpa FK) ke
+ * `quiz_attempts.id` atau `learning_runs.id` yang menjadi bukti penyelesaian —
+ * lunak karena bukti credential tidak boleh ikut terhapus oleh cleanup attempt.
+ */
+export const moduleProgress = pgTable(
+  "module_progress",
+  {
+    enrollmentId: uuid("enrollment_id")
+      .notNull()
+      .references(() => enrollments.id, { onDelete: "cascade" }),
+    moduleId: text("module_id").notNull(),
+    state: text("state").notNull().default("in_progress"),
+    completedAt: timestamp("completed_at", { withTimezone: true, mode: "date" }),
+    completionPath: text("completion_path"),
+    evidenceId: uuid("evidence_id"),
+  },
+  (table) => [
+    primaryKey({ columns: [table.enrollmentId, table.moduleId] }),
+    check("module_progress_state_check", CHECK_STATUS_MODUL_PROGRES),
+    check("module_progress_completion_path_check", CHECK_JALUR_PENYELESAIAN),
+  ],
+);
+
+/**
+ * Sesi belajar terverifikasi — pengganti berkas `.data/sessions/*.json`.
+ *
+ * `integrity_version` menyimpan versi kebijakan (`KebijakanCourse.versi`) yang
+ * berlaku saat run dimulai: versi ikut diperiksa saat memvalidasi bukti, sama
+ * seperti invariant berkas lama. Query diindeks oleh `user_id`, `course_id`,
+ * `state`, dan `expires_at` — tidak ada lagi scan direktori `readdir`.
+ */
+export const learningRuns = pgTable(
+  "learning_runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    enrollmentId: uuid("enrollment_id")
+      .notNull()
+      .references(() => enrollments.id, { onDelete: "cascade" }),
+    courseId: text("course_id").notNull(),
+    moduleId: text("module_id"),
+    state: text("state").notNull().default("active"),
+    startedAt: timestamp("started_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }).notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true, mode: "date" }),
+    integrityVersion: integer("integrity_version").notNull().default(1),
+    metadataRedacted: jsonb("metadata_redacted"),
+  },
+  (table) => [
+    index("learning_runs_user_id_idx").on(table.userId),
+    index("learning_runs_course_id_idx").on(table.courseId),
+    index("learning_runs_state_idx").on(table.state),
+    index("learning_runs_expires_at_idx").on(table.expiresAt),
+    check("learning_runs_state_check", CHECK_STATUS_RUN),
+  ],
+);
+
+/**
+ * Kejadian integritas sebuah run — pengganti `SessionRun.kejadian[]`.
+ *
+ * `unique(learning_run_id, sequence)` adalah invariant anti-replay: event dengan
+ * sequence yang sama tidak bisa disisipkan dua kali, dan sequence yang dilompati
+ * tidak bisa diisi belakangan (sequence di-generate `max+1` di repository, bukan
+ * dari klien). `payload_redacted` disaring sebelum insert, sama seperti outbox.
+ */
+export const learningEvents = pgTable(
+  "learning_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    learningRunId: uuid("learning_run_id")
+      .notNull()
+      .references(() => learningRuns.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    sequence: integer("sequence").notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    payloadRedacted: jsonb("payload_redacted"),
+  },
+  (table) => [
+    unique("learning_events_run_sequence_unique").on(table.learningRunId, table.sequence),
+    index("learning_events_run_id_idx").on(table.learningRunId),
+  ],
+);
+
+/**
+ * Percobaan asesmen verified — snapshot immutable per attempt (ADR 0003).
+ *
+ * `assessment_snapshot` memuat seluruh definisi `Kuis` saat attempt dikirim
+ * (judul, `soal[]` + kunci, `nilai_lulus`); `assessment_definition_version`
+ * adalah hash SHA-256 bentuk JSON kanonik snapshot. Penilaian server membaca
+ * **hanya** snapshot — mengubah/menghapus kuis di bank setelahnya tidak
+ * mengubah outcome historis.
+ *
+ * `attempt_number` + `unique(enrollment_id, quiz_id, attempt_number)` mencegah
+ * pengiriman ganda attempt yang sama menghasilkan dua baris skor.
+ */
+export const quizAttempts = pgTable(
+  "quiz_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    enrollmentId: uuid("enrollment_id")
+      .notNull()
+      .references(() => enrollments.id, { onDelete: "cascade" }),
+    quizId: text("quiz_id"),
+    assessmentDefinitionVersion: text("assessment_definition_version").notNull(),
+    assessmentSnapshot: jsonb("assessment_snapshot").notNull(),
+    status: text("status").notNull().default("in_progress"),
+    startedAt: timestamp("started_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    submittedAt: timestamp("submitted_at", { withTimezone: true, mode: "date" }),
+    score: integer("score"),
+    gradingVersion: integer("grading_version").notNull().default(1),
+    attemptNumber: integer("attempt_number").notNull().default(1),
+  },
+  (table) => [
+    unique("quiz_attempts_enrollment_quiz_attempt_unique").on(
+      table.enrollmentId,
+      table.quizId,
+      table.attemptNumber,
+    ),
+    index("quiz_attempts_user_id_idx").on(table.userId),
+    index("quiz_attempts_enrollment_id_idx").on(table.enrollmentId),
+    check("quiz_attempts_status_check", CHECK_STATUS_ATTEMPT),
+  ],
+);
+
+/**
+ * Jawaban per soal dalam satu attempt.
+ *
+ * `selected_option` adalah indeks ke `pilihan[]` pada snapshot, bukan teks;
+ * `is_correct` dihitung server terhadap `jawaban_benar` snapshot. PK komposit
+ * `(quiz_attempt_id, question_id)` menjamin satu jawaban per soal per attempt.
+ */
+export const quizAttemptAnswers = pgTable(
+  "quiz_attempt_answers",
+  {
+    quizAttemptId: uuid("quiz_attempt_id")
+      .notNull()
+      .references(() => quizAttempts.id, { onDelete: "cascade" }),
+    questionId: text("question_id").notNull(),
+    selectedOption: integer("selected_option").notNull(),
+    isCorrect: boolean("is_correct"),
+    questionSnapshotRef: text("question_snapshot_ref"),
+  },
+  (table) => [primaryKey({ columns: [table.quizAttemptId, table.questionId] })],
+);
+
+/**
+ * Penyelesaian kursus — satu baris per enrollment (unique), bukan deret waktu.
+ *
+ * `enrollment_id` unik adalah penjamin "tidak ada double completion": dua
+ * request completion paralel saling berlomba, dan hanya satu yang menang insert;
+ * yang lain melihat baris yang sudah ada dan dianggap idempoten. `policy_version`
+ * mencatat versi kebijakan yang dipakai saat completion, supaya perubahan
+ * kebijakan kelak tidak menulis ulang arti completion lama.
+ */
+export const courseCompletions = pgTable(
+  "course_completions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    courseId: text("course_id").notNull(),
+    enrollmentId: uuid("enrollment_id")
+      .notNull()
+      .unique()
+      .references(() => enrollments.id, { onDelete: "cascade" }),
+    completedAt: timestamp("completed_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    completionPath: text("completion_path").notNull(),
+    policyVersion: integer("policy_version").notNull(),
+  },
+  (table) => [
+    index("course_completions_user_id_idx").on(table.userId),
+    check("course_completions_completion_path_check", CHECK_JALUR_PENYELESAIAN),
+  ],
+);
+
+/**
+ * Submission, review, badge, dan attestation — Fase 3 (plan §7 "Fase 3").
+ *
+ * State machine submission hidup di `ReviewService`; transition ditegakkan
+ * compare-and-set di repository. Attestation authoritative di database:
+ * issuance, key version, dan status active/revoked tersimpan di sini, dan
+ * endpoint verify publik membaca baris `attestations` — bukan hanya memverifikasi
+ * signature stateless.
+ *
+ * Aturan yang dikunci:
+ *
+ * - **`public_token` opaque, bukan id sequence.** `attestations.id` adalah uuid
+ *   internal; `public_token` adalah nilai acak base64url yang tidak menurunkan
+ *   id. Kebocoran satu token tidak boleh memungkinkan menebak token lain, dan
+ *   urutan penerbitan tidak boleh terbaca dari token.
+ * - **Paling banyak satu attestation `active` per review.** Partial unique
+ *   index `attestations_active_review_unique` (`WHERE status = 'active'`)
+ *   menggagalkan penerbitan ganda di constraint, bukan di pengecekan aplikasi.
+ *   Re-issuance setelah revoke tetap sah: baris lama ber-`revoked`, baris baru
+ *   `active` tidak bentrok dengan index.
+ * - **Credential yang dipakai tidak boleh dihapus.** `reviews` di-`restrict`
+ *   oleh `attestations.source_review_id`; `submissions`/`submission_versions`
+ *   di-`restrict` oleh `reviews`. Bukti yang sudah jadi credential harus hidup
+ *   sampai lifecycle revocation/replacement-nya dieksekusi eksplisit.
+ * - **Status memakai `text` + CHECK, bukan pgEnum**, konsisten dengan konvensi
+ *   Fase 1/2. Nilai diekspor sebagai konstanta (`STATUS_SUBMISSION`, dll.)
+ *   supaya CHECK dan Zod memakai satu daftar.
+ */
+
+/** Nilai `submissions.status` yang sah. */
+export const STATUS_SUBMISSION = [
+  "draft",
+  "submitted",
+  "assigned",
+  "in_review",
+  "approved",
+  "rejected",
+  "changes_requested",
+] as const;
+
+/** Nilai `attestations.status` yang sah. */
+export const STATUS_ATTESTATION = ["active", "revoked"] as const;
+
+const CHECK_STATUS_SUBMISSION = sql`"status" in ('draft', 'submitted', 'assigned', 'in_review', 'approved', 'rejected', 'changes_requested')`;
+const CHECK_STATUS_ATTESTATION = sql`"status" in ('active', 'revoked')`;
+
+/**
+ * Submission learner — kepala dari alur review.
+ *
+ * `course_id`/`enrollment_id` nullable: submission bisa mengikat kursus (alur
+ * credential dari learning evidence Fase 2) atau berdiri sendiri (demo/portofolio).
+ * `assigned_reviewer_user_id` memakai `set null` supaya menghapus reviewer tidak
+ * menghapus jejak assignment.
+ */
+export const submissions = pgTable(
+  "submissions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    courseId: text("course_id"),
+    enrollmentId: uuid("enrollment_id").references(() => enrollments.id, {
+      onDelete: "set null",
+    }),
+    status: text("status").notNull().default("draft"),
+    currentVersion: integer("current_version").notNull().default(0),
+    submittedAt: timestamp("submitted_at", { withTimezone: true, mode: "date" }),
+    assignedReviewerUserId: uuid("assigned_reviewer_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("submissions_user_id_idx").on(table.userId),
+    index("submissions_status_idx").on(table.status),
+    index("submissions_reviewer_idx").on(table.assignedReviewerUserId),
+    check("submissions_status_check", CHECK_STATUS_SUBMISSION),
+  ],
+);
+
+/**
+ * Versi isi submission — snapshot konten yang di-review, append-only per submission.
+ *
+ * `content_snapshot` (jsonb) adalah isi yang dibekukan saat versi dibuat;
+ * `unique(submission_id, version)` menjamin versi tidak bisa ditimpa. Review
+ * menunjuk versi, bukan submission, supaya konten yang di-review tidak berubah
+ * oleh resubmit di tengah proses.
+ */
+export const submissionVersions = pgTable(
+  "submission_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    submissionId: uuid("submission_id")
+      .notNull()
+      .references(() => submissions.id, { onDelete: "cascade" }),
+    version: integer("version").notNull(),
+    contentSnapshot: jsonb("content_snapshot").notNull(),
+    evidenceFileId: uuid("evidence_file_id"),
+    submittedByUserId: uuid("submitted_by_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    unique("submission_versions_submission_version_unique").on(table.submissionId, table.version),
+    index("submission_versions_submission_id_idx").on(table.submissionId),
+  ],
+);
+
+/**
+ * Review — keputusan verifikator terhadap satu versi submission.
+ *
+ * `rubric_snapshot` membekukan skala/rubrik saat review; `score` adalah hasil
+ * komputasi server dari rubrik (bukan angka mentah dari klien). `superseded_at`
+ * menandai review yang digantikan review lebih baru atas versi yang sama.
+ *
+ * Baris ini di-`restrict` oleh `attestations.source_review_id`: review yang sudah
+ * menerbitkan credential tidak boleh dihapus.
+ */
+export const reviews = pgTable(
+  "reviews",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    submissionId: uuid("submission_id")
+      .notNull()
+      .references(() => submissions.id, { onDelete: "restrict" }),
+    submissionVersionId: uuid("submission_version_id")
+      .notNull()
+      .references(() => submissionVersions.id, { onDelete: "restrict" }),
+    reviewerUserId: uuid("reviewer_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    decision: text("decision").notNull(),
+    rubricSnapshot: jsonb("rubric_snapshot").notNull(),
+    score: integer("score"),
+    rationale: text("rationale").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    supersededAt: timestamp("superseded_at", { withTimezone: true, mode: "date" }),
+  },
+  (table) => [
+    index("reviews_submission_id_idx").on(table.submissionId),
+    index("reviews_reviewer_idx").on(table.reviewerUserId),
+    check(
+      "reviews_decision_check",
+      sql`"decision" in ('approved', 'changes_requested', 'rejected')`,
+    ),
+  ],
+);
+
+/**
+ * Badge — hasil credential atas review yang disetujui.
+ *
+ * `revoked_at` nullable adalah penanda aktif/turun (active = `revoked_at is
+ * null`). `source_review_id` unique: satu review menghasilkan paling banyak
+ * satu badge. `type` membedakan bentuk badge (mis. `course_completion` vs
+ * `task`); nilainya teks bebas supaya menambah jenis tidak butuh migration.
+ */
+export const badges = pgTable(
+  "badges",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    type: text("type").notNull(),
+    sourceReviewId: uuid("source_review_id")
+      .notNull()
+      .unique()
+      .references(() => reviews.id, { onDelete: "restrict" }),
+    issuedAt: timestamp("issued_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true, mode: "date" }),
+  },
+  (table) => [
+    index("badges_user_id_idx").on(table.userId),
+  ],
+);
+
+/**
+ * Attestation — token public yang diverifikasi tanpa login.
+ *
+ * `payload_canonical` adalah string JSON kanonik (key terurut) yang persis
+ * ditandatangani, bukan jsonb: verifikasi tidak bergantung pada key-order
+ * PostgreSQL. `public_token` opaque; `key_version` mencatat kunci yang dipakai.
+ * `status` adalah sumber kebenaran yang dibaca endpoint verify publik.
+ */
+export const attestations = pgTable(
+  "attestations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    publicToken: text("public_token").notNull().unique(),
+    subjectUserId: uuid("subject_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    sourceReviewId: uuid("source_review_id")
+      .notNull()
+      .references(() => reviews.id, { onDelete: "restrict" }),
+    badgeId: uuid("badge_id").references(() => badges.id, { onDelete: "set null" }),
+    payloadCanonical: text("payload_canonical").notNull(),
+    signature: text("signature").notNull(),
+    keyVersion: integer("key_version").notNull().default(1),
+    status: text("status").notNull().default("active"),
+    issuedAt: timestamp("issued_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true, mode: "date" }),
+    revokedByUserId: uuid("revoked_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    revocationReason: text("revocation_reason"),
+  },
+  (table) => [
+    // Paling banyak satu attestation aktif per review. Re-issue setelah revoke
+    // membuat baris lama `revoked`, baris baru `active` — tidak bentrok.
+    uniqueIndex("attestations_active_review_unique")
+      .on(table.sourceReviewId)
+      .where(sql`"status" = 'active'`),
+    index("attestations_subject_idx").on(table.subjectUserId),
+    check("attestations_status_check", CHECK_STATUS_ATTESTATION),
+  ],
+);
+
+/**
+ * Log lifecycle sebuah attestation — append-only (issued/revoked).
+ *
+ * `payload_redacted` disaring sebelum insert; `actor_user_id` null untuk
+ * peristiwa sistem.
+ */
+export const attestationEvents = pgTable(
+  "attestation_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    attestationId: uuid("attestation_id")
+      .notNull()
+      .references(() => attestations.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),
+    payloadRedacted: jsonb("payload_redacted"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("attestation_events_attestation_id_idx").on(table.attestationId),
+    check("attestation_events_kind_check", sql`"kind" in ('issued', 'revoked')`),
+  ],
+);
+
 /** Baris `users` sebagaimana dibaca dari database. */
 export type User = typeof users.$inferSelect;
 /** Baris `users` untuk insert — kolom ber-default boleh dikosongkan. */
@@ -458,6 +971,34 @@ export type OutboxEvent = typeof outboxEvents.$inferSelect;
 export type NewOutboxEvent = typeof outboxEvents.$inferInsert;
 export type OutboxDelivery = typeof outboxDeliveries.$inferSelect;
 export type NewOutboxDelivery = typeof outboxDeliveries.$inferInsert;
+export type CourseRef = typeof courses.$inferSelect;
+export type NewCourseRef = typeof courses.$inferInsert;
+export type Enrollment = typeof enrollments.$inferSelect;
+export type NewEnrollment = typeof enrollments.$inferInsert;
+export type ModuleProgressRow = typeof moduleProgress.$inferSelect;
+export type NewModuleProgressRow = typeof moduleProgress.$inferInsert;
+export type LearningRun = typeof learningRuns.$inferSelect;
+export type NewLearningRun = typeof learningRuns.$inferInsert;
+export type LearningEvent = typeof learningEvents.$inferSelect;
+export type NewLearningEvent = typeof learningEvents.$inferInsert;
+export type QuizAttempt = typeof quizAttempts.$inferSelect;
+export type NewQuizAttempt = typeof quizAttempts.$inferInsert;
+export type QuizAttemptAnswer = typeof quizAttemptAnswers.$inferSelect;
+export type NewQuizAttemptAnswer = typeof quizAttemptAnswers.$inferInsert;
+export type CourseCompletion = typeof courseCompletions.$inferSelect;
+export type NewCourseCompletion = typeof courseCompletions.$inferInsert;
+export type Submission = typeof submissions.$inferSelect;
+export type NewSubmission = typeof submissions.$inferInsert;
+export type SubmissionVersion = typeof submissionVersions.$inferSelect;
+export type NewSubmissionVersion = typeof submissionVersions.$inferInsert;
+export type Review = typeof reviews.$inferSelect;
+export type NewReview = typeof reviews.$inferInsert;
+export type Badge = typeof badges.$inferSelect;
+export type NewBadge = typeof badges.$inferInsert;
+export type Attestation = typeof attestations.$inferSelect;
+export type NewAttestation = typeof attestations.$inferInsert;
+export type AttestationEvent = typeof attestationEvents.$inferSelect;
+export type NewAttestationEvent = typeof attestationEvents.$inferInsert;
 
 /** Nilai yang sah untuk `users.status`. */
 export type StatusPengguna = (typeof STATUS_PENGGUNA)[number];
@@ -467,3 +1008,17 @@ export type RolePengguna = (typeof ROLE_PENGGUNA)[number];
 export type RoleUndanganStaff = (typeof ROLE_UNDANGAN_STAFF)[number];
 /** Nilai yang sah untuk `outbox_deliveries.status`. */
 export type StatusDelivery = (typeof STATUS_DELIVERY)[number];
+/** Nilai yang sah untuk `completion_path`. */
+export type JalurPenyelesaian = (typeof JALUR_PENYELESAIAN)[number];
+/** Nilai yang sah untuk `enrollments.status`. */
+export type StatusEnrollment = (typeof STATUS_ENROLLMENT)[number];
+/** Nilai yang sah untuk `module_progress.state`. */
+export type StatusModulProgres = (typeof STATUS_MODUL_PROGRES)[number];
+/** Nilai yang sah untuk `learning_runs.state`. */
+export type StatusRun = (typeof STATUS_RUN)[number];
+/** Nilai yang sah untuk `quiz_attempts.status`. */
+export type StatusAttempt = (typeof STATUS_ATTEMPT)[number];
+/** Nilai yang sah untuk `submissions.status`. */
+export type StatusSubmission = (typeof STATUS_SUBMISSION)[number];
+/** Nilai yang sah untuk `attestations.status`. */
+export type StatusAttestation = (typeof STATUS_ATTESTATION)[number];

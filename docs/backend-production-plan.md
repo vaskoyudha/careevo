@@ -671,7 +671,7 @@ Nama Indonesia untuk domain/business logic tetap mengikuti konvensi proyek apabi
 3. Jalankan minimal `npm run check` dan `npm run build`; untuk route/mutasi juga jalankan smoke/E2E yang sesuai.
 4. Periksa diff terhadap placeholder, `TODO` yang menyembunyikan implementasi, `test.skip`, dan `test.only`.
 5. Minta review/verifikasi terpisah; author tidak self-approve.
-6. Catat migration ID, rollback/forward plan, dashboard/alert baru, serta evidence test pada PR/hand-off.
+6. Catat migration ID, rollback/forward plan, dashboard/alert baru, serta evidence test pada commit/hand-off fase.
 
 ---
 
@@ -720,4 +720,4 @@ Rollback ideal dilakukan sebelum cutover write: matikan feature flag dan kembali
 9. Selesaikan observability, CI, backup/restore drill, serta perluas worker handler di Fase 5.
 10. Aktifkan AI/loker production dengan policy, cache, quota, dan worker setelah M5.
 
-Setiap langkah dipisahkan menjadi PR yang kecil, memiliki migration plan, test evidence, dan reviewer/verifier terpisah.
+Setiap langkah di-commit ke branch `backend-production` dan di-push ke GitHub sebagai checkpoint. PR ke `main` dibuat **satu kali** setelah semua fase selesai, bukan per fase.

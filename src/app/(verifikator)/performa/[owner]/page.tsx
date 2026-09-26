@@ -5,7 +5,13 @@ import { getSession } from "@/lib/auth/session";
 import { AppShell } from "@/components/ui/app-shell";
 import { PageHead } from "@/components/ui/page-head";
 import { PeringatanPembelajaran } from "@/components/features/performa/performa-belajar";
-import { LABEL_SUMBER, bacaPerforma } from "@/lib/performa/store";
+import { LABEL_SUMBER } from "@/lib/performa/store";
+import {
+  listAttemptSemua,
+  listEnrollmentStaf,
+  listProgresSemua,
+} from "@/lib/learning/repository";
+import { detailPembelajaranDariDb } from "@/lib/learning/dashboard";
 
 export const metadata: Metadata = {
   title: "Detail Belajar",
@@ -17,13 +23,26 @@ export default async function PerformaDetailPage({
   params: Promise<{ owner: string }>;
 }) {
   const session = await getSession();
-  if (!session) return null;
+  if (!session?.userId) return null;
 
   const { owner: segmen } = await params;
-  // Segmen rute arrives URL-encoded (`%40` untuk `@`); tanpa decode, hash berkas
-  // tidak pernah cocok untuk email mana pun.
+  // Segmen rute arrives URL-encoded (`%40` untuk `@`); tanpa decode, email
+  // pemilik tidak pernah cocok untuk alamat mana pun.
   const owner = decodeURIComponent(segmen);
-  const record = await bacaPerforma(owner);
+
+  const [semua, progress, attempts] = await Promise.all([
+    listEnrollmentStaf(),
+    listProgresSemua(),
+    listAttemptSemua(),
+  ]);
+  // Segmen rute kini **email** pemilik (`users.email_normalized`), bukan hash
+  // berkas lagi. Perbandingannya dinormalkan supaya `ADMIN@…` dan `admin@…`
+  // menunjuk peserta yang sama.
+  const enrollments = semua.filter(
+    (baris) => baris.user.email.trim().toLowerCase() === owner.trim().toLowerCase(),
+  );
+
+  const record = detailPembelajaranDariDb({ enrollments, progress, attempts });
   if (!record) notFound();
 
   return (
@@ -69,12 +88,12 @@ export default async function PerformaDetailPage({
                     </li>
                   ))}
                   {kursus.kuis.map((q) => (
-                    <li className="list-app-row" key={`${q.kuis_id}-${q.at}`}>
+                    <li className="list-app-row" key={q.attempt_id}>
                       <span className="row-title">
-                        {q.kuis_id} — {q.nilai}/100
+                        {q.kuis_id} — {q.nilai === null ? "belum dinilai" : `${q.nilai}/100`}
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        dilaporkan klien · {q.total_soal} soal · {q.at}
+                        dilaporkan klien · {q.at}
                       </span>
                     </li>
                   ))}

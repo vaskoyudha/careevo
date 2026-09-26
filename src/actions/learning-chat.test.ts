@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { SessionPayload } from "@/lib/auth/types";
 import type { StudyModelReply, StudyReplyResult } from "@/lib/agents/study-chat/schema";
 import type { EntriKatalog } from "@/lib/courses/katalog";
 import type { ModulKursus } from "@/lib/courses/kurikulum";
-import type { Pendaftaran } from "@/lib/courses/enrollment";
+import type { Enrollment } from "@/lib/db/schema";
 import type { OnboardingProfile } from "@/lib/onboarding/types";
 import type { PersonalizedPath } from "@/lib/learning/personalized-path";
 import { kebijakanDefault } from "@/lib/courses/kebijakan";
+import { principalUji } from "@/lib/auth/test-principal";
 import type {
   StudyChatMessage,
   StudyChatSnapshot,
@@ -18,7 +18,9 @@ const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   getProfile: vi.fn(),
   katalogBelajar: vi.fn(),
-  listPendaftaran: vi.fn(),
+  listKursusTerdaftarDb: vi.fn(),
+  progresKursusDb: vi.fn(),
+  daftarKursusDb: vi.fn(),
   bangunJalurPersonalisasi: vi.fn(),
   modulKursus: vi.fn(),
   readStudyChatSnapshot: vi.fn(),
@@ -27,9 +29,6 @@ const mocks = vi.hoisted(() => ({
   clearPendingStudyProposal: vi.fn(),
   validateStudyPathProposal: vi.fn(),
   generateStudyReply: vi.fn(),
-  cariPendaftaran: vi.fn(),
-  pendaftaranPenuh: vi.fn(),
-  daftarKursus: vi.fn(),
   getCourseById: vi.fn(),
   revalidatePath: vi.fn(),
   cekBatasiAksi: vi.fn(),
@@ -40,11 +39,14 @@ vi.mock("@/lib/rate-limit/next", () => ({ cekBatasiAksi: mocks.cekBatasiAksi }))
 vi.mock("@/lib/auth/session", () => ({ getSession: mocks.getSession }));
 vi.mock("@/lib/onboarding/store", () => ({ getProfile: mocks.getProfile }));
 vi.mock("@/lib/courses/katalog", () => ({ katalogBelajar: mocks.katalogBelajar }));
-vi.mock("@/lib/courses/enrollment", () => ({
-  listPendaftaran: mocks.listPendaftaran,
-  cariPendaftaran: mocks.cariPendaftaran,
-  pendaftaranPenuh: mocks.pendaftaranPenuh,
-  daftarKursus: mocks.daftarKursus,
+// Enrollment/progres kini dibaca dari database lewat service, bukan cookie
+// `ls_enroll`. Yang dimock di sini adalah lapisan service, sehingga test tetap
+// unit (tanpa Postgres) dan yang diperiksa adalah keputusan action: gerbang
+// aturan, dan argumen yang benar-benar dipakai saat mendaftar.
+vi.mock("@/lib/learning/service", () => ({
+  listKursusTerdaftarDb: mocks.listKursusTerdaftarDb,
+  progresKursusDb: mocks.progresKursusDb,
+  daftarKursusDb: mocks.daftarKursusDb,
 }));
 // The course store is mocked so the policy gate can load `kebijakan` without
 // reading the real `data/courses.json` from disk during tests.
@@ -67,13 +69,17 @@ vi.mock("@/lib/agents/study-chat/gemini", () => ({
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 
-const SESSION = {
+/**
+ * Principal uji, bukan `SessionPayload` literal: seluruh jalur enrollment kini
+ * berkunci `users.id` (`userId`), dan principal tanpa `userId` bukan pembaca
+ * data learning yang sah.
+ */
+const SESSION = principalUji({
   email: "learner@careevo.test",
   nama: "Raka Pratama",
   username: "raka",
   role: "user",
-  iat: 1_800_000_000,
-} satisfies SessionPayload;
+});
 
 const PROFILE = {
   owner: SESSION.email,
@@ -183,14 +189,17 @@ function seedProposal(proposal: StudyPathProposal = PROPOSAL): void {
   storedSnapshot = { version: 1, messages: [], pendingProposal: proposal };
 }
 
-function enrollmentRecords(count: number): Pendaftaran[] {
-  return Array.from({ length: count }, (_, index) => ({
-    course_id: `other-${index}`,
-    slug: `other-${index}`,
-    owner: "other@careevo.test",
-    enrolled_at: "2026-09-01T08:00:00.000Z",
-    selesai_modul: [],
-  }));
+/** Baris enrollment milik principal uji untuk sebuah kursus. */
+function enrollmentMilik(courseId: string): Enrollment {
+  return {
+    id: `enr-${courseId}`,
+    userId: SESSION.userId,
+    courseId,
+    status: "active",
+    enrolledAt: new Date("2026-09-01T08:00:00.000Z"),
+    completedAt: null,
+    completionPath: null,
+  };
 }
 
 function setCoursePath(course: EntriKatalog | null = COURSE): void {
@@ -223,9 +232,15 @@ beforeEach(() => {
   mocks.getSession.mockResolvedValue(SESSION);
   mocks.getProfile.mockResolvedValue(PROFILE);
   mocks.katalogBelajar.mockResolvedValue([COURSE, OTHER_COURSE]);
-  mocks.listPendaftaran.mockResolvedValue([] as Pendaftaran[]);
-  mocks.cariPendaftaran.mockResolvedValue(undefined);
-  mocks.pendaftaranPenuh.mockResolvedValue([]);
+  mocks.listKursusTerdaftarDb.mockResolvedValue([] as Enrollment[]);
+  // Belum terdaftar: tidak ada baris enrollment untuk kursus mana pun.
+  mocks.progresKursusDb.mockResolvedValue({ enrollment: null, selesai: [] });
+  mocks.daftarKursusDb.mockImplementation(
+    async ({ courseId }: { courseId: string }) => ({
+      enrollment: enrollmentMilik(courseId),
+      baru: true,
+    }),
+  );
   mocks.modulKursus.mockReturnValue([MODULE]);
   setCoursePath();
   mocks.readStudyChatSnapshot.mockImplementation(async () => storedSnapshot);
@@ -257,7 +272,6 @@ beforeEach(() => {
     ok: true,
     reply: REPLY_WITHOUT_PATH,
   } satisfies StudyReplyResult);
-  mocks.daftarKursus.mockResolvedValue([]);
   mocks.getCourseById.mockResolvedValue(undefined);
   mocks.cekBatasiAksi.mockResolvedValue(null);
 });
@@ -533,7 +547,7 @@ describe("setujuiStudyPathAction", () => {
       message: "Masuk dulu untuk menyetujui jalur.",
     });
     expect(mocks.readStudyChatSnapshot).not.toHaveBeenCalled();
-    expect(mocks.daftarKursus).not.toHaveBeenCalled();
+    expect(mocks.daftarKursusDb).not.toHaveBeenCalled();
   });
 
   it("enrolls the canonical course only after explicit proposal approval", async () => {
@@ -543,13 +557,17 @@ describe("setujuiStudyPathAction", () => {
     // When: the learner submits the stored proposal id.
     const result = await setujuiStudyPathAction({ status: "idle" }, approvalForm());
 
-    // Then: owner-aware enrollment uses the canonical id/slug and no module is completed.
+    // Then: owner-aware enrollment uses the canonical id/slug/title from the
+    // catalog and the caller's principal — never a value the client supplied.
     expect(result).toMatchObject({ status: "success" });
     expect(mocks.readStudyChatSnapshot).toHaveBeenCalledWith(SESSION.email);
-    expect(mocks.daftarKursus).toHaveBeenCalledWith(
-      "crs-1",
-      "fullstack-web-development-nextjs-15-react-19",
-      "learner@careevo.test",
+    expect(mocks.daftarKursusDb).toHaveBeenCalledWith(
+      expect.objectContaining({
+        principal: SESSION,
+        courseId: "crs-1",
+        slug: "fullstack-web-development-nextjs-15-react-19",
+        title: COURSE.title,
+      }),
     );
     expect(mocks.clearPendingStudyProposal).toHaveBeenCalledWith(SESSION.email);
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/belajar");
@@ -584,56 +602,36 @@ describe("setujuiStudyPathAction", () => {
       status: "error",
       message: "Kursus berbayar ini termasuk paket Careevo Plus.",
     });
-    expect(mocks.cariPendaftaran).not.toHaveBeenCalled();
-    expect(mocks.pendaftaranPenuh).not.toHaveBeenCalled();
-    expect(mocks.daftarKursus).not.toHaveBeenCalled();
+    expect(mocks.progresKursusDb).not.toHaveBeenCalled();
+    expect(mocks.daftarKursusDb).not.toHaveBeenCalled();
     expect(mocks.clearPendingStudyProposal).not.toHaveBeenCalled();
     expect(storedSnapshot.pendingProposal).toEqual(paidProposal);
   });
 
-  it("rejects a new enrollment when the 50-record cap is full", async () => {
-    // Given: the owner is not enrolled and the signed browser array already has 50 records.
+  it("keeps an already-enrolled canonical course idempotent", async () => {
+    // Given: the owner already has a database row for the canonical course.
     seedProposal();
-    mocks.pendaftaranPenuh.mockResolvedValue(enrollmentRecords(50));
-
-    // When: the learner approves a free course.
-    const result = await setujuiStudyPathAction({ status: "idle" }, approvalForm());
-
-    // Then: the cap is enforced before raw persistence.
-    expect(result).toEqual({
-      status: "error",
-      message: "Batas 50 pendaftaran tercapai di peramban ini.",
+    mocks.progresKursusDb.mockResolvedValue({
+      enrollment: enrollmentMilik(COURSE.id),
+      selesai: ["crs-1-m2"],
     });
-    expect(mocks.cariPendaftaran).toHaveBeenCalledWith(COURSE.id, SESSION.email);
-    expect(mocks.daftarKursus).not.toHaveBeenCalled();
-    expect(mocks.clearPendingStudyProposal).not.toHaveBeenCalled();
-  });
-
-  it("keeps an already-enrolled canonical course idempotent at the cap", async () => {
-    // Given: the owner already has the canonical course while the browser array is full.
-    seedProposal();
-    mocks.cariPendaftaran.mockResolvedValue({
-      course_id: COURSE.id,
-      slug: COURSE.slug,
-      owner: SESSION.email,
-      enrolled_at: "2026-09-01T08:00:00.000Z",
-      selesai_modul: ["crs-1-m2"],
-    } satisfies Pendaftaran);
-    mocks.pendaftaranPenuh.mockResolvedValue(enrollmentRecords(50));
 
     // When: the learner approves the same proposal.
     const result = await setujuiStudyPathAction({ status: "idle" }, approvalForm());
 
-    // Then: approval succeeds without appending a duplicate enrollment record.
+    // Then: approval succeeds without inserting a second enrollment row; the
+    // database's unique (user_id, course_id) is what makes this idempotent, so
+    // the action must not call the writer at all.
     expect(result).toMatchObject({ status: "success" });
-    expect(mocks.daftarKursus).not.toHaveBeenCalled();
+    expect(mocks.progresKursusDb).toHaveBeenCalledWith(SESSION, COURSE.id);
+    expect(mocks.daftarKursusDb).not.toHaveBeenCalled();
     expect(mocks.clearPendingStudyProposal).toHaveBeenCalledWith(SESSION.email);
   });
 
   it("maps a non-Error enrollment rejection to a safe state", async () => {
-    // Given: raw enrollment rejects with a string.
+    // Given: the enrollment writer rejects with a string (a non-Error throw).
     seedProposal();
-    mocks.daftarKursus.mockRejectedValue("raw enrollment failure");
+    mocks.daftarKursusDb.mockRejectedValue("raw enrollment failure");
 
     // When: approval is attempted.
     const result = await setujuiStudyPathAction({ status: "idle" }, approvalForm());
@@ -686,7 +684,7 @@ describe("setujuiStudyPathAction", () => {
     // Then: the proposal is rejected without catalog access or enrollment.
     expect(result).toMatchObject({ status: "invalid_proposal" });
     expect(mocks.katalogBelajar).not.toHaveBeenCalled();
-    expect(mocks.daftarKursus).not.toHaveBeenCalled();
+    expect(mocks.daftarKursusDb).not.toHaveBeenCalled();
     expect(mocks.clearPendingStudyProposal).not.toHaveBeenCalled();
   });
 
@@ -701,7 +699,7 @@ describe("setujuiStudyPathAction", () => {
     // Then: the exact current-course gate blocks the stale mutation.
     expect(result).toMatchObject({ status: "invalid_proposal" });
     expect(mocks.validateStudyPathProposal).not.toHaveBeenCalled();
-    expect(mocks.daftarKursus).not.toHaveBeenCalled();
+    expect(mocks.daftarKursusDb).not.toHaveBeenCalled();
     expect(mocks.clearPendingStudyProposal).not.toHaveBeenCalled();
   });
 
@@ -718,21 +716,21 @@ describe("setujuiStudyPathAction", () => {
 
     // Then: no enrollment or clearing occurs.
     expect(result).toMatchObject({ status: "invalid_proposal" });
-    expect(mocks.daftarKursus).not.toHaveBeenCalled();
+    expect(mocks.daftarKursusDb).not.toHaveBeenCalled();
     expect(mocks.clearPendingStudyProposal).not.toHaveBeenCalled();
   });
 
   it("preserves the proposal when enrollment fails", async () => {
     // Given: owner-aware enrollment rejects.
     seedProposal();
-    mocks.daftarKursus.mockRejectedValue(new Error("cookie write failed"));
+    mocks.daftarKursusDb.mockRejectedValue(new Error("database write failed"));
 
     // When: approval is attempted.
     const result = await setujuiStudyPathAction({ status: "idle" }, approvalForm());
 
     // Then: a safe retryable error is returned and the proposal remains.
     expect(result).toMatchObject({ status: "error" });
-    expect(JSON.stringify(result)).not.toContain("cookie write failed");
+    expect(JSON.stringify(result)).not.toContain("database write failed");
     expect(mocks.clearPendingStudyProposal).not.toHaveBeenCalled();
     expect(storedSnapshot.pendingProposal).toEqual(PROPOSAL);
     expect(mocks.revalidatePath).not.toHaveBeenCalled();

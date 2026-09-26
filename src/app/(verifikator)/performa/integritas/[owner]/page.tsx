@@ -5,15 +5,17 @@ import { getSession } from "@/lib/auth/session";
 import { AppShell } from "@/components/ui/app-shell";
 import { PageHead } from "@/components/ui/page-head";
 import { PeringatanIntegritas } from "@/components/features/performa/performa-integritas";
-import { bacaPerforma } from "@/lib/performa/store";
+import { listEnrollmentStaf, listEventRun } from "@/lib/learning/repository";
 import {
   LABEL_KEJADIAN,
   gabungPersetujuan,
   ringkasIntegritasByOwner,
   temuanSesi,
+  type RingkasanIntegritas,
 } from "@/lib/performa/integritas";
 import { barisIntegritas } from "@/lib/performa/ringkasan";
-import { listRun } from "@/lib/learning/session";
+import { listRunStaf } from "@/lib/learning/run-service";
+import { sessionRunDariDb } from "@/lib/learning/dashboard";
 
 export const metadata: Metadata = {
   title: "Detail Integritas",
@@ -25,27 +27,45 @@ export default async function IntegritasDetailPage({
   params: Promise<{ owner: string }>;
 }) {
   const session = await getSession();
-  if (!session) return null;
+  if (!session?.userId) return null;
 
   const { owner: segmen } = await params;
-  // Segmen rute arrives URL-encoded (`%40` untuk `@`); tanpa decode, hash berkas
-  // tidak pernah cocok untuk email mana pun.
+  // Segmen rute arrives URL-encoded (`%40` untuk `@`); tanpa decode, email
+  // pemilik tidak pernah cocok untuk alamat mana pun.
   const owner = decodeURIComponent(segmen);
+  const kunci = owner.trim().toLowerCase();
 
-  const [catatan, runs] = await Promise.all([bacaPerforma(owner), listRun()]);
-  // Peta nama, bukan catatan performa: yang dibutuhkan di halaman ini hanya nama
-  // untuk ditampilkan. Modul selesai dan nilai kuis tidak pernah ikut.
-  const baris = barisIntegritas(
-    catatan ? new Map([[catatan.owner, catatan.nama]]) : new Map(),
-    ringkasIntegritasByOwner(runs.filter((r) => r.owner === owner)),
+  const [runs, enrollments] = await Promise.all([listRunStaf(), listEnrollmentStaf()]);
+  const namaPerUser = new Map(enrollments.map((b) => [b.user.userId, b.user.nama]));
+  const emailPerUser = new Map(enrollments.map((b) => [b.user.userId, b.user.email]));
+
+  // Run milik peserta ini: pemiliknya `users.id`, sedangkan segmen rute adalah
+  // email — jadi kecocokannya lewat peta email → userId dari `users`.
+  const runsPeserta = runs.filter((run) => (emailPerUser.get(run.userId) ?? "") === kunci);
+  const sesi = await Promise.all(
+    runsPeserta.map(async (run) => sessionRunDariDb(run, await listEventRun(run.id))),
   );
-  const target = baris.find((b) => b.owner === owner);
+
+  const userId = runsPeserta[0]?.userId;
+  // Owner yang ditampilkan adalah email — sama dengan yang ditautkan laporan
+  // daftar, sehingga halaman ini bisa dibuka dari sana. Ringkasan sesi
+  // dikelompokkan ulang ke email karena `SessionRun.owner` berisi `users.id`.
+  const emailPemilik = (userId && emailPerUser.get(userId)) || owner;
+  const namaPemilik = (userId && namaPerUser.get(userId)) || owner;
+
+  const ringkasan = new Map<string, RingkasanIntegritas>();
+  for (const [pemilik, isi] of ringkasIntegritasByOwner(sesi)) {
+    ringkasan.set(emailPerUser.get(pemilik) ?? pemilik, isi);
+  }
+
+  const baris = barisIntegritas(new Map([[emailPemilik, namaPemilik]]), ringkasan);
+  const target = baris.find((b) => b.owner === emailPemilik);
   // 404 kalau tidak ada satu pun sesi. Halaman ini melaporkan tentang sesi, jadi
   // pemilik tanpa sesi tidak punya apa yang bisa ditampilkan di sini.
   if (!target) notFound();
 
-  const sesi = ringkasIntegritasByOwner(runs.filter((r) => r.owner === owner)).get(owner);
-  const daftarPersetujuan = (sesi?.daftar ?? []).map((s) => s.persetujuan);
+  const ringkas = ringkasan.get(emailPemilik);
+  const daftarPersetujuan = (ringkas?.daftar ?? []).map((s) => s.persetujuan);
   const izin = gabungPersetujuan(daftarPersetujuan);
 
   return (
@@ -96,10 +116,10 @@ export default async function IntegritasDetailPage({
           <h2 className="card-title" id="integritas-riwayat">
             Riwayat sesi
           </h2>
-          {sesi && sesi.daftar.length > 0 ? (
+          {ringkas && ringkas.daftar.length > 0 ? (
             <ul className="space-y-4">
-              {sesi.daftar.map((s) => {
-                const run = runs.find((r) => r.id === s.run_id);
+              {ringkas.daftar.map((s) => {
+                const run = sesi.find((r) => r.id === s.run_id);
                 const temuan = run ? temuanSesi(run) : [];
                 return (
                   <li key={s.run_id} className="rounded-xl border border-border p-3">

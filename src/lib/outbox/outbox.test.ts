@@ -57,11 +57,20 @@ describe("registry handler — lookup aman, tanpa no-op diam", () => {
     expect(tipeTerdaftar()).toContain(TIPE_EVENT.authRegistered);
   });
 
-  it("mengembalikan null untuk tipe tanpa handler, termasuk tipe Fase 3+", () => {
-    // Inilah fail-closed: worker menandai tipe ini terminal, bukan sukses diam.
-    expect(cariHandler("attestation.issued")).toBeNull();
+  it("mengembalikan null untuk tipe tanpa handler (belum diimplementasikan)", () => {
+    // Fail-closed: worker menandai tipe tanpa handler terminal, bukan sukses diam.
     expect(cariHandler("file.scan")).toBeNull();
     expect(cariHandler("email.send")).toBeNull();
+  });
+
+  it("menemukan handler event Fase 3 (submission/review/attestation)", () => {
+    // Sejak Fase 3 handler-nya didaftarkan; tipe ini harus mem-fan-out ke audit,
+    // bukan gagal terminal.
+    expect(cariHandler(TIPE_EVENT.attestationIssued)).toBeTypeOf("function");
+    expect(cariHandler(TIPE_EVENT.attestationRevoked)).toBeTypeOf("function");
+    expect(cariHandler(TIPE_EVENT.reviewDecided)).toBeTypeOf("function");
+    expect(cariHandler(TIPE_EVENT.submissionCreated)).toBeTypeOf("function");
+    expect(tipeTerdaftar()).toContain(TIPE_EVENT.attestationIssued);
   });
 
   it("tidak tertipu rantai prototipe", () => {

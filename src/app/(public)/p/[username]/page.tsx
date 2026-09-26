@@ -1,13 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { BarRow } from "@/components/ui/progress-bar";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ResumeView } from "@/components/features/profile/resume-view";
 import { getProfile } from "@/lib/fixtures";
 import { ambilResumeByUsername } from "@/lib/resume/store";
-import { buildToken } from "@/lib/attestation/token";
-import type { AttestationPayload } from "@/lib/attestation/sign";
 
 export const metadata: Metadata = {
   title: "Profil Publik",
@@ -36,19 +33,6 @@ export default async function ProfilPage({
       </section>
     );
   }
-
-  const payload: AttestationPayload | null = profile
-    ? {
-        username: profile.username,
-        task_id: "b1",
-        task_title: profile.badges[0]?.task_title ?? "Rebuild Landing Page",
-        track: profile.track,
-        level: profile.badges[0]?.level ?? "dasar",
-        score: profile.score_total,
-        issued_at: new Date().toISOString(),
-      }
-    : null;
-  const token = payload ? buildToken(payload) : "";
 
   const displayName = profile?.display_name || resume?.username || decoded;
   const headline = resume?.headline || "";
@@ -89,13 +73,6 @@ export default async function ProfilPage({
 
           {resume?.ringkasan ? (
             <p style={{ marginTop: "0.75rem" }}>{resume.ringkasan}</p>
-          ) : null}
-
-          {token ? (
-            <p className="caption muted" style={{ marginTop: "0.75rem" }}>
-              Zero-PII: tanpa KTP, tanpa foto, tanpa email. Identitas berbasis username dan key.{" "}
-              <Link href={`/verify/${token}`}>Verifikasi attestation publik</Link>.
-            </p>
           ) : null}
         </div>
 

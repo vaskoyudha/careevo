@@ -54,7 +54,7 @@ import { outboxDeliveries, type OutboxEvent } from "@/lib/db/schema";
 import { catatAudit } from "@/lib/auth/audit";
 
 /**
- * Tipe event yang punya handler nyata di Fase 1A.
+ * Tipe event yang punya handler nyata.
  *
  * Nilai ini ikut tersimpan di `outbox_events.type`, dan penulis event
  * (application service) mengimpornya dari sini supaya penulis dan pembaca tidak
@@ -71,6 +71,18 @@ export const TIPE_EVENT = {
    * diperlukan di sini, jadi ia tidak pernah masuk payload.
    */
   authRegistered: "auth.registered",
+  /** Submission dibuat (Fase 3). Payload: `{ submissionId, userId }`. */
+  submissionCreated: "submission.created",
+  /** Submission dikirim learner (Fase 3). Payload: `{ submissionId, userId }`. */
+  submissionSubmitted: "submission.submitted",
+  /** Submission di-assign reviewer (Fase 3). Payload: `{ submissionId, reviewerUserId }`. */
+  submissionAssigned: "submission.assigned",
+  /** Review diputuskan (Fase 3). Payload: `{ reviewId, submissionId, decision }`. */
+  reviewDecided: "review.decided",
+  /** Attestation diterbitkan (Fase 3). Payload: `{ attestationId, subjectUserId }`. */
+  attestationIssued: "attestation.issued",
+  /** Attestation dicabut (Fase 3). Payload: `{ attestationId, subjectUserId }`. */
+  attestationRevoked: "attestation.revoked",
 } as const;
 
 /**
@@ -318,17 +330,98 @@ export const handlerAuthRegistered: HandlerOutbox = async ({ tx, event }) => {
 };
 
 /**
+ * Peta `type` event → `{ action, entityType, kolomId }` untuk audit fan-out.
+ *
+ * Event Fase 3 (submission/review/attestation) semuanya punya bentuk yang sama:
+ * baris bisnis sudah commit bersama event; yang tersisa hanyalah menulis satu
+ * baris `audit_events` yang menunjuk entitas itu. `kolomId` adalah nama field
+ * payload yang memuat uuid entitas (`submissionId`, `reviewId`, `attestationId`).
+ * `actor` dibiarkan `null` bila payload tidak membawanya — actor staff tercatat
+ * di `reviews.reviewer_user_id`/`attestation_events`, bukan di sini.
+ */
+const AUDIT_FANOUT: Readonly<
+  Record<string, { action: string; entityType: string; kolomId: string }>
+> = {
+  [TIPE_EVENT.submissionCreated]: {
+    action: "submission.created",
+    entityType: "submission",
+    kolomId: "submissionId",
+  },
+  [TIPE_EVENT.submissionSubmitted]: {
+    action: "submission.submitted",
+    entityType: "submission",
+    kolomId: "submissionId",
+  },
+  [TIPE_EVENT.submissionAssigned]: {
+    action: "submission.assigned",
+    entityType: "submission",
+    kolomId: "submissionId",
+  },
+  [TIPE_EVENT.reviewDecided]: {
+    action: "review.decided",
+    entityType: "review",
+    kolomId: "reviewId",
+  },
+  [TIPE_EVENT.attestationIssued]: {
+    action: "attestation.issued",
+    entityType: "attestation",
+    kolomId: "attestationId",
+  },
+  [TIPE_EVENT.attestationRevoked]: {
+    action: "attestation.revoked",
+    entityType: "attestation",
+    kolomId: "attestationId",
+  },
+};
+
+/**
+ * Handler fan-out umum untuk event Fase 3 → sink `audit`.
+ *
+ * Membaca uuid entitas dari payload (`kolomId`), memvalidasinya, lalu menulis
+ * satu baris `audit_events`. Tidak menyalin payload lain ke audit: kolom
+ * `payload_redacted` dibiarkan kosong supaya konten submission/rubrik tidak
+ * pernah tersalin ke tabel permanen.
+ */
+function buatHandlerFanout(entri: { action: string; entityType: string; kolomId: string }): HandlerOutbox {
+  return async ({ tx, event }) => {
+    const entityId = bacaString(event.payloadRedacted, entri.kolomId);
+    if (!entityId || !POLA_UUID.test(entityId)) {
+      throw new GalatHandlerPermanen("payload_tidak_valid");
+    }
+
+    await jalankanSekali({
+      tx,
+      event,
+      sink: SINK.audit,
+      fn: async () => {
+        await catatAudit(tx, {
+          actorUserId: null,
+          action: entri.action,
+          entityType: entri.entityType,
+          entityId,
+          payloadRedacted: {},
+        });
+      },
+    });
+  };
+}
+
+/**
  * Registry tipe event → handler.
  *
- * `auth.registered` sengaja satu-satunya entri konkret. Tipe lain (mis.
- * `attestation.issued`, `file.scanned`) **tidak** didaftarkan sampai tabel
- * sumbernya ada, sehingga event semacam itu gagal terminal dengan kode
- * `handler_tidak_terdaftar` alih-alih "sukses" tanpa efek. Bila Fase 3 menambah
- * tabel attestation, tambahkan entri di sini **dan** uji efek sampingnya, bukan
- * sekadar mendaftarkan nama.
+ * `auth.registered` dan event Fase 3 (submission/review/attestation) punya
+ * handler konkret yang mem-fan-out ke `audit_events`. Tipe lain (mis.
+ * `file.scanned`) **tidak** didaftarkan sampai tabel sumbernya ada, sehingga
+ * event semacam itu gagal terminal dengan kode `handler_tidak_terdaftar`.
  */
 const REGISTRY: Readonly<Record<string, HandlerOutbox>> = {
   [TIPE_EVENT.authRegistered]: handlerAuthRegistered,
+  [TIPE_EVENT.submissionCreated]: buatHandlerFanout(AUDIT_FANOUT[TIPE_EVENT.submissionCreated]),
+  [TIPE_EVENT.submissionSubmitted]: buatHandlerFanout(AUDIT_FANOUT[TIPE_EVENT.submissionSubmitted]),
+  [TIPE_EVENT.submissionAssigned]: buatHandlerFanout(AUDIT_FANOUT[TIPE_EVENT.submissionAssigned]),
+  [TIPE_EVENT.reviewDecided]: buatHandlerFanout(AUDIT_FANOUT[TIPE_EVENT.reviewDecided]),
+  [TIPE_EVENT.attestationIssued]: buatHandlerFanout(AUDIT_FANOUT[TIPE_EVENT.attestationIssued]),
+  [TIPE_EVENT.attestationRevoked]: buatHandlerFanout(AUDIT_FANOUT[TIPE_EVENT.attestationRevoked]),
 };
 
 /**
@@ -341,6 +434,12 @@ const REGISTRY: Readonly<Record<string, HandlerOutbox>> = {
  */
 const SINK_PER_TIPE: Readonly<Record<string, readonly string[]>> = {
   [TIPE_EVENT.authRegistered]: [SINK.audit],
+  [TIPE_EVENT.submissionCreated]: [SINK.audit],
+  [TIPE_EVENT.submissionSubmitted]: [SINK.audit],
+  [TIPE_EVENT.submissionAssigned]: [SINK.audit],
+  [TIPE_EVENT.reviewDecided]: [SINK.audit],
+  [TIPE_EVENT.attestationIssued]: [SINK.audit],
+  [TIPE_EVENT.attestationRevoked]: [SINK.audit],
 };
 
 /**

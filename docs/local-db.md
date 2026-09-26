@@ -221,14 +221,18 @@ user-nya butuh izin `CREATEDB`.
 ## 5. Reset
 
 ```bash
-# Hapus semua data, schema tetap ada
-docker compose exec postgres psql -U careevo -d careevo -c 'drop schema public cascade; create schema public;'
+# Hapus seluruh schema aplikasi DAN ledger Drizzle, lalu buat ulang dari nol.
+# Jangan hapus `public` saja: ledger berada di schema `drizzle`, sehingga
+# migrator akan mengira migration lama sudah jalan dan membiarkan DB kosong.
+docker compose exec postgres psql -U careevo -d careevo -c 'drop schema public cascade; drop schema drizzle cascade; create schema public;'
 npm run db:migrate
+docker compose exec postgres psql -U careevo -d careevo -c '\dt'
 
 # Nuklir: hapus container DAN volume, lalu mulai dari nol
 docker compose down -v
 docker compose up -d postgres
 npm run db:migrate
+docker compose exec postgres psql -U careevo -d careevo -c '\dt'
 ```
 
 `docker compose down` saja **tidak** menghapus data — volumenya bernama dan
