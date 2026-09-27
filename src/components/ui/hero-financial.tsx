@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { TimelineAnimation } from "@/components/ui/hero-financial-utils/timeline-animation";
 import { EcommerceDash } from "@/components/ui/hero-financial-utils/assets-index";
@@ -14,14 +15,20 @@ export const HeroFinancial = () => {
       aria-labelledby="hero-title"
       className="relative flex min-h-screen flex-col items-center bg-white text-[#1e293b]"
     >
-      <div className="absolute -top-40 left-0 z-0 h-[calc(100vh+10rem)] w-full bg-[url('https://cdn.21st.dev/assets/mirror/f2/f2f40d6a9618bd458d2e195ccde0198a210e9700f51eb0e97976fcd984259b26.jpg')] bg-cover bg-top bg-no-repeat opacity-50 [mask-image:linear-gradient(to_bottom,black_55%,transparent)]" />
-
-      {/* Soft Background Gradients */}
-      <TimelineAnimation
-        timelineRef={timelineRef}
-        animationNum={5}
-        className="absolute -top-40 left-0 w-full h-[calc(600px+10rem)] bg-linear-to-b from-blue-50 via-blue-100 to-transparent opacity-100"
-      />
+      {/* Mountain Backdrop */}
+      <div className="pointer-events-none absolute inset-x-0 -top-28 z-0 h-[640px] sm:h-[780px] md:h-[920px] lg:h-[1050px] w-full overflow-hidden select-none">
+        <Image
+          src="/images/hero-mountain.png"
+          alt="Careevo hero background"
+          fill
+          priority
+          unoptimized
+          sizes="100vw"
+          className="object-cover object-top opacity-100"
+        />
+        {/* Clean bottom transition into page background */}
+        <div className="absolute inset-x-0 bottom-0 h-48 sm:h-72 bg-gradient-to-t from-white via-white/50 to-transparent" />
+      </div>
 
       {/* Hero Content */}
       <div className="relative z-10 text-center pt-24 pb-16 px-4 flex flex-col gap-6">

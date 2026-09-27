@@ -442,27 +442,54 @@ h6 {
     inset 0 -1px 0 rgba(191, 230, 239, 0.4);
 }
 
-/* The Explore mega-menu card is drawn in the floating pill's box — inset,
-   centred, capped at `--max` — and it does so in *every* state of the bar,
-   including the full-width `.is-top` one. Measured from the bar instead, the
-   card inherited `left: 0; width: 100%` from the transparent state and read as
-   a second navbar rather than a menu hanging off one.
+/* The Explore mega-menu card is centred in the *viewport* and never reads
+   `left`/`width` off the bar. Measured from `.chrome` instead, the card
+   inherited `left: 0; width: 100%` from the transparent `.is-top` state and
+   read as a second navbar rather than a menu hanging off one - that is the
+   failure this rule exists to prevent, so keep it viewport-anchored.
 
    The card is portalled to <body> and `position: fixed`, so `100%` here is the
-   viewport — the same measure the pill's own rule resolves against. The pill
-   stays the source of truth: its inset (`min(var(--max),
-   calc(100% - 2 * var(--page-pad)))`) is copied, so change it there and this
-   follows. `left`/`right` + auto margins rather than `translateX(-50%)` keep
-   the box on whole pixels at odd widths. */
+   viewport, and `--max` / `--page-pad` are the same two variables the floating
+   pill insets itself by, so change them there and this follows.
+
+   `width: max-content` (was a hard `min(--max, 100% - 2*page-pad)`) makes the
+   card hug its content instead of reserving a full-width box. At 1440px the
+   panel was 1280px wide around 886px of tiles, and the ~390px of slack went
+   into `justify-between` gutters that made the lists read as unrelated
+   islands. `max-width` is still the pill's own inset, so the card can never
+   grow past the pill's measure and it clamps to the viewport on phones.
+   `margin-inline: auto` rather than `translateX(-50%)` keeps the box on whole
+   pixels at odd widths. */
 .explore-mega-menu {
   left: 0;
   right: 0;
-  width: min(var(--max), calc(100% - 2 * var(--page-pad)));
+  width: max-content;
+  max-width: min(var(--max), calc(100% - 2 * var(--page-pad)));
   margin-inline: auto;
 }
 
+/* Rail di dalam panel. Di bawah `lg` ia jadi scroller horizontal (empat
+   chip tidak muat 358px), jadi diberi gradien di tepi kanan sebagai
+   penanda bahwa masih ada isinya. Di `lg` rail jadi kolom dan scroller-nya
+   dimatikan, jadi mask harus ikut mati — kalau tidak, kolom vertikal
+   ikut pudar. */
+.explore-mega-menu nav[aria-label="Faset katalog"] {
+  scrollbar-width: none;
+}
+
+.explore-mega-menu nav[aria-label="Faset katalog"]::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .explore-mega-menu nav[aria-label="Faset katalog"] {
+    mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 28px), transparent 100%);
+  }
+}
+
 /* Rule global di atas (h1..h6 { font-weight: 500 }) ikut kena ke heading
-   menu. Coursera pakai 400, jadi diturunkan khusus di dalam panel. */
+   menu. Panel ini menimbang sendiri per elemen, jadi yang perlu dibersihkan
+   cuma `font-family`. */
 .explore-mega-menu h1,
 .explore-mega-menu h2,
 .explore-mega-menu h3,
@@ -660,8 +687,8 @@ h6 {
   border: 1px solid var(--wing-edge);
   /* The wings own the top corners — a border there would cut across them. */
   border-top: none;
-  border-bottom-left-radius: 20px;
-  border-bottom-right-radius: 20px;
+  border-bottom-left-radius: 32px;
+  border-bottom-right-radius: 32px;
   background: var(--wing-fill);
   box-shadow: 0 12px 28px -14px rgba(10, 42, 58, 0.4);
 }
@@ -669,6 +696,9 @@ h6 {
 @media (min-width: 769px) {
   .chrome.is-winged {
     --wing: 44px;
+    border-bottom-left-radius: 36px;
+    border-bottom-right-radius: 36px;
+    padding: 0 1.25rem;
   }
 }
 
@@ -2609,12 +2639,12 @@ h6 {
     transform 260ms ease;
 }
 
-/* Collapsing keeps a slim rail rather than zeroing the sidebar: the
+/* Collapsing keeps a compact rail rather than zeroing the sidebar: the
    collapse/expand controls live in the sidebar itself (top-right corner when
    expanded, top of the rail when collapsed), so the affordance never leaves
-   the panel. The rail holds the 36px icon rows plus the panel's own inset. */
+   the panel. The rail carries icons with label text centered beneath each. */
 .dashboard-shell[data-collapsed="true"] .dashboard-sidebar-aside {
-  width: 88px;
+  width: 104px;
   padding-left: 0.75rem;
   padding-right: 0.75rem;
 }
@@ -2635,10 +2665,10 @@ h6 {
   font-family: var(--font);
 }
 
-/* Collapsed rail panel: icon-only, centred, tighter padding. */
+/* Collapsed rail panel: icon with label beneath, centred. */
 .dashboard-sidebar-rail {
   align-items: center;
-  padding: 0.75rem 0.5rem;
+  padding: 0.75rem 0.25rem;
 }
 
 @media (min-width: 1024px) {
