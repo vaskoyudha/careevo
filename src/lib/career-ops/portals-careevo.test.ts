@@ -6,15 +6,31 @@ import yaml from "js-yaml";
 /**
  * Guards on the Indonesian market config.
  *
- * The engine fails SILENTLY on a bad config: a missing or malformed
- * portals.yml yields zero boards with no crash (engine/detect-reposts.mjs:737,741),
- * and scan.mjs reports that as `postingsKept: 0` — byte-identical to a correct
- * scan that matched nothing. That is how the 2026 attempt shipped a disabled
- * Glints entry and looked healthy.
+ * The engine does NOT fail uniformly on a bad config, and the split is the
+ * reason these guards are worth writing. Two shapes are LOUD: a MISSING
+ * portals.yml (engine/scan.mjs:3296-3299) prints "portals.yml not found. Run
+ * onboarding first." and exits 1, and UNPARSEABLE YAML (engine/scan.mjs:3301-3307)
+ * prints "failed to parse" and exits 1. Two shapes are SILENT and exit 0 behind
+ * a healthy-looking summary: YAML that parses to a non-object is replaced by
+ * `{}` (engine/scan.mjs:3308), so both lists normalise to [], and a well-formed
+ * config whose entries are all `enabled: false` is skipped entry by entry
+ * (engine/scan.mjs:3354). Either prints "Scanning 0 companies"
+ * (engine/scan.mjs:3393) and a zero-filled summary indistinguishable from a
+ * correct scan that matched nothing.
  *
- * Both halves of the walker are guarded, boards and tracked_companies alike: a
- * config whose entries are all present and all switched off is the same zero
- * with the same healthy-looking receipt.
+ * Both halves of the walker are in that silent pair, boards and
+ * tracked_companies alike: a config whose entries are all present and all
+ * switched off is the same zero with the same receipt, and that is the 2026
+ * bug — both Indonesian boards were configured correctly and disabled.
+ *
+ * DELIBERATELY UNGUARDED — `no-provider`: an enabled entry that no engine
+ * provider claims, which scan.mjs drops into an unnamed skip count
+ * (engine/audit-portals.mjs:126, surfaced as "N no-provider (skipped)" by
+ * engine/verify-portals.mjs:907). No guard here can reach it, because nothing
+ * in this file records which provider would claim an entry — only a live
+ * `node engine/audit-portals.mjs --summary` can. It is 0 today, so it is a
+ * named gap rather than a missing one; a board added by URL alone would open
+ * it.
  *
  * These tests cannot prove the scan returns Indonesian jobs. They can only prove
  * the cheap ways of getting zero are absent. The live scan in Task 5 is the
@@ -98,7 +114,11 @@ function papanIndonesia(): Papan[] {
 
 describe("config pindai Indonesia", () => {
   it("bisa di-parse — konfigurasi rusak menghasilkan nol papan tanpa error", () => {
-    // A parse throw here is the whole point: the engine cannot report this.
+    // A parse throw here is the whole point. The engine does report an
+    // UNPARSEABLE config itself, loudly and with exit 1
+    // (engine/scan.mjs:3301-3307); what it cannot report is a config that
+    // parses into the wrong shape, or one whose entries are all disabled. A
+    // throw here is the earlier and louder of those two.
     expect(() => config()).not.toThrow();
     expect(config()).toBeTypeOf("object");
   });
@@ -131,8 +151,10 @@ describe("config pindai Indonesia", () => {
     for (const language of ["java", "php", "ruby", ".net"]) {
       expect(negative).not.toContain(language);
       // The containment half, and the load-bearing one. The engine compiles any
-      // 4+ character entry to a bare substring test (title-keywords.mjs:126,
-      // `lower.includes(kw)`), so `- "Java Developer"` vetoes real Java
+      // 4+ character entry to a bare substring test (title-keywords.mjs:131,
+      // `lower.includes(kw)` — the catch-all return of compileKeyword at :121,
+      // not the two-and-three-letter branch just above it), so
+      // `- "Java Developer"` vetoes real Java
       // postings while never equalling the element "java" — exact-element
       // matching alone waves it through, and it costs Indonesian yield just as
       // much. (Same reason the engine notes a bare `java` also vetoes

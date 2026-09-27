@@ -55,12 +55,16 @@ describe("seeded portals.yml", () => {
   // The regression this guard exists for: an allow-list of six Indonesian cities
   // matched nothing in a dataset of 50k mostly-American companies, so every run
   // reported `postingsKept: 0` — and the UI could not tell that apart from a
-  // dead scanner. The engine's own failure mode is that a config problem
-  // produces a zero indistinguishable from a real one
-  // (engine/detect-reposts.mjs:737,741), so a filter that is too NARROW for its
-  // dataset is the expensive mistake, and a missing filter is not a mistake at
-  // all — absence is a legitimate config, which is why this test asserts a
-  // floor and not an exact list.
+  // dead scanner. The engine's own failure mode is that a config problem CAN
+  // produce a zero indistinguishable from a real one: a config that parses to a
+  // non-object becomes `{}` (engine/scan.mjs:3308), and a well-formed one whose
+  // entries are all `enabled: false` is skipped entry by entry
+  // (engine/scan.mjs:3354) — both exit 0 behind a healthy-looking summary. A
+  // missing or unparseable portals.yml is NOT in that group: that is loud and
+  // exits 1 (engine/scan.mjs:3296-3299 and :3301-3307). So a filter that is too
+  // NARROW for its dataset is the expensive mistake, and a missing filter is not
+  // a mistake at all — absence is a legitimate config, which is why this test
+  // asserts a floor and not an exact list.
   //
   // Our own config now ships a real location_filter, so this is no longer a
   // guard against a filter existing. It is a guard against a filter existing

@@ -12,10 +12,15 @@ function seedFile(nama: string): string {
 }
 
 /**
- * The seed is DATA, and the engine fails silently on a bad config: a missing or
- * malformed portals.yml yields zero boards with no crash
- * (engine/detect-reposts.mjs:737,741), which the scanner reports as
- * `postingsKept: 0` — identical to "a correct scan that matched nothing".
+ * The seed is DATA, and a bad one can cost a whole market quietly. A missing or
+ * unparseable portals.yml is loud — an `Error:` line and exit 1
+ * (engine/scan.mjs:3296-3299 and :3301-3307) — but two shapes are not. YAML
+ * that parses to a non-object is replaced by `{}` (engine/scan.mjs:3308), so
+ * both lists normalise to [], and a well-formed config whose entries are all
+ * `enabled: false` is skipped entry by entry (engine/scan.mjs:3354). Both exit
+ * 0 behind a summary that reads exactly like a correct scan which matched
+ * nothing.
+ *
  * So the fallback is not defensive noise; it is the thing that keeps a typo in
  * the Careevo config from becoming another invisible zero.
  *
