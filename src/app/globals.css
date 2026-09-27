@@ -237,7 +237,7 @@ h6 {
 .caption { font-size: 12px; color: var(--text-tertiary); letter-spacing: 0.01em; }
 
 :focus-visible {
-  outline: 2px solid var(--aqua);
+  outline: 2px solid #0056D2;
   outline-offset: 2px;
 }
 
@@ -3225,6 +3225,17 @@ button.tag:hover {
   color: #b23a1c;
   background: rgba(228, 87, 46, 0.12);
   border-color: rgba(228, 87, 46, 0.28);
+}
+
+/* Loker rows in "Dipilih untukmu" use the shared list-app row language but carry
+   the learner link accent (#0056D2), not the global `.row-title` hover token. */
+.dashboard-shell .list-app-row .row-title {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.dashboard-shell .list-app-row:hover .row-title {
+  color: #0056D2;
 }
 
 .dashboard-shell .status-info {

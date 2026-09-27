@@ -9,6 +9,7 @@ import { EvaluasiPanel } from "@/components/features/jobs/evaluasi-panel";
 import { RekomendasiKursusPanel } from "@/components/features/jobs/rekomendasi-kursus-panel";
 import { JalurLokerPanel } from "@/components/features/jobs/jalur-loker-panel";
 import { ambilLokerById } from "@/lib/jobs/cache";
+import { levelLabel } from "@/lib/onboarding/types";
 import { labelSinyal } from "@/lib/agents/sentinel";
 import { TrackerLoker } from "@/components/features/jobs/tracker-loker";
 import { ambilStatusLamaran } from "@/actions/tracker";
@@ -67,7 +68,7 @@ export default async function LokerDetailPage({
               ))}
             </div>
             <p className="caption muted" style={{ marginTop: "0.75rem" }}>
-              Level {job.level} · {job.work_type} · diposting {job.posted_at}
+              Level {levelLabel(job.level)} · {job.work_type} · diposting {job.posted_at}
             </p>
           </section>
 

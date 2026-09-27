@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { ArrowRight, Briefcase } from "lucide-react";
-import { LABELS, type OnboardingProfile } from "@/lib/onboarding/types";
+import { ArrowRight, Banknote, Briefcase, Building2, GraduationCap, MapPin } from "lucide-react";
+import { LABELS, levelLabel, type OnboardingProfile } from "@/lib/onboarding/types";
 import { rekomendasiUntukProfil } from "@/lib/onboarding/rekomendasi";
 import { CatalogCourseCard } from "@/components/ui/catalog-course-card";
+import { StatusBadge } from "@/components/ui/status-badge";
 
 /**
  * Personalized recommendation strip for the dashboard.
@@ -49,12 +50,29 @@ export async function DashboardRecommendations({
         </p>
       ) : null}
 
+      {kursus.length > 0 && loker.length === 0 ? (
+        <p className="text-xs text-gray-500">
+          Belum ada lowongan yang cocok untuk minatmu saat ini. Coba ubah minat, atau jelajahi semua lowongan di{" "}
+          <Link href="/loker" className="font-medium text-[#0056D2] hover:underline">
+            halaman loker
+          </Link>
+          .
+        </p>
+      ) : null}
+
       {kursus.length > 0 ? (
         <div className="mb-6">
-          <p className="mb-3 text-[11px] font-bold tracking-wider text-[#0056D2] uppercase">
+          <h3
+            id="kursus-mu"
+            className="mb-3 text-[11px] font-bold tracking-wider text-[#0056D2] uppercase"
+          >
             Kursus
-          </p>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          </h3>
+          <div
+            className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+            role="group"
+            aria-labelledby="kursus-mu"
+          >
             {kursus.map((entry) => (
               <CatalogCourseCard key={entry.slug} resource={entry} href={`/belajar/${entry.slug}`} />
             ))}
@@ -64,34 +82,56 @@ export async function DashboardRecommendations({
 
       {loker.length > 0 ? (
         <div>
-          <p className="mb-1 flex items-center gap-1.5 text-[11px] font-bold tracking-wider text-[#0056D2] uppercase">
-            <Briefcase className="size-3.5" />
+          <h3
+            id="loker-mu"
+            className="mb-2 flex items-center gap-1.5 text-[11px] font-bold tracking-wider text-[#0056D2] uppercase"
+          >
+            <Briefcase className="size-3.5" aria-hidden="true" />
             Loker
-          </p>
-          <ul className="m-0 list-none p-0">
+            <span className="ml-1 rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-[#0056D2]">
+              {loker.length}
+            </span>
+            <Link
+              href="/loker"
+              className="ml-auto text-[11px] font-medium text-[#0056D2] normal-case hover:underline"
+            >
+              Lihat semua
+            </Link>
+          </h3>
+          <ul className="list-app m-0 list-none p-0" aria-labelledby="loker-mu">
             {loker.map((job) => (
-              <li
-                key={job.id}
-                className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-gray-100 py-3 last:border-b-0"
-              >
+              <li key={job.id} className="list-app-row group relative">
                 <Link
                   href={`/loker/${job.id}`}
-                  className="min-w-0 flex-1 text-sm font-bold text-gray-900 hover:text-[#0056D2]"
+                  className="row-title min-w-0 font-semibold text-gray-900 transition-colors duration-200 after:absolute after:inset-0 after:z-10 group-hover:text-[#0056D2]"
+                  aria-label={`${job.title} — ${job.company}, ${job.location}, ${levelLabel(job.level)}${job.salary_range ? `, gaji ${job.salary_range}` : ""}`}
                 >
                   {job.title}
                 </Link>
-                <span className="flex shrink-0 flex-wrap items-center gap-1.5">
-                  <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-[#0056D2]">
-                    {job.level}
-                  </span>
+                <span className="row-aside">
                   {job.salary_range ? (
-                    <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-[#0056D2]">
+                    <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                      <Banknote className="size-3 text-emerald-600" aria-hidden="true" />
                       {job.salary_range}
                     </span>
-                  ) : null}
+                  ) : (
+                    <span className="text-[11px] text-gray-400">Gaji belum dicantumkan</span>
+                  )}
+                  <StatusBadge status={job.sentinel_status} />
                 </span>
-                <span className="w-full text-xs text-gray-500">
-                  {job.company} · {job.location}
+                <span className="row-meta flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Building2 className="size-3.5 text-gray-400" aria-hidden="true" />
+                    {job.company}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <MapPin className="size-3.5 text-gray-400" aria-hidden="true" />
+                    {job.location}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <GraduationCap className="size-3.5 text-gray-400" aria-hidden="true" />
+                    {levelLabel(job.level)}
+                  </span>
                 </span>
               </li>
             ))}
