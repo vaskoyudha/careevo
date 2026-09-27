@@ -9,6 +9,9 @@ import { MateriFootBar } from "./materi-foot-bar";
 import { TutorDrawer } from "./tutor-drawer";
 import { KejadianPanel } from "./kejadian-panel";
 import { useSelesaikanModul, modulSelesaiMembaca } from "./selesaikan-modul";
+import { cn } from "@/lib/utils";
+import { halamanPunyaLabKode } from "@/lib/courses/blok";
+import { halamanDipilih } from "@/lib/courses/halaman";
 import type { ModulKursus } from "@/lib/courses/kurikulum";
 import type { KebijakanCourse } from "@/types/course";
 
@@ -185,6 +188,21 @@ export function MateriShell({
   const modulAktif = modul.find((m) => m.id === idSegmen) ?? modul[0];
 
   /**
+   * Halaman aktif ber-lab kode — kolom baca jadi lebih lebar.
+   *
+   * `halamanDipilih()` dipakai di sini, bukan `?halaman=` mentah, supaya
+   * halaman yang dipakai untuk memutuskan lebar sama dengan halaman yang
+   * benar-benar dirender pane — termasuk saat `?halaman=` basi dan aturan
+   * "id basi → halaman pertama" menyala. Dua pembaca aturan itu akan membuat
+   * kolom melebar untuk halaman yang tidak tampil.
+   *
+   * Predikatnya sama dengan yang dipakai `MateriPane` (`halamanPunyaLabKode`),
+   * jadi lebar kolom dan tata letak pane tidak bisa berbeda pendapat.
+   */
+  const halamanAktifObj = modulAktif ? halamanDipilih(modulAktif, halamanAktif) : null;
+  const lebarLab = halamanPunyaLabKode(halamanAktifObj);
+
+  /**
    * Keputusan akses dihitung **saat render**, bukan disimpan di state.
    *
    * Keputusannya bergantung pada bukti sesi yang bisa berubah kapan saja (sesi
@@ -340,7 +358,16 @@ export function MateriShell({
             drawer, bukan menyingkir ke samping. */}
         <div className="relative min-w-0 flex-1">
           <main className="h-full min-w-0 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
-            <div className="mx-auto w-full max-w-3xl space-y-6">
+            <div
+              className={cn(
+                "mx-auto w-full space-y-6",
+                // Halaman ber-lab kode memakai dua kolom di dalamnya, jadi
+                // kolom bacanya dilebarkan: `max-w-3xl` memaksa dua kolom itu
+                // berdesakan dan editor kode jadi terlalu sempit untuk dibaca.
+                // Halaman biasa tetap `max-w-3xl` — lebar baca yang nyaman.
+                lebarLab ? "max-w-6xl" : "max-w-3xl",
+              )}
+            >
               {/* Ajakan memulai sesi, tepat di atas kartu materi.
                   Dulu ia tinggal di bar fokus yang `sticky`, dan di situ kartu
                   amber setinggi beberapa baris menutupi judul modul selama

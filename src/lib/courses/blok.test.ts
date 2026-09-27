@@ -11,8 +11,10 @@ import {
   slugBagian,
   tautanSah,
   blokBerisi,
+  blokKodeDijalankan,
   blokTampil,
   blokKosong,
+  halamanPunyaLabKode,
 } from "./blok";
 import type { BlokHalaman } from "@/types/course";
 
@@ -27,6 +29,11 @@ function paragraf(id: string, segmen: BlokHalaman["segmen"]): BlokHalaman {
 
 function kode(id: string, isi: string): BlokHalaman {
   return { id, tipe: "kode", bahasa: "cpp", kode: isi };
+}
+
+/** Blok kode yang sakelar Jalankannya menyala — bahan halaman lab. */
+function kodeJalan(id: string, isi = "int main(){}"): BlokHalaman {
+  return { id, tipe: "kode", bahasa: "cpp", kode: isi, dapatDijalankan: true };
 }
 
 describe("slugBagian", () => {
@@ -240,6 +247,50 @@ describe("blokTampil dipakai renderer", () => {
     // `adaIsi` harus ikut daftar yang sama, kalau tidak halaman yang seluruh
     // bloknya kosong akan tampil sebagai artikel kosong.
     expect(sumber).toContain("const adaIsi = tampil.length > 0;");
+  });
+});
+
+describe("blokKodeDijalankan", () => {
+  it("hanya mengambil blok kode yang sakelar Jalankannya menyala", () => {
+    const blok = [kode("b1", "int main(){}"), kodeJalan("b2"), paragraf("p1", [{ teks: "x" }])];
+    expect(blokKodeDijalankan({ blok }).map((b) => b.id)).toEqual(["b2"]);
+  });
+
+  it("mengabaikan blok kode yang isinya kosong walau sakelarnya menyala", () => {
+    // Sakelar yang menyala pada blok kosong tidak bisa dijalankan: tidak ada
+    // program. Mengangkatnya ke editor akan menampilkan kolom editor untuk
+    // latihan yang tidak ada.
+    expect(blokKodeDijalankan({ blok: [kodeJalan("b1", "   ")] })).toEqual([]);
+  });
+
+  it("mengabaikan blok kode yang tidak boleh dijalankan", () => {
+    // Contoh bacaan bukan latihan: sakelar yang mati berarti blok itu tetap
+    // tinggal di aliran prosa.
+    expect(blokKodeDijalankan({ blok: [kode("b1", "int main(){}")] })).toEqual([]);
+  });
+});
+
+describe("halamanPunyaLabKode", () => {
+  it("benar hanya bila tepat satu blok bisa dijalankan", () => {
+    // Tata letak lab punya satu editor; dua latihan tidak punya cara tunggal
+    // mengisi dua barisnya, jadi halaman seperti itu kembali ke tata letak
+    // linear.
+    expect(halamanPunyaLabKode({ blok: [kodeJalan("b1"), paragraf("p1", [{ teks: "x" }])] })).toBe(
+      true,
+    );
+    expect(halamanPunyaLabKode({ blok: [kodeJalan("b1"), kodeJalan("b2")] })).toBe(false);
+  });
+
+  it("salah untuk halaman tanpa latihan yang bisa dijalankan", () => {
+    expect(halamanPunyaLabKode({ blok: [paragraf("p1", [{ teks: "x" }])] })).toBe(false);
+    expect(halamanPunyaLabKode({ blok: [kode("b1", "int main(){}")] })).toBe(false);
+  });
+
+  it("salah untuk halaman yang tidak ada", () => {
+    // `halamanDipilih()` menjawab `null` untuk modul tanpa halaman; modul
+    // seperti itu tidak boleh melebarkan kolom baca.
+    expect(halamanPunyaLabKode(null)).toBe(false);
+    expect(halamanPunyaLabKode(undefined)).toBe(false);
   });
 });
 

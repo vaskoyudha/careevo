@@ -1,0 +1,643 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Careevo — Layout halaman kursus bergaya IDE (3 varian)</title>
+<style>
+  :root{
+    /* Diambil apa adanya dari src/app/globals.css */
+    --bg-base:#ECF3F7; --bg-soft:#E2EEF4; --bg-deep:#072A3F;
+    --ocean-deep:#0A3D62; --ocean:#124E78; --ocean-mid:#2A7FB8;
+    --ocean-soft:rgba(10,61,98,.08);
+    --text:#0A2A3A; --text-secondary:#48606E; --text-tertiary:#8AA0AC;
+    --leaf:#2E8B57; --leaf-dark:#1F6B40; --leaf-soft:rgba(46,139,87,.12);
+    --info:#1B6CA8; --warning:#E8A33D; --danger:#E4572E;
+    --editor-bg:#06202f; --editor-fg:#d7eef7; --editor-gutter:#0b2c3f;
+    --brand:#0056D2; --brand-hover:#00419e;
+    --radius-lg:20px; --radius-md:14px; --radius-sm:10px;
+    --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,Arial,sans-serif;
+    --font-mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --line:rgba(10,61,98,.12);
+    --line-strong:rgba(10,61,98,.22);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg-base); color:var(--text); font-family:var(--font);
+    -webkit-font-smoothing:antialiased; padding:32px 24px 72px;
+  }
+
+  /* ---------- kepala halaman ---------- */
+  .head{max-width:1180px;margin:0 auto 28px}
+  .head .eyebrow{
+    font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--ocean-mid);
+  }
+  .head h1{margin:8px 0 6px;font-size:30px;line-height:1.15;letter-spacing:-.02em}
+  .head p{margin:0;max-width:70ch;color:var(--text-secondary);font-size:14.5px;line-height:1.65}
+  .head .legend{
+    display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;
+  }
+  .head .legend span{
+    font-size:11.5px;font-weight:600;padding:5px 11px;border-radius:var(--radius-pill,980px);
+    background:#fff;border:1px solid var(--line);color:var(--text-secondary);
+  }
+
+  /* ---------- bingkai varian ---------- */
+  .variant{max-width:1180px;margin:0 auto 40px}
+  .variant > header{margin:0 0 12px}
+  .variant > header h2{
+    margin:0 0 4px;font-size:17px;letter-spacing:-.01em;
+  }
+  .variant > header h2 b{color:var(--ocean-deep)}
+  .variant > header p{margin:0;font-size:13px;color:var(--text-secondary);line-height:1.6;max-width:78ch}
+
+  .frame{
+    background:#fff;border:1px solid var(--line-strong);border-radius:var(--radius-lg);
+    overflow:hidden;box-shadow:0 18px 40px -28px rgba(10,61,98,.45);
+    display:flex;flex-direction:column;min-width:1120px;
+    /* Tinggi tetap supaya tiap panel menggulir sendiri — seperti aplikasi
+       sungguhan, bukan halaman yang memanjang. */
+    height:660px;
+  }
+
+  /* ---------- chrome atas ---------- */
+  .chrome{
+    display:flex;align-items:center;gap:14px;padding:0 16px;height:56px;flex:0 0 auto;
+  }
+  .chrome.dark{background:var(--bg-deep);color:#eaf6fb}
+  .chrome.light{background:#fff;border-bottom:1px solid var(--line)}
+  .chrome .brand{
+    display:flex;align-items:center;gap:9px;font-weight:700;font-size:13.5px;letter-spacing:-.01em;
+  }
+  .chrome .mark{
+    width:26px;height:26px;border-radius:8px;display:grid;place-items:center;
+    background:linear-gradient(150deg,#2A7FB8,#0A3D62);color:#fff;font-size:12px;font-weight:800;
+  }
+  .chrome .segs{display:flex;gap:4px;align-items:center}
+  .chrome .seg{width:34px;height:5px;border-radius:99px;background:rgba(255,255,255,.22)}
+  .chrome.dark .seg.on{background:#8FD6E3}
+  .chrome.light .seg{background:rgba(10,61,98,.14)}
+  .chrome.light .seg.on{background:var(--ocean-mid)}
+  .chrome .spacer{flex:1}
+  .chrome .ghost{
+    font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:var(--radius-sm);
+    border:1px solid transparent;cursor:default;white-space:nowrap;
+  }
+  .chrome.dark .ghost{color:#cfe7f2}
+  .chrome.light .ghost{color:var(--text-secondary);border-color:var(--line)}
+  .chrome .ai{
+    display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;
+    padding:8px 14px;border-radius:var(--radius-sm);
+  }
+  .chrome.dark .ai{background:rgba(46,196,182,.14);border:1px solid rgba(46,196,182,.4);color:#bff0ea}
+  .chrome.light .ai{background:var(--ocean-soft);border:1px solid var(--line);color:var(--ocean-deep)}
+  .chrome .cta{
+    font-size:12.5px;font-weight:700;padding:8px 14px;border-radius:var(--radius-sm);
+    background:var(--brand);color:#fff;white-space:nowrap;
+  }
+
+  /* ---------- badan 3 panel ---------- */
+  .body{display:grid;min-height:0;flex:1 1 auto}
+  .body.a{grid-template-columns:336px minmax(0,1fr) 392px}
+  .body.b{grid-template-columns:372px minmax(0,1fr) 404px}
+  .body.c{grid-template-columns:296px minmax(0,1fr) 436px}
+
+  .pane{min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+
+  /* ---------- kiri: materi ---------- */
+  .materi{background:#fff;border-right:1px solid var(--line)}
+  .materi-head{
+    display:flex;align-items:center;gap:8px;padding:11px 18px;flex:0 0 auto;
+    border-bottom:1px solid var(--line);font-size:12.5px;font-weight:700;color:var(--ocean-deep);
+  }
+  .materi-scroll{padding:18px 20px 24px;overflow-y:auto;flex:1 1 auto}
+  .eyebrow2{
+    font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--text-tertiary);
+  }
+  .materi h3{margin:7px 0 4px;font-size:24px;line-height:1.18;letter-spacing:-.02em}
+  .durasi{font-size:12px;color:var(--text-tertiary);margin-bottom:14px}
+  .materi p{font-size:13.5px;line-height:1.72;color:var(--text-secondary);margin:0 0 12px}
+  .materi p a{color:var(--brand);text-decoration:underline;text-underline-offset:2px}
+  .materi code{
+    font-family:var(--font-mono);font-size:12.5px;background:var(--bg-soft);
+    border:1px solid var(--line);border-radius:6px;padding:1.5px 5px;color:var(--ocean-deep);
+  }
+  .rule{height:1px;background:var(--line);margin:18px 0}
+
+  .inst-head{
+    display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;
+    color:var(--ocean-deep);margin-bottom:12px;
+  }
+  .inst-head .ico{
+    width:18px;height:18px;border-radius:5px;display:grid;place-items:center;
+    border:1.5px solid var(--ocean-mid);color:var(--ocean-mid);font-size:10px;font-weight:800;
+  }
+  .step{display:flex;gap:11px;margin-bottom:12px}
+  .step .box{
+    width:17px;height:17px;flex:0 0 auto;margin-top:1px;border-radius:4px;
+    border:1.5px solid var(--line-strong);background:#fff;
+  }
+  .step.done .box{
+    border-color:var(--leaf);background:var(--leaf);color:#fff;
+    display:grid;place-items:center;font-size:11px;line-height:1;
+  }
+  .step .txt{font-size:13px;line-height:1.6;color:var(--text)}
+  .step .sub{font-size:12.5px;color:var(--text-secondary);margin-top:5px}
+
+  /* ---------- tengah: editor ---------- */
+  .editor{background:var(--editor-bg)}
+  .tabbar{
+    display:flex;align-items:center;gap:0;height:40px;flex:0 0 auto;
+    background:#04161f;border-bottom:1px solid rgba(215,238,247,.12);
+  }
+  .tab{
+    display:flex;align-items:center;gap:8px;height:40px;padding:0 14px;
+    background:var(--editor-bg);color:var(--editor-fg);font-size:12.5px;font-weight:600;
+    border-right:1px solid rgba(215,238,247,.1);
+  }
+  .tab .x{color:var(--text-tertiary);font-size:13px}
+  .tabbar .right{margin-left:auto;display:flex;align-items:center;gap:12px;padding-right:14px}
+  .tabbar .right span{color:#7fa6b8;font-size:13px}
+
+  .code{flex:1 1 auto;overflow:auto;display:flex;font-family:var(--font-mono);font-size:12.5px;line-height:1.85}
+  .gutter{
+    flex:0 0 auto;padding:14px 10px 14px 16px;text-align:right;color:#4d7488;
+    background:var(--editor-gutter);user-select:none;
+  }
+  .lines{padding:14px 18px 14px 14px;color:var(--editor-fg);white-space:pre;flex:1 1 auto}
+  .kw{color:#7fd1ff}      /* SELECT/WHERE dst. */
+  .str{color:#9ae6b4}
+  .cmt{color:#5f8194;font-style:italic}
+  .num{color:#ffd479}
+  .caret{
+    display:inline-block;width:2px;height:15px;background:#8FD6E3;
+    vertical-align:-2px;margin-left:1px;
+  }
+
+  .editor-foot{
+    display:flex;align-items:center;gap:10px;padding:11px 14px;flex:0 0 auto;
+    background:#04161f;border-top:1px solid rgba(215,238,247,.12);
+  }
+  .run{
+    display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:700;
+    padding:9px 20px;border-radius:var(--radius-sm);background:var(--warning);color:#3a2606;
+  }
+  .tool{
+    width:34px;height:34px;border-radius:var(--radius-sm);display:grid;place-items:center;
+    border:1px solid rgba(215,238,247,.18);color:#a9cbd9;font-size:13px;
+  }
+
+  /* ---------- kanan: hasil, DUA baris bertumpuk ---------- */
+  .hasil{background:var(--bg-soft);border-left:1px solid var(--line)}
+  .hasil .baris{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+  .hasil .baris.atas{flex:1.35 1 0;border-bottom:1px solid var(--line-strong)}
+  .hasil .baris.bawah{flex:1 1 0;background:#fff}
+  .hasil-head{
+    display:flex;align-items:center;gap:9px;padding:10px 15px;flex:0 0 auto;
+    border-bottom:1px solid var(--line);background:#fff;
+  }
+  .hasil-head .t{font-size:12.5px;font-weight:700;color:var(--ocean-deep)}
+  .hasil-head .pill{
+    margin-left:auto;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:99px;
+    background:var(--leaf-soft);color:var(--leaf-dark);
+  }
+  .hasil-head .pill.muted{background:var(--ocean-soft);color:var(--text-tertiary)}
+  .hasil-body{padding:14px 15px;overflow:auto;flex:1 1 auto}
+
+  table.grid{border-collapse:collapse;width:100%;font-family:var(--font-mono);font-size:12px}
+  table.grid th,table.grid td{
+    text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);
+  }
+  table.grid th{
+    background:var(--bg-soft);color:var(--text-tertiary);font-weight:700;
+    font-size:10.5px;letter-spacing:.08em;
+    /* Tanpa `text-transform`: judul kolom kueri adalah nama kolom apa adanya,
+       dan mengubah hurufnya berarti menampilkan kueri yang berbeda. */
+    font-family:var(--font-mono);
+  }
+  table.grid td{color:var(--ocean-deep)}
+  .kosong{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:7px;height:100%;min-height:120px;color:var(--text-tertiary);
+    font-size:12.5px;text-align:center;
+  }
+  .kosong .box{
+    width:38px;height:38px;border-radius:var(--radius-sm);border:1.5px dashed var(--line-strong);
+    display:grid;place-items:center;color:var(--text-tertiary);font-size:15px;
+  }
+
+  .cek{display:flex;gap:9px;align-items:flex-start;padding:8px 0;border-bottom:1px dashed var(--line)}
+  .cek:last-child{border-bottom:none}
+  .cek .ok,.cek .no{
+    width:16px;height:16px;flex:0 0 auto;margin-top:1px;border-radius:50%;
+    display:grid;place-items:center;font-size:10px;font-weight:800;color:#fff;
+  }
+  .cek .ok{background:var(--leaf)}
+  .cek .no{background:var(--bg-soft);color:var(--text-tertiary);border:1px solid var(--line-strong)}
+  /* Teks pemeriksaan adalah satu blok bertumpuk: label di barisnya sendiri,
+     meta di bawahnya. Tanpa `flex-direction:column` keduanya berdampingan. */
+  .cek .teks{display:flex;flex-direction:column;min-width:0}
+  .cek .label{font-size:12.5px;line-height:1.5;color:var(--text)}
+  .cek .meta{font-size:11.5px;color:var(--text-tertiary);margin-top:2px}
+  .cek .label code{
+    font-family:var(--font-mono);font-size:11.5px;background:var(--bg-soft);
+    border:1px solid var(--line);border-radius:5px;padding:1px 4px;color:var(--ocean-deep);
+  }
+
+  .diff{display:grid;gap:8px}
+  .diff .blok{border:1px solid var(--line);border-radius:var(--radius-sm);overflow:hidden}
+  .diff .blok .cap{
+    font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+    padding:6px 10px;background:var(--bg-soft);color:var(--text-tertiary);
+  }
+  .diff .blok pre{
+    margin:0;padding:10px;font-family:var(--font-mono);font-size:12px;
+    color:var(--ocean-deep);white-space:pre-wrap;
+  }
+  .diff .blok.ok{border-color:rgba(46,139,87,.4)}
+  .diff .blok.ok .cap{background:var(--leaf-soft);color:var(--leaf-dark)}
+
+  /* ---------- kaki ---------- */
+  .foot{
+    display:flex;align-items:center;gap:10px;padding:11px 16px;flex:0 0 auto;
+    background:#fff;border-top:1px solid var(--line-strong);
+  }
+  .foot .hint{font-size:12px;color:var(--text-tertiary);margin-right:auto}
+  .btn{
+    font-size:12.5px;font-weight:700;padding:9px 18px;border-radius:var(--radius-sm);
+    border:1px solid var(--line-strong);background:#fff;color:var(--text-secondary);
+  }
+  .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+  .btn.muted{opacity:.5}
+
+  /* ---------- catatan kaki ---------- */
+  .catatan{
+    max-width:1180px;margin:8px auto 0;padding:16px 18px;border-radius:var(--radius-md);
+    background:#fff;border:1px solid var(--line);
+  }
+  .catatan h4{margin:0 0 8px;font-size:13px}
+  .catatan ul{margin:0;padding-left:18px}
+  .catatan li{font-size:12.5px;line-height:1.7;color:var(--text-secondary)}
+  .catatan code{font-family:var(--font-mono);font-size:11.5px;background:var(--bg-soft);padding:1px 5px;border-radius:5px}
+</style>
+</head>
+<body>
+
+<div class="head">
+  <p class="eyebrow">Careevo · Rancangan tata letak</p>
+  <h1>Halaman kursus bergaya IDE — 3 varian</h1>
+  <p>
+    Tiga susunan untuk halaman kursus yang memuat <strong>materi bacaan</strong>, <strong>editor kode</strong>,
+    dan <strong>hasil</strong>. Ketiganya memakai aturan yang sama: kiri = bahan belajar (gaya Codecademy),
+    tengah = editor, dan <strong>kanan = dua baris bertumpuk</strong> untuk hasil (atas &amp; bawah).
+    Warnanya diambil apa adanya dari <code>src/app/globals.css</code>, bukan warna baru.
+  </p>
+  <div class="legend">
+    <span>Kiri · bahan belajar</span>
+    <span>Tengah · editor</span>
+    <span>Kanan atas · hasil</span>
+    <span>Kanan bawah · pemeriksaan</span>
+  </div>
+</div>
+
+<!-- ============================= VARIAN A ============================= -->
+<section class="variant">
+  <header>
+    <h2>A — <b>Panel klasik</b></h2>
+    <p>
+      Paling dekat dengan rujukan: chrome gelap di atas, tiga kolom dengan lebar tetap di kanan.
+      Baris kanan <em>atas</em> menampilkan keluaran, baris <em>bawah</em> menampilkan pemeriksaan langkah.
+      Aman untuk layar ≥1280px.
+    </p>
+  </header>
+
+  <div class="frame">
+    <div class="chrome dark">
+      <div class="brand"><span class="mark">C</span> Manipulasi Data</div>
+      <div class="segs"><i class="seg on"></i><i class="seg on"></i><i class="seg"></i><i class="seg"></i></div>
+      <div class="spacer"></div>
+      <div class="ai">✦ Tanya Asisten AI</div>
+      <div class="ghost">Butuh bantuan?</div>
+      <div class="ghost">Alat</div>
+      <div class="cta">Mulai uji coba</div>
+    </div>
+
+    <div class="body a">
+      <!-- kiri -->
+      <div class="pane materi">
+        <div class="materi-head">▤ Belajar</div>
+        <div class="materi-scroll">
+          <p class="eyebrow2">Manipulasi Data</p>
+          <h3>Mengenal SQL</h3>
+          <p class="durasi">3 menit</p>
+
+          <p>
+            <a href="#">SQL</a> adalah bahasa yang dipakai untuk berbicara dengan
+            <a href="#">basis data</a>. Alih-alih menulis langkah demi langkah seperti
+            bahasa pemrograman biasa, kamu menuliskan <em>apa</em> yang kamu inginkan —
+            lalu mesin basis data yang mencari caranya.
+          </p>
+          <p>
+            Di kursus ini kamu memakai SQLite, basis data ringan yang berjalan di dalam
+            peramban. Tidak ada yang perlu dipasang, dan tidak ada yang dikirim ke server.
+          </p>
+          <p>
+            Setiap halaman punya satu latihan. Tulis perintahnya di editor, tekan
+            <code>Jalankan</code>, lalu bandingkan hasilnya dengan yang diharapkan.
+          </p>
+
+          <div class="rule"></div>
+
+          <div class="inst-head"><span class="ico">✓</span> Instruksi</div>
+          <div class="step">
+            <span class="box"></span>
+            <span class="txt">
+              1. Tulis perintah SQL pertamamu.
+              <span class="sub">Di editor, ketik:<br><code>SELECT 'Halo, SQL!';</code></span>
+            </span>
+          </div>
+          <div class="step">
+            <span class="box"></span>
+            <span class="txt">2. Tekan <strong>Jalankan</strong> untuk melihat hasilnya.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- tengah -->
+      <div class="pane editor">
+        <div class="tabbar">
+          <div class="tab">▤ test.sqlite <span class="x">✕</span></div>
+          <div class="right"><span>⤢</span></div>
+        </div>
+        <div class="code">
+          <div class="gutter">1<br>2</div>
+          <div class="lines"><span class="kw">SELECT</span> <span class="str">'Halo, SQL!'</span>;<span class="caret"></span>
+<span class="cmt">-- tekan Jalankan</span></div>
+        </div>
+        <div class="editor-foot">
+          <div class="run">▶ Jalankan</div>
+          <div class="tool">▤</div>
+          <div class="tool">↺</div>
+        </div>
+      </div>
+
+      <!-- kanan: DUA baris bertumpuk -->
+      <div class="pane hasil">
+        <div class="baris atas">
+          <div class="hasil-head">
+            <span class="t">Hasil Kueri</span>
+            <span class="pill">1 baris</span>
+          </div>
+          <div class="hasil-body">
+            <table class="grid">
+              <thead><tr><th>'Halo, SQL!'</th></tr></thead>
+              <tbody><tr><td>Halo, SQL!</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="baris bawah">
+          <div class="hasil-head">
+            <span class="t">Pemeriksaan</span>
+            <span class="pill">2 / 2 lulus</span>
+          </div>
+          <div class="hasil-body">
+            <div class="cek"><span class="ok">✓</span><span class="teks"><span class="label">Perintah dijalankan tanpa galat</span></span></div>
+            <div class="cek"><span class="ok">✓</span><span class="teks"><span class="label">Hasil cocok dengan yang diharapkan</span><span class="meta">Diharapkan: Halo, SQL!</span></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="foot">
+      <span class="hint">Halaman 1 dari 6 · Modul 1</span>
+      <div class="btn muted">Kembali</div>
+      <div class="btn primary">Lanjut</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================= VARIAN B ============================= -->
+<section class="variant">
+  <header>
+    <h2>B — <b>Hasil berdampingan</b></h2>
+    <p>
+      Dua baris kanan dipakai untuk <em>membandingkan</em>: atas = keluaran sebenarnya,
+      bawah = keluaran yang diharapkan. Chrome terang supaya tidak bersaing dengan editor.
+      Cocok saat latihan menuntut keluaran yang persis.
+    </p>
+  </header>
+
+  <div class="frame">
+    <div class="chrome light">
+      <div class="brand"><span class="mark">C</span> Manipulasi Data</div>
+      <div class="segs"><i class="seg on"></i><i class="seg on"></i><i class="seg"></i><i class="seg"></i></div>
+      <div class="spacer"></div>
+      <div class="ai">✦ Tanya Asisten AI</div>
+      <div class="ghost">Butuh bantuan?</div>
+      <div class="cta">Mulai uji coba</div>
+    </div>
+
+    <div class="body b">
+      <div class="pane materi">
+        <div class="materi-head">▤ Belajar</div>
+        <div class="materi-scroll">
+          <p class="eyebrow2">Manipulasi Data</p>
+          <h3>Mengenal SQL</h3>
+          <p class="durasi">3 menit</p>
+
+          <p>
+            <a href="#">SQL</a> adalah bahasa yang dipakai untuk berbicara dengan
+            <a href="#">basis data</a>. Alih-alih menulis langkah demi langkah, kamu
+            menuliskan <em>apa</em> yang kamu inginkan — lalu mesin basis data yang
+            mencari caranya.
+          </p>
+          <p>
+            Perhatikan: hasil di kanan muncul sebagai <strong>tabel</strong>, bukan teks
+            bebas. Itu bentuk asli jawaban sebuah kueri.
+          </p>
+
+          <div class="rule"></div>
+
+          <div class="inst-head"><span class="ico">✓</span> Instruksi</div>
+          <div class="step done">
+            <span class="box">✓</span>
+            <span class="txt">1. Ketik <code>SELECT 'Halo, SQL!';</code> di editor.</span>
+          </div>
+          <div class="step">
+            <span class="box"></span>
+            <span class="txt">2. Cocokkan keluaranmu dengan baris "Yang diharapkan" di kanan bawah.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="pane editor">
+        <div class="tabbar">
+          <div class="tab">▤ test.sqlite <span class="x">✕</span></div>
+          <div class="right"><span>⤢</span></div>
+        </div>
+        <div class="code">
+          <div class="gutter">1<br>2</div>
+          <div class="lines"><span class="kw">SELECT</span> <span class="str">'Halo, SQL!'</span>;<span class="caret"></span>
+<span class="cmt">-- hasil muncul di panel kanan</span></div>
+        </div>
+        <div class="editor-foot">
+          <div class="run">▶ Jalankan</div>
+          <div class="tool">▤</div>
+          <div class="tool">↺</div>
+        </div>
+      </div>
+
+      <!-- kanan: DUA baris bertumpuk — keluaran vs harapan -->
+      <div class="pane hasil">
+        <div class="baris atas">
+          <div class="hasil-head">
+            <span class="t">Keluaranmu</span>
+            <span class="pill">cocok</span>
+          </div>
+          <div class="hasil-body">
+            <div class="diff">
+              <div class="blok ok">
+                <div class="cap">Hasil kueri</div>
+                <pre>Halo, SQL!</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="baris bawah">
+          <div class="hasil-head">
+            <span class="t">Yang diharapkan</span>
+            <span class="pill muted">acuan</span>
+          </div>
+          <div class="hasil-body">
+            <div class="diff">
+              <div class="blok">
+                <div class="cap">Contoh keluaran</div>
+                <pre>Halo, SQL!</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="foot">
+      <span class="hint">Halaman 1 dari 6 · Modul 1</span>
+      <div class="btn muted">Kembali</div>
+      <div class="btn primary">Lanjut</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================= VARIAN C ============================= -->
+<section class="variant">
+  <header>
+    <h2>C — <b>Fokus tugas</b></h2>
+    <p>
+      Bahan belajar dipersempit jadi kolom baca murni; daftar tugas pindah ke baris kanan
+      <em>atas</em> (tempat mata sudah terbiasa mengecek kemajuan), dan hasil menempati baris
+      <em>bawah</em>. Paling cocok untuk layar sempit dan latihan bertahap.
+    </p>
+  </header>
+
+  <div class="frame">
+    <div class="chrome dark">
+      <div class="brand"><span class="mark">C</span> Manipulasi Data</div>
+      <div class="segs"><i class="seg on"></i><i class="seg on"></i><i class="seg on"></i><i class="seg"></i></div>
+      <div class="spacer"></div>
+      <div class="ai">✦ Asisten AI</div>
+      <div class="ghost">Alat</div>
+      <div class="cta">Mulai uji coba</div>
+    </div>
+
+    <div class="body c">
+      <div class="pane materi">
+        <div class="materi-head">▤ Belajar</div>
+        <div class="materi-scroll">
+          <p class="eyebrow2">Manipulasi Data</p>
+          <h3>Mengenal SQL</h3>
+          <p class="durasi">3 menit</p>
+
+          <p>
+            <a href="#">SQL</a> adalah bahasa untuk berbicara dengan basis data. Kamu
+            menuliskan <em>apa</em> yang kamu inginkan, bukan caranya.
+          </p>
+          <p>
+            Di kursus ini kamu memakai SQLite yang berjalan di dalam peramban. Tidak ada
+            yang perlu dipasang.
+          </p>
+          <p>
+            Tugasnya ada di panel kanan. Kerjakan satu per satu; hasilnya muncul di bawahnya.
+          </p>
+        </div>
+      </div>
+
+      <div class="pane editor">
+        <div class="tabbar">
+          <div class="tab">▤ test.sqlite <span class="x">✕</span></div>
+          <div class="right"><span>⤢</span></div>
+        </div>
+        <div class="code">
+          <div class="gutter">1<br>2<br>3</div>
+          <div class="lines"><span class="cmt">-- 1. ambil satu nilai teks</span>
+<span class="kw">SELECT</span> <span class="str">'Halo, SQL!'</span>;<span class="caret"></span>
+</div>
+        </div>
+        <div class="editor-foot">
+          <div class="run">▶ Jalankan</div>
+          <div class="tool">▤</div>
+          <div class="tool">↺</div>
+        </div>
+      </div>
+
+      <!-- kanan: DUA baris bertumpuk — tugas di atas, hasil di bawah -->
+      <div class="pane hasil">
+        <div class="baris atas">
+          <div class="hasil-head">
+            <span class="t">Tugas</span>
+            <span class="pill">1 / 2</span>
+          </div>
+          <div class="hasil-body">
+            <div class="cek"><span class="ok">✓</span><span class="teks"><span class="label">Tulis perintah <code>SELECT</code> pertamamu</span></span></div>
+            <div class="cek"><span class="no">2</span><span class="teks"><span class="label">Tekan Jalankan</span><span class="meta">Belum dikerjakan</span></span></div>
+          </div>
+        </div>
+        <div class="baris bawah">
+          <div class="hasil-head">
+            <span class="t">Hasil</span>
+            <span class="pill">1 baris</span>
+          </div>
+          <div class="hasil-body">
+            <table class="grid">
+              <thead><tr><th>nilai</th></tr></thead>
+              <tbody><tr><td>Halo, SQL!</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="foot">
+      <span class="hint">Halaman 1 dari 6 · Modul 1</span>
+      <div class="btn muted">Kembali</div>
+      <div class="btn primary">Lanjut</div>
+    </div>
+  </div>
+</section>
+
+<div class="catatan">
+  <h4>Catatan untuk implementasi di Careevo</h4>
+  <ul>
+    <li><strong>Kanan selalu dua baris.</strong> Semua varian memakai <code>flex-direction:column</code> dengan dua anak ber-<code>flex</code> — bukan dua kolom berdampingan.</li>
+    <li><strong>Warna bukan baru.</strong> <code>--bg-deep</code>, <code>--ocean-deep</code>, <code>--editor-bg</code> (#06202f), <code>--leaf</code>, <code>--warning</code>, dan <code>--brand</code> sudah ada di <code>globals.css</code>.</li>
+    <li><strong>Radius.</strong> 14px untuk kontrol produk, 20px untuk bingkai — sesuai DESIGN.md.</li>
+    <li><strong>Kontras.</strong> Tombol <code>Jalankan</code> sengaja memakai tinta gelap di atas <code>--warning</code>; ramp <code>--brand-grad</code> tidak dipakai untuk label putih karena tidak lolos AA.</li>
+    <li><strong>Editor.</strong> Komponennya sudah ada — <code>kode-view.tsx</code> (CodeMirror). Tata letak ini membungkusnya, bukan menggantikannya.</li>
+    <li><strong>Blok soal.</strong> Panel tugas/instruksi butuh jenis blok baru (mis. <code>tipe:"latihan"</code>) atau bidang <code>tugas</code> di <code>BlokKode</code>; belum ada di <code>TipeBlok</code> hari ini.</li>
+  </ul>
+</div>
+
+</body>
+</html>

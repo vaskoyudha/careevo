@@ -5,6 +5,7 @@ import { Fragment, useEffect, useRef, useState, type ReactElement, type ReactNod
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
+  blokKodeDijalankan,
   blokTampil,
   daftarSection,
   petaSection,
@@ -53,6 +54,7 @@ export function HalamanView({
   modul,
   halaman,
   onPindahHalaman,
+  sembunyikanKodeDijalankan = false,
   className,
 }: {
   /**
@@ -76,6 +78,15 @@ export function HalamanView({
    * isi editor yang belum disimpan.
    */
   onPindahHalaman?: (halamanId: string) => void;
+  /**
+   * Buang blok kode yang bisa dijalankan dari aliran prosa.
+   *
+   * Dipakai tata letak lab (`kode-lab.tsx`): blok yang bisa dijalankan sudah
+   * diangkat ke kolom editor, jadi menampilkannya lagi di kolom baca berarti
+   * dua editor untuk satu latihan. Blok kode yang **tidak** bisa dijalankan
+   * tetap tinggal di sini — ia contoh bacaan, bukan latihan.
+   */
+  sembunyikanKodeDijalankan?: boolean;
   className?: string;
 }) {
   const semuaHalaman = halamanUntukModul(modul);
@@ -94,7 +105,15 @@ export function HalamanView({
   // panel gelap 78px dengan chip `C++` dan tombol `Salin` yang menyalin string
   // kosong. Jangkar dan backlink tetap dihitung dari daftar penuh karena
   // keduanya sudah melewati blok kosong sendiri.
-  const tampil = blokTampil(halaman.blok);
+  //
+  // Blok kode yang bisa dijalankan ikut dibuang bila `sembunyikanKodeDijalankan`
+  // menyala: ia sudah pindah ke kolom editor tata letak lab, dan menampilkannya
+  // di sini akan memberi dua editor untuk satu latihan. Jangkar/TOC tetap
+  // dihitung dari daftar penuh, sama seperti blok kosong di atas.
+  const dijalankan = new Set(blokKodeDijalankan(halaman).map((b) => b.id));
+  const tampil = blokTampil(halaman.blok).filter(
+    (b) => !sembunyikanKodeDijalankan || !dijalankan.has(b.id),
+  );
   const adaIsi = tampil.length > 0;
 
   return (

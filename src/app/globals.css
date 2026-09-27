@@ -4702,6 +4702,22 @@ button.tag:hover {
   max-height: 60vh;
 }
 
+/* Permukaan kode di dalam lab (`.kode-lab.tsx`): editor dan hasilnya berbagi
+   kolom kanan, jadi editor **wajib** punya tinggi terbatas dan menggulir di
+   dalam kotaknya sendiri. Tanpa batas ini, program yang panjang membuat editor
+   tumbuh setinggi isinya dan pane hasil terdorong keluar layar — kebalikan dari
+   gunanya lab. Batasnya `vh`-relatif supaya ikut mengecil di layar pendek;
+   `min-height` memberi ruang kerja yang layak meski kodenya pendek. */
+.kode-view-lab {
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(215, 238, 247, 0.14);
+}
+
+.kode-view-lab .cm-scroller {
+  max-height: min(52vh, 520px);
+  min-height: 220px;
+}
+
 .log-list-app {
   max-height: 220px;
   overflow-y: auto;

@@ -1,5 +1,6 @@
 import type {
   BlokHalaman,
+  Halaman,
   SegmenTeks,
   TipeBlok,
   UkuranBlok,
@@ -94,6 +95,57 @@ export function blokBerisi(blok: BlokHalaman): boolean {
  */
 export function blokTampil(blok: BlokHalaman[]): BlokHalaman[] {
   return blok.filter(blokBerisi);
+}
+
+/**
+ * Blok kode yang benar-benar bisa dijalankan peserta di sebuah halaman.
+ *
+ * **"Sub-modul yang tujuannya kode" diturunkan dari data, bukan ditandai
+ * bendera.** Halaman yang memuat setidaknya satu blok kode dengan
+ * `dapatDijalankan === true` dan isi kode yang tidak kosong itulah yang memakai
+ * tata letak lab. Bendera baru (mis. `tipe: "latihan"`) akan menyimpang dari
+ * fakta yang sudah ada di data: blok yang tidak bisa dijalankan tidak pernah
+ * butuh editor, dan blok yang bisa dijalankan selalu butuh.
+ *
+ * Blok contoh yang hanya dibaca (`dapatDijalankan` mati) **tidak** dihitung: ia
+ * memang ilustrasi prosa, dan mengangkatnya ke editor berarti menjanjikan tombol
+ * Jalankan yang sakelarnya sengaja dimatikan ahli. Blok yang sakelarnya mati
+ * karena itu tetap tinggal di aliran prosa, di tempat ia ditulis.
+ */
+export function blokKodeDijalankan(halaman: Pick<Halaman, "blok">): BlokHalaman[] {
+  return halaman.blok.filter(
+    (blok) =>
+      blok.tipe === "kode" &&
+      blok.dapatDijalankan === true &&
+      (blok.kode ?? "").trim().length > 0,
+  );
+}
+
+/**
+ * Apakah halaman ini adalah **halaman lab kode** — satu latihan yang bisa
+ * dijalankan, tanpa blok kode lain yang bisa dijalankan.
+ *
+ * Ini satu-satunya predikat yang memilih tata letak lab, dipakai shell (untuk
+ * melebarkan kolom baca) dan pane (untuk memilih renderer). Dua salinan
+ * predikat ini akan menyimpang, dan gejalanya adalah kolom baca yang lebar
+ * untuk halaman prosa biasa — tanpa error di mana pun.
+ *
+ * **Kenapa harus tepat satu, bukan sekadar ada.** Tata letak lab menaruh satu
+ * editor di kanan-atas dan hasilnya di kanan-bawah. Dua latihan yang bisa
+ * dijalankan di satu halaman tidak punya cara tunggal untuk mengisi dua baris
+ * itu tanpa menebak mana yang dimaksud, jadi halaman seperti itu sengaja
+ * **tidak** masuk lab: ia kembali ke tata letak linear, tempat setiap blok duduk
+ * bersama hasilnya sendiri. Yang menjaganya `blokKodeDijalankan()` — sumber
+ * tunggal "blok mana yang bisa dijalankan".
+ *
+ * Menerima `null`/`undefined` karena pemanggilnya memakai `halamanDipilih()`,
+ * yang menjawab `null` untuk modul tanpa halaman; halaman yang tidak ada bukan
+ * halaman ber-lab.
+ */
+export function halamanPunyaLabKode(
+  halaman: Pick<Halaman, "blok"> | null | undefined,
+): boolean {
+  return halaman ? blokKodeDijalankan(halaman).length === 1 : false;
 }
 
 /** Ringkasan satu baris untuk daftar blok yang terlipat di editor. */

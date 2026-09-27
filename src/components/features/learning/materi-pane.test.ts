@@ -146,6 +146,55 @@ describe("MateriPane", () => {
   });
 });
 
+describe("MateriPane — halaman lab kode", () => {
+  /**
+   * Halaman dengan **tepat satu** blok kode yang bisa dijalankan dirender
+   * `KodeLab` (dua kolom: bahan di kiri, editor di atas hasil di kanan), bukan
+   * `HalamanView` polos. Yang dijaga di sini adalah pemilihan itu — predikat
+   * "ber-lab" diuji di `blok.test.ts`, dan tata letaknya di `kode-lab.test.ts`.
+   *
+   * `KodeView` tidak bisa dirender di lingkungan `node` (CodeMirror mengukur DOM
+   * saat dibangun), jadi yang muncul di HTML adalah wadah `.kode-view` kosong —
+   * cukup untuk membuktikan jalur mana yang dipilih.
+   */
+  const HALAMAN_LAB = {
+    ...HALAMAN,
+    id: "hal-lab",
+    judul: "Latihan Pertama",
+    blok: [
+      { id: "p1", tipe: "paragraf" as const, segmen: [{ teks: "Baca dulu." }] },
+      {
+        id: "b1",
+        tipe: "kode" as const,
+        bahasa: "cpp" as const,
+        kode: "int main(){}",
+        dapatDijalankan: true,
+      },
+    ],
+  };
+  const MODUL_LAB: ModulKursus = {
+    ...MODUL,
+    halaman: [HALAMAN_LAB],
+    submodul: [bab("sub-m1", [HALAMAN_LAB])],
+  };
+
+  it("merender editor lab untuk halaman ber-lab", () => {
+    const html = render("token.abc", MODUL_LAB);
+    // Wadah editor CodeMirror ada, dan blok latihannya tidak lagi muncul di
+    // kolom prosa sebagai panel bacaan kedua.
+    expect(html).toContain("kode-view");
+    // Paragrafnya tetap dirender — kolom kiri adalah `HalamanView` yang sama.
+    expect(html).toContain("Baca dulu.");
+  });
+
+  it("tidak merender editor lab untuk halaman prosa biasa", () => {
+    // Halaman tanpa latihan yang bisa dijalankan tetap satu kolom; tidak ada
+    // wadah editor di HTML-nya.
+    const html = render("token.abc");
+    expect(html).not.toContain("kode-view");
+  });
+});
+
 /**
  * Halaman yang dirender berasal dari **URL** (`?halaman=`), bukan state lokal.
  *

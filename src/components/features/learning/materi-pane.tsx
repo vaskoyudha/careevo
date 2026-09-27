@@ -1,10 +1,12 @@
 "use client";
 
 import { HalamanView } from "./halaman-view";
+import { KodeLab } from "./kode-lab";
 import { MateriView } from "./materi-view";
 import { KuisView } from "./kuis-view";
 import { CourseSessionGate, useCourseSession } from "./course-session";
 import type { ModulKursus } from "@/lib/courses/kurikulum";
+import { halamanPunyaLabKode } from "@/lib/courses/blok";
 import { halamanDipilih } from "@/lib/courses/halaman";
 import { modulPunyaIsi } from "@/lib/courses/silabus";
 import type { TipeMateri } from "@/types/course";
@@ -63,6 +65,18 @@ export function MateriPane({
   const daftarKuis = modul.kuis ?? [];
   const halamanAktif = halamanDipilih(modul, halamanAwal);
 
+  /**
+   * Halaman ini adalah latihan kode (tepat satu blok kode yang bisa dijalankan).
+   *
+   * Keputusannya **diturunkan dari data** (`halamanPunyaLabKode`), bukan dari
+   * bendera baru: blok yang bisa dijalankan selalu butuh editor, dan blok yang
+   * tidak pernah butuh. Halaman seperti itu dirender `KodeLab` — dua kolom,
+   * bahan belajar di kiri, editor di atas hasil di kanan — alih-alih satu kolom
+   * prosa. Halaman lain, termasuk yang cuma memuat contoh kode bacaan, tetap
+   * memakai jalur lama.
+   */
+  const labKode = halamanPunyaLabKode(halamanAktif);
+
   if (!modulPunyaIsi(modul)) {
     // Modul turunan tidak punya isi tersimpan. Ia tidak berpura-pura punya pane
     // kosong: yang benar adalah mengantar ke materi eksternalnya.
@@ -87,8 +101,19 @@ export function MateriPane({
       {/* Prosa selalu bebas: membaca bukan penyelesaian, jadi tidak ada gerbang
           di atas `HalamanView`. Pager di dalamnya **tidak** diberi
           `onPindahHalaman`: tanpa callback ia merender `Link` ke
-          `?halaman=<id>`, dan itulah yang membuat halaman punya alamat. */}
-      {halamanAktif ? <HalamanView modul={modul} halaman={halamanAktif} /> : null}
+          `?halaman=<id>`, dan itulah yang membuat halaman punya alamat.
+
+          Halaman ber-lab kode dirender `KodeLab` — bukan `HalamanView` polos —
+          supaya editor dan hasilnya punya kolomnya sendiri. `KodeLab` memanggil
+          `HalamanView` yang sama di kolom kirinya, jadi tidak ada renderer prosa
+          kedua. */}
+      {halamanAktif ? (
+        labKode ? (
+          <KodeLab modul={modul} halaman={halamanAktif} />
+        ) : (
+          <HalamanView modul={modul} halaman={halamanAktif} />
+        )
+      ) : null}
 
       {daftarKuis.length > 0 ? (
         <section className="space-y-3">

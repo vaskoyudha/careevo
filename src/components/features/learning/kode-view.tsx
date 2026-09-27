@@ -229,6 +229,19 @@ type BalasanJalankan =
   | { ok: true; status?: StatusJalankan; stdout?: string; stderr?: string }
   | { ok: false; error: string };
 
+/**
+ * Susunan panel editor.
+ *
+ * `inline` adalah bentuk lamanya: editor, tombol Jalankan, dan pane hasil
+ * bertumpuk dalam satu kolom sempit. `lab` memisahkannya supaya tata letak lab
+ * (`kode-lab.tsx`) bisa menaruh editor di atas dan hasil di bawah, di kolomnya
+ * sendiri. Yang **tidak** berubah antara keduanya: editor, teks yang dijalankan,
+ * dan seluruh pemetaan status — semua itu tetap hidup di komponen ini, karena
+ * dua tempat yang menjalankan kode berarti dua tempat yang menerjemahkan status,
+ * dan hanya satu yang akan ikut diperbarui saat kalimatnya berubah.
+ */
+export type SusunanKode = "inline" | "lab";
+
 export function KodeView({
   kode,
   bahasa,
@@ -239,6 +252,7 @@ export function KodeView({
   editable = false,
   onChange,
   label = "Kode",
+  susunan = "inline",
   className,
 }: {
   kode: string;
@@ -276,6 +290,12 @@ export function KodeView({
   editable?: boolean;
   onChange?: (kode: string) => void;
   label?: string;
+  /**
+   * Susunan panel: `inline` (bawaan) menumpuk editor, tombol, dan hasil dalam
+   * satu kolom; `lab` memisahkan editor dan hasil menjadi dua blok terpisah yang
+   * ditempatkan `kode-lab.tsx`. Logika jalannya tetap di sini di kedua mode.
+   */
+  susunan?: SusunanKode;
   className?: string;
 }) {
   const wadah = useRef<HTMLDivElement>(null);
@@ -463,91 +483,135 @@ export function KodeView({
     }
   }, [bahasa, teks, stdin]);
 
+  /**
+   * Tombol Jalankan dan baris keterangannya.
+   *
+   * Gerbangnya `=== true`, bukan kebenaran biasa: prop-nya opsional dan
+   * `undefined` berarti tidak boleh dijalankan, jadi nilai apa pun yang bukan
+   * `true` harus berarti tidak ada tombol sama sekali. Ini meniru
+   * `z.literal(true)` di server, jadi sakelar yang mati tidak bisa dilewati
+   * hanya dengan mengirim nilai lain dari peramban.
+   *
+   * Markup-nya satu variabel, tetapi **gerbangnya tetap ditulis di tempat
+   * render** (`{dapatJalankan === true ? … : null}`): uji sumber
+   * `kode-view.test.ts` mengunci bentuk itu sebagai jaminan fail-closed, dan
+   * memindahkannya ke ekspresi `? :` di variabel akan membuat jaminan yang sama
+   * tak lagi terlihat oleh uji tersebut.
+   */
+  const isiTombolJalankan = (
+    <div className="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        onClick={jalankan}
+        disabled={menjalankan}
+        className="cursor-pointer rounded-lg bg-[#0056D2] px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {menjalankan ? "Menjalankan…" : "Jalankan"}
+      </button>
+      <span className="text-[11px] text-gray-500">
+        Kompilasi dan dijalankan di server, di kontainer terpisah.
+      </span>
+    </div>
+  );
+
+  /**
+   * Pane hasil — satu definisi untuk kedua susunan.
+   *
+   * Di `lab` ia duduk di bawah editor (baris bawah kolom kanan); di `inline` ia
+   * duduk tepat di bawah tombolnya. Isi dan kata-katanya **wajib** sama: dua
+   * salinan render akan menyimpang tanpa error, dan yang paling mudah
+   * menyimpang justru pesan kompilator — satu-satunya bagian yang punya nomor
+   * baris.
+   */
+  const paneHasil = hasil ? (
+    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+      {/*
+        `role="status"` ada di blok **judul saja**, bukan di pane seluruhnya.
+        Karena itu `detail` ikut terbaca sebagai bagian dari pengumuman yang
+        sama tanpa harus dua kali. Pesan compiler sengaja tidak ikut: ia
+        bisa puluhan baris, dan membacakan seluruhnya sekaligus lebih buruk
+        daripada membiarkan peserta navigasi ke `<pre>`-nya sendiri.
+      */}
+      <div className={cn("border-b border-gray-100 px-3 py-1.5", GAYA_NADA[hasil.nada])}>
+        <p className="text-xs font-semibold" role="status">
+          {hasil.judul}
+        </p>
+        {hasil.detail ? (
+          <p className="mt-0.5 text-[11px] text-gray-500">{hasil.detail}</p>
+        ) : null}
+      </div>
+
+      {/*
+        stderr ditampilkan apa adanya, tanpa dipotong dan tanpa diringkas.
+        Untuk `gagal_kompilasi` ini adalah pesan g++ lengkap dengan nomor
+        baris, dan itu justru sinyalnya: nomor baris itulah yang
+        menunjukkan ke mana peserta harus melihat. Ringkasnya jadi satu
+        kalimat "kode salah sintaks" menghapus satu-satunya informasi yang
+        berguna. `whitespace-pre-wrap` menjaga baris baru dari compiler,
+        `overflow-x-auto` menjaga baris panjang tetap bisa dibaca.
+      */}
+      {hasil.stderr ? (
+        <div
+          className={cn(
+            "px-3 py-2",
+            // Garis pemisah hanya di antara dua isi. Tanpa syarat ini, blok
+            // terakhir selalu menggantung garis di bawahnya meski tidak ada
+            // apa pun lagi setelahnya.
+            hasil.stdout ? "border-b border-gray-100" : "",
+          )}
+        >
+          <p className="text-[11px] font-semibold tracking-wider text-gray-500 uppercase">
+            {hasil.dariKompilator ? "Pesan dari kompilator" : "Pesan dari program"}
+          </p>
+          <pre className="overflow-x-auto font-mono text-[12px] whitespace-pre-wrap text-gray-800">
+            {hasil.stderr}
+          </pre>
+        </div>
+      ) : null}
+
+      {hasil.stdout ? (
+        <div className="px-3 py-2">
+          <p className="text-[11px] font-semibold tracking-wider text-gray-500 uppercase">
+            Keluaran program
+          </p>
+          <pre className="overflow-x-auto font-mono text-[12px] whitespace-pre-wrap text-gray-800">
+            {hasil.stdout}
+          </pre>
+        </div>
+      ) : null}
+    </div>
+  ) : null;
+
+  /**
+   * Susunan `lab`: satu kolom dengan **editor di atas** (mengisi ruang) dan
+   * **hasil di bawah**. Keduanya tetap milik komponen ini — `kode-lab.tsx`
+   * hanya menyusun kolom kanan, dan tidak pernah menyentuh `teks` maupun
+   * `jalankan`. Itu yang menjaga satu-satunya jalur eksekusi tetap di sini.
+   */
+  if (susunan === "lab") {
+    return (
+      <div className={cn("flex flex-col gap-3", className)}>
+        <div>
+          <div ref={wadah} className="kode-view kode-view-lab" />
+          {dapatJalankan === true ? <div className="pt-2">{isiTombolJalankan}</div> : null}
+        </div>
+        <div className="min-w-0">
+          {paneHasil ?? (
+            <p className="rounded-lg border border-dashed border-gray-300 px-3 py-6 text-center text-[12.5px] leading-relaxed text-gray-500">
+              Tekan <strong className="font-semibold text-gray-700">Jalankan</strong> untuk melihat
+              keluaran program di sini.
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={cn("space-y-2", className)}>
       <div ref={wadah} className="kode-view" />
-
-      {/*
-        Gerbang tombol. `=== true`, bukan kebenaran biasa: prop-nya opsional
-        dan `undefined` berarti tidak boleh dijalankan, jadi nilai apa pun yang
-        bukan `true` harus berarti tidak ada tombol sama sekali. Ini meniru
-        `z.literal(true)` di server, jadi sakelar yang mati tidak bisa dilewati
-        hanya dengan mengirim nilai lain dari peramban.
-      */}
-      {dapatJalankan === true ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={jalankan}
-            disabled={menjalankan}
-            className="cursor-pointer rounded-lg bg-[#0056D2] px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {menjalankan ? "Menjalankan…" : "Jalankan"}
-          </button>
-          <span className="text-[11px] text-gray-500">
-            Kompilasi dan dijalankan di server, di kontainer terpisah.
-          </span>
-        </div>
-      ) : null}
-
-      {hasil ? (
-        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-          {/*
-            `role="status"` ada di blok **judul saja**, bukan di pane seluruhnya.
-            Karena itu `detail` ikut terbaca sebagai bagian dari pengumuman yang
-            sama tanpa harus dua kali. Pesan compiler sengaja tidak ikut: ia
-            bisa puluhan baris, dan membacakan seluruhnya sekaligus lebih buruk
-            daripada membiarkan peserta navigasi ke `<pre>`-nya sendiri.
-          */}
-          <div className={cn("border-b border-gray-100 px-3 py-1.5", GAYA_NADA[hasil.nada])}>
-            <p className="text-xs font-semibold" role="status">
-              {hasil.judul}
-            </p>
-            {hasil.detail ? (
-              <p className="mt-0.5 text-[11px] text-gray-500">{hasil.detail}</p>
-            ) : null}
-          </div>
-
-          {/*
-            stderr ditampilkan apa adanya, tanpa dipotong dan tanpa diringkas.
-            Untuk `gagal_kompilasi` ini adalah pesan g++ lengkap dengan nomor
-            baris, dan itu justru sinyalnya: nomor baris itulah yang
-            menunjukkan ke mana peserta harus melihat. Ringkasnya jadi satu
-            kalimat "kode salah sintaks" menghapus satu-satunya informasi yang
-            berguna. `whitespace-pre-wrap` menjaga baris baru dari compiler,
-            `overflow-x-auto` menjaga baris panjang tetap bisa dibaca.
-          */}
-          {hasil.stderr ? (
-            <div
-              className={cn(
-                "px-3 py-2",
-                // Garis pemisah hanya di antara dua isi. Tanpa syarat ini, blok
-                // terakhir selalu menggantung garis di bawahnya meski tidak ada
-                // apa pun lagi setelahnya.
-                hasil.stdout ? "border-b border-gray-100" : "",
-              )}
-            >
-              <p className="text-[11px] font-semibold tracking-wider text-gray-500 uppercase">
-                {hasil.dariKompilator ? "Pesan dari kompilator" : "Pesan dari program"}
-              </p>
-              <pre className="overflow-x-auto font-mono text-[12px] whitespace-pre-wrap text-gray-800">
-                {hasil.stderr}
-              </pre>
-            </div>
-          ) : null}
-
-          {hasil.stdout ? (
-            <div className="px-3 py-2">
-              <p className="text-[11px] font-semibold tracking-wider text-gray-500 uppercase">
-                Keluaran program
-              </p>
-              <pre className="overflow-x-auto font-mono text-[12px] whitespace-pre-wrap text-gray-800">
-                {hasil.stdout}
-              </pre>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
+      {dapatJalankan === true ? isiTombolJalankan : null}
+      {paneHasil}
     </div>
   );
 }
