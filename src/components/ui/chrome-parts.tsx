@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTransition, type ReactNode } from "react";
+import { cn } from "@/lib/utils";
 import {
   Briefcase,
   Building2,
@@ -97,9 +98,8 @@ export const learnerNavItems: NavItem[] = [
 
 /**
  * "Dashboard" action button, parked in `.chrome-actions` right beside the
- * account menu (the "profile") on the learner navbars. Icon-only, matching the
- * compact nav vocabulary: the label is kept for screen readers and surfaced on
- * wide screens only if the bar has room.
+ * account menu (the "profile") on the learner navbars. Renders as a styled brand
+ * button using the blue-white gradient.
  */
 export function DashboardButton() {
   const pathname = usePathname();
@@ -109,10 +109,13 @@ export function DashboardButton() {
     <Link
       href="/dashboard"
       aria-current={active ? "page" : undefined}
-      className={active ? "nav-item is-active" : "nav-item"}
+      className={cn(
+        "chrome-btn chrome-btn-brand gap-1.5",
+        active && "ring-2 ring-white/60 shadow-md"
+      )}
     >
-      <LayoutDashboard size={15} strokeWidth={1.5} aria-hidden="true" />
-      <span className="sr-only">Dashboard</span>
+      <LayoutDashboard size={14} strokeWidth={1.75} aria-hidden="true" />
+      <span>Dashboard</span>
     </Link>
   );
 }
