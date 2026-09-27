@@ -73,12 +73,18 @@ describe("dashboard peserta tidak mengklaim angka yang tidak bisa ditelusuri", (
     }
   });
 
-  it("tidak ada sumber dashboard yang menjanjikan streak dan Navigator", () => {
-    // Cakupannya harus mengikuti siapa saja yang bisa merender klaim itu, bukan
-    // hanya `page.tsx`: kartu yang dikembalikan ke folder komponen lolos begitu
-    // saja pada pemindaian satu berkas. Karena itu folder dipindai dengan
-    // helper yang sama seperti dua uji di atas — termasuk `jelajah/`, tempat
-    // prototipe pernah tinggal.
+  it("tidak ada sumber dashboard yang menjanjikan Navigator", () => {
+    // **Cakupan sengaja dipersempit, bukan dihapus.** Dulu seluruh pola
+    // `/streak|navigator/i` dilarang; sekarang `streak` tampil sebagai angka
+    // nyata dari `learning_runs` (lihat `kartu-streak.tsx`), jadi melarangnya
+    // sama dengan melarang fitur yang justru diminta. Yang tetap dilarang adalah
+    // `navigator` — tidak ada satu pun "Navigator" yang bisa ditelusuri ke baris
+    // milik akun yang masuk.
+    //
+    // Cakupannya tetap mengikuti siapa saja yang bisa merender klaim itu: kartu
+    // yang dikembalikan ke folder komponen lolos begitu saja pada pemindaian satu
+    // berkas. Karena itu folder dipindai dengan helper yang sama seperti dua uji
+    // di atas — termasuk `jelajah/`, tempat prototipe pernah tinggal.
     //
     // Pindaian membaca seluruh isi berkas — komentar termasuk — jadi istilah
     // tidak bisa kembali masuk lewat copy maupun lewat komentar tanpa memaksa
@@ -86,8 +92,8 @@ describe("dashboard peserta tidak mengklaim angka yang tidak bisa ditelusuri", (
     const isiHalaman = readFileSync(BERKAS_DASHBOARD, "utf8");
     expect(
       isiHalaman,
-      `${path.basename(BERKAS_DASHBOARD)} masih menjanjikan streak/Navigator`,
-    ).not.toMatch(/streak|navigator/i);
+      `${path.basename(BERKAS_DASHBOARD)} masih menjanjikan Navigator`,
+    ).not.toMatch(/navigator/i);
 
     const komponen = sumberKomponenDashboard();
     // Penjaga untuk perulangan di berkas ini: kalau folder ini suatu saat tidak
@@ -95,10 +101,47 @@ describe("dashboard peserta tidak mengklaim angka yang tidak bisa ditelusuri", (
     // tanpa menguji apa pun.
     expect(komponen.length).toBeGreaterThan(0);
     for (const { nama, isi } of komponen) {
-      expect(`${nama}: ${isi}`, `${nama} masih menjanjikan streak/Navigator`).not.toMatch(
-        /streak|navigator/i,
-      );
+      expect(`${nama}: ${isi}`, `${nama} masih menjanjikan Navigator`).not.toMatch(/navigator/i);
     }
+  });
+
+  it("angka streak dan skor hanya boleh datang dari lapisan server", () => {
+    // Penyesuaian yang mengikuti bagian di atas. Melonggarkan larangan `streak`
+    // membuka pintu kedua: komponen bisa menghitung streak sendiri dari state
+    // modul, atau membaca angka dari fixture — keduanya terlihat benar di layar
+    // dan tidak bisa ditelusuri ke `learning_runs`.
+    //
+    // Yang dijaga di sini adalah **sumbernya**, bukan kata kuncinya:
+    // `kartu-streak.tsx` harus menerima angka dari luar, dan tidak boleh memanggil
+    // fungsi hitung kehadiran sendiri. Aturan hitungannya teruji di
+    // `kehadiran.test.ts`; yang di sini adalah "dipanggil dari mana".
+    //
+    // Pindaian ini membaca komentar juga, jadi penyebutan nama fungsi di dalam
+    // dokumentasi komponen akan membuat test ini merah — itu disengaja: nama
+    // fungsi hanya boleh muncul di berkas yang benar-benar memanggilnya.
+    const streak = path.join(DIR_DASHBOARD, "kartu-streak.tsx");
+    const isiStreak = readFileSync(streak, "utf8");
+    expect(isiStreak).toMatch(/hariBeruntun/);
+    expect(isiStreak, "kartu-streak menghitung streak sendiri di klien").not.toMatch(
+      /ringkasKehadiran|hitungStreak|listRunUser/,
+    );
+    expect(isiStreak, "kartu-streak memakai jam peramban").not.toMatch(
+      /Date\.now\(\)|toLocaleDateString/,
+    );
+  });
+
+  it("kartu skor tidak menghitung skor sendiri dan tidak membaca fixture", () => {
+    // Sama seperti di atas, untuk skor: angka harus diteruskan dari
+    // `skorIntegritasDb`, bukan dihitung ulang dari `integrity_violations` yang
+    // justru tidak boleh ada di bundel browser sama sekali.
+    const skor = path.join(DIR_DASHBOARD, "kartu-skor.tsx");
+    const isiSkor = readFileSync(skor, "utf8");
+    expect(isiSkor).not.toContain("@/lib/fixtures");
+    expect(isiSkor, "kartu-skor menghitung skor sendiri").not.toMatch(
+      /hitungSkorIntegritas|integrityViolations|getDb/,
+    );
+    // Baris ini juga membaca komentar, jadi nama fungsi tidak boleh disebut di
+    // dokumentasi komponen ini (lihat catatan di atas).
   });
 
   it("halaman tetap merender dua permukaan nyata", () => {
@@ -117,5 +160,25 @@ describe("dashboard peserta tidak mengklaim angka yang tidak bisa ditelusuri", (
     const isi = readFileSync(BERKAS_DASHBOARD, "utf8");
     expect(isi).toMatch(/<DashboardRecommendations\b[^>]*>/);
     expect(isi).toMatch(/<JobInboxCard\b[^>]*>/);
+  });
+
+  it("halaman merender kelima permukaan angka tanpa menjaga daftar nama berkasnya", () => {
+    // Penjaga penutup untuk bagian yang barusan dilonggarkan. Menghapus satu
+    // blok dari dashboard harus terlihat di sini, bukan diam-diam membuat
+    // halaman lebih tipis. Yang diperiksa adalah *situs render* — identifier
+    // yang tak terpakai tidak akan tertangkap perkakas lain, karena
+    // `tsconfig.json` tidak menyalakan `noUnusedLocals` dan lint berjalan tanpa
+    // `--max-warnings=0`.
+    //
+    // `pilihCourseDilanjutkan` ikut diperiksa karena "lanjutkan" adalah
+    // permukaan dengan rules; mengosongkan pemanggilnya akan membuat kartu
+    // selalu menampilkan empty state tanpa error.
+    const isi = readFileSync(BERKAS_DASHBOARD, "utf8");
+    expect(isi).toMatch(/<KartuProfil\b[^>]*>/);
+    expect(isi).toMatch(/<KartuStreak\b[^>]*>/);
+    expect(isi).toMatch(/<KartuSkor\b[^>]*>/);
+    expect(isi).toMatch(/<KartuLanjutkan\b[^>]*>/);
+    expect(isi).toMatch(/<KartuSertifikat\b[^>]*>/);
+    expect(isi).toMatch(/pilihCourseDilanjutkan\(/);
   });
 });

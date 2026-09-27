@@ -79,6 +79,7 @@ import {
   WEEKLY_HOURS_OPTIONS,
   WORK_PREFERENCES,
 } from "../onboarding/types";
+import { JENIS_PELANGGARAN } from "../integritas/katalog";
 
 /** Nilai yang sah untuk `users.status`. Diekspor agar tidak ada dua daftar. */
 export const STATUS_PENGGUNA = ["active", "suspended", "deleted"] as const;
@@ -1080,6 +1081,97 @@ export const attestationEvents = pgTable(
   ],
 );
 
+/**
+ * Pelanggaran integritas yang dicatat manusia — input skor kejujuran.
+ *
+ * **Perbedaannya dari `learning_events`:** `learning_events` adalah rekaman
+ * otomatis dari sinyal peramban/kamera dan tidak pernah bermakna satu Pun tanpa
+ * ditafsirkan manusia. Tabel ini adalah hasil penafsiran itu: satu baris berarti
+ * seorang verifikator atau admin sudah **memutuskan** ada pelanggaran. Skor
+ * kejujuran hanya dibaca dari tabel ini, tidak pernah dari `learning_events` —
+ * kalau tidak, mematikan seluruh JavaScript di peramban peserta akan menaikkan
+ * skornya sendiri.
+ *
+ * Aturan yang dikunci:
+ *
+ * - **Append-only + `status`, bukan hapus.** `active` = masih memotong skor;
+ *   `expunged` = dipulihkan (mis. peserta mengulang course dengan bersih) atau
+ *   dicabut staf. Baris yang sudah pernah ada tidak pernah dihapus, jadi riwayat
+ *   keputusan staf tetap bisa diaudit dan skor yang salah turun bisa dibuktikan
+ *   berasal dari keputusan siapa.
+ * - **`penalty` adalah snapshot, bukan foreign key ke katalog.** Bobot 5/10/20
+ *   disalin ke baris saat dicatat, persis seperti `reviews.rubric_snapshot` dan
+ *   `quiz_attempts.assessment_snapshot`. Kalau bobot katalog diubah (±5) lewat
+ *   deployment, skor peserta yang melanggar **tidak ikut berubah** — kalau tidak,
+ *   keputusan lama diam-diam ditulis ulang dengan bobot baru yang tidak pernah
+ *   disetujui siapa pun.
+ * - **`enrollment_id` `set null`.** Pelanggaran tidak boleh ikut terhapus kalau
+ *   enrollment-nya dihapus: skor akan turun sendiri karena bukti yang hilang,
+ *   dan peserta tidak punya cara memulihkannya.
+ * - **Tidak ada kolom skor.** Kolom `score` yang bisa menyimpang dari
+ *   `Σ penalty` justru dilawan: itulah yang membuat "skor kembali sendiri"
+ *   mustahil. `src/lib/integritas/skor.ts` menghitungnya setiap kali dibaca.
+ * - **`evidence_redacted` disaring sebelum insert** (sama seperti `audit_events`
+ *   dan `attestations.payload_redacted`): isinya bisa memuat id run/kuis, bukan
+ *   materi mentah peserta.
+ */
+export const integrityViolations = pgTable(
+  "integrity_violations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** `text`, bukan uuid: id course berasal dari `data/courses.json`. */
+    courseId: text("course_id").notNull(),
+    enrollmentId: uuid("enrollment_id").references(() => enrollments.id, {
+      onDelete: "set null",
+    }),
+    /** Nilai dari `JENIS_PELANGGARAN`; CHECK-nya mengimpor daftar itu. */
+    kind: text("kind").notNull(),
+    /** Snapshot bobot saat dicatat. CHECK `> 0` menolak nilai tak masuk akal. */
+    penalty: integer("penalty").notNull(),
+    /** Alasan yang ditulis reviewer. Satu-satunya tempat vonis boleh muncul. */
+    reason: text("reason").notNull(),
+    /** Siapa yang memutuskan. `set null` supaya staff yang keluar tidak menghapus bukti. */
+    reviewerUserId: uuid("reviewer_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    /** Pointer ke `learning_events` / `quiz_attempts` — jsonb, tanpa FK. */
+    evidenceRedacted: jsonb("evidence_redacted"),
+    status: text("status").notNull().default("active"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    /** Setara `attestations.revokedAt`: penanda yang sudah tidak berlaku. */
+    expungedAt: timestamp("expunged_at", { withTimezone: true, mode: "date" }),
+    /** Alasan pemulihan — penting agar "sudah dipulihkan" bisa diaudit. */
+    expungedReason: text("expunged_reason"),
+  },
+  (table) => [
+    index("integrity_violations_user_id_idx").on(table.userId),
+    index("integrity_violations_course_idx").on(table.userId, table.courseId),
+    index("integrity_violations_status_idx").on(table.status),
+    check(
+      "integrity_violations_kind_check",
+      sql`"kind" in (${sql.raw(
+        JENIS_PELANGGARAN.map((v) => `'${v}'`).join(", "),
+      )})`,
+    ),
+    check("integrity_violations_penalty_check", sql`"penalty" > 0`),
+    check(
+      "integrity_violations_status_check",
+      sql`"status" in ('active', 'expunged')`,
+    ),
+    // Baris `active` wajib punya waktu dibuat; baris `expunged` wajib punya waktu
+    // pemulihan. Tanpa ini, "sudah dipulihkan" bisa punya `status` yang benar
+    // tanpa jejak kapan, dan expunge yang gagal di tengah jalan terlihat sama
+    // dengan yang benar-benar selesai.
+    check(
+      "integrity_violations_expunged_shape_check",
+      sql`("status" = 'active' and "expunged_at" is null) or ("status" = 'expunged' and "expunged_at" is not null)`,
+    ),
+  ],
+);
+
 /** Baris `users` sebagaimana dibaca dari database. */
 export type User = typeof users.$inferSelect;
 /** Baris `users` untuk insert — kolom ber-default boleh dikosongkan. */
@@ -1132,6 +1224,8 @@ export type Attestation = typeof attestations.$inferSelect;
 export type NewAttestation = typeof attestations.$inferInsert;
 export type AttestationEvent = typeof attestationEvents.$inferSelect;
 export type NewAttestationEvent = typeof attestationEvents.$inferInsert;
+export type IntegrityViolation = typeof integrityViolations.$inferSelect;
+export type NewIntegrityViolation = typeof integrityViolations.$inferInsert;
 
 /** Nilai yang sah untuk `users.status`. */
 export type StatusPengguna = (typeof STATUS_PENGGUNA)[number];
@@ -1155,3 +1249,5 @@ export type StatusAttempt = (typeof STATUS_ATTEMPT)[number];
 export type StatusSubmission = (typeof STATUS_SUBMISSION)[number];
 /** Nilai yang sah untuk `attestations.status`. */
 export type StatusAttestation = (typeof STATUS_ATTESTATION)[number];
+/** Nilai yang sah untuk `integrity_violations.status`. */
+export type StatusPelanggaran = "active" | "expunged";

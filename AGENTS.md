@@ -146,6 +146,28 @@ From `docs/backend-production-plan.md` §2.2. Breaking these is a regression eve
 - Business-logic functions are named in Indonesian (`hitungSkorJadwal`, `auditLoker`, `deteksiFee`, `ambilUrlDatabase`) while infra/UI code is English. Match the surrounding file's language; don't translate existing identifiers.
 - Styling is **Tailwind v4 CSS-first**: no `tailwind.config.js`; theme tokens live in `src/app/globals.css` (`@import "tailwindcss"` + `@theme`). Prefer editing tokens over arbitrary values. `DESIGN.md` is the visual source of truth, including the deliberate pale `#bfdbfe` gradient tail that is *not* AA-safe — don't silently re-darken it.
 - Scoring is a 100-point scale: jadwal (30) + karya (40) + validasi (30), clamped/rounded in `hitungSkorTotal`. Attestation signatures canonicalize payload keys (sorted) before HMAC-SHA256 — reordering keys must not change the signature.
+
+## Skor kejujuran —_account-level_, bukan skor submission
+
+Dua skor berbeda yang tidak boleh dicampur:
+
+| Skor | Arti | Sumber | Dihitung di |
+|---|---|---|---|
+| **Skor submission** | Mutu karya, per karya | `reviews.rubric_snapshot` | `src/lib/scoring/` |
+| **Skor kejujuran** | Status integritas **akun**, kumulatif | `integrity_violations` | `src/lib/integritas/` |
+
+Skor kejujuran mulai 100 dan **tidak pernah disimpan** — selalu diturunkan dari baris `integrity_violations` berstatus `active` oleh `hitungSkorIntegritas`. Perilaku IPK-nya: pakai analogi IPK, satu course punya dampak terbatas (batas 20 poin per course, dihitung **per course** bukan per total), dan mengulang course sampai tuntas memulihkan penalti yang tercatat sebelumnya.
+
+Aturan yang dikunci:
+
+- **`integrity_violations` dibaca manusia, `learning_events` tidak pernah.** `learning_events` adalah rekaman otomatis dari sinyal peramban/kamera yang bisa dimatikan peserta. Skor hanya turun dari keputusan verifikator/admin. Kalau skor membaca `learning_events`, mematikan JavaScript akan menaikkan skor sendiri — ini membalik aturan "kejadian integritas tidak pernah menurunkan skor" dan setengah dari alasan plan anti-curang 2026-09-27 masih berlaku untuk `src/lib/performa/integritas.ts`.
+- **`penalty` adalah snapshot (5/10/20 dari `KATALOG_PELANGGARAN`), bukan referensi ke katalog.** Menambah atau mengubah bobot katalog lewat deployment **tidak boleh** menulis ulang keputusan lama — sama seperti `reviews.rubric_snapshot` dan `quiz_attempts.assessment_snapshot`.
+- **Pulihkan = `UPDATE status → 'expunged'`, bukan `DELETE`.** Baris yang pernah ada harus bisa diaudit (`user_roles.revoke` juga begitu). CHECK `integrity_violations_expunged_shape_check` menolak `expunged` tanpa `expunged_at`, jadi expunge yang gagal di tengah jalan tidak terlihat sama dengan yang selesai.
+- **Pemulihan dipicu `selesaikanKursusDb` dan hanya untuk `completion_path: "terverifikasi"`.** Jalur informal bukan bukti integritas, jadi memulihkan dari sana berarti penalti bisa dihapus hanya dengan menekan tombol. `pulihkanPelanggaranSetelahUlang` **tidak melempar**: kegagalan di sana membuat skor terlalu rendah, bukan terlalu tinggi, dan completion yang sah tidak boleh hilang karena masalah terpisah.
+- **Batas waktu pemulihan wajib.** `course_completions` unik per enrollment, jadi "mengulang" tidak membuat baris baru; `pulihkanSemuaPelanggaranCourse` memfilter `created_at <= completionAt` supaya panggilan yang kebetulan terjadi **sebelum** pelanggaran dicatat tidak memulihkan pelanggaran itu sendiri. Ini tidak bisa dibuktikan tanpa database — uangnya ada di `service.integration.test.ts`.
+- **Tabel report menampilkan katalog utuh, termasuk yang 0.** Baris "0" adalah informasi; menghapus jenis yang kosong membuat peserta tidak bisa membedakan "tidak ada" dari "belum ada kategori ini".
+- **Profil publik tidak boleh membaca skor fixture.** `/p/[username]` sebelumnya memamerkan angka `score_total` milik profil fiktif `@budi` ke perekrut. Sekarang memakai skor integritas nyata + `attestations` aktif. **Dan akun database ikut dalam keputusan "profil tidak ditemukan"** — kalau tidak, blok skor/sertifikat berada di belakang early-return dan tidak pernah tampil untuk akun non-demo; halaman tetap `200` dan tidak error, jadi tidak ada gate yang menangkapnya (`profil-publik.test.ts` menjaga keduanya).
+
 - `next.config.ts` lifts security headers from `src/lib/security/headers.ts`, and `experimental.serverActions.bodySizeLimit` must stay `>= MAKS_UKURAN_BYTE` in `src/app/api/unggah/route.ts` or the two disagree (the route carries the real message).
 
 ## Progres per kursus — satu helper, jangan dua

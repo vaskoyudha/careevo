@@ -31,6 +31,25 @@
 export type StatusKehadiran = "active" | "completed" | "expired";
 
 /**
+ * Sempitkan `state` mentah dari database menjadi `StatusKehadiran`.
+ *
+ * Kolomnya `text` + CHECK, jadi TypeScript membacanya sebagai `string` dan kita
+ * **tidak** boleh memakai cast paksa: nilai yang tidak dikenal akan lolos ke
+ * `durasiMenit` dan jatuh ke cabang yang salah — `active` membayarkan jam
+ * berjalan, sedangkan `expired` membayarkan sampai `expires_at`. Keduanya
+ * membuat angka jam berubah karena satu karakter yang tidak dibaca.
+ *
+ * `null` berarti "tidak dikenal", dan pemanggil **membuang** barisnya: run
+ * dengan status yang tak terbaca tidak boleh menambah apa pun, hanya menghapus
+ * bukti yang ada (`careevo-review` §7). Melempar juga pilihan, tapi satu run
+ * rusak akan menjatuhkan seluruh halaman dashboard.
+ */
+export function statusKehadiran(nilai: string): StatusKehadiran | null {
+  if (nilai === "active" || nilai === "completed" || nilai === "expired") return nilai;
+  return null;
+}
+
+/**
  * Bentuk minimum satu baris `learning_runs` yang dibutuhkan ringkasan.
  *
  * Sengaja lebih sempit dari `LearningRun`: modul ini tidak butuh `userId`,

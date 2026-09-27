@@ -50,6 +50,13 @@
       "when": 1790505018594,
       "tag": "0006_reflective_rawhide_kid",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790521926856,
+      "tag": "0007_mushy_wong",
+      "breakpoints": true
     }
   ]
 }
