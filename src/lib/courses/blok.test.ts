@@ -22,6 +22,10 @@ function paragraf(id: string, segmen: BlokHalaman["segmen"]): BlokHalaman {
   return { id, tipe: "paragraf", ukuran: "normal", segmen };
 }
 
+function kode(id: string, isi: string): BlokHalaman {
+  return { id, tipe: "kode", bahasa: "cpp", kode: isi };
+}
+
 describe("slugBagian", () => {
   it("menghasilkan jangkar huruf kecil tanpa spasi", () => {
     expect(slugBagian("Menyiapkan Lingkungan Kerja")).toBe("menyiapkan-lingkungan-kerja");
@@ -163,6 +167,11 @@ describe("blokBerisi", () => {
     expect(blokBerisi({ id: "d1", tipe: "daftar", butir: [[{ teks: "" }]] })).toBe(false);
     expect(blokBerisi({ id: "d2", tipe: "daftar", butir: [[{ teks: "a" }]] })).toBe(true);
   });
+
+  it("blok kode kosong tidak berisi, yang berkode isi berisi", () => {
+    expect(blokBerisi(kode("b1", "   "))).toBe(false);
+    expect(blokBerisi(kode("b2", "int main(){}"))).toBe(true);
+  });
 });
 
 describe("ringkasBlok", () => {
@@ -184,6 +193,12 @@ describe("ringkasBlok", () => {
       butir: [[{ teks: "Satu" }], [{ teks: "Dua" }]],
     };
     expect(ringkasBlok(daftar)).toBe("Satu · Dua");
+  });
+
+  it("blok kode diringkas ke baris pertamanya", () => {
+    expect(ringkasBlok(kode("b1", "#include <iostream>\nint main(){}"))).toBe(
+      "#include <iostream>",
+    );
   });
 });
 
@@ -233,5 +248,16 @@ describe("blokKosong", () => {
 
   it("membiarkan id kosong agar store yang mengisinya", () => {
     expect(blokKosong("paragraf").id).toBe("");
+  });
+
+  it("blok kode baru tidak dapat dijalankan sampai ahli menyalakannya", () => {
+    // Fail-closed: bawaan harus menolak eksekusi, bukan mengizinkan.
+    expect(blokKosong("kode")).toEqual({
+      id: "",
+      tipe: "kode",
+      bahasa: "cpp",
+      kode: "",
+      dapatDijalankan: false,
+    });
   });
 });
