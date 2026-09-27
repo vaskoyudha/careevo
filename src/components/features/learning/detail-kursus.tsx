@@ -392,27 +392,41 @@ function RuangBelajar({
         ref={headerRef}
         className="relative z-10 w-full overflow-hidden pt-32 pb-12 sm:pt-32 sm:pb-14 lg:pt-36 lg:pb-16"
       >
-        {/* Background Layers: Dithered Pixel-Bit WebGL Canvas + Striped Pattern + Radial Glow + Bottom Fade */}
-        <div className="pointer-events-none absolute inset-0 z-0 h-full w-full overflow-hidden select-none bg-[#f7fbfc]">
-          {/* Layer 1: Dithered WebGL pixel/bits animation (Bayer ordered-dither shader) */}
-          <div className="absolute inset-0 z-0 overflow-hidden">
-            <DitheredHeroBackdrop
-              videoSrc="/videos/hero-sterly.mp4"
-              levels={4}
-              ditherScale={2}
-              zoom={1}
-              focusY={0.5}
-            />
-          </div>
+        {/*
+         * Latar header: **dither**, bukan garis.
 
-          {/* Layer 2: Striped diagonal grid pattern with radial mask (identical to loker header) */}
-          <div className="absolute inset-0 z-10 bg-[size:12px_12px] [background-image:repeating-linear-gradient(315deg,rgba(0,0,0,0.035)_0_1px,transparent_0_50%)] [mask-image:radial-gradient(ellipse_85%_80%_at_50%_40%,black_40%,transparent_92%)]" />
+         * Laplace sebelumnya memakai `repeating-linear-gradient` 315° — itu
+         * garis 1px tiap 12px, jadi yang terbaca sebagai "garis", bukan
+         * stipple. Efek bit itu namespaced: `DitheredHeroBackdrop`
+         * (shader Bayer 16x16 + posterise) sudah dipakai `/belajar`,
+         * `/careevo-plus`, dan kartu promo, dan DESIGN.md menyebut
+         * "selective dithered imagery" sebagai arah visual repo ini.
+         *
+         * Ground di bawah canvas bukan warna datar:ia membawa dot grid 3px
+         * sebagai stipple CSS. Canvas WebGL menutupi ground itu saat aktif,
+         * dan kalau WebGL tidak ada komponen mengembalikan canvas transparan
+         * (lihat komentar di `dithered-hero-backdrop.tsx`) — tanpa dot grid
+         * header akan jatuh ke polos dan efeknya hilang total.
+         */}
+        <div className="pointer-events-none absolute inset-0 z-0 h-full w-full overflow-hidden select-none">
+          {/* Ground: gradien biru langit + dot grid sebagai fallback dither */}
+          <div className="absolute inset-0 z-0 bg-[linear-gradient(170deg,#8FC0F2_0%,#7DD3FC_20%,#BAE6FD_46%,#DDEEFE_76%,#F2F9FF_100%)]" />
+          <div className="absolute inset-0 z-0 bg-[size:3px_3px] [background-image:radial-gradient(rgba(10,61,98,0.16)_1px,transparent_1px)]" />
 
-          {/* Layer 3: Radial glow highlight for text clarity and depth */}
-          <div className="absolute inset-0 z-10 bg-[radial-gradient(ellipse_85%_75%_at_50%_35%,rgba(255,255,255,0.75)_0%,rgba(255,255,255,0.25)_55%,transparent_85%)]" />
+          {/* Dither: Bayer ordered-dither + posterise, grid dikunci ke piksel canvas */}
+          <DitheredHeroBackdrop
+            videoSrc="/videos/hero-sterly.mp4"
+            levels={4}
+            ditherScale={2}
+            zoom={1}
+            focusY={0.45}
+          />
 
-          {/* Layer 4: White fading on the bottom edge to blend into page body */}
-          <div className="absolute inset-x-0 bottom-0 z-10 h-36 sm:h-52 bg-gradient-to-t from-white via-white/80 to-transparent" />
+          {/* Halo lembut supaya teks tinta tetap terbaca di atas stipple */}
+          <div className="absolute inset-0 z-10 bg-[radial-gradient(ellipse_78%_62%_at_50%_38%,rgba(255,255,255,0.78)_0%,rgba(255,255,255,0.34)_52%,transparent_84%)]" />
+
+          {/* Transisi bawah ke badan halaman putih */}
+          <div className="absolute inset-x-0 bottom-0 z-10 h-20 sm:h-28 bg-gradient-to-t from-white via-white/75 to-transparent" />
         </div>
 
         <div className="relative z-10 mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">

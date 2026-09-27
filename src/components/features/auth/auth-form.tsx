@@ -60,30 +60,39 @@ export function AuthForm({
   mode,
   defaultEmail,
   defaultPassword,
+  errorMessage,
 }: {
   mode: AuthMode;
   defaultEmail?: string;
   defaultPassword?: string;
+  /** Pesan galat OAuth yang datang lewat query string setelah redirect. */
+  errorMessage?: string;
 }) {
   const isDaftar = mode === "daftar";
   const action = isDaftar ? registerAction : loginAction;
   const [state, formAction, pending] = useActionState(action, initialState);
   const errors = state.errors ?? {};
   const text = copy[mode];
+  // Galat server (state) menang atas galat OAuth: yang lebih baru biasanya.
+  const pesan = state.message ?? errorMessage;
 
   return (
     <form action={formAction} noValidate className="text-left">
-      {state.message ? (
+      {pesan ? (
         <p
           className="mb-5 rounded-[8px] border border-[#e4572e]/35 bg-[#e4572e]/10 px-3 py-2 text-sm text-[#e4572e]"
           role="alert"
         >
-          {state.message}
+          {pesan}
         </p>
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <SocialButton icon={<GoogleIcon />} label="Daftar dengan Google" />
+        <SocialButton
+          icon={<GoogleIcon />}
+          label={isDaftar ? "Daftar dengan Google" : "Masuk dengan Google"}
+          href={`/api/auth/google?mode=${isDaftar ? "daftar" : "masuk"}`}
+        />
         <SocialButton icon={<AppleIcon />} label="Daftar dengan Apple" />
       </div>
 
@@ -202,13 +211,30 @@ export function AuthForm({
   );
 }
 
-function SocialButton({ icon, label }: { icon: ReactNode; label: string }) {
+const socialClass =
+  "flex h-9 items-center justify-center gap-2 rounded-[8px] border border-black/25 bg-white px-3 text-sm leading-none text-black transition-[color,background-color,transform] duration-150 ease-out active:scale-[0.97]";
+
+/**
+ * Tombol sosial. `href` diisi hanya bila alunya benar-benar ada — tombol yang
+ * belum dikerjakan tetap non-interaktif (`disabled` + judul penjelas), bukan
+ * tautan mati yang tampak bisa diklik.
+ */
+function SocialButton({ icon, label, href }: { icon: ReactNode; label: string; href?: string }) {
+  if (href) {
+    return (
+      <a href={href} className={cn(socialClass, "hover:bg-black/[0.03]")}>
+        <span className="shrink-0">{icon}</span>
+        <span className="whitespace-nowrap">{label}</span>
+      </a>
+    );
+  }
+
   return (
     <button
       type="button"
       disabled
       title="Belum tersedia di demo"
-      className="flex h-9 items-center justify-center gap-2 rounded-[8px] border border-black/25 bg-white px-3 text-sm leading-none text-black transition-colors hover:bg-black/[0.03]"
+      className={cn(socialClass, "cursor-not-allowed opacity-50")}
     >
       <span className="shrink-0">{icon}</span>
       <span className="whitespace-nowrap">{label}</span>

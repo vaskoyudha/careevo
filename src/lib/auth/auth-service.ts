@@ -513,3 +513,132 @@ async function pastikanUserDemo(input: {
   });
 }
 
+/**
+ * Kandidat username dari profil Google, mengikuti `usernameSchema`
+ * (`src/lib/validation/auth.ts`): huruf kecil, angka, underscore, 3-20 karakter.
+ *
+ * Nama Google bisa kosong (akun tanpa nama tampilan) dan bisa berisi spasi atau
+ * aksen, jadi apa adanya ia tidak akan lolos validasi. Dua sumber dicoba
+ * berurutan dan hasilnya tetap dipaksa masuk ke kosakata yang sah.
+ */
+function kandidatUsername(email: string, nama?: string): string {
+  const bersihkan = (teks: string) =>
+    teks
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, "_")
+      .replace(/_{2,}/g, "_")
+      .replace(/^_+|_+$/g, "");
+
+  // Nama diutamakan karena username dari email biasanya tidak terbaca. Potong di
+  // 15 supaya masih muat untuk sufiks unik tanpa melewati batas 20.
+  const dariNama = bersihkan(nama ?? "").slice(0, 15);
+  if (dariNama.length >= 3) return dariNama;
+
+  const dariEmail = bersihkan(email.split("@")[0] ?? "").slice(0, 15);
+  if (dariEmail.length >= 3) return dariEmail;
+
+  return "user".padEnd(3, "0");
+}
+
+/**
+ * Masuk (atau daftar) dari identitas Google yang sudah terverifikasi.
+ *
+ * Yang dikunci di sini:
+ *
+ * - **Role tidak pernah datang dari Google.** Akun baru selalu
+ *   `ROLE_PENDAFTARAN_PUBLIK`; provisioning staff tetap jalur undangan.
+ * - **Tidak ada baris `user_credentials`.** Akun ini masuk lewat Google, bukan
+ *   password — jadi `masukPengguna` menolaknya (`kredensial_salah`), dan itu
+ *   memang benar: tidak ada password yang bisa ditebak atau dipaksa. Menulis
+ *   password acak hanya agar kolom NOT NULL terisi adalah jalan pintas yang
+ *   menyesatkan.
+ * - **Status tetap dihormati.** Akun `suspended`/`deleted` ditolak walau Google
+ *   menyatakan email-nya sah, persis seperti `masukPengguna`.
+ * - **Satu transaksi** untuk user + role + audit, sama seperti `daftarPengguna`.
+ *
+ * Pencocokan memakai `email_normalized`, jadi orang yang sudah punya akun
+ * password tidak berakhir dengan dua akun untuk satu email.
+ */
+export async function masukAtauDaftarGoogle(input: {
+  email: string;
+  nama?: string;
+}): Promise<HasilMasuk> {
+  const emailNormalized = normalisasiEmail(input.email);
+  const db = getDb();
+
+  const existing = await cariUserByEmail(db, emailNormalized);
+  if (existing) {
+    if (existing.status !== "active") return { ok: false, alasan: "nonaktif" };
+    return {
+      ok: true,
+      principal: bangunPrincipal({
+        userId: existing.id,
+        email: existing.emailNormalized,
+        nama: existing.displayName,
+        username: existing.usernameNormalized,
+        roles: rolesEfektif(await ambilRolesAktif(db, existing.id)),
+      }),
+    };
+  }
+
+  const dasar = kandidatUsername(emailNormalized, input.nama);
+  const displayName = (input.nama?.trim() || dasar).slice(0, 80);
+
+  // Username harus unik. Pengecekan di sini hanya memilih nama; yang menjaga
+  // keunikan tetap unique index `users.username_normalized`.
+  let username = dasar;
+  for (let percobaan = 0; percobaan < 12; percobaan++) {
+    const suffix = `_${Math.floor(Math.random() * 10000).toString(36)}`;
+    username = `${dasar.slice(0, 20 - suffix.length)}${suffix}`;
+    if (!(await cariUserByUsername(db, username))) break;
+  }
+
+  try {
+    const principal = await db.transaction(async (tx) => {
+      const user = await buatUser(tx, {
+        emailNormalized,
+        usernameNormalized: username,
+        displayName,
+      });
+      await grantRoleAwal(tx, { userId: user.id, role: ROLE_PENDAFTARAN_PUBLIK });
+      await catatAudit(tx, {
+        actorUserId: user.id,
+        action: "user.registered",
+        entityType: "user",
+        entityId: user.id,
+        // Hanya nama provider. Ini bukan tempat token atau identifier Google.
+        payloadRedacted: { provider: "google" },
+      });
+
+      return bangunPrincipal({
+        userId: user.id,
+        email: user.emailNormalized,
+        nama: user.displayName,
+        username: user.usernameNormalized,
+        roles: [ROLE_PENDAFTARAN_PUBLIK],
+      });
+    });
+
+    return { ok: true, principal };
+  } catch (error) {
+    // Dua callback paralel (mis. dua tab) bisa lolos pengecekan "belum ada" lalu
+    // saling menabrak unique `email_normalized`. Yang kalah membaca ulang dan
+    // memakai akun yang menang, daripada menampilkan error ke pengguna.
+    const winner = await cariUserByEmail(db, emailNormalized);
+    if (winner?.status === "active") {
+      return {
+        ok: true,
+        principal: bangunPrincipal({
+          userId: winner.id,
+          email: winner.emailNormalized,
+          nama: winner.displayName,
+          username: winner.usernameNormalized,
+          roles: rolesEfektif(await ambilRolesAktif(db, winner.id)),
+        }),
+      };
+    }
+    throw error;
+  }
+}
+
