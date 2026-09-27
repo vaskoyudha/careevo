@@ -66,7 +66,7 @@ export default function McpServerRow({
   // Resolved here rather than rendered blindly: `BrandGlyph` yields null for an
   // unknown brand, but a JSX element is always truthy, so `?? plug` in the markup
   // would never fire.
-  const brand = brandIconFor("mcp", cfg.catalog_entry || name);
+  const brand = brandIconFor(cfg.catalog_entry || name);
   return (
     <div className="flex w-full items-start gap-3 px-5 py-4">
       {/* The mark comes from the catalog entry this server was installed from,
@@ -74,11 +74,7 @@ export default function McpServerRow({
           hand-written server has no provenance and keeps the generic plug. */}
       <span className="mt-0.5 shrink-0 text-[var(--muted-foreground)]">
         {brand ? (
-          <BrandGlyph
-            namespace="mcp"
-            id={cfg.catalog_entry || name}
-            size={14}
-          />
+          <BrandGlyph id={cfg.catalog_entry || name} size={14} />
         ) : (
           <Plug className="h-3.5 w-3.5" />
         )}

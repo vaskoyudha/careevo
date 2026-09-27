@@ -3188,16 +3188,20 @@ button.tag:hover {
   resize: vertical;
 }
 
-/* Permukaan kode pada blok halaman. Tinggi minimum pendek supaya satu blok
-   kode tidak mengambil seluruh layar; tinggi sebenarnya mengikuti isi.
-   Warna disamakan dengan `.code-editor` di atas supaya tidak lahir warna
-   keempat untuk kode. */
+/* Permukaan kode pada blok halaman. Tinggi sebenarnya mengikuti isi dan
+   dibatasi di `.cm-scroller`, bukan di wadah: `.cm-scroller` adalah `scrollDOM`
+   CodeMirror, yaitu tempat `scrollIntoView` menulis. Kalau wadahnya yang
+   bergulir, `scrollTop` scroller tetap 0 dan kursor tidak pernah terlihat saat
+   navigasi keyboard. `overflow` sengaja tidak ada di sini supaya hanya ada satu
+   elemen bergulir. Warna disamakan dengan `.code-editor` di atas supaya tidak
+   lahir warna keempat untuk kode. */
 .kode-view {
-  min-height: 120px;
-  max-height: 60vh;
-  overflow: auto;
   background: #06202f;
   color: #d7eef7;
+}
+
+.kode-view .cm-scroller {
+  max-height: 60vh;
 }
 
 .log-list-app {

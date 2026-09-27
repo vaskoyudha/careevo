@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import type { ModulKursus } from "@/lib/courses/kurikulum";
+import { PROVENANCES, isProvenance } from "./types";
 import type { KnowledgePoint } from "./types";
 
 // Point the store at a temp dir BEFORE importing it, so the test never touches
@@ -129,6 +130,46 @@ describe("mastery store", () => {
     });
     const afterRight = await getMasteryTopic(OWNER, bundle.topic.id);
     expect(afterRight?.progress.errorPointIds).not.toContain("kp1");
+  });
+
+  it("keeps the optional provenance field, and still reads attempts written without it", async () => {
+    const bundle = await createMasteryTopic({ owner: OWNER, title: "T", points: [point("kp1")] });
+    // `provenance` has no producer yet (the AI Mastery bridge owns it), so the
+    // envelope on disk is written *without* it today. The validator must accept
+    // both shapes: rejecting the field would silently drop every graded attempt
+    // the day the bridge lands, and accepting an unknown value would let a
+    // hand-edited file claim provenance it never had.
+    const withProvenance = await recordAttempt(OWNER, bundle.topic.id, {
+      knowledgePointId: "kp1", correct: true, at: new Date().toISOString(),
+      source: "review", provenance: "dinilai",
+    });
+    expect(withProvenance?.progress.attempts[0]?.provenance).toBe("dinilai");
+    expect(withProvenance).not.toBeNull();
+
+    const without = await recordAttempt(OWNER, bundle.topic.id, {
+      knowledgePointId: "kp1", correct: true, at: new Date().toISOString(), source: "session",
+    });
+    expect(without?.progress.attempts.at(-1)?.provenance).toBeUndefined();
+    expect((await getMasteryTopic(OWNER, bundle.topic.id))?.progress.attempts).toHaveLength(2);
+
+    // An unrecognised value is not provenance — it is a corrupted file.
+    expect(await recordAttempt(OWNER, bundle.topic.id, {
+      knowledgePointId: "kp1", correct: true, at: new Date().toISOString(),
+      source: "session", provenance: "dibuat-model" as never,
+    })).toBeNull();
+  });
+
+  it("guards provenance in one place, so the union and the validator cannot drift", () => {
+    // The two literals live in `types.ts` and nowhere else: `store.ts` calls this
+    // guard instead of re-typing them. Were they hand-typed in both files, adding
+    // a third state would typecheck cleanly and then be rejected at runtime, and
+    // nothing here would notice. How `isAttempt` uses the guard is covered by the
+    // test above, which drives it through `recordAttempt`.
+    for (const nilai of PROVENANCES) expect(isProvenance(nilai)).toBe(true);
+    for (const lain of ["dibuat-model", "DINILAI", "", null, 1, undefined]) {
+      expect(isProvenance(lain)).toBe(false);
+    }
+    expect(PROVENANCES).toEqual(["dinilai", "dideklarasikan"]);
   });
 
   it("rejects an attempt against a point the topic does not teach", async () => {

@@ -924,12 +924,53 @@ export function MarketingProblemsSolutions() {
                           </button>
                         </div>
 
+                        {/*
+                          Ilustrasi ini di-passthrough, bukan dioptimalkan.
+                          Alasannya terukur, bukan selera.
+
+                          `next/image` selalu menyandi ulang lossy: ia decode
+                          WebP q92 di `public/`, resize, lalu encode ulang pada
+                          `q=75` (default Next 16). Untuk artwork datar seperti
+                          ini — bentuk vektor dengan gradien luas — itu
+                          generate lossy kedua di atas sumber yang sudah lossy,
+                          dan gejalanya persis "mushy, bergaris".
+
+                          Diukur pada `belajar-buku.webp`, slot 640w yang dipakai
+                          kartu 371px. PSNR vs sumber; 45+ dB ~= tak kasat mata.
+
+                            q=75 (dulu)  11.2 KB   37.5 dB
+                            q=80         13.6 KB   38.8 dB
+                            q=85         17.3 KB   40.0 dB
+                            q=90         22.7 KB   41.4 dB
+                            q=95         33.6 KB   42.8 dB
+                            passthrough  29.2 KB   lossless (resample bersih)
+
+                          Menaikkan `quality` tidak menolong: q=95 pun masih
+                          42.8 dB dan sudah lebih besar dari file aslinya.
+                          Menambah `images.qualities` juga bukan jalan — optimizer
+                          menolak q=90 dengan 400, `"q" parameter (quality) of
+                          90 is not allowed`.
+
+                          `sizes` ikut dilepas karena `unoptimized` tidak membuat
+                          `srcset`, jadi atribut itu tidak akan pernah dibaca.
+                          Gambar tetap `lazy` (default `next/image`).
+
+                          Trade-off jujur: kartu 371px di DPR 2 butuh 742 device
+                          px, dan sumber 1000px menutup itu (1.35x). Yang hilang
+                          hanya penghematan srcset di ponsel (~29 KB vs ~5 KB per
+                          gambar) — untuk 3 ilustrasi marketing yang lazy-loaded,
+                          itu sepadan. Butuh lebih tajam nanti? Buat ulang
+                          `public/images/masalah-solusi/*.webp` pada 2x; jangan
+                          menaikkan `quality` optimizer.
+
+                          Bukti: `docs/masalah-solusi-verify/`.
+                        */}
                         <div className="relative mt-5 aspect-[16/10] w-full overflow-hidden">
                           <Image
                             src={item.gambar}
                             alt={item.gambarAlt}
                             fill
-                            sizes="(min-width: 768px) 33vw, 100vw"
+                            unoptimized
                             className="object-cover object-center [mask-image:linear-gradient(to_bottom,transparent_0%,#000_42%)] [-webkit-mask-image:linear-gradient(to_bottom,transparent_0%,#000_42%)]"
                           />
                         </div>

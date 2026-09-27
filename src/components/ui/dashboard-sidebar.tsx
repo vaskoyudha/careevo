@@ -41,11 +41,15 @@ export type SidebarNavGroup = {
 /**
  * Navigasi learner.
  *
+ * Dua entri terakhir pindah dari navbar (`learnerNavItems` di `chrome-parts`)
+ * ke sini: `Progres` dan `Project` (dulu berlabel `Karya` di navbar).
+ * Posisinya dipertahankan seperti urutan relatif di navbar — `Progres` langsung
+ * setelah `Belajar`, `Project` langsung sebelum `Loker`.
+ *
  * `Progres` dulu bernama `Jalur Belajar` dan beralamat `/belajar/jalur`. Isinya
  * berubah: halaman itu menampilkan satu jalur personal ke satu kursus, sedangkan
  * yang dipakai di sini adalah daftar semua kursus yang diambil beserta persennya
  * — jadi nama dan rutenya ikut pindah ke `/progres` (rute lama masih redirect).
- * `Project` juga pernah di navbar, dengan label `Karya`.
  *
  * Hanya tampil di `AppShell` (dashboard). Halaman `LearnerShell` (`/belajar`,
  * `/profil`) punya navbar sendiri tanpa sidebar, jadi `/progres` tidak punya

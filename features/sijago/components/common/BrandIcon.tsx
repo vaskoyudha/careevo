@@ -2,11 +2,7 @@
 
 import { useTranslation } from "react-i18next";
 
-import {
-  brandIconFor,
-  brandInitials,
-  type BrandNamespace,
-} from "@/lib/brand-icons";
+import { brandIconFor, brandInitials } from "@/lib/brand-icons";
 
 /**
  * The square mark in front of a store entry: the product's own logo when we have
@@ -21,21 +17,19 @@ import {
  * two themes. The hex is kept in the generated data if an accent is ever wanted.
  */
 export default function BrandIcon({
-  namespace,
   id,
   name,
   size = "sm",
   className = "",
 }: {
-  namespace: BrandNamespace;
-  /** Catalog entry id — what the slug tables are keyed on. */
+  /** Catalog entry id — what the slug table is keyed on. */
   id: string;
   /** Display name, used for the monogram and the accessible label. */
   name: string;
   size?: "sm" | "lg";
   className?: string;
 }) {
-  const icon = brandIconFor(namespace, id);
+  const icon = brandIconFor(id);
   const box =
     size === "lg" ? "h-11 w-11 text-[14px]" : "mt-0.5 h-7 w-7 text-[10.5px]";
   const glyph = size === "lg" ? 20 : 14;
@@ -92,17 +86,15 @@ export function TrademarkNote({ className = "" }: { className?: string }) {
  * fit the slot.
  */
 export function BrandGlyph({
-  namespace,
   id,
   size = 14,
   className = "",
 }: {
-  namespace: BrandNamespace;
   id: string;
   size?: number;
   className?: string;
 }) {
-  const icon = brandIconFor(namespace, id);
+  const icon = brandIconFor(id);
   if (!icon) return null;
   return (
     <svg

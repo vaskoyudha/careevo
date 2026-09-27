@@ -36,6 +36,20 @@
       "when": 1790486819201,
       "tag": "0004_dizzy_triathlon",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790500907151,
+      "tag": "0005_nosy_viper",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790505018594,
+      "tag": "0006_reflective_rawhide_kid",
+      "breakpoints": true
     }
   ]
 }

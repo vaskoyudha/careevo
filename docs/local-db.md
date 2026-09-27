@@ -285,3 +285,121 @@ periksa:
 ```bash
 docker compose exec postgres psql -U careevo -d careevo -c '\dt'
 ```
+
+## 8. Pindai loker: config Careevo, bukan template engine
+
+Bagian ini bukan tentang PostgreSQL — `.data/career-ops/` adalah toko file
+ketiga yang sudah dibahas di §6, dan `portals.yml`-nya punya aturan seeding
+sendiri.
+
+`/loker/inbox` menyemai `.data/career-ops/portals.yml` dari
+`src/lib/career-ops/portals-careevo.yml`: enam entri papan aktif (tiga Jobstreet
+ID, tiga Glints ID), sembilan perusahaan terlacak, dan 14 kota dalam
+`location_filter`. Bila berkas Careevo tidak ada, ia jatuh ke
+`engine/templates/portals.example.yml`. `engine/` sendiri tidak pernah diubah —
+hanya berkas mana yang disalin yang berubah.
+
+### Seed ini tulis-sekali
+
+Kalau `portals.yml` sudah ada, ia tidak pernah diganti. Itu disengaja agar
+suntingan lokal pengguna tidak tertimpa, dan konsekuensinya mengadopsi config
+baru berarti **menghapus yang lama sendiri**:
+
+```bash
+# Ingin memakai config yang baru? Hapus yang lama, lalu muat ulang /loker/inbox.
+rm .data/career-ops/portals.yml
+```
+
+Setelah menghapus, muat ulang `/loker/inbox` **dalam sesi yang sudah masuk**.
+Layout `src/app/(app)/layout.tsx` punya **dua** gerbang yang keduanya berjalan
+sebelum komponen halaman, jadi keduanya bisa mencegah seeding tanpa error yang
+terlihat: `redirect("/masuk")` (baris 21) kalau tidak ada sesi, dan
+`redirect("/onboarding")` (baris 25) kalau pengguna sudah masuk tetapi belum
+punya profil — pengecualian hanya untuk peran `verifikator`/`admin`. Jadi
+`307` ke `/masuk` **atau** ke `/onboarding` membuktikan **tidak ada** yang
+tersemai, bukan bahwa seeding sudah berhasil — dan `curl` tanpa cookie tidak
+akan pernah menyemai apa pun.
+
+Untuk memastikan seed mana yang terpakai:
+
+```bash
+diff <(md5sum < src/lib/career-ops/portals-careevo.yml) \
+     <(md5sum < .data/career-ops/portals.yml) && echo "CAREEVO"
+```
+
+Tidak ada output dan `CAREEVO` tercetak berarti kedua berkas identik, jadi config
+Careevo-lah yang aktif. Output diff yang tidak kosong berarti yang aktif adalah
+template engine atau suntingan lokal — isinya sudah bukan milik Careevo, dan
+receipt-nya tidak bisa dipakai menilai config ini.
+
+### Membaca hasil pindai
+
+`.data/career-ops/data/scan-runs.tsv` menambah satu baris per pindai, 19 kolom.
+Dua yang paling sering ditanyakan adalah `boards` dan `new_added`.
+
+`boards` menghitung entri yang **aktif**, bukan entri yang menjawab. Nilai yang
+benar adalah `6`. Hanya tiga yang menjawab: ketiga entri Glints mengembalikan
+`HTTP 403` dari halaman `Glints - Firewall`, yang tercatat sebagai `auth` di
+`data/portal-health.tsv`. Maka `boards: 6` dengan kontribusi nol dari Glints
+adalah **bentuk keberhasilan yang diharapkan**, bukan kegagalan sebagian.
+`boards: 1` baru berarti config Careevo tidak terbaca sama sekali.
+
+`boards: 0` adalah perkiraan yang paling mungkin muncul dan yang paling
+berbahaya, karena tidak ada yang gagal keras: `scan.mjs` melewati setiap entri
+yang `enabled: false` tanpa satu pesan pun (`engine/scan.mjs:3354`) lalu
+mencetak ringkasan nol yang sehat. Dua bentuk lain yang senyap: `portals.yml`
+yang mengurai menjadi objek non-mapping menjadi `{}`
+(`engine/scan.mjs:3308`), dan `companies=0 boards=0 errors=0` pada receipt. Yang
+berbeda, `portals.yml` yang **hilang** atau tidak bisa diurai itu keras —
+`Error:` lalu `exit 1` (`engine/scan.mjs:3296-3299` dan `:3301-3307`) — jadi
+`boards: 0` bukan salah satu dari keduanya. Kalau `boards: 0`, periksa
+`enabled:` di config yang benar-benar tersemai, bukan `filtered_*`.
+
+`boards: 6` dengan `new_added: 0` berarti tidak ada yang cocok; periksa
+`filtered_location` dan `filtered_title` di baris yang sama. `filtered_title`
+yang mendekati `found` punya dua arti yang sama-sama sah: `title_filter` terlalu
+sempit, **atau** filter itu bekerja dengan benar karena banyak papan Indonesia
+bukan perusahaan teknologi. Amartha mengukurnya, dibaca ulang pada 2026-09-27
+dengan `buildTitleFilter` dan `location_filter` **dari config ini sendiri**:
+527 lowongan, hanya **3** yang lolos `title_filter`, dan dari 3 itu hanya
+**1** yang juga lolos `location_filter`. Sisanya nyata (44 sales, 35
+collection, 11 finance, sisanya operasional), karena Amartha adalah perusahaan
+pinjaman digital. Rasio itu memang seharusnya begitu. (Papan Workable bergerak:
+angka dasarnya bisa bergeser beberapa posting di antara dua pembacaan, jadi
+hitung ulang daripada memperlakukannya sebagai konstanta.)
+
+### Batasnya, dan mengapa itu bukan cakupan nasional
+
+Batas-batas ini harus dibaca apa adanya, bukan sebagai jangkauan pasar:
+
+- Pindai bersih terakhir menambah **201** baris tech — angka hasil ukur, bukan
+  perkiraan, dan sudah sesudah `title_filter` serta `location_filter` menyisir.
+  (Bukan 175: itu hitungan pindai 09:32, tujuh menit sebelumnya. Yang di disk
+  adalah keluaran pindai 09:39 — 201 baris, semuanya `first_seen
+  2026-09-27`, dan 175 + 201 akan jadi 376, bukan 201.)
+- Enam entri papan memberi batas mentah `6 x pageSize 30 x maxPages 3 = 540`.
+  Karena Glints tidak menjawab, yang benar-benar menyumbang paling banyak
+  `3 x 90 = 270` dari Jobstreet.
+
+Langit-langit mentahnya sekitar 445 **tidak dapat dipertahankan** dari data ini:
+angka itu menjumlahkan 270 + 175, yaitu 270 Jobstreet di pindai kedua ditambah
+176 hasil pindai pertama — dua pindai yang berbeda, bukan satu. Pada pindai yang
+benar-benar menghasilkan korpus di disk, sembilan perusahaan hanya menyumbang
+**25** baris (18 breezy, 7 smartrecruiters) dan Jobstreet **176**; kelima papan
+Workable mengembalikan nol karena rate-limiting. Jadi batas yang terukur pada
+satu pindai adalah **270 + 25 = 295**, dan itu pun belum menjamin apa yang akan
+muncul. Yang benar-benar terukur pada 2026-09-27: **201 baris, 150 perusahaan
+berbeda, seluruhnya Indonesia** — naik dari 486 baris yang sebelumnya hanya memuat satu
+lowongan Indonesia dan 485 sisanya Barat. Jadi ini **bukan cakupan nasional**,
+dan copy UI tidak boleh menjanjikan sebegitu. Frasa seperti "ribuan lowongan
+tech Indonesia" tidak didukung bukti yang ada sekarang.
+
+### Pindai dua kali berturut-turut mengukur rate limit, bukan config
+
+Pindai kedua yang berjalan tujuh menit setelah yang pertama membuat lima papan
+Workable gagal dengan `network` di `data/portal-health.tsv`, dan `found` anjlok
+dari 986 ke 362. Probe ulang kelimanya beberapa saat kemudian mengembalikan
+`HTTP 200`, jadi ini rate-limiting, bukan papan mati. Kolom `errors` di
+`scan-runs.tsv` menghitung kegagalan **provider**, bukan lowongan yang gagal.
+Kalau sebuah angka terlihat seperti regresi, baca `portal-health.tsv` lebih dulu
+sebelum menyimpulkan config-nya bermasalah.

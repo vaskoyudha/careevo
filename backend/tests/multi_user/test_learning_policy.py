@@ -19,7 +19,6 @@ def _policy_grant(material_ids: list[str] | None = None, extensions: list[str] |
     return {
         "enabled_tools": [],
         "mcp_tools": [],
-        "cli_apps": [],
         "exec_enabled": False,
         "learning_policy": {
             "age_band": "9-12",

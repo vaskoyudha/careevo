@@ -14,7 +14,7 @@ import yaml from "js-yaml";
 const AKAR = mkdtempSync(path.join(tmpdir(), "careevo-portals-"));
 vi.stubEnv("CAREER_OPS_ROOT", AKAR);
 
-const { bootstrapCareerOps } = await import("./bootstrap");
+const { bootstrapCareerOps, cariSeedPortals } = await import("./bootstrap");
 
 function portalsDoc(): Record<string, unknown> {
   return yaml.load(
@@ -31,19 +31,46 @@ afterAll(() => {
 });
 
 describe("seeded portals.yml", () => {
-  it("is seeded from the engine template, not a hand-written stub", () => {
-    const nyata = readFileSync(
-      path.join(process.cwd(), "engine", "templates", "portals.example.yml"),
-      "utf8",
+  // Two assertions, one source of truth. The seeded file must be a byte copy of
+  // the Careevo config — so a hand-written 15-line stub can never come back —
+  // AND the DEFAULT candidate order must actually resolve to that config.
+  // The second half matters because bootstrap.test.ts only ever passes an
+  // explicit candidate list, so inverting the two defaults would leave the
+  // suite green while seeding the engine's Western template again. That is the
+  // same invisible-zero failure class portals.test.ts exists to catch.
+  it("is seeded from the Careevo config, not the engine template", () => {
+    const nyata = path.join(
+      process.cwd(),
+      "src",
+      "lib",
+      "career-ops",
+      "portals-careevo.yml",
     );
-    expect(readFileSync(path.join(AKAR, "portals.yml"), "utf8")).toBe(nyata);
+    expect(readFileSync(path.join(AKAR, "portals.yml"), "utf8")).toBe(
+      readFileSync(nyata, "utf8"),
+    );
+    expect(cariSeedPortals()).toBe(nyata);
   });
 
-  // The regression: an allow-list of six Indonesian cities matched nothing in a
-  // dataset of 50k mostly-American companies, so every run reported
-  // `postingsKept: 0` and the UI could not tell that from a dead scanner. The
-  // template ships no `location_filter` at all, which is the correct default;
-  // a short allow-list is what must never come back.
+  // The regression this guard exists for: an allow-list of six Indonesian cities
+  // matched nothing in a dataset of 50k mostly-American companies, so every run
+  // reported `postingsKept: 0` — and the UI could not tell that apart from a
+  // dead scanner. The engine's own failure mode is that a config problem CAN
+  // produce a zero indistinguishable from a real one: a config that parses to a
+  // non-object becomes `{}` (engine/scan.mjs:3308), and a well-formed one whose
+  // entries are all `enabled: false` is skipped entry by entry
+  // (engine/scan.mjs:3354) — both exit 0 behind a healthy-looking summary. A
+  // missing or unparseable portals.yml is NOT in that group: that is loud and
+  // exits 1 (engine/scan.mjs:3296-3299 and :3301-3307). So a filter that is too
+  // NARROW for its dataset is the expensive mistake, and a missing filter is not
+  // a mistake at all — absence is a legitimate config, which is why this test
+  // asserts a floor and not an exact list.
+  //
+  // Our own config now ships a real location_filter, so this is no longer a
+  // guard against a filter existing. It is a guard against a filter existing
+  // but being too small to clear a real corpus, and it is satisfied honestly:
+  // 14 genuine Indonesian metros, not padding chosen to reach a threshold. The
+  // count is the assertion, so a future "let's just list Jakarta" fails here.
   it("does not lock the location filter to a short list of cities", () => {
     const allow = (portalsDoc().location_filter as { allow?: string[] } | undefined)?.allow;
     if (Array.isArray(allow) && allow.length > 0) {

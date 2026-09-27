@@ -272,7 +272,11 @@ async def request_managed_update(_request: ManagedUpdateRequest) -> dict[str, An
     if not launcher_available():
         raise HTTPException(
             status_code=409,
-            detail="Web updates require DeepTutor to be running under `deeptutor start`.",
+            detail=(
+                "Web updates require a launcher this deployment does not use. "
+                "Restart the service instead (e.g. `systemctl --user restart "
+                "sijago-backend.service`) to run a new version."
+            ),
         )
     installation = get_update_installation()
     if installation.mode != "pypi" or not installation.automatic_update:
@@ -285,7 +289,7 @@ async def request_managed_update(_request: ManagedUpdateRequest) -> dict[str, An
     except VersionCheckError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from None
     if not result.update_available:
-        raise HTTPException(status_code=409, detail="No newer DeepTutor release is available")
+        raise HTTPException(status_code=409, detail="No newer release is available")
     # Re-check installation evidence immediately before reserving the job. A
     # deployment changing underneath this request fails closed.
     confirmed = get_update_installation()
@@ -306,7 +310,7 @@ async def request_managed_update(_request: ManagedUpdateRequest) -> dict[str, An
     if job is None:
         raise HTTPException(
             status_code=409,
-            detail="Finish the active conversation before updating DeepTutor.",
+            detail="Finish the active conversation before updating.",
         )
     return _job_payload(job) or {}
 
@@ -400,7 +404,7 @@ async def get_system_status():
 
 @router.get("/memory")
 async def get_memory_usage():
-    """Resident memory of the running DeepTutor process tree.
+    """Resident memory of the running AI Personalize process tree.
 
     Deliberately separate from ``/status``: that snapshot resolves the LLM,
     embedding and search configs and is fetched once per settings mount, while

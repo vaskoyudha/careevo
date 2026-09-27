@@ -375,7 +375,7 @@ function EntryCard({
       className="group flex cursor-pointer flex-col rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm transition-all hover:border-[var(--foreground)]/30 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/40"
     >
       <div className="flex items-start gap-2.5">
-        <BrandIcon namespace="mcp" id={entry.id} name={entry.display_name} />
+        <BrandIcon id={entry.id} name={entry.display_name} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="truncate text-[14px] font-semibold tracking-tight text-[var(--foreground)]">
@@ -504,7 +504,6 @@ function EntryDetail({
 
       <div className="flex items-start gap-3.5">
         <BrandIcon
-          namespace="mcp"
           id={entry.id}
           name={entry.display_name}
           size="lg"
