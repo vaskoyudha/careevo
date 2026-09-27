@@ -27,8 +27,8 @@
  */
 
 import type { InboxJob } from "@/lib/career-ops";
-import type { ListingJobstreet } from "@/lib/career-ops";
 import { normalisasiKunciUrl } from "@/lib/career-ops";
+import type { EntriCache } from "@/lib/career-ops/job-cache";
 import type { Level } from "@/types/domain";
 import type { EntriKatalog } from "@/lib/courses/katalog";
 import type { JobFixture } from "@/lib/fixtures";
@@ -55,29 +55,6 @@ export type SumberKebutuhan =
   | "penuh" // title + description + occupational category
   | "ringan" // title only — the listing could not be fetched
   | "peran"; // the role string from pipeline.md, nothing else
-
-/**
- * Occupational categories, used as tags when present.
- *
- * Jobstreet returns a controlled vocabulary (`Information & Communication
- * Technology`, `Business/Systems Analysts`). Those are the employer's own
- * classification, not our guess, so they carry more weight than anything derived
- * from the title.
- */
-function tagDariKlasifikasi(listing: ListingJobstreet | null): string[] {
-  const klasifikasi = (listing as { classifications?: unknown } | null)?.classifications;
-  if (!Array.isArray(klasifikasi)) return [];
-
-  const tags: string[] = [];
-  for (const item of klasifikasi) {
-    const c = (item as { classification?: { description?: string } })?.classification;
-    const s = (item as { subclassification?: { description?: string } })?.subclassification;
-    for (const deskripsi of [c?.description, s?.description]) {
-      if (typeof deskripsi === "string" && deskripsi.trim()) tags.push(deskripsi.trim());
-    }
-  }
-  return tags;
-}
 
 /**
  * Skills read off the role string, as whole phrases.
@@ -114,29 +91,32 @@ const KETERAMPILAN_DARI_PERAN: ReadonlyArray<readonly [RegExp, string]> = [
 ];
 
 /**
- * Build the matching text for one scanned row.
+ * Build the matching text for one scanned row from its cache entry.
  *
  * `level` is left undefined on purpose — see the module note. Returning it
  * omitted is what keeps the shared ranker's level bonus at zero instead of
  * adding a number we cannot justify.
+ *
+ * This used to take a `ListingJobstreet`, which is why the recommendation
+ * panels only ever worked for Jobstreet rows. It now takes the board-agnostic
+ * `EntriCache`, so a Kalibrr or Dealls description ranks exactly like a
+ * Jobstreet one.
  */
 export function kebutuhanDariInbox(
   job: InboxJob,
-  listing: ListingJobstreet | null,
+  entri: EntriCache | null,
 ): { kebutuhan: KebutuhanLoker; sumber: SumberKebutuhan } {
-  const tags = tagDariKlasifikasi(listing);
-  const deskripsi = [listing?.teaser, ...(listing?.bulletPoints ?? [])]
-    .filter((bagian): bagian is string => typeof bagian === "string" && bagian.trim().length > 0)
-    .join("\n");
+  const tags = entri?.tags ?? [];
+  const deskripsi = entri?.bahan.description ?? "";
 
-  if (listing && (deskripsi || tags.length > 0)) {
+  if (entri && (deskripsi.trim() || tags.length > 0)) {
     return {
       kebutuhan: { title: job.role, description: deskripsi, tags },
       sumber: "penuh",
     };
   }
 
-  // The listing could not be fetched. The role string is all we honestly have.
+  // Nothing in the cache. The role string is all we honestly have.
   return {
     kebutuhan: { title: job.role, description: "", tags: [] },
     sumber: "ringan",
