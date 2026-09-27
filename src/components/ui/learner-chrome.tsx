@@ -10,6 +10,7 @@ import { MobileNavDrawer, type MobileNavItem } from "./mobile-nav-drawer";
 import { ExploreMenu } from "./explore-menu";
 import { AccountMenu, DashboardButton, learnerNavItems } from "./chrome-parts";
 import type { SessionPayload } from "@/lib/auth/types";
+import { onScrollFrame } from "@/lib/scroll/scroll-frame";
 
 
 export function LearnerChrome({
@@ -29,14 +30,9 @@ export function LearnerChrome({
     icon,
   }));
 
-  useEffect(() => {
-    const onScroll = () => {
-      setScrolled(window.scrollY > 24);
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  // Same reasoning as `chrome.tsx`: coalesced to one read per frame, because a
+  // bare listener reads layout in the same task as Lenis's scroll write.
+  useEffect(() => onScrollFrame(() => setScrolled(window.scrollY > 24)), []);
 
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(`${href}/`);

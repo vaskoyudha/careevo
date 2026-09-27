@@ -20,6 +20,7 @@ import {
   cariItem,
   type ExploreFacetKey,
 } from "@/lib/courses/explore-facets";
+import { onScrollFrame } from "@/lib/scroll/scroll-frame";
 
 /**
  * Ikon per faset — empat glyph yang benar-benar berbeda bentuk.
@@ -159,13 +160,9 @@ export function ExploreMenu() {
   // jadi kotak yang diukur saat buka cepat basi.
   useEffect(() => {
     if (!isOpen) return;
-    const remeasure = () => measurePanel();
-    window.addEventListener("scroll", remeasure, { passive: true });
-    window.addEventListener("resize", remeasure);
-    return () => {
-      window.removeEventListener("scroll", remeasure);
-      window.removeEventListener("resize", remeasure);
-    };
+    // `measurePanel` reads `getBoundingClientRect()`. Coalesced to one read
+    // per frame — see `src/lib/scroll/scroll-frame.ts`.
+    return onScrollFrame(measurePanel);
   }, [isOpen, measurePanel]);
 
   const pilihFaset = useCallback((key: ExploreFacetKey) => {

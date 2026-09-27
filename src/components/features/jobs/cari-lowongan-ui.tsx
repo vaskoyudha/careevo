@@ -73,7 +73,7 @@ export function ComposerCariLowongan({
         value={kueri}
         onChange={(e) => onKueri(e.target.value)}
         placeholder="Coba: backend, Amartha, atau Jakarta…"
-        className="w-full resize-none border-0 bg-transparent px-2 py-1.5 text-[15px] leading-relaxed text-[var(--foreground)] outline-none placeholder:text-[var(--muted-foreground)]"
+        className="cari-lowongan-input w-full resize-none border-0 bg-transparent px-2 py-1.5 text-[15px] leading-relaxed text-[var(--foreground)] placeholder:text-[var(--muted-foreground)]"
       />
       <div className="flex items-center justify-between gap-2 px-1 pt-1">
         <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--background)]/60 px-3 py-1.5 text-xs font-medium text-[var(--muted-foreground)]">

@@ -11,6 +11,7 @@ import { ExploreMenu } from "./explore-menu";
 import { AccountMenu, DashboardButton } from "./chrome-parts";
 import { MobileNavDrawer, type MobileNavItem } from "./mobile-nav-drawer";
 import type { SessionPayload } from "@/lib/auth/types";
+import { onScrollFrame } from "@/lib/scroll/scroll-frame";
 
 type NavItem = {
   href: string;
@@ -92,14 +93,11 @@ export function Chrome({ session = null }: { session?: SessionPayload | null }) 
       pathname === "/explore/most-popular-courses") &&
     !scrolled;
 
-  useEffect(() => {
-    const onScroll = () => {
-      setScrolled(window.scrollY > 24);
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  // `onScrollFrame`, not a bare `scroll` listener: under Lenis a scroll event
+  // lands in the same task as the scroll write, so a layout read here is a
+  // forced reflow. Coalesced to one read per frame — see
+  // `src/lib/scroll/scroll-frame.ts` for the measurements.
+  useEffect(() => onScrollFrame(() => setScrolled(window.scrollY > 24)), []);
 
   const resolveHref = (href: string) => {
     if (!href.startsWith("#")) return href;

@@ -28,7 +28,17 @@ function LogoRow({ ariaHidden = false }: { ariaHidden?: boolean }) {
 
 export function MarketingLogos() {
   return (
-    <section className="py-10 lg:py-20">
+    <section className="relative z-10 -mt-24 pb-10 lg:-mt-28 lg:pb-20">
+      {/*
+        Negative top margin pulls this partner strip up into the tail of the
+        wave artwork in `#agen` (guild-agents.tsx) instead of leaving it on
+        flat white below the fade. The wave mask is fully transparent by 100%,
+        so the overlap lands in the already-faded part of the image and keeps
+        the `text-gray-700` label and logo names at their existing contrast.
+        `relative` + `z-10` keep this section above the wallpaper, which sits
+        at `-z-10`; the `pb-10 lg:pb-20` restores the bottom rhythm that the
+        negative margin would otherwise remove.
+      */}
       <Reveal className="mx-auto max-w-7xl px-6">
         <div className="mx-auto max-w-2xl text-center">
           <p className="mb-10 text-base text-gray-700">

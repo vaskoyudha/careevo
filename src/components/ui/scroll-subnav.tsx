@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { onScrollFrame } from "@/lib/scroll/scroll-frame";
 
 /**
  * Sub-header that slides in once the page's own header has scrolled away.
@@ -77,8 +78,6 @@ export function ScrollSubNav({
           : window.scrollY > ambang,
       );
     };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
 
     // The navbar morphs (`.is-top` → `.is-scrolled`) and its content reflows
     // when a font finishes loading or the search field collapses, so its height
@@ -89,15 +88,22 @@ export function ScrollSubNav({
     if (bar) observer.observe(bar);
     if (diri.current) observer.observe(diri.current);
 
-    // Initial scroll position, read after paint rather than during the effect:
-    // a page that is *restored* mid-scroll (or opened on an `#anchor`) would
-    // otherwise show the bar in the wrong state until the first scroll event.
-    const awal = requestAnimationFrame(onScroll);
+    /**
+     * This handler reads three rects (`ukurBar` on the navbar and on this bar,
+     * plus the trigger's), so it is the reason `onScrollFrame` exists. Under
+     * Lenis a scroll event arrives in the same task as the scroll write, and
+     * each of those reads then costs a forced reflow. Coalesced, the batch is
+     * one layout per frame — see `src/lib/scroll/scroll-frame.ts`.
+     *
+     * It also runs once on subscribe, which is what the explicit
+     * `requestAnimationFrame(onScroll)` this used to schedule: a page restored
+     * mid-scroll (or opened on an `#anchor`) needs the right state before the
+     * first event.
+     */
+    const lepas = onScrollFrame(onScroll);
 
     return () => {
-      cancelAnimationFrame(awal);
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
+      lepas();
       observer.disconnect();
     };
   }, [ambang, trigger, ukurBar]);

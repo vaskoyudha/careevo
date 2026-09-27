@@ -388,35 +388,120 @@ h6 {
 }
 
 /* ===== Chrome (top bar) ===== */
+/* Geometry that the two states must SHARE lives here, not on `.is-top` /
+   `.is-scrolled`. The morph is a 320ms animation on a `position: sticky`
+   element, so anything that changes the bar's *flow box* re-lays-out every
+   element below it on every frame — and the page then slides while the bar
+   moves, which reads as "janky" even at a steady 60fps. Measured on the
+   marketing home with `docs/chrome-morph-verify/probe.mjs`: `padding` +
+   `margin-top` on the two states gave 18 distinct bar heights, 20 document
+   layouts for one morph, and the content below the bar travelled 12.8px
+   downward during it. So:
+
+   - `padding` and `border-width` are constant, which pins the bar at 66px on
+     desktop instead of 67.2 -> 66 with a +2px spike in frame one, when the
+     un-transitioned `border-width` snapped on.
+   - `margin-top` is constant, so the bar's offset from whatever precedes it
+     (the promo strip on the marketing pages) does not change on the morph.
+   - `top: 0` is constant because a sticky box with `top: auto` does not stick
+     at all; the pill's 14px of air is `transform: translateY()` on
+     `.is-scrolled`, which is composited and moves nothing in flow. The bar
+     overlaps the top of the content instead of shoving it, and `ScrollSubNav`
+     still measures the right bottom edge because `getBoundingClientRect()`
+     includes transforms.
+   - `margin-inline: auto` is constant so the box stays centred in both states;
+     declaring it only on `.is-scrolled` would snap the box to the left edge on
+     the way up, before the width had finished expanding. */
 .chrome {
   position: sticky;
+  top: 0;
   z-index: 60;
   display: flex;
   align-items: center;
   gap: 0.6rem;
+  margin-inline: auto;
+  padding: 0.5rem 1.25rem;
+  /* Transparent, and present in BOTH states, purely so the box is 66px tall
+     either way. `border-width` is not animatable, so when it was `border: none`
+     in `.is-top` the 1px appeared in frame one and the bar jumped 2px taller
+     before the padding transition had even started. The pill's visible white
+     edge is painted by `::before` below; this one is never seen. */
+  border: 1px solid transparent;
+  /* The three animated properties, and only those three. Anything that would
+     change the bar's flow box (`padding`, `margin`, `top`, `border-width`) is
+     deliberately absent: it is constant across the two states, and animating it
+     is what used to re-lay-out the page on every frame. */
   transition:
     width 320ms ease,
-    margin 320ms ease,
-    padding 320ms ease,
-    border-radius 320ms ease,
-    top 320ms ease,
-    background 320ms ease,
-    box-shadow 320ms ease,
-    border-color 320ms ease;
+    transform 320ms ease,
+    border-radius 320ms ease;
+}
+
+/* The pill's surface: gradient + white edge + drop shadow + backdrop blur.
+   It lives on a pseudo-element rather than on `.chrome` itself for exactly one
+   reason — `background-image` is not interpolable in this engine (measured: two
+   `linear-gradient`s of the same shape go from one value straight to the other,
+   with nothing in between), so with the surface on the bar it appeared at full
+   0.86 opacity in frame one while its border-colour and box-shadow were still
+   cross-fading over the full 320ms. One visual change, three arrival times.
+   `opacity` does interpolate, so the whole surface now fades in as one piece.
+
+   `:not(.is-winged)` is load-bearing, not defensive: the AI Mastery bar owns
+   both of its pseudos (the two wings) and paints its own flat fill, so the
+   base rule must not reach it. */
+.chrome:not(.is-winged)::before {
+  content: "";
+  position: absolute;
+  /* 1px *larger* than the bar's padding box, so the surface's 1px edge lands
+     exactly on the bar's border box — the pill is then the same 66px box it
+     always was, and nothing of the bar's transparent border shows through at
+     the corners. */
+  inset: -1px;
+  /* Behind the bar's own children (brand, nav, actions) but still inside the
+     bar's stacking context, so it never falls behind the page. */
+  z-index: -1;
+  /* Follows the bar's animated `border-radius`; no transition needed, since it
+     re-resolves against the parent's value on every frame of the morph. */
+  border-radius: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.86),
+    rgba(236, 243, 247, 0.72)
+  );
+  box-shadow:
+    0 10px 30px -12px rgba(10, 61, 98, 0.28),
+    0 2px 6px rgba(10, 61, 98, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba(191, 230, 239, 0.4);
+  opacity: 0;
+  transition:
+    opacity 320ms ease,
+    /* `none` <-> `blur()` is not interpolable, so this is a discrete flip. It is
+       delayed past the geometry on purpose: with the blur live from frame one,
+       every one of those frames re-snapshots and re-blurs a backdrop whose box
+       is still resizing, and `opacity` below 1 does not make the engine skip
+       that work. At 260ms the surface is ~96% opaque and the box is within a few
+       px of its final size, so the flip is invisible and costs one re-blur
+       instead of twenty. */
+    backdrop-filter 1ms linear 260ms;
+}
+
+.chrome.is-scrolled:not(.is-winged)::before {
+  opacity: 1;
+  /* Unprefixed only, deliberately. Writing the `-webkit-` twin by hand makes
+     Lightning CSS collapse the pair down to the prefixed declaration alone, and
+     this engine then computes `backdrop-filter: none` — the glass silently
+     disappears while the declaration still looks right in the source. Let the
+     prefixer add its own copy. */
+  backdrop-filter: blur(22px) saturate(180%);
 }
 
 /* At the very top: full-width transparent bar, blended with the page/hero behind */
 .chrome.is-top {
-  top: 0;
   width: 100%;
-  margin: 0;
-  padding: 0.6rem 1.25rem;
+  transform: none;
   border-radius: 0;
-  background: transparent;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  border: none;
-  box-shadow: none;
 }
 
 /* `/belajar` opts into the same sticky chrome while letting its hero sit
@@ -436,25 +521,12 @@ h6 {
   }
 }
 
-/* Once scrolled: floating pill */
+/* Once scrolled: floating pill. Only geometry here — the surface, its edge, its
+   shadow and its blur are `::before`'s job, so they can fade in as one piece. */
 .chrome.is-scrolled {
-  top: 12px;
   width: min(var(--max), calc(100% - 2 * var(--page-pad)));
-  margin: 14px auto 0;
-  padding: 0.5rem 1.15rem;
+  transform: translateY(14px);
   border-radius: 20px;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.86),
-    rgba(236, 243, 247, 0.72)
-  );
-  backdrop-filter: blur(22px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.88);
-  box-shadow:
-    0 10px 30px -12px rgba(10, 61, 98, 0.28),
-    0 2px 6px rgba(10, 61, 98, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9),
-    inset 0 -1px 0 rgba(191, 230, 239, 0.4);
 }
 
 /* The Explore mega-menu card is centred in the *viewport* and never reads
@@ -515,8 +587,11 @@ h6 {
   font-weight: 400;
 }
 
+/* No backdrop blur available: the pill's semi-transparent gradient is the only
+   thing standing between the bar and the page, so make it opaque instead. On the
+   surface pseudo, not on `.chrome` — the surface moved there (see above). */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .chrome.is-scrolled {
+  .chrome.is-scrolled:not(.is-winged)::before {
     background: rgba(255, 255, 255, 0.97);
   }
 }
@@ -2477,6 +2552,17 @@ h6 {
 .auth-field:focus-within {
   border-color: var(--aqua);
   box-shadow: 0 0 0 3px var(--aqua-glow);
+}
+
+/* Job-board search composer: same reasoning as `.auth-field` above — the bordered
+   form is the focus surface, so the bare textarea must not draw its own blue box
+   inside it. Needs a rule here rather than a Tailwind `outline-none` utility:
+   the global `:focus-visible` is unlayered and unlayered declarations always beat
+   `@layer utilities`, no matter the order. Focus stays visible via the form's
+   own `focus-within:` border tint + shadow. */
+.cari-lowongan-input:focus,
+.cari-lowongan-input:focus-visible {
+  outline: none;
 }
 
 /* The field label doubles as a floating placeholder: it sits vertically

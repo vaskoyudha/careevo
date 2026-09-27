@@ -25,6 +25,7 @@ import {
 import { auditLog, jobs, profile, reviewQueue, submission, tasks } from "@/lib/fixtures";
 import { levelLabel } from "@/lib/onboarding/types";
 import { cn } from "@/lib/utils";
+import { onScrollFrame } from "@/lib/scroll/scroll-frame";
 import { Reveal } from "./primitives";
 
 interface PlatformShowcaseItem {
@@ -795,9 +796,18 @@ export function MarketingProblemsSolutions() {
       }
     };
 
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll();
-    return () => window.removeEventListener("scroll", handleScroll);
+    /**
+     * Coalesced, not a bare `scroll` listener. This is the most expensive
+     * handler on the page — a `getBoundingClientRect()` per article, in a loop,
+     * per event — and under Lenis every one of those reads is a forced reflow
+     * because the event lands in the same task as the scroll write. Coalesced,
+     * the whole batch costs one layout per frame. See
+     * `src/lib/scroll/scroll-frame.ts` for the measurements.
+     *
+     * `onScrollFrame` also runs it once on subscribe, so the explicit
+     * `handleScroll()` this used to call is no longer needed.
+     */
+    return onScrollFrame(handleScroll);
   }, []);
 
   const scrollToItem = (index: number) => {

@@ -1,6 +1,6 @@
 export const EcommerceDash = {
   src: "/images/hero-dashboard.jpg",
-  width: 1448,
-  height: 1086,
+  width: 1387,
+  height: 829,
   alt: "Pratinjau antarmuka pembelajaran Careevo",
 } as const;

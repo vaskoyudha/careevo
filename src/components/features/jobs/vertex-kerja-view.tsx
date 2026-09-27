@@ -390,13 +390,13 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
 
                   {/* Dual Action CTAs */}
                   <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-                    <a
-                      href="#board"
+                    <Link
+                      href="/loker/inbox"
                       className="chrome-btn chrome-btn-brand !h-11 !px-6 !text-sm gap-2"
                     >
                       <span>Jelajahi Papan Loker</span>
                       <ArrowRight className="size-4" />
-                    </a>
+                    </Link>
                     <Link
                       href="/loker/inbox"
                       className="chrome-btn chrome-btn-white !h-11 !px-6 !text-sm gap-2"
@@ -404,12 +404,6 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                       <span>Semua Lowongan</span>
                       <ArrowRight className="size-4" />
                     </Link>
-                    <a
-                      href="#features"
-                      className="chrome-btn chrome-btn-white !h-11 !px-6 !text-sm"
-                    >
-                      Pelajari Audit Sentinel
-                    </a>
                   </div>
 
                   {/* Credit label */}

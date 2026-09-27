@@ -14,6 +14,7 @@ import {
   Target,
   X,
 } from "lucide-react";
+import Image from "next/image";
 import { LandingBtnLink } from "@/components/ui/landing-btn";
 import { Reveal } from "./primitives";
 
@@ -193,8 +194,86 @@ export function MarketingAgents() {
   return (
     <section
       id="agen"
-      className="guild-type relative overflow-hidden bg-white text-[#0d0c11]"
+      className="guild-type relative isolate overflow-hidden bg-white text-[#0d0c11] [--agen-ratio:1.8827] [--agen-h:calc(100vw/var(--agen-ratio))]"
     >
+      {/*
+        Full-bleed wave artwork. The section is `isolate` and the image is at
+        `-z-10`, so the wallpaper sits behind the floating agent cards and the
+        centred copy without needing a wrapper element. It spans edge to edge
+        — no side margins — because the section itself is the container.
+
+        THE ART IS NEVER DISTORTED OR CROPPED, and the section's height is
+        derived from the art's own aspect to guarantee it. The art is 1721x914,
+        aspect 1.8827. The section is full-bleed, so its width is the viewport
+        width, and `--agen-h` on the section above is `100vw / 1.8827` — the
+        exact height at which the image fills the box with nothing left over.
+
+        This matters because the obvious alternative is wrong in two visible
+        ways. A hard-coded section height (this used to be 860px, aspect 2.390
+        — WIDER than the art) forced `object-cover` to upscale 1.19x, which is
+        what made the waves look soft, and then to discard 21% of the
+        composition, which is what made the framing look arbitrary. Baking the
+        asset to the box's aspect instead of sizing the box to the asset's
+        aspect just moves the distortion into the pixels and stretches the
+        waves wide — worse, because it is permanent rather than responsive.
+
+        So: the ratio is the art's, the height follows from it, and
+        `object-cover` has nothing to scale or cut. Keep it as `cover` anyway
+        so narrow viewports, where the content needs more height than
+        100vw/1.8827, still fill rather than letterbox.
+
+        Baked at 4110px wide (2x the 2055px reference viewport) so a retina
+        display gets a ~1:1 device-pixel map. It cannot invent detail, but it
+        removes the double resample that made the source look mushy. Re-encode
+        PSNR is 47.8 dB, above the 45+ dB this repo treats as imperceptible.
+        Passed through unoptimized for the same reason as `fitur-sky.webp` and
+        `masalah-solusi/*.webp`: a wide soft gradient re-encoded at the
+        optimizer's default q=75 bands visibly.
+
+        The artwork is full opacity; legibility comes from the radial scrim
+        inside the wrapper below, not from dimming the whole section. The copy
+        region's worst pixel is `#B4DCFC` and the paragraph's
+        `text-[#110f1a]/70` measures 4.95:1 against it with no scrim at all, so
+        the scrim is headroom rather than the thing making the text readable.
+
+        Top and bottom fade out via a mask on the wrapper below, so the section
+        meets the hero above it and the `#F9FAFB` band of the next section
+        without a hard horizontal seam. Each fade is an eased ramp rather than a
+        single stop: partial-alpha stops at 6% and 16% (and 95%/88% mirrored)
+        spread the transition over ~26% of the section, so the artwork dissolves
+        gradually instead of showing a visible band where it hits full opacity.
+        The opaque band is 26%-78%, which is where the copy and the agent cards
+        sit, so nothing legible is inside a fade.
+      */}
+      {/*
+        One wrapper holds the artwork and the scrim so the fade mask applies to
+        the pair. Masking them separately would let the scrim's hard rectangle
+        show through wherever the image faded out.
+
+        A flat section-wide scrim is the wrong tool here: it dims the whole
+        wallpaper to protect text that occupies one small centred column. The
+        radial confines the wash to that column and falls to 0% by the section's
+        mid-edges, so the waves keep their colour across the left and right.
+
+        The copy is legible without any scrim (see the asset note above), so
+        these stops are deliberately light — 22% buys headroom over 4.95:1
+        rather than crossing a threshold, and 0% at the edges keeps the
+        wallpaper at full strength where there is no text at all. The agent
+        cards are opaque white panels, so they need no scrim of their own.
+      */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 -z-10 [mask-image:linear-gradient(to_bottom,transparent_0%,rgba(0,0,0,0.35)_6%,#000_16%,#000_26%,#000_78%,#000_88%,rgba(0,0,0,0.4)_95%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_bottom,transparent_0%,rgba(0,0,0,0.35)_6%,#000_16%,#000_26%,#000_78%,#000_88%,rgba(0,0,0,0.4)_95%,transparent_100%)]"
+      >
+        <Image
+          src="/images/agen-waves.webp"
+          alt=""
+          fill
+          unoptimized
+          className="object-cover object-bottom"
+        />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_46%_42%_at_50%_48%,rgba(255,255,255,0.22)_0%,rgba(255,255,255,0.15)_55%,rgba(255,255,255,0)_100%)]" />
+      </div>
       {CARDS.map((card) => (
         <div
           key={card.name}
@@ -211,7 +290,15 @@ export function MarketingAgents() {
         </div>
       ))}
 
-      <div className="relative mx-auto flex min-h-[min(860px,calc(100vh-68px))] max-w-3xl flex-col items-center justify-center px-5 py-28 text-center">
+      {/*
+        `min-h-[var(--agen-h)]` is what makes the artwork uncropped: the content
+        stretches to the image's own aspect-derived height, so the section can
+        never be shorter than the art and `object-cover` has nothing to cut.
+        The old fixed `min(860px, ...)` is what forced the 21% crop. It is kept
+        only as a floor via the max(), for narrow viewports where 100vw/1.8827
+        is shorter than the headline and cards need.
+      */}
+      <div className="relative mx-auto flex min-h-[max(var(--agen-h),560px)] max-w-3xl flex-col items-center justify-center px-5 py-28 text-center">
         <Reveal>
           <div className="flex items-center justify-center gap-3 font-mono text-xs tracking-[0.02em] text-[#110f1a]/55 uppercase">
             <Bracket className="size-2 text-blue-500" />
@@ -229,7 +316,11 @@ export function MarketingAgents() {
         </Reveal>
 
         <Reveal delay={180}>
-          <p className="mx-auto mt-6 max-w-xl text-[15px] leading-relaxed text-[#110f1a]/55">
+          {/* /70, not /55: over this artwork's copy region /70 measures
+              4.95:1 with no scrim at all and 5.38:1 under the 22% radial
+              centre. /55 only reaches 2.91:1 unscrimmed, so it fails AA
+              outright here. */}
+          <p className="mx-auto mt-6 max-w-xl text-[15px] leading-relaxed text-[#110f1a]/70">
             Sembilan agen AI yang ngerjain bagian administratifnya: pindai papan
             lowongan, saring penipuan, hitung kecocokan, susun kursus dan jalur
             belajar khusus lowongan itu, sampai nyatet progres lamaranmu. Kamu

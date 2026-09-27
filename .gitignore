@@ -35,6 +35,10 @@ yarn-error.log*
 # Template env boleh di-commit: ia hanya memuat nama variabel dan cara
 # membuat nilainya, tanpa satu pun secret sungguhan.
 !.env.example
+# Template untuk deployment produksi. Sama seperti `.env.example`, isinya hanya
+# nama variabel dan petunjuk pengisian — nilai aslinya tetap di secret manager
+# atau di env VPS, tidak pernah di repo.
+!.env.production.example
 
 # vercel
 .vercel
