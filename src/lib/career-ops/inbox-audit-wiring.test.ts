@@ -104,4 +104,38 @@ describe("bacaInboxDiaudit", () => {
     expect(rows[0].firstSeen).toBe("2026-09-20");
     expect(rows[0].audit.status).toBe("clean");
   });
+
+  it("tidak pernah menyentuh jaringan — jalur render hanya membaca cache", async () => {
+    // Jalur render dipanggil untuk setiap baris pada setiap request
+    // (`dynamic = "force-dynamic"`). Kalau ia pernah menyentuh jaringan, satu
+    // cache dingin berarti ~68 request di dalam satu render — persis yang
+    // dirancang dihindari. Properti ini dulu dijaga lewat fetchJson yang
+    // disuntikkan; sekarang dijaga lewat spy pada global fetch.
+    //
+    // Sengaja campuran papan: satu Jobstreet ter-cache, satu Dealls ter-cache,
+    // satu Breezy tanpa entri, dan satu host tanpa adapter — supaya fetch yang
+    // diselundupkan di jalur mana pun tetap tertangkap.
+    write([
+      "- [ ] https://id.jobstreet.com/id/job/777 | PT Foo | AI Engineer | Jakarta | posted: 2026-09-20",
+      "- [ ] https://dealls.com/loker/software-engineer-ai~sirclo | Sirclo | Software Engineer AI",
+      "- [ ] https://kredivo-group.breezy.hr/p/abc-engineer | Kredivo Group | Fullstack Engineer",
+      "- [ ] https://careers.allianz.com/job/9 | Allianz | PM | Jakarta | posted: 2026-09-20",
+    ]);
+    isiCache({
+      "https://id.jobstreet.com/id/job/777": { board: "Jobstreet", description: "Real work" },
+      "https://dealls.com/loker/software-engineer-ai~sirclo": { board: "Dealls", description: "Real work" },
+    });
+
+    // Reject, not resolve: a fetch on this path must fail the test loudly
+    // rather than quietly succeed against a stub.
+    const fetchSpy = vi.fn(() => Promise.reject(new Error("jaringan tidak boleh disentuh")));
+    vi.stubGlobal("fetch", fetchSpy);
+    try {
+      const rows = await bacaInboxDiaudit({ cacheFile: cacheFile() });
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(rows).toHaveLength(4);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });
