@@ -2340,6 +2340,8 @@
   "Rename failed": "Échec du renommage",
   "Session activity": "Activité de la session",
   "Session title": "Titre de la session",
+  "Previous session": "Session précédente",
+  "Next session": "Session suivante",
   "Start a conversation to rename": "Commencez une conversation pour renommer",
   "As you chat, the tools and references you use — and the files the tutor generates — will appear here.": "Au fil de la conversation, les outils et références utilisés — ainsi que les fichiers générés par le tuteur — apparaîtront ici.",
   "Generated files": "Fichiers générés",

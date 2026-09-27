@@ -1799,6 +1799,8 @@
   "Rename failed": "Не вдалося перейменувати",
   "Session activity": "Активність сесії",
   "Session title": "Назва сесії",
+  "Previous session": "Попередня сесія",
+  "Next session": "Наступна сесія",
   "Start a conversation to rename": "Почніть розмову, щоб перейменувати",
   "As you chat, the tools and references you use — and the files the tutor generates — will appear here.": "У міру спілкування тут з'являтимуться використані інструменти й посилання, а також файли, згенеровані тьютором.",
   "Generated files": "Згенеровані файли",
