@@ -4735,27 +4735,34 @@ button.tag:hover {
 
 /* Permukaan kode di dalam lab (`.kode-lab.tsx`).
 
-   **Tingginya mengikuti isi kode**, dengan lantai kerja dan batas atas — bukan
-   `height: 100%` yang mengisi seluruh kolom. Versi pertama memakai `height:
-   100%` dengan alasan "editor penuh", dan hasilnya justru yang dikeluhkan:
-   program 12 baris mendapat kotak gelap 548px, sehingga ada ~300px ruang kosong
-   di dalam editor dan tombol Jalankan melayang jauh di bawah kode terakhir.
-   Ruang yang tidak terpakai itu lebih baik tinggal di dasar kolom daripada
-   masuk ke dalam kotak editor — di sana ia terbaca sebagai "halaman masih
-   pendek", bukan sebagai "editor rusak".
+   **Permukaan editornya mengisi kartunya.** Kolom kanan lab adalah alat kerja,
+   jadi tingginya tidak mengikuti isi kode: program 12 baris yang hanya memakai
+   260px menyisakan ratusan piksel kosong di bawah kartu — di layar itu terbaca
+   sebagai "ada yang belum termuat", bukan sebagai "halaman masih pendek".
 
-   Batas atasnya `min(62vh, 640px)`: cukup tinggi untuk program panjang, tetapi
-   tetap menyisakan ruang untuk bilah jalankan, pane hasil, dan acuan keluaran
-   yang duduk di bawahnya. `min-height` adalah lantai kerjanya supaya snippet
-   pendek tidak menyusut jadi dua baris. */
+   Rantainya: kartunya `flex-1` di dalam kolom (lihat `kode-view.tsx`), lalu
+   `.kode-view-lab` menyalurkan tingginya ke `.cm-editor` dan `.cm-scroller`
+   lewat flex. Ketiganya butuh `min-height: 0`; tanpa itu kolom flex menolak
+   menyusut di bawah tinggi isinya, sehingga program panjang mendorong kartunya
+   keluar kolom alih-alih menggulir di dalam.
+
+   `min-height: 260px` di scroller tetap jadi lantai kerja supaya snippet pendek
+   tidak menyusut jadi dua baris. Batas atasnya tidak lagi dipatok di sini — yang
+   membatasinya sekarang tinggi kartu, dan itu berasal dari viewport. */
 .kode-view-lab {
   border-radius: var(--radius-md);
   border: 1px solid rgba(215, 238, 247, 0.14);
+  display: flex;
+  flex-direction: column;
+}
+
+.kode-view-lab .cm-editor {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .kode-view-lab .cm-scroller {
   min-height: 260px;
-  max-height: min(62vh, 640px);
   overflow-y: auto;
 }
 

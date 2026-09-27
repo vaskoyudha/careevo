@@ -278,22 +278,19 @@ describe("KodeView sebagai berkas sumber", () => {
     expect(sumber).not.toMatch(/\{\s*dapatJalankan \?/);
   });
 
-  it("memakai warna chrome editor untuk panel hasil di susunan lab", () => {
+  it("memakai warna chrome editor untuk terminal di susunan lab", () => {
     // Permintaan pemilik produk: kolom kanan harus terbaca sebagai **satu
     // terminal**, bukan editor gelap dengan kartu putih menempel di bawahnya.
     //
     // Permukaannya **diturunkan dari `susunan`**, bukan dari prop `tema`
     // tersendiri. Prop terpisah harus diingat di setiap pemanggil, dan yang
     // lupa memasangnya tidak menghasilkan error apa pun — hanya kartu putih
-    // yang kembali. Yang dijaga di sini: `gelap` diikat ke `susunan === "lab"`,
-    // dan warna chrome-nya benar-benar dipakai di pane hasil.
+    // yang kembali. Yang dijaga di sini: `gelap` diikat ke `susunan === "lab"`.
     expect(sumber).toMatch(/const gelap = susunan === "lab"/);
-    expect(sumber).toMatch(/gelap \? "border-white\/10 bg-\[#06202f\]" : "border-gray-200 bg-white"/);
-    // Judul pane memakai latar yang lebih gelap lagi (`#04161f`), sama seperti
-    // header editor, supaya hierarkinya konsisten.
-    expect(sumber).toMatch(
-      /gelap \? "border-b border-white\/10 bg-\[#04161f\]" : "border-b border-gray-100"/,
-    );
+    // Pane hasilnya **tidak** menggambar bingkai sendiri di lab: ia hidup di
+    // dalam kartu Terminal, dan dua border bertumpuk terbaca sebagai kotak di
+    // dalam kotak. Di jalur baca ia tetap kartu berbingkai putih.
+    expect(sumber).toMatch(/gelap \? "" : "rounded-lg border border-gray-200 bg-white"/);
     // Teks hasilnya terang di atas latar gelap; `text-gray-800` akan hilang
     // di sana.
     expect(sumber).toContain('gelap ? "text-[#d7eef7]" : "text-gray-800"');
@@ -314,9 +311,78 @@ describe("KodeView sebagai berkas sumber", () => {
     const ajakan = ["untuk melihat keluaran", "program di sini"].join(" ");
     expect(sumber).not.toContain(ajakan);
     expect(sumber).not.toContain("Tekan{\" \"}");
-    // Area hasil tetap dirender (bukan dihapus) supaya `paneHasil` punya tempat
-    // saat `Jalankan` ditekan.
-    expect(sumber).toMatch(/lg:max-h-\[42%\]"[^>]*>\{paneHasil\}/);
+  });
+
+  it("membuat terminal lab bisa dilipat, tertutup saat dibuka", () => {
+    // Permintaan pemilik produk: bilah keluaran di lab adalah **terminal yang
+    // bisa dilipat**. Tiga perilaku yang dijaga di sini, semuanya properti yang
+    // tidak akan gagal di `typecheck`/`lint`/render mana pun:
+    //
+    //  1. **Tertutup saat halaman dibuka** — sebelum dijalankan tidak ada yang
+    //     bisa dibaca di sana.
+    //  2. **Membuka sendiri saat `Jalankan`** — `setTerminalBuka(true)` dipanggil
+    //     di dalam `jalankan`, sebelum `fetch`.
+    //  3. **Bisa dibuka-tutup dari bilah kepalanya** — tombol dengan
+    //     `aria-expanded`/`aria-controls`.
+    expect(sumber).toMatch(/const \[terminalBuka, setTerminalBuka\] = useState\(false\)/);
+    // Isinya disembunyikan lewat `hidden`, bukan dibuang: `aria-controls` yang
+    // menunjuk id tidak ada melanggar ARIA.
+    expect(sumber).toMatch(/id=\{idTerminal\}\s*\n\s*hidden=\{!terminalBuka\}/);
+    // Auto-buka ada di jalur `jalankan`, sebelum permintaan jaringan dikirim.
+    const jalankan = sumber.match(/const jalankan = useCallback\(async \(\) => \{[\s\S]*?\}, \[/);
+    expect(jalankan, "fungsi jalankan tidak ditemukan").not.toBeNull();
+    expect(jalankan![0]).toContain("setTerminalBuka(true)");
+    expect(jalankan![0].indexOf("setTerminalBuka(true)")).toBeLessThan(
+      jalankan![0].indexOf("await fetch("),
+    );
+    // Tombol lipatannya mengumumkan keadaannya.
+    expect(sumber).toMatch(/aria-expanded=\{terminalBuka\}/);
+    expect(sumber).toMatch(/aria-controls=\{idTerminal\}/);
+  });
+
+  it("membuat permukaan editor mengisi kolom, bukan setinggi isinya", () => {
+    // Koreksi dari versi sebelumnya: "tinggi mengikuti isi kode" membuat kartu
+    // hanya ~395px di dalam kolom 865px, jadi **470px ruang kosong** menganga
+    // di bawah terminal — terbaca sebagai "ada yang belum termuat". Kolom kanan
+    // lab adalah alat kerja; permukaan editornya memenuhi kolomnya seperti IDE.
+    //
+    // Dijaga dari sumber: properti CSS ini tidak akan gagal di
+    // `typecheck`/`lint`/render mana pun — hanya terlihat di layar.
+    expect(sumber).toMatch(/flex min-h-0 flex-1 flex-col gap-1\.5/);
+    // Kartu editornya juga `flex-1` supaya mengisi kolom.
+    expect(sumber).toMatch(
+      /className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-white\/10 bg-\[#06202f\]/,
+    );
+    // Tombol Jalankan pindah ke baris tab, bukan bilah terpisah di dasar kartu
+    // (yang akan melayang jauh dari kode begitu editornya memenuhi kolom).
+    expect(sumber).toMatch(/<header[^>]*>[\s\S]*?onClick=\{jalankan\}[\s\S]*?<\/header>/);
+    const css = readFileSync(
+      fileURLToPath(new URL("../../app/globals.css", import.meta.url)),
+      "utf8",
+    );
+    // Rantai flex-nya nyata: `.kode-view-lab` kolom flex, `.cm-editor` mengisi
+    // sisanya, dan scroller-nya tetap punya lantai kerja.
+    const blokLab = css.match(/\.kode-view-lab \{([\s\S]*?)\n\}/)?.[1] ?? "";
+    expect(blokLab).toMatch(/display: flex/);
+    expect(blokLab).toMatch(/flex-direction: column/);
+    expect(css).toMatch(/\.kode-view-lab \.cm-editor \{[\s\S]*?flex: 1 1 auto/);
+    expect(css).toMatch(/\.kode-view-lab \.cm-scroller \{[\s\S]*?min-height: 260px/);
+    // Batas atas tetapnya tidak lagi dipatok di sini — yang membatasi sekarang
+    // tinggi kartu, yang berasal dari viewport.
+    expect(css).not.toMatch(
+      /\.kode-view-lab \.cm-scroller \{[\s\S]*?max-height: min\(62vh, 640px\)/,
+    );
+  });
+
+  it("memberi warna status di <p>-nya sendiri, bukan lewat pewarisan", () => {
+    // `globals.css` punya aturan dasar `p { color: var(--text) }`, dan itu
+    // **lebih kuat** daripada warna yang diwariskan dari induknya. Judul status
+    // yang hanya mengandalkan pewarisan tampil biru tua di atas latar gelap —
+    // tidak terbaca — alih-alih merah/hijau. Bug ini tersembunyi selama pane-nya
+    // kartu putih; ia baru muncul saat pane-nya jadi bagian terminal gelap.
+    expect(sumber).toMatch(
+      /<p className=\{cn\("text-xs font-semibold", GAYA_NADA\[hasil\.nada\]\(gelap\)\)\} role="status">/,
+    );
   });
 });
 

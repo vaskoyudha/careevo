@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { FileCode2, Play } from "lucide-react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { ChevronDown, FileCode2, Play, SquareTerminal } from "lucide-react";
 import { cpp } from "@codemirror/lang-cpp";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
@@ -342,6 +342,24 @@ export function KodeView({
   const [hasil, setHasil] = useState<HasilPane | null>(null);
 
   /**
+   * Terminal (pane hasil) terbuka atau terlipat.
+   *
+   * Permintaan pemilik produk: bilahnya **tertutup saat halaman dibuka**, lalu
+   * membuka sendiri begitu `Jalankan` ditekan — atau saat bilah kepalanya
+   * sendiri diklik. Sebelum dijalankan tidak ada apa pun untuk dibaca di sana,
+   * jadi tidak ada alasan area itu memakan tinggi kolom; setelah dijalankan,
+   * menutupnya secara otomatis justru menyembunyikan hal yang baru saja diminta
+   * peserta.
+   *
+   * `useId` untuk `aria-controls`: satu halaman bisa memuat lebih dari satu
+   * editor (blok kode yang dikombinasikan), dan id statis akan menunjuk yang
+   * pertama.
+   */
+  const [terminalBuka, setTerminalBuka] = useState(false);
+  const idTerminal = useId();
+  const idJudulTerminal = useId();
+
+  /**
    * Teks yang dijalankan adalah teks ruang latihan, bukan `kode` prop.
    *
    * Urutannya `tersimpan` dulu, baru `kodeAwal`, lalu `kode`. Yang menentukan
@@ -463,6 +481,11 @@ export function KodeView({
   const jalankan = useCallback(async () => {
     setMenjalankan(true);
     setHasil(null);
+    // Terminalnya membuka sendiri saat dijalankan: peserta baru saja meminta
+    // keluaran, dan membiarkannya terlipat berarti menyembunyikan persis hal
+    // yang barusan diminta. Hanya berlaku di susunan lab — di jalur baca pane
+    // hasil bukan terminal yang bisa dilipat.
+    setTerminalBuka(true);
     try {
       const balasan = await fetch("/api/jalankan", {
         method: "POST",
@@ -543,12 +566,12 @@ export function KodeView({
   const paneHasil = hasil ? (
     <div
       className={cn(
-        "overflow-hidden rounded-lg border",
-        // Di lab, panel hasil memakai warna chrome editor (`#04161f`/`#06202f`)
-        // supaya ia terbaca sebagai **bagian dari terminal**, bukan kartu terang
-        // yang menempel di bawahnya. Di jalur baca ia tetap kartu putih: di sana
-        // blok kode adalah contoh di tengah prosa.
-        gelap ? "border-white/10 bg-[#06202f]" : "border-gray-200 bg-white",
+        "overflow-hidden",
+        // Di lab pane ini hidup **di dalam** kartu Terminal, jadi ia tidak
+        // menggambar bingkai sendiri: dua border bertumpuk terbaca sebagai
+        // kotak di dalam kotak. Di jalur baca ia berdiri sendiri di atas
+        // kertas, jadi tetap kartu berbingkai.
+        gelap ? "" : "rounded-lg border border-gray-200 bg-white",
       )}
     >
       {/*
@@ -561,11 +584,22 @@ export function KodeView({
       <div
         className={cn(
           "px-3 py-1.5",
-          gelap ? "border-b border-white/10 bg-[#04161f]" : "border-b border-gray-100",
-          GAYA_NADA[hasil.nada](gelap),
+          // Di lab bilah ini duduk **di dalam** kartu Terminal, di bawah bilah
+          // "Terminal"-nya sendiri. Memberinya latar `#04161f` lagi membuat dua
+          // batang chrome bertumpuk; jadi ia dibiarkan menyatu dengan badan
+          // terminal, hanya dipisah garis tipis.
+          gelap ? "border-b border-white/10" : "border-b border-gray-100",
         )}
       >
-        <p className="text-xs font-semibold" role="status">
+        {/*
+          Warnanya ada di `<p>`-nya **sendiri**, bukan hanya di pembungkus.
+          `globals.css` punya aturan dasar `p { color: var(--text) }`, dan aturan
+          itu lebih kuat daripada warna yang diwariskan dari induknya — judul
+          yang hanya mengandalkan pewarisan akan tampil biru tua di atas latar
+          gelap, bukan merah/hijau. (Bug ini dulu tidak terlihat karena pane-nya
+          kartu putih; ia baru muncul saat pane-nya jadi bagian terminal gelap.)
+        */}
+        <p className={cn("text-xs font-semibold", GAYA_NADA[hasil.nada](gelap))} role="status">
           {hasil.judul}
         </p>
         {hasil.detail ? (
@@ -665,18 +699,21 @@ export function KodeView({
    */
   if (susunan === "lab") {
     return (
-      <div className={cn("flex min-h-0 flex-col gap-1.5", className)}>
+      <div className={cn("flex min-h-0 flex-1 flex-col gap-1.5", className)}>
         {/*
-          Kartunya **tidak** `flex-1`: tingginya mengikuti isi editor (yang
-          sendiri dibatasi `.kode-view-lab .cm-scroller`), bukan diregangkan
-          mengisi kolom. Versi pertama memakai `flex-1` di sini + `height: 100%`
-          di `.kode-view`, dan itu yang menghasilkan kotak gelap 548px untuk
-          program 12 baris — ruang kosong besar di dalam editor, dengan tombol
-          Jalankan melayang jauh di bawah kode terakhir.
+          Kartunya **mengisi** tinggi kolom (`flex-1`), dan permukaan editornya
+          mengisi kartu itu. Kolom kanan lab adalah alat kerja: kalau tingginya
+          mengikuti isi kode, program pendek menyisakan ratusan piksel kosong di
+          bawah kartu. Di IDE mana pun permukaan editornya tetap memenuhi
+          jendelanya.
+
+          Tombol Jalankan duduk di **baris tab**, bukan di dasar kartu: dengan
+          editor yang memenuhi kolom, tombol di dasar akan melayang jauh dari
+          baris terakhir kode.
         */}
         <section
           aria-label={label}
-          className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-[#06202f] p-1.5 shadow-[0_20px_44px_-32px_rgba(10,61,98,0.9)]"
+          className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-[#06202f] p-1.5 shadow-[0_20px_44px_-32px_rgba(10,61,98,0.9)]"
         >
           {/* Baris tab. Berkasnya `main.cpp` karena itulah yang dikompilasi
               runner; menulis nama lain berarti menyebut berkas yang tidak
@@ -689,45 +726,87 @@ export function KodeView({
             <span className="ml-auto font-mono text-[10.5px] tracking-wider text-[#7fa6b8] uppercase">
               {bahasa === "cpp" ? "C++" : bahasa}
             </span>
-          </header>
 
-          <div ref={wadah} className="kode-view kode-view-lab" />
-
-          {/* Bilah jalankan. Di jalur baca tombolnya berdiri di atas kertas
-              putih; di sini ia duduk di dalam mesinnya, di dasar editor —
-              tempat tangan sudah berada setelah selesai mengetik. */}
-          {dapatJalankan === true ? (
-            <div className="mt-1.5 flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 rounded-lg bg-[#04161f] px-3 py-1.5">
+            {/* Bilah jalankan. Di jalur baca tombolnya berdiri di atas kertas
+                putih; di sini ia duduk di baris tab — tempat tombol Run di IDE
+                mana pun, dan tidak melayang jauh dari kode saat editornya
+                memenuhi kolom. Penjelasannya pindah ke `title`: teks panjang di
+                baris tab akan mendorong nama berkasnya keluar. */}
+            {dapatJalankan === true ? (
               <button
                 type="button"
                 onClick={jalankan}
                 disabled={menjalankan}
-                className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-[#0056D2] px-3.5 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[#00419e] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
+                title="Kompilasi dan dijalankan di server, di kontainer terpisah."
+                className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-[#0056D2] px-2.5 py-1 text-[12px] font-semibold text-white transition-colors hover:bg-[#00419e] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <Play className="size-3.5 fill-current" aria-hidden="true" />
+                <Play className="size-3 fill-current" aria-hidden="true" />
                 {menjalankan ? "Menjalankan…" : "Jalankan"}
               </button>
-              <span className="text-[11px] text-[#7fa6b8]">
-                Kompilasi dan dijalankan di server, di kontainer terpisah.
-              </span>
-            </div>
-          ) : null}
+            ) : null}
+          </header>
+
+          <div ref={wadah} className="kode-view kode-view-lab min-h-0 flex-1" />
         </section>
 
         {/*
-          Sebelum dijalankan, area hasil **kosong** — tidak ada kotak ajakan
-          bergaris putus yang menyuruh peserta menekan tombol Jalankan.
+          Terminal — kartu hasil yang bisa dilipat.
 
-          Placeholder itu dibuang atas permintaan pemilik produk: ia satu-satunya
-          isi kartu dasbor bergaris putus yang tingginya ikut ditentukan isinya,
-          jadi sebelum peserta menekan apa pun layar sudah menampilkan dua panel
-          (bilah jalankan + placeholder) yang tidak berisi hasil apa-apa. Area
-          hasil sekarang baru muncul saat memang ada hasil untuk dibaca.
+          Sebelumnya area ini hanya `<div>` telanjang yang menampung `paneHasil`.
+          Sekarang ia kartu sendiri dengan bilah kepala, dan bilah itulah yang
+          membuka/menutupnya. Tiga perilaku yang diminta pemilik produk:
 
-          Div pembungkusnya tetap ada karena `paneHasil` bisa muncul kapan saja
-          setelah `Jalankan` ditekan.
+          1. **Tertutup saat halaman dibuka.** Sebelum dijalankan tidak ada apa
+             pun untuk dibaca, jadi area itu tidak perlu memakan tinggi kolom.
+          2. **Membuka sendiri saat `Jalankan` ditekan** (`jalankan` di atas).
+          3. **Bisa dibuka-tutup dari bilahnya** kapan saja.
+
+          Isinya tidak dibuang saat terlipat, hanya disembunyikan lewat `hidden`:
+          `aria-controls` yang menunjuk id tidak ada melanggar ARIA, dan
+          membiarkan node-nya ada membuat id itu selalu sah. Atribut `hidden`
+          juga mengeluarkan isinya dari urutan tab dan dari accessibility tree.
         */}
-        <div className="min-h-0 max-h-[45vh] shrink-0 overflow-y-auto lg:max-h-[42%]">{paneHasil}</div>
+        <section
+          aria-labelledby={idJudulTerminal}
+          className="min-h-0 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-[#06202f]"
+        >
+          <h3 id={idJudulTerminal} className="sr-only">
+            Terminal keluaran program
+          </h3>
+          <button
+            type="button"
+            onClick={() => setTerminalBuka((v) => !v)}
+            aria-expanded={terminalBuka}
+            aria-controls={idTerminal}
+            className="flex w-full cursor-pointer items-center gap-2 border-b border-white/10 bg-[#04161f] px-3 py-1.5 text-left transition-colors hover:bg-[#072b3c]"
+          >
+            <SquareTerminal className="size-3.5 shrink-0 text-[#7fa6b8]" aria-hidden="true" />
+            <span className="text-[11px] font-semibold tracking-wider text-[#7fa6b8] uppercase">
+              Terminal
+            </span>
+            <span className="ml-auto text-[11px] font-medium text-[#7fa6b8]">
+              {terminalBuka ? "Sembunyikan" : "Tampilkan"}
+            </span>
+            <ChevronDown
+              className={cn(
+                "size-3.5 shrink-0 text-[#7fa6b8] transition-transform duration-200 ease-out",
+                // Tertutup: chevron menunjuk ke kanan (▸, "ada yang bisa dibuka").
+                // Terbuka: kembali menunjuk ke bawah (▾). Pola akordeon yang
+                // sudah dipakai panel lain di repo ini.
+                !terminalBuka && "-rotate-90",
+              )}
+              aria-hidden="true"
+            />
+          </button>
+
+          <div
+            id={idTerminal}
+            hidden={!terminalBuka}
+            className="max-h-[45vh] overflow-y-auto"
+          >
+            {paneHasil}
+          </div>
+        </section>
       </div>
     );
   }

@@ -165,45 +165,38 @@ describe("KodeLab sebagai berkas sumber", () => {
     expect(sumber).toContain("lg:overflow-y-auto");
   });
 
-  it("tidak meregangkan editor mengisi sisa viewport", () => {
-    // Koreksi dari versi pertama: `flex-1` + `height: 100%` membuat program 12
-    // baris mendapat kotak gelap 548px — ~300px ruang kosong di dalam editor,
-    // dan tombol Jalankan melayang jauh di bawah kode terakhir. Tinggi editor
-    // harus mengikuti isinya, dibatasi lantai dan batas atas di `globals.css`.
+  it("membuat permukaan editor mengisi kolom, tanpa ruang kosong di bawah", () => {
+    // Koreksi dari versi sebelumnya. Sempat dibuat "tinggi mengikuti isi kode",
+    // dengan alasan menghindari kotak gelap 548px untuk program 12 baris. Tapi
+    // itu justru menghasilkan masalah yang lebih buruk: kartunya hanya ~395px
+    // di dalam kolom 865px, jadi **470px ruang kosong** menganga di bawah
+    // terminal — terbaca sebagai "ada yang belum termuat".
     //
-    // Dijaga dari sumber: ini properti CSS yang tidak akan gagal di
-    // `typecheck`, `lint`, maupun render mana pun — hanya terlihat di layar.
-    expect(sumber).not.toMatch(/className="min-h-0 flex-1"/);
-    // Kolom **kanan** tidak lagi memakai `h-full`: hanya kolom kiri (bahan
-    // bacaan) yang menggulir di dalam kolomnya sendiri.
+    // Kolom kanan lab adalah alat kerja. Di IDE mana pun permukaan editornya
+    // memenuhi jendelanya, dan tombol Run ada di baris tab (bukan di dasar
+    // kartu, yang akan melayang jauh dari kode saat editornya tinggi).
+    //
+    // Perilakunya hidup di `kode-view.tsx`, bukan di sini — diuji di
+    // `kode-view.test.ts`. Yang dijaga di berkas ini: kolom kanan lab tidak
+    // lagi mengunci tingginya sendiri dengan `h-full` yang membuat isinya
+    // tersedot, dan `kode-lab.tsx` tidak menambahkan kartu apa pun di bawah
+    // editor.
     const kolomKanan = sumber.match(/className="(lab-kolom-kanan[^"]*)"/)?.[1] ?? "";
     expect(kolomKanan, "kolom kanan tidak ditemukan").not.toBe("");
-    expect(kolomKanan).not.toContain("h-full");
-    const css = readFileSync(
-      fileURLToPath(new URL("../../app/globals.css", import.meta.url)),
-      "utf8",
-    );
-    // `.kode-view-lab` tidak boleh lagi `height: 100%`, dan scroller-nya harus
-    // punya batas atas yang jelas.
-    const blokLab = css.match(/\.kode-view-lab \{([\s\S]*?)\n\}/)?.[1] ?? "";
-    expect(blokLab).not.toContain("height: 100%");
-    expect(css).toMatch(/\.kode-view-lab \.cm-scroller \{[\s\S]*?max-height: min\(62vh, 640px\)/);
+    expect(kolomKanan).toContain("flex-col");
   });
 
-  it("memakai warna chrome editor untuk panel keluaran yang diharapkan", () => {
-    // Permintaan pemilik produk: seluruh kolom kanan lab harus terbaca sebagai
-    // **satu terminal**. Panel "Keluaran yang diharapkan" dulu kartu abu
-    // terang (`bg-[#f5f7fa]`) yang menempel di bawah pane hasil — kartu ketiga
-    // yang tidak sejalan di antara dua permukaan gelap.
+  it("tidak lagi menambahkan panel keluaran yang diharapkan sendiri", () => {
+    // Panel "Keluaran yang diharapkan" **pernah** ditambahkan di sini, dengan
+    // alasan bahwa blok latihan disembunyikan dari kolom kiri sehingga
+    // `outputHarapan` ikut hilang. Itu keputusan sendiri, bukan permintaan
+    // pemilik produk — dan panel itu duduk sebagai kartu terpisah di bawah
+    // terminal. Sekarang dihapus; yang tersisa di kolom kanan hanya editor
+    // (dengan terminalnya di dalam `KodeView`).
     //
-    // Yang dijaga: latarnya chrome editor (`#06202f`), bilah judulnya lebih
-    // gelap lagi (`#04161f`), dan teksnya terang (`#d7eef7`). Kartu terangnya
-    // tidak boleh tersisa.
-    expect(sumber).toContain("bg-[#06202f]");
-    expect(sumber).toContain("text-[#d7eef7]");
-    // Kartu terangnya tidak boleh tersisa di kelas mana pun — komentar yang
-    // menyebut nama kelas lama tidak dihitung.
-    expect(sumber).not.toMatch(/className="[^"]*bg-\[#f5f7fa\]/);
-    expect(sumber).not.toMatch(/className="[^"]*text-gray-700/);
+    // Yang dijaga: `kode-lab.tsx` tidak merender `outputHarapan` sama sekali.
+    // Menambahkannya kembali berarti satu panel lagi yang tidak diminta.
+    expect(sumber).not.toContain("outputHarapan");
+    expect(sumber).not.toContain("Keluaran yang diharapkan");
   });
 });

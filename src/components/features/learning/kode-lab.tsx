@@ -148,39 +148,6 @@ export function KodeLab({
           label={`Editor latihan ${blok.id}`}
           className="min-h-0"
         />
-
-        {/*
-          Keluaran yang diharapkan — acuan peserta.
-
-          Blok latihan disembunyikan dari kolom kiri, jadi tanpa baris ini
-          `outputHarapan` hilang sama sekali dan peserta kehilangan satu-satunya
-          patokan "programku benar kalau keluarannya begini". Ia sengaja
-          ditempatkan **di bawah** hasil jalannya, bukan di atasnya: yang
-          dibandingkan peserta lebih dulu adalah keluarannya sendiri, lalu
-          acuannya.
-
-          Warnanya mengikuti chrome editor (`#04161f`/`#06202f`) dan **bukan**
-          kartu `bg-[#f5f7fa]`: ia satu blok dengan hasil jalannya, dan kartu
-          abu terang di antara dua panel gelap terbaca sebagai potongan ketiga
-          yang tidak sejalan — persis yang dikeluhkan. Paddingnya juga dirapatkan
-          ke skala yang sama dengan panel hasil di atasnya, bukan `px-3.5` yang
-          membuat dua panel bertetangga punya tepi kiri berbeda.
-        */}
-        {blok.outputHarapan ? (
-          <section
-            aria-label="Keluaran yang diharapkan"
-            className="mt-1.5 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-[#06202f]"
-          >
-            <div className="border-b border-white/10 bg-[#04161f] px-3 py-1.5">
-              <p className="text-[11px] font-semibold tracking-wider text-[#7fa6b8] uppercase">
-                Keluaran yang diharapkan
-              </p>
-            </div>
-            <pre className="max-h-32 overflow-auto px-3 py-2 font-mono text-[12px] whitespace-pre-wrap text-[#d7eef7]">
-              {blok.outputHarapan}
-            </pre>
-          </section>
-        ) : null}
       </div>
     </div>
   );
