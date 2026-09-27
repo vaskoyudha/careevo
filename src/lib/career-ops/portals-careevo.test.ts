@@ -12,6 +12,10 @@ import yaml from "js-yaml";
  * scan that matched nothing. That is how the 2026 attempt shipped a disabled
  * Glints entry and looked healthy.
  *
+ * Both halves of the walker are guarded, boards and tracked_companies alike: a
+ * config whose entries are all present and all switched off is the same zero
+ * with the same healthy-looking receipt.
+ *
  * These tests cannot prove the scan returns Indonesian jobs. They can only prove
  * the cheap ways of getting zero are absent. The live scan in Task 5 is the
  * actual evidence.
@@ -25,26 +29,67 @@ const CONFIG = path.join(
   "portals-careevo.yml",
 );
 
+/**
+ * Only the fields a guard actually reads. `name` and `provider` are absent on
+ * purpose: nothing here consults them, and a declared-but-unread field reads
+ * like a promise the file is not keeping. A future guard that needs one adds it
+ * in the same commit that uses it.
+ */
 interface Papan {
-  name?: string;
-  provider?: string;
   enabled?: boolean;
   siteKey?: string;
   countryCode?: string;
 }
 
-function config(): {
-  title_filter?: { positive?: string[]; negative?: string[] };
-  location_filter?: { allow?: string[]; always_allow?: string[]; strict?: boolean };
-  job_boards?: Papan[];
-  tracked_companies?: unknown[];
-} {
-  return yaml.load(readFileSync(CONFIG, "utf8")) as never;
+interface FilterJudul {
+  positive?: unknown;
+  negative?: unknown;
+}
+
+interface FilterLokasi {
+  allow?: unknown;
+  strict?: unknown;
+}
+
+/**
+ * The parsed document, cast the way portals.test.ts casts — to
+ * `Record<string, unknown>`, then narrowed at each use. Not `as never`: that is
+ * assignable to everything, so the declared return type is asserted rather than
+ * checked and later drift compiles silently. Every field below is therefore
+ * `unknown` until a helper earns it a real type.
+ */
+function config(): Record<string, unknown> {
+  return yaml.load(readFileSync(CONFIG, "utf8")) as Record<string, unknown>;
+}
+
+/**
+ * A list of strings, or []. Normalises exactly the way the engine does before
+ * comparing (title-keywords.mjs:221-224 coerces a non-array to [] and drops
+ * non-strings), because a guard that normalises differently from the thing it
+ * guards is comparing two different documents.
+ */
+function daftarTeks(nilai: unknown): string[] {
+  return Array.isArray(nilai)
+    ? nilai.filter((k): k is string => typeof k === "string")
+    : [];
+}
+
+/** A list of boards or companies, or []. */
+function daftarPapan(nilai: unknown): Papan[] {
+  return Array.isArray(nilai) ? (nilai as Papan[]) : [];
+}
+
+function judul(): FilterJudul | undefined {
+  return config().title_filter as FilterJudul | undefined;
+}
+
+function lokasi(): FilterLokasi | undefined {
+  return config().location_filter as FilterLokasi | undefined;
 }
 
 /** A board counts as Indonesian when it is enabled AND names an ID market. */
 function papanIndonesia(): Papan[] {
-  return (config().job_boards ?? []).filter(
+  return daftarPapan(config().job_boards).filter(
     (b) =>
       b.enabled === true &&
       (b.siteKey?.startsWith("ID") === true || b.countryCode === "ID"),
@@ -67,23 +112,37 @@ describe("config pindai Indonesia", () => {
   it("memicu location_filter lewat allow, bukan hanya always_allow", () => {
     // always_allow alone restricts nothing: a location-free posting passes
     // either way, so a config carrying only always_allow scans the whole world.
-    const lf = config().location_filter;
-    expect(Array.isArray(lf?.allow) && lf.allow.length).toBeGreaterThan(0);
+    // daftarTeks gives [] for a missing or non-array `allow`, so this covers
+    // "location_filter was deleted" as well as "allow was emptied".
+    expect(daftarTeks(lokasi()?.allow).length).toBeGreaterThan(0);
   });
 
   it("tidak menyingkirkan Java, PHP, atau Ruby di negative", () => {
     // Mainstream backend languages in Indonesia. Vetoing them removes most
     // entry-level postings, which is the exact audience Careevo teaches.
-    const negative = (config().title_filter?.negative ?? []).map((k) =>
+    const negative = daftarTeks(judul()?.negative).map((k) =>
       k.trim().toLowerCase(),
     );
-    for (const language of ["java ", "php", "ruby", ".net"]) {
+    // "java" carries no trailing space and must never get one back: the engine
+    // trims every entry before compiling (title-keywords.mjs:223), so the
+    // template's `- "Java "` (portals.example.yml:506) already means "java"
+    // there, and a probe copied from the template spells a string that no
+    // trimmed element can ever equal.
+    for (const language of ["java", "php", "ruby", ".net"]) {
       expect(negative).not.toContain(language);
+      // The containment half, and the load-bearing one. The engine compiles any
+      // 4+ character entry to a bare substring test (title-keywords.mjs:126,
+      // `lower.includes(kw)`), so `- "Java Developer"` vetoes real Java
+      // postings while never equalling the element "java" — exact-element
+      // matching alone waves it through, and it costs Indonesian yield just as
+      // much. (Same reason the engine notes a bare `java` also vetoes
+      // "JavaScript": one more reason it must not be there at all.)
+      expect(negative.filter((k) => k.includes(language))).toEqual([]);
     }
   });
 
   it("memuat istilah peran tech Indonesia di positive", () => {
-    const positive = (config().title_filter?.positive ?? []).map((k) =>
+    const positive = daftarTeks(judul()?.positive).map((k) =>
       k.trim().toLowerCase(),
     );
     // Do NOT "simplify" these to shorter or single-word terms. `toContain` on an
@@ -99,10 +158,22 @@ describe("config pindai Indonesia", () => {
   });
 
   it("tidak memakai strict — gagal tertutup membuang baris tanpa lokasi", () => {
-    expect(config().location_filter?.strict).toBeUndefined();
+    // NOT self-sufficient, and deliberately so: `?.` means a config with no
+    // location_filter at all also yields undefined and passes here. The guard
+    // for that is "memicu location_filter lewat allow" above. This one only
+    // says the key is not set to something truthy.
+    expect(lokasi()?.strict).toBeUndefined();
   });
 
   it("membawa perusahaan yang bisa dipindai", () => {
-    expect((config().tracked_companies ?? []).length).toBeGreaterThanOrEqual(8);
+    // ENABLED companies, not merely present ones — scan.mjs walks `enabled`
+    // entries, so nine switched-off companies are the same zero as none, which
+    // is the mirror image of the board guard above. The floor stays at 8: the
+    // config ships 9, so one entry of real headroom exists and a single
+    // deliberate removal is not an accident.
+    const aktif = daftarPapan(config().tracked_companies).filter(
+      (c) => c.enabled === true,
+    );
+    expect(aktif.length).toBeGreaterThanOrEqual(8);
   });
 });
