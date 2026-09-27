@@ -31,7 +31,7 @@ export const HeroFinancial = () => {
       </div>
 
       {/* Hero Content */}
-      <div className="relative z-10 text-center pt-24 pb-16 px-4 flex flex-col gap-6">
+      <div className="relative z-10 flex w-full flex-col gap-6 px-4 pt-24 pb-16 text-center">
         <TimelineAnimation
           animationNum={1}
           timelineRef={timelineRef}
@@ -50,7 +50,7 @@ export const HeroFinancial = () => {
           id="hero-title"
           animationNum={2}
           timelineRef={timelineRef}
-          className="max-w-4xl text-balance text-4xl font-medium tracking-tight text-neutral-900 sm:text-5xl md:text-6xl"
+          className="mx-auto w-full max-w-4xl text-balance text-4xl font-medium tracking-tight text-neutral-900 sm:text-5xl md:text-6xl"
         >
           Perusahaan mau lihat cara kamu berpikir,
           <br />
@@ -61,13 +61,13 @@ export const HeroFinancial = () => {
           as="p"
           animationNum={3}
           timelineRef={timelineRef}
-          className="mx-auto max-w-2xl px-4 text-base font-medium leading-relaxed text-neutral-500 md:text-lg"
+          className="mx-auto w-full max-w-2xl px-4 text-base font-medium leading-relaxed text-neutral-500 md:text-lg"
         >
           Setiap keputusan kodemu dicatat, termasuk yang salah dan kamu perbaiki
           sendiri. Perusahaan bisa buka rekamannya lewat satu tautan.
         </TimelineAnimation>
 
-        <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
+        <div className="flex w-full flex-wrap justify-center gap-3 sm:gap-4">
           <TimelineAnimation
             as={Link}
             href="/daftar"
@@ -99,7 +99,7 @@ export const HeroFinancial = () => {
       </div>
 
       {/* Dashboard UI Frame */}
-      <div className="w-full max-w-7xl mx-auto rounded-xl relative mt-10">
+      <div className="relative mx-auto mt-10 w-full max-w-7xl rounded-xl">
         <TimelineAnimation
           animationNum={6}
           timelineRef={timelineRef}
