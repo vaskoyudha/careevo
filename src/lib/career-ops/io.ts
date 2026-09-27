@@ -3,8 +3,8 @@
  *
  * Kept apart from the adapters so an adapter test never needs the network: the
  * adapter is handed an `Io` and a test hands it a stub. This is the same
- * dependency-injection shape `jobstreet-enrich.ts` used for `fetchJson`, and the
- * reason that file was testable at all under vitest's `node` environment.
+ * dependency-injection shape the board adapters use, and the reason they are
+ * testable at all under vitest's `node` environment.
  *
  * The timeout is here, not in `perkayaSemua`: a per-request deadline belongs to
  * the thing making the request. Ten seconds is generous for a JSON API and

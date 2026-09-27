@@ -2,8 +2,9 @@
  * jobstreet-audit.ts — turn one Jobstreet search-API listing into the material
  * `auditLoker` judges.
  *
- * Pure on purpose: no fetch, no fs. `jobstreet-enrich.ts` owns the I/O, so all
- * of this is assertable under vitest's `node` environment.
+ * Pure on purpose: no fetch, no fs. The board adapters in `boards/` own the I/O
+ * (fanned out by `job-cache.ts`'s `perkayaSemua`), so all of this is assertable
+ * under vitest's `node` environment.
  *
  * The load-bearing decision here is `applyUrlFromTeaser`. The trust layer judges
  * the URL we hand it, and every posting lives on the same trusted aggregator

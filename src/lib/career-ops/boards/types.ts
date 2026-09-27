@@ -21,9 +21,9 @@ export type FetchJson = (
 ) => Promise<unknown>;
 
 /**
- * The I/O an adapter may use. Injected rather than reached for globally — the
- * same reason `jobstreet-enrich.ts` injected `fetchJson`: it is what makes an
- * adapter testable under vitest's `node` environment with no network.
+ * The I/O an adapter may use. Injected rather than reached for globally: an
+ * adapter is handed its I/O so it stays testable under vitest's `node`
+ * environment with no network.
  */
 export interface Io {
   fetchJson: FetchJson;

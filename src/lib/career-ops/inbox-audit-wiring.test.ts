@@ -21,80 +21,73 @@ afterAll(() => {
 const KOSONG = path.join(AKAR, "data", "pipeline.md");
 
 /** A cache file inside the temp root, so the test never writes into the repo. */
-const cacheFile = () => path.join(AKAR, "jobstreet-cache.json");
+const cacheFile = () => path.join(AKAR, "job-cache.json");
 
 const write = (rows: string[]) =>
   writeFileSync(KOSONG, ["# Pipeline", "", "## Pending", "", ...rows, ""].join("\n"), "utf8");
 
-const listingJson = (id: string, over: Record<string, unknown> = {}) => ({
-  data: [
-    {
-      id,
-      title: "AI Engineer",
-      teaser: "",
-      bulletPoints: [],
-      companyName: "PT Foo",
-      employer: { id: "1", name: "PT Foo" },
-      ...over,
-    },
-  ],
-});
+/** One cache entry, keyed the way `perkayaSemua` writes it. */
+const isiCache = (entries: Record<string, { board: string; description: string }>) => {
+  const out: Record<string, unknown> = {};
+  for (const [url, v] of Object.entries(entries)) {
+    out[url] = {
+      board: v.board,
+      bahan: {
+        description: v.description,
+        apply_url: url,
+        company: "PT Foo",
+        employer_known: true,
+      },
+      diambilPada: "2026-09-29",
+    };
+  }
+  writeFileSync(cacheFile(), JSON.stringify(out), "utf8");
+};
 
 describe("bacaInboxDiaudit", () => {
   it("returns an empty list, not an error, when the pipeline is empty", async () => {
-    const rows = await bacaInboxDiaudit({ fetchJson: async () => ({ data: [] }), cacheFile: cacheFile() });
-    expect(rows).toEqual([]);
+    expect(await bacaInboxDiaudit({ cacheFile: cacheFile() })).toEqual([]);
   });
 
-  it("gives every row a verdict and an enriched flag", async () => {
+  it("gives every row a verdict and an enriched flag from the cache", async () => {
     write(["- [ ] https://id.jobstreet.com/id/job/111 | PT Foo | AI Engineer | Jakarta | posted: 2026-09-20"]);
-    const rows = await bacaInboxDiaudit({
-      fetchJson: async () => listingJson("111"),
-      cacheFile: cacheFile(),
-    });
+    isiCache({ "https://id.jobstreet.com/id/job/111": { board: "Jobstreet", description: "Real work" } });
+    const rows = await bacaInboxDiaudit({ cacheFile: cacheFile() });
     expect(rows).toHaveLength(1);
     expect(rows[0].enriched).toBe(true);
     expect(rows[0].audit.status).toBe("clean");
     expect(rows[0].firstSeen).toBeDefined();
   });
 
-  it("marks a row it could not fetch as unenriched rather than clean", async () => {
+  it("marks a row missing from the cache as unenriched rather than clean", async () => {
     write(["- [ ] https://id.jobstreet.com/id/job/222 | PT Foo | AI Engineer | Jakarta | posted: 2026-09-20"]);
-    const rows = await bacaInboxDiaudit({
-      fetchJson: async () => {
-        throw new Error("HTTP 500");
-      },
-      cacheFile: cacheFile(),
-    });
+    const rows = await bacaInboxDiaudit({ cacheFile: cacheFile() });
     expect(rows[0].enriched).toBe(false);
     expect(rows[0].audit.status).not.toBe("clean");
   });
 
-  it("leaves a non-jobstreet row unenriched without calling the network", async () => {
-    write(["- [ ] https://careers.allianz.com/job/9 | Allianz | PM | Jakarta | posted: 2026-09-20"]);
-    let calls = 0;
-    const rows = await bacaInboxDiaudit({
-      fetchJson: async () => {
-        calls++;
-        return { data: [] };
-      },
-      cacheFile: cacheFile(),
+  it("enriches a non-Jobstreet row too, now that every board has an adapter", async () => {
+    write(["- [ ] https://dealls.com/loker/software-engineer-ai~sirclo | Sirclo | Software Engineer AI"]);
+    isiCache({
+      "https://dealls.com/loker/software-engineer-ai~sirclo": { board: "Dealls", description: "Real work" },
     });
-    expect(calls).toBe(0);
-    expect(rows[0].enriched).toBe(false);
+    const rows = await bacaInboxDiaudit({ cacheFile: cacheFile() });
+    expect(rows[0].enriched).toBe(true);
+    expect(rows[0].papan).toBe("Dealls");
   });
 
-  it("quarantines a Private Advertiser row", async () => {
-    write([
-      "- [ ] https://id.jobstreet.com/id/job/333 | Private Advertiser | AI Engineer | Jakarta | posted: 2026-09-20",
-    ]);
-    const rows = await bacaInboxDiaudit({
-      fetchJson: async () =>
-        listingJson("333", { companyName: "Private Advertiser", employer: undefined }),
-      cacheFile: cacheFile(),
-    });
-    expect(rows[0].audit.status).toBe("quarantined");
-    expect(rows[0].audit.flags).toContain("perusahaan_tidak_terverifikasi");
+  it("names the board so the UI can say which one could not be read", async () => {
+    write(["- [ ] https://kredivo-group.breezy.hr/p/abc-engineer | Kredivo Group | Fullstack Engineer"]);
+    const rows = await bacaInboxDiaudit({ cacheFile: cacheFile() });
+    expect(rows[0].enriched).toBe(false);
+    expect(rows[0].papan).toBe("Breezy");
+  });
+
+  it("leaves a host no adapter claims without a board name", async () => {
+    write(["- [ ] https://careers.allianz.com/job/9 | Allianz | PM | Jakarta | posted: 2026-09-20"]);
+    const rows = await bacaInboxDiaudit({ cacheFile: cacheFile() });
+    expect(rows[0].enriched).toBe(false);
+    expect(rows[0].papan).toBeUndefined();
   });
 
   it("prefers the pipeline row's own posted date for firstSeen", async () => {
@@ -106,28 +99,9 @@ describe("bacaInboxDiaudit", () => {
     write([
       "- [ ] https://id.jobstreet.com/id/job/444 | PT Foo | AI Engineer | Jakarta | posted: 2026-09-20",
     ]);
-    const rows = await bacaInboxDiaudit({
-      fetchJson: async () => listingJson("444"),
-      cacheFile: cacheFile(),
-    });
-    // `bacaInboxDenganTanggal` resolves firstSeen as postedAt ?? scanHistoryDate,
-    // and attaching the audit must not disturb that precedence.
+    isiCache({ "https://id.jobstreet.com/id/job/444": { board: "Jobstreet", description: "Real work" } });
+    const rows = await bacaInboxDiaudit({ cacheFile: cacheFile() });
     expect(rows[0].firstSeen).toBe("2026-09-20");
-    expect(rows[0].audit.status).toBe("clean");
-  });
-
-  it("falls back to the scan-history date when the row has no posted date", async () => {
-    writeFileSync(
-      path.join(AKAR, "data", "scan-history.tsv"),
-      "url\tfirst_seen\nhttps://id.jobstreet.com/id/job/555\t2026-09-01\n",
-      "utf8",
-    );
-    write(["- [ ] https://id.jobstreet.com/id/job/555 | PT Foo | AI Engineer | Jakarta"]);
-    const rows = await bacaInboxDiaudit({
-      fetchJson: async () => listingJson("555"),
-      cacheFile: cacheFile(),
-    });
-    expect(rows[0].firstSeen).toBe("2026-09-01");
     expect(rows[0].audit.status).toBe("clean");
   });
 });

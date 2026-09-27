@@ -72,6 +72,12 @@ export const ATS_DIIZINKAN: readonly string[] = [
   "jobstreet.co.id",
   "jobstreet.com",
   "kalibrr.com",
+  // Dealls (dealls.com) is powered by sejutacita.id and serves its postings from
+  // both hosts. Without these, every Dealls row fails the company↔domain check
+  // ("CFACTORY.CO" vs "dealls.com"), taking a 15-point penalty and sometimes a
+  // false quarantine — the board's own host is exactly what this list is for.
+  "dealls.com",
+  "sejutacita.id",
 ];
 
 export type TrustLevel = "high" | "medium" | "low";
