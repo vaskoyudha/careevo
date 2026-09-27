@@ -3,8 +3,10 @@
 import { useEffect, useRef } from "react";
 import { cpp } from "@codemirror/lang-cpp";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
+import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers } from "@codemirror/view";
+import { tags } from "@lezer/highlight";
 import { cn } from "@/lib/utils";
 import type { BahasaKode } from "@/types/course";
 
@@ -50,6 +52,89 @@ const TEMA = EditorView.theme(
   { dark: true },
 );
 
+/**
+ * Warna token untuk sorotan sintaks.
+ *
+ * `cpp()` hanya menyediakan gramatika dan parser. Tanpa `HighlightStyle` tidak
+ * ada satu pun token yang diberi warna: kodenya tampil sebagai teks polos
+ * meski permukaannya gelap. Gramatika yang terpasang bukan bukti bahwa ada
+ * warna.
+ *
+ * Semua warna diambil dari palet ocean yang sama dengan `TEMA`, jadi permukaan
+ * dan isiannya satu keputusan, bukan dua. Angka dalam kurung adalah rasio
+ * kontras WCAG terhadap permukaan `#06202f`; semuanya di atas 4.5:1 (AA) untuk
+ * teks 13px. Tidak ada warna di `TEMA` yang disesuaikan untuk ini.
+ */
+const WARNA = {
+  /** 5.34 — sengaja redup dari teks badan 13.91 supaya komentar mundur. */
+  komentar: "#6f97ad",
+  /** 10.03 — paling terang, karena ini alur programnya. */
+  kontrol: "#7dd3fc",
+  /** 7.72 — kata kunci deklarasi, lebih pelan dari kontrol. */
+  kunci: "#2EC4B6",
+  /** 8.27 — tipe dan namespace: bentuknya, bukan alurnya. */
+  tipe: "#40C9C6",
+  /** 9.28 — nama fungsi, dipanggil atau dideklarasikan. */
+  fungsi: "#93c5fd",
+  /** 7.76 — angka, karakter, dan preprosesor: satu keluaran hangat. */
+  literal: "#E8A33D",
+  /** 12.57 — string memakai palet repo `--sea-foam`, paling dekat ke teks badan. */
+  teks: "#BFE6EF",
+};
+
+const GAYA_SOROTAN = HighlightStyle.define([
+  // Komentar. Gramatika C++ menandai `//` sebagai `lineComment` dan `/* */`
+  // sebagai `blockComment`, bukan `comment`, jadi keduanya harus disebut.
+  { tag: tags.lineComment, color: WARNA.komentar },
+  { tag: tags.blockComment, color: WARNA.komentar },
+  { tag: tags.comment, color: WARNA.komentar },
+
+  // Kata kunci. Gramatika C++ tidak pernah menghasilkan `keyword`: ia
+  // memetakan kata kuncinya ke `controlKeyword`, `definitionKeyword`,
+  // `operatorKeyword`, dan `modifier`. `keyword` tetap disebut sebagai cadangan
+  // kalau nanti ada bahasa lain, bukan karena C++ memakainya sekarang.
+  { tag: tags.controlKeyword, color: WARNA.kontrol },
+  { tag: tags.definitionKeyword, color: WARNA.kunci },
+  { tag: tags.operatorKeyword, color: WARNA.kunci },
+  { tag: tags.modifier, color: WARNA.kunci },
+  { tag: tags.keyword, color: WARNA.kunci },
+
+  // Tipe. `standard(typeName)` adalah rantai modifier dengan `typeName` sebagai
+  // induknya, jadi menyebut `typeName` saja sudah menutup `int`, `char`, dan
+  // `void` sekaligus. `className` adalah padanan JavaScript dan tidak pernah
+  // muncul di C++, tetapi tetap disebut sebagai cadangan untuk bahasa lain.
+  { tag: tags.typeName, color: WARNA.tipe },
+  { tag: tags.className, color: WARNA.tipe },
+
+  // Fungsi. Modifier `function` dan `definition` berantai dan setiap set yang
+  // lebih kecil didaftarkan sebagai induk, sehingga `definition(variableName)`
+  // ikut cocok pada `function(definition(variableName))` — deklarasi dan nama
+  // yang dipanggil satu warna, bukan dua.
+  { tag: tags.function(tags.variableName), color: WARNA.fungsi },
+  { tag: tags.function(tags.propertyName), color: WARNA.fungsi },
+  { tag: tags.definition(tags.variableName), color: WARNA.fungsi },
+
+  // Namespace, preprosesor, dan makro.
+  { tag: tags.namespace, color: WARNA.tipe },
+  { tag: tags.processingInstruction, color: WARNA.literal },
+  { tag: tags.meta, color: WARNA.literal },
+  { tag: tags.special(tags.name), color: WARNA.literal },
+
+  // Literal. Angka, karakter, dan escape satu warna; string memakai palet repo
+  // sendiri supaya bedanya nyata, bukan hanya sangat tipis.
+  { tag: tags.number, color: WARNA.literal },
+  { tag: tags.character, color: WARNA.literal },
+  { tag: tags.escape, color: WARNA.literal },
+  { tag: tags.string, color: WARNA.teks },
+  { tag: tags.special(tags.string), color: WARNA.teks },
+]);
+
+// Tanda baca, operator, dan identifier biasa sengaja tidak diberi warna.
+// Semuanya mewarisi warna teks badan `TEMA`, yang kontrasnya 13.91:1. Memberi
+// warna pada tanda baca hanya menambah warna tanpa menambah informasi, dan
+// gramatika menandainya sebagai `paren`/`brace`/`separator`/`*Operator` —
+// bukan `punctuation` — jadi aturan `punctuation` pun tidak akan pernah cocok.
+
 export function KodeView({
   kode,
   editable = false,
@@ -92,6 +177,9 @@ export function KodeView({
         doc: kode,
         extensions: [
           cpp(),
+          // Tanpa ekstensi inilah blok kode tampil sebagai teks polos: gramatika
+          // ada, warnanya tidak. Keduanya harus berbonto.
+          syntaxHighlighting(GAYA_SOROTAN),
           TEMA,
           lineNumbers(),
           // Dua plugin terpisah, satu untuk tiap kelas. Tanpa keduanya aturan
