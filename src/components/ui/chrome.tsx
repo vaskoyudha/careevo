@@ -7,6 +7,8 @@ import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { Building2, Briefcase, GraduationCap, MessageSquare, Sparkle } from "./icons";
 import { ExploreMenu } from "./explore-menu";
+import { AccountMenu, DashboardButton } from "./chrome-parts";
+import type { SessionPayload } from "@/lib/auth/types";
 
 type NavItem = {
   href: string;
@@ -43,7 +45,26 @@ const navItems: NavItem[] = [
   },
 ];
 
-export function Chrome() {
+/**
+ * Navbar marketing/publik.
+ *
+ * `session` datang dari **server component** (`getSession()` di layout
+ * `(public)` / `(marketing)`) dan menentukan isi `.chrome-actions`:
+ * masuk → `DashboardButton` + `AccountMenu`, belum masuk → Masuk/Daftar.
+ *
+ * Sebelumnya kedua tombol itu ditulis mati di sini, sehingga setiap route
+ * publik — termasuk `/loker` dan `/kerja` yang memang boleh dibaca sambil
+ * masuk — menampilkan "Masuk / Daftar" kepada orang yang sudah punya sesi
+ * aktif. Menitipkan sesinya ke layout, bukan ke komponen client, penting:
+ * `getSession()` menyentuh database dan tidak boleh masuk ke bundle browser.
+ * Null di-drop (`bacaTokenSesi` yang mengembalikan null tidak membuka
+ * koneksi), jadi pengunjung tanpa cookie tetap dilayani tanpa satu pun query.
+ *
+ * `navItems` di file ini **sengaja** berbeda dari `learnerNavItems` di
+ * `chrome-parts.tsx` dan tidak boleh digabung — lihat catatan di sana. Yang
+ * dipinjam dari `chrome-parts` hanya atom akunnya.
+ */
+export function Chrome({ session = null }: { session?: SessionPayload | null }) {
   const pathname = usePathname();
   const onHome = pathname === "/";
   const [scrolled, setScrolled] = useState(false);
@@ -128,20 +149,29 @@ export function Chrome() {
           })}
         </nav>
         <div className="chrome-actions">
-          <Link
-            className="chrome-btn chrome-btn-text chrome-btn-ghost"
-            href="/masuk"
-            aria-current={pathname === "/masuk" ? "page" : undefined}
-          >
-            Masuk
-          </Link>
-          <Link
-            className="chrome-btn chrome-btn-brand"
-            href="/daftar"
-            aria-current={pathname === "/daftar" ? "page" : undefined}
-          >
-            Daftar
-          </Link>
+          {session ? (
+            <>
+              <DashboardButton />
+              <AccountMenu session={session} />
+            </>
+          ) : (
+            <>
+              <Link
+                className="chrome-btn chrome-btn-text chrome-btn-ghost"
+                href="/masuk"
+                aria-current={pathname === "/masuk" ? "page" : undefined}
+              >
+                Masuk
+              </Link>
+              <Link
+                className="chrome-btn chrome-btn-brand"
+                href="/daftar"
+                aria-current={pathname === "/daftar" ? "page" : undefined}
+              >
+                Daftar
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </>

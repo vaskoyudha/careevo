@@ -54,7 +54,7 @@ export function jumlahKata(modul: Pick<Modul, "halaman">): number {
         for (const butir of blok.butir ?? []) {
           total += kataDari(segmenKeTeks(butir));
         }
-      } else if (blok.tipe !== "gambar") {
+      } else if (blok.tipe !== "gambar" && blok.tipe !== "kode") {
         total += kataDari(segmenKeTeks(blok.segmen));
       }
     }
