@@ -926,3 +926,23 @@ No gaps.
 **Cross-document check** — the spec numbers its findings `T1`-`T6` and its failure modes `G1`-`G5`. This plan deliberately does not cite those codes: it extends the config the spec produced rather than re-deriving the spec's diagnosis, and it names the two facts it does rely on in prose instead — the WAF-blocked Glints board (the spec's `G2`) in Task 2 Step 5's comment and Task 4 Step 4's `auth` note, and the write-once seed trap (the spec's `G5`) in the Global Constraints and Task 4 Step 2. Citing the codes without the prose would make the plan unreadable on its own; citing the prose without the codes keeps it self-contained. The spec is linked in the header for anyone who wants the full diagnosis.
 
 **Sibling spec — `2026-09-29-enrichment-multi-papan-design.md`** (committed at `3c68f5f`). This plan is *orthogonal* to that one and neither blocks the other. That spec makes enrichment multi-board so the 77 non-Jobstreet rows stop rendering "Belum diperiksa"; it adds `src/lib/career-ops/boards/`, `job-cache.ts`, and `scripts/enrich-inbox.ts`, and its §"Tidak diubah" pins `engine/**`, the DB schema, Sentinel, and the fixtures. It never mentions `portals-careevo.yml` — because enrichment reads the description of a row the scan *already discovered*, whereas this plan changes what the scan *discovers*. Different halves of the same pipeline, and the two files sets do not overlap. Both start from the same measured 257-row / 181-employer corpus, so if the two land together the counts Task 4 measures will be *larger* than either alone — expected, not a contradiction, since Task 4 measures the tree it actually runs on. The one ordering rule: if both land in the same working tree, run this plan's Task 4 scan **after** the enrichment spec's cache migration, so the row counts it records are the final ones.
+
+## Execution record — 2026-09-29
+
+All five tasks ran. Commits, in order:
+
+| Commit | Task | What |
+|---|---|---|
+| `5d6d257` | 1 (pre-existing) | Part A: facet + filter, verified not re-committed |
+| `5d3bd7b` | 2 | 12 → 27 `job_boards` across 8 role families |
+| `20b33c1` | 3 | `maxPages` 3 → 12 on the 16 Jobstreet/Kalibrr entries; two depth guards |
+| — | 4 | Measurement only (all paths gitignored; no commit) |
+| `6ce8a4b` | 5 | `docs/local-db.md` §8: 27 boards, page budget 225, measured numbers |
+
+Plan-only commits alongside: `7115fdd` (Task 3 rewritten to the depth lever), `42430b0` (Task 3 Step 5 `sed` typo), `3cf0c9d` (Task 5 Steps 1/1b).
+
+**Task 4 evidence.** The scan ran through the engine's own spawn (`CAREER_OPS_ROOT=… node engine/scan.mjs --json --quiet --since 30` — the equivalent of `jalankanScanAction()`, since the on-screen button only renders in the "Belum pernah dipindai" empty state and the root already held 257 rows). Receipt on `scan-runs.tsv`: `boards=27`, `found=4,483`, `new_added=620`, `errors=8` (3 Glints `auth` + 5 Workable `unknown` rate-limit), wall time **112s** against the 5-minute ceiling. Corpus went **257 → 877 rows / 181 → 523 employers**, all Indonesian-located.
+
+**Deviation 1 — Task 4 Step 6 ran against a production build, not `next dev`.** `/loker/inbox` under `next dev` with 877 rows does not finish client-side render in 120s, so the screenshot step timed out. The verification instead built the app (`next build`) in a temporary in-repo worktree on a spare port and drove it with the session token; production SSR rendered in 0.9s. Confirmed there: the **Perusahaan** tile reads **523**, the company `<select>` has **524 options** (523 + "Semua Perusahaan"), and filtering to `Julo` narrows 877 → 1 row. This is *stronger* evidence than the plan asked for (a production render, not a dev one), but it is a deviation from the literal step. Note the two operational requirements it exposed: production refuses to start without `SESSION_SECRET`/`ATTESTATION_SECRET` (`src/lib/config/secrets.ts`), and a fresh worktree needs `.data/jobstreet-cache/listings.json` or the enrichment path re-fetches every Jobstreet row over the network.
+
+**Deviation 2 — Task 2's `boards` reading (12 → 27) is derived, not receipt-measured.** The last *recorded* pre-change scan in `scan-runs.tsv` has `boards=12`; the 27-board config was never scanned before Task 4, because the tracked config and the seeded `.data/career-ops/portals.yml` are separate files and seeding is write-once. The 27 is the count of enabled `job_boards` in the shipped config (verified by parsing it), and Task 4's receipt confirms it at run time. No number was guessed; the provenance is just "parsed config" rather than "prior receipt".
