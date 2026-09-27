@@ -692,43 +692,25 @@ def test_open_frontend_in_browser_is_best_effort(monkeypatch) -> None:
     launcher._open_frontend_in_browser("http://localhost:3782")
 
 
-def test_launch_detached_uses_a_separate_windows_process_group(
+def test_launch_detached_refuses_instead_of_spawning_the_removed_cli(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
-    captured: dict[str, object] = {}
+    """The CLI that owned detached start is gone, so nothing may be spawned.
 
-    class _Process:
-        pid = 4242
+    The old implementation re-exec'd ``python -m deeptutor_cli.main start``.
+    Spawning that vector now would fail as an opaque ``ModuleNotFoundError``
+    inside a detached process with nobody watching, so the function refuses
+    loudly instead.
+    """
 
-    def fake_popen(command, *, stdout, **kwargs):
-        captured["command"] = command
-        captured["kwargs"] = kwargs
-        captured["log_name"] = stdout.name
-        return _Process()
+    def forbidden_popen(*args, **kwargs):  # pragma: no cover - must never run
+        raise AssertionError(f"_launch_detached spawned a process: {args!r}")
 
-    monkeypatch.setattr(launcher, "_is_pid_alive", lambda _pid: False)
-    monkeypatch.setattr(launcher.sys, "platform", "win32")
-    monkeypatch.setattr(launcher.subprocess, "CREATE_NEW_PROCESS_GROUP", 0x200, raising=False)
-    monkeypatch.setattr(launcher.subprocess, "DETACHED_PROCESS", 0x8, raising=False)
-    monkeypatch.setattr(launcher.subprocess, "Popen", fake_popen)
-    monkeypatch.setattr(launcher, "_log", lambda _message: None)
+    monkeypatch.setattr(launcher.subprocess, "Popen", forbidden_popen)
 
-    launcher._launch_detached(tmp_path, dev=True, open_browser=False)
-
-    paths = launcher._detached_launcher_paths(tmp_path)
-    state = launcher._read_detached_state(paths)
-    assert state is not None
-    assert state["pid"] == 4242
-    assert state["status"] == "starting"
-    assert state["token"]
-    assert captured["command"][-2:] == ["--dev", "--no-browser"]
-    kwargs = captured["kwargs"]
-    assert isinstance(kwargs, dict)
-    assert kwargs["creationflags"] == 0x208
-    assert kwargs["env"][launcher.DETACHED_WORKER_ENV] == "1"
-    assert kwargs["env"][launcher.DETACHED_TOKEN_ENV] == state["token"]
-    assert captured["log_name"] == str(paths.log)
+    with pytest.raises(RuntimeError, match="CLI"):
+        launcher._launch_detached(tmp_path, dev=True, open_browser=False)
 
 
 def test_stop_requests_only_the_registered_detached_launcher(

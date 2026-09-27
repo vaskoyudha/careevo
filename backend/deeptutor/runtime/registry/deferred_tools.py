@@ -30,10 +30,9 @@ from deeptutor.runtime.providers.text import (
 logger = logging.getLogger(__name__)
 
 
-#: Group key for CLI-app tools. Every CLI app is its own provider with exactly
-#: one tool, so per-provider headers would cost one header per app; they share
-#: a single section and carry their provider id on the line instead.
-_CLI_GROUP = ("cli", "")
+#: Group key for providers that are neither MCP servers nor PageIndex. Built-in
+#: tools that are deferred fall here; anything with a provider id gets its own
+#: per-provider header.
 _OTHER_GROUP = ("", "")
 
 
@@ -45,8 +44,6 @@ provider_identity = _provider_identity
 
 def _group_key(tool: BaseTool) -> tuple[str, str]:
     kind, provider_id = provider_identity(tool)
-    if kind == "cli":
-        return _CLI_GROUP
     if kind == "pageindex":
         return ("pageindex", provider_id)
     if provider_id:
@@ -63,8 +60,8 @@ def render_deferred_tools_manifest(tools: list[BaseTool], *, language: str = "en
     for tool in tools:
         definition = tool.get_definition()
         # Names and descriptions here come from the provider (an MCP server's
-        # own tool list, a CLI catalog entry), so they are sanitised before
-        # they reach the prompt — see ``providers.text``.
+        # own tool list), so they are sanitised before they reach the prompt —
+        # see ``providers.text``.
         groups.setdefault(_group_key(tool), []).append(
             (
                 definition.name,
@@ -96,9 +93,7 @@ def render_deferred_tools_manifest(tools: list[BaseTool], *, language: str = "en
         ]
     for group in sorted(groups):
         _kind, provider_id = group
-        if group == _CLI_GROUP:
-            header = "### CLI 应用" if zh else "### CLI apps"
-        elif group[0] == "pageindex":
+        if group[0] == "pageindex":
             mode = "Cloud" if provider_id == "pageindex" else "OSS"
             header = f"### PageIndex {mode}"
         elif group == _OTHER_GROUP:
@@ -106,9 +101,8 @@ def render_deferred_tools_manifest(tools: list[BaseTool], *, language: str = "en
         else:
             header = f"### MCP 服务器：{provider_id}" if zh else f"### MCP server: {provider_id}"
         lines.append(header)
-        for name, description, entry_provider in sorted(groups[group]):
-            suffix = f" (`{entry_provider}`)" if group == _CLI_GROUP and entry_provider else ""
-            lines.append(f"- **{name}**{suffix} - {description}")
+        for name, description, _entry_provider in sorted(groups[group]):
+            lines.append(f"- **{name}** - {description}")
         lines.append("")
     return "\n".join(lines).rstrip()
 

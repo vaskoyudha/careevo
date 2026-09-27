@@ -1,0 +1,2 @@
+ALTER TABLE "submissions" ADD COLUMN "mastery_topic_id" text;--> statement-breakpoint
+ALTER TABLE "submissions" ADD CONSTRAINT "submissions_binding_check" CHECK (not ("course_id" is not null and "mastery_topic_id" is not null));

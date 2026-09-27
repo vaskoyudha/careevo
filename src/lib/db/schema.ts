@@ -56,6 +56,30 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+/**
+ * Kosakata onboarding diimpor, bukan disalin. `types.ts` murni dan tidak
+ * menarik apa pun ke database.
+ *
+ * **Import relatif, bukan `@/`.** Seluruh `src/lib/db/` sengaja bebas alias:
+ * berkas di sini dimuat oleh `drizzle-kit`, oleh migrasi lewat `tsx`, dan oleh
+ * `vitest.integration.config.mts`, dan tidak semuanya me-resolve `@/`.
+ * Alias di sini menggagalkan `npm run test:db` dengan
+ * `Cannot find package '@/lib'`.
+ *
+ * Tujuannya satu: CHECK di database dan union type di TypeScript tidak
+ * mungkin berbeda.
+ */
+import {
+  BACKGROUNDS,
+  EXPERIENCE_LEVELS,
+  GOALS,
+  INTERESTS,
+  MAX_INTERESTS,
+  MIN_INTERESTS,
+  WEEKLY_HOURS_OPTIONS,
+  WORK_PREFERENCES,
+} from "../onboarding/types";
+
 /** Nilai yang sah untuk `users.status`. Diekspor agar tidak ada dua daftar. */
 export const STATUS_PENGGUNA = ["active", "suspended", "deleted"] as const;
 
@@ -124,6 +148,81 @@ export const userProfiles = pgTable("user_profiles", {
   usernameChangedAt: timestamp("username_changed_at", { withTimezone: true, mode: "date" }),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
 });
+
+/**
+ * Jawaban onboarding, satu baris per akun.
+ *
+ * Menggantikan cookie `ls_profile`. Terminalnya cascade: jawaban onboarding
+ * tidak pernah berarti sesuatu setelah akunnya hilang.
+ *
+ * **CHECK-nya mengimpor kosakata dari `src/lib/onboarding/types.ts`, bukan
+ * menyalin ulang.** Tabel ini dan TypeScript harus sepakat — kalau `GOALS`
+ * bertambah dan CHECK-nya tidak, onboarding gagal diam-diam di level database
+ * untuk nilai yang sudah ditawarkan UI. Mengimpor konstantanya membuat itu
+ * mustahil: satu daftar, dua konsumen.
+ *
+ * `interests` adalah `text[]` yang **berurutan**, dan urutannya adalah
+ * preferensi. Jadi ia tidak pernah diurutkan ulang — bukan oleh CHECK, bukan
+ * oleh repository. CHECK hanya menjaga bentuknya: 1 sampai 3 butir, dan
+ * semuanya dari vocabulary tertutup.
+ *
+ * `version` bertambah setiap onboarding diulang. Menyimpan jawaban terakhir
+ * adalah disengaja (onboarding bisa diulang dari `/pengaturan`), jadi yang
+ * tersedia untuk re-sinkronisasi hanyalah attempt-nya, bukan riwayatnya.
+ */
+export const onboardingProfiles = pgTable("onboarding_profiles", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  experience: text("experience").notNull(),
+  background: text("background").notNull(),
+  interests: text("interests").array().notNull(),
+  goal: text("goal").notNull(),
+  weeklyHours: integer("weekly_hours").notNull(),
+  workPreference: text("work_preference").notNull(),
+  completedAt: timestamp("completed_at", { withTimezone: true, mode: "date" }).notNull(),
+  version: integer("version").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+}, () => [
+  check(
+    "onboarding_profiles_experience_check",
+    sql`"experience" in (${sql.raw(EXPERIENCE_LEVELS.map((v) => `'${v}'`).join(", "))})`,
+  ),
+  check(
+    "onboarding_profiles_background_check",
+    sql`"background" in (${sql.raw(BACKGROUNDS.map((v) => `'${v}'`).join(", "))})`,
+  ),
+  check(
+    "onboarding_profiles_goal_check",
+    sql`"goal" in (${sql.raw(GOALS.map((v) => `'${v}'`).join(", "))})`,
+  ),
+  check(
+    "onboarding_profiles_work_preference_check",
+    sql`"work_preference" in (${sql.raw(WORK_PREFERENCES.map((v) => `'${v}'`).join(", "))})`,
+  ),
+  check(
+    "onboarding_profiles_weekly_hours_check",
+    sql`"weekly_hours" in (${sql.raw(WEEKLY_HOURS_OPTIONS.join(", "))})`,
+  ),
+  check(
+    "onboarding_profiles_interests_check",
+    // `sql.raw` untuk kedua batasnya, bukan interpolasi biasa. Interpolasi
+    // biasa pada `sql` menjadi bind parameter (`$1`), dan CHECK di dalam
+    // `CREATE TABLE` tidak boleh memuat parameter — migrasinya akan gagal
+    // saat dijalankan, bukan saat generate.
+    //
+    // Batas atasnya `MAX_INTERESTS`, **bukan** `INTERESTS.length`. Yang
+    // dibatasi adalah combien minat yang boleh dipilih (3), bukan berapa
+    // vocabulary yang ada (6). Menyamakan keduanya mengizinkan enam minat,
+    // yang jauh lebih longgar dari alur onboarding.
+    sql`cardinality("interests") between ${sql.raw(String(MIN_INTERESTS))} and ${sql.raw(String(MAX_INTERESTS))} and "interests" <@ array[${sql.raw(INTERESTS.map((v) => `'${v}'`).join(", "))}]::text[]`,
+  ),
+]);
+
+/** Bentuk baris `onboarding_profiles` hasil query. */
+export type OnboardingProfileRow = typeof onboardingProfiles.$inferSelect;
+/** Bentuk baris `onboarding_profiles` untuk insert. */
+export type NewOnboardingProfileRow = typeof onboardingProfiles.$inferInsert;
 
 /**
  * Kredensial login. Tabel terpisah dengan alasan keamanan, bukan normalisasi:
@@ -781,6 +880,19 @@ export const submissions = pgTable(
     enrollmentId: uuid("enrollment_id").references(() => enrollments.id, {
       onDelete: "set null",
     }),
+    /**
+     * Topik jalur penguasaan yang menjadi bukti submission ini, atau `null`.
+     *
+     * **Referensi lunak, tanpa FK** — sama seperti `module_progress.evidence_id`.
+     * Topik disimpan di `.data/mastery/<hash>/<id>.json` dan **bisa** dihapus
+     * peserta; references yang menghambat penghapusan akan membuat kredensial
+     * yang sudah terbit bisa ikut runtuh. Karena itu bukti credential bukan
+     * kolom ini, melainkan `submission_versions.content_snapshot` yang dibekukan
+     * server (`src/lib/mastery/selesai.ts`, `snapshotsBuktiJalur`): snapshot
+     * sudah immutable dan sudah di-`restrict`, jadi menghapus topik tidak
+     * merusak badge.
+     */
+    masteryTopicId: text("mastery_topic_id"),
     status: text("status").notNull().default("draft"),
     currentVersion: integer("current_version").notNull().default(0),
     submittedAt: timestamp("submitted_at", { withTimezone: true, mode: "date" }),
@@ -795,6 +907,13 @@ export const submissions = pgTable(
     index("submissions_status_idx").on(table.status),
     index("submissions_reviewer_idx").on(table.assignedReviewerUserId),
     check("submissions_status_check", CHECK_STATUS_SUBMISSION),
+    // Satu submission tidak boleh terikat kursus **dan** jalur sekaligus:
+    // kredensial yang ditandatangani berbeda akan memunculkan dua klaim yang
+    // benar. Keduanya `null` = submission portofolio, yang tetap berdiri sendiri.
+    check(
+      "submissions_binding_check",
+      sql`not ("course_id" is not null and "mastery_topic_id" is not null)`,
+    ),
   ],
 );
 

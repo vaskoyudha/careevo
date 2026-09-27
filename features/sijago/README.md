@@ -74,10 +74,20 @@ Two things survive on purpose, because **Partners** travels the same code path:
   split now normally yields an empty set.
 
 The `/space` dashboard's **Personalization** group (Personas, Skills, MCP
-Services, CLI Apps, Memory) is hidden from the overview only. Those sections are
+Services, Memory) is hidden from the overview only. Those sections are
 untouched and still work at their own URLs; `GROUPS` in
 `components/space/SpaceDashboard.tsx` simply no longer lists them, so no count is
 fetched for them either.
+
+**CLI Apps were removed entirely**, not just hidden. The whole feature is gone
+from both sides: the backend `deeptutor/services/cli_apps/` service and its
+`/api/space/cli-apps` router, the `grant.cli_apps` RBAC field alongside
+`grant.mcp_tools`, the `cli_*` deferred-tool provider, and this app's
+`/space/cli-apps` page, `lib/cli-apps-api.ts`, and `CliAppsSection.tsx`. The
+install half and the invoke half went together on purpose — leaving the grant
+field behind would have made the tool provider permanently inert with no way to
+install anything. `CLI_ICON_SLUGS` went with it, so `brandIconFor()` now takes
+one argument and `lib/brand-slugs.ts` curates MCP brands only.
 
 ### Restyled: floating dock, rounded conversation
 
@@ -282,16 +292,31 @@ when you need it` (`/settings/embedding`, `/settings/search`,
 were removed too, since every target they link to is now hidden from the
 navigator. What remains on General is language + starting-point presets.
 
-The **Settings → About / update** screen still says "DeepTutor" (`locales/*/app.json`).
-That is deliberate: it is upstream's own release/version machinery, and relabelling
-it would misreport which build is actually running and where updates come from.
+The **Settings → About / update** screen says "Careevo" (not "DeepTutor" — an
+earlier rename already took care of that; this note was stale). What it does
+still point at is upstream's own release/version machinery, so the *update URL*
+remains `HKUDS/DeepTutor` while the *label* is ours. That mismatch is deliberate:
+relabelling the machinery would misreport which build is actually running and
+where updates come from.
+
+**The `deeptutor` CLI was removed.** Careevo serves a website and never invoked
+it — the API has always been started directly with uvicorn (see "Where it runs"
+below). So `backend/deeptutor_cli/`, its `deeptutor` console entry point,
+`packaging/deeptutor-cli/`, `start_deeptutor.command`, and `scripts/start_tour.py`
+are gone. Two consequences inside the backend: `deeptutor/__main__.py` now raises
+with the uvicorn command instead of failing as a missing module, and the two
+places that used to shell out to the CLI to relaunch themselves
+(`runtime/launcher.py::_launch_detached` and
+`runtime/update_worker.py::build_restart_command`) now raise a `RuntimeError`
+naming the real remedy — a supervisor restart, which is how
+`sijago-backend.service` already works. See `backend/AGENTS.md` for the full note.
 
 ## Where it runs
 
 Two processes. The backend first — the UI proxies to it.
 
 ```bash
-# 1. Backend (from a DeepTutor Python checkout — see below)
+# 1. Backend (from this repo's backend/ — see below)
 python3 -m uvicorn deeptutor.api.main:app --host 127.0.0.1 --port 8011
 
 # 2. This app

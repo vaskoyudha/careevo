@@ -18,7 +18,7 @@ import path from "node:path";
 
 import * as simpleIcons from "simple-icons";
 
-import { CLI_BRAND_SLUGS, MCP_BRAND_SLUGS, referencedSlugs } from "../lib/brand-slugs";
+import { MCP_BRAND_SLUGS, referencedSlugs } from "../lib/brand-slugs";
 
 type Icon = { title: string; slug: string; hex: string; path: string };
 
@@ -82,11 +82,6 @@ ${entries
 /** MCP catalog entry id → slug. */
 export const MCP_ICON_SLUGS: Readonly<Record<string, string>> = {
 ${record(MCP_BRAND_SLUGS)}
-};
-
-/** CLI app id → slug. */
-export const CLI_ICON_SLUGS: Readonly<Record<string, string>> = {
-${record(CLI_BRAND_SLUGS)}
 };
 `;
 

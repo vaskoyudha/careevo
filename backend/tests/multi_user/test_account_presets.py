@@ -87,7 +87,6 @@ def test_learner_preset_expands_to_a_conservative_grant(preset_client):
     grant = load_grant(body["user_id"])
     assert grant["enabled_tools"] == []
     assert grant["mcp_tools"] == []
-    assert grant["cli_apps"] == []
     assert grant["exec_enabled"] is False
     assert grant["learning_policy"] == {
         "age_band": "9-12",
@@ -221,7 +220,6 @@ def test_auth_status_derives_learner_from_an_active_policy(preset_client, preset
             "grant": {
                 "enabled_tools": [],
                 "mcp_tools": [],
-                "cli_apps": [],
                 "exec_enabled": False,
                 "learning_policy": {
                     "age_band": "9-12",
@@ -266,7 +264,6 @@ def test_assigning_a_material_copies_the_admin_material_once(
     grant = {
         "enabled_tools": [],
         "mcp_tools": [],
-        "cli_apps": [],
         "exec_enabled": False,
         "learning_policy": {
             "age_band": "9-12",

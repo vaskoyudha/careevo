@@ -21,7 +21,6 @@ services:
     volumes:
       # Mount backend source code for hot-reload
       - ./deeptutor:/app/deeptutor:ro
-      - ./deeptutor_cli:/app/deeptutor_cli:ro
       - ./scripts:/app/scripts:ro
 
       # Mount frontend source for hot-reload. Anything not listed here still

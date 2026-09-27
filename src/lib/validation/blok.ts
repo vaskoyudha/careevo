@@ -66,8 +66,30 @@ const segmenSchema = z.object({
   tautan: skemaTautan.optional(),
 });
 
-export const TIPE_BLOK = ["paragraf", "heading", "daftar", "kutipan", "gambar", "kode"] as const;
-
+/**
+ * Union tipe blok **tidak** ditulis ulang di sini sebagai daftar nilai.
+ *
+ * Percobaan sebelumnya menyimpan `TIPE_BLOK` sebagai salinan, dan salinan itu
+ * tidak punya pembaca selain test-nya sendiri — jadi test-nya hanya membuktikan
+ * bahwa literal yang ditulis test ada di array yang juga ditulis test. Tidak
+ * ada yang bisa gagal karena kontrak yang dinamai.
+ *
+ * Yang benar-benar mengunci kontrak ini adalah `tsc`, di dua tempat:
+ *
+ * - `z.discriminatedUnion("tipe", …)` di bawah adalah cabang yang benar-benar
+ *   dijalankan saat menyimpan, sedangkan `TipeBlok` di `@/types/course` adalah
+ *   sisi domainnya. Keduanya bertemu di `src/actions/halaman.ts:97`, tempat
+ *   `createHalaman` meminta `BlokInput`: memperlebar `z.enum(["cpp"])` menjadi
+ *   dua bahasa langsung menggagalkan build di baris itu (TS2345). Menambah satu
+ *   tipe ke `TipeBlok` tanpa menambahkannya ke union zod, atau sebaliknya,
+ *   sama-sama tidak bisa lolos `npm run typecheck`.
+ * - Kelengkapan `switch` di `BlokView` (`halaman-view.tsx`) dan `IsiBlok`
+ *   (`blok-editor.tsx`) dijaga tipe balik `ReactElement` mereka: tipe baru tanpa
+ *   `case` adalah TS2678, bukan blok yang diam-diam hilang.
+ *
+ * Jadi tidak ada yang perlu dijaga oleh test di sini. Test yang bisa gagal
+ * betulan ada di `blok.test.ts`, dan ia menguji **skema**, bukan daftar nilai.
+ */
 /**
  * `id` blok boleh kosong saat dikirim form.
  *

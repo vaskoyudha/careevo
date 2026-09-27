@@ -879,15 +879,29 @@ Kalau differensinya kosong, pindai masih memakai config lama.
 ### Membaca hasil pindai
 
 `.data/career-ops/data/scan-runs.tsv` menambah satu baris per pindai. Kolom
-penting: `boards` (harus `6`, bukan `1`) dan `new_added`. `boards: 1` berarti
-config Careevo tidak terbaca.
+penting: `boards` dan `new_added`.
+
+`boards` menghitung entri yang AKTIF, bukan entri yang menjawab. Nilai yang
+benar adalah `6` — tiga entri Jobstreet dan tiga entri Glints. Tapi hanya tiga
+yang menjawab: ketiga entri Glints mengembalikan `HTTP 403` dari halaman
+`Glints - Firewall`, jadi `boards: 6` dengan kontribusi nol dari Glints adalah
+bentuk keberhasilan yang diharapkan, bukan kegagalan sebagian.
+
+`boards: 1` berarti config Careevo tidak terbaca sama sekali.
 
 `boards: 6` dengan `new_added: 0` berarti tidak ada yang cocok: periksa
 `filtered_location` dan `filtered_title` di baris yang sama. `filtered_title`
-yang mendekati `found` berarti `title_filter` terlalu sempit.
+yang mendekati `found` bisa berarti `title_filter` terlalu sempit — atau berarti
+filter bekerja dengan benar, karena banyak papan Indonesia bukan perusahaan
+teknologi. Amartha, misalnya, punya 530 lowongan dan hanya 6 di antaranya
+peran teknis.
 
-**Batas atas:** 6 entri x `pageSize` 30 x `maxPages` 3 = maksimal 540 lowongan
-per pindai. Itu batas provider, bukan cakupan nasional.
+**Batas atas yang jujur:** 9 perusahaan memberi sekitar 175 lowongan tech, dan
+6 entri papan memberi batas teoretis 6 x `pageSize` 30 x `maxPages` 3 = 540.
+Karena Glints tidak menjawab, yang benar-benar menyumbang adalah 3 x 90 = 270
+dari Jobstreet. Angka terukur pada 2026-09-27: 201 baris, 150 perusahaan
+berbeda, seluruhnya Indonesia. Itu bukan cakupan nasional, dan copy UI tidak
+boleh menjanjikan sebaliknya.
 ````
 
 - [ ] **Step 2: Verify the fences render**

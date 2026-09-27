@@ -41,6 +41,19 @@ export interface KnowledgePoint {
   questionId?: string;
 }
 
+/**
+ * Siapa yang menilai satu attempt.
+ *
+ * `dideklarasikan` = tombol "Bisa"/"Belum" milik peserta
+ * (`catatPercobaanAction`). `dinilai` = attempt dari sesi yang dinilai server —
+ * producer-nya adalah bridge AI Mastery, yang **belum ada** (Task 0). Field ini
+ * opsional supaya envelope yang sudah tertulis di `.data/mastery/` tetap
+ * valid; absennya berarti `dideklarasikan`, bukan `dinilai`.
+ */
+export type Provenance = "dinilai" | "dideklarasikan";
+
+export const PROVENANCES: readonly Provenance[] = ["dinilai", "dideklarasikan"];
+
 /** One graded attempt at a knowledge point. */
 export interface Attempt {
   knowledgePointId: string;
@@ -48,6 +61,8 @@ export interface Attempt {
   at: string;
   /** Where the answer came from, so the review trail can be honest about it. */
   source: "session" | "review";
+  /** Absen = `dideklarasikan`. Lihat `Provenance`. */
+  provenance?: Provenance;
 }
 
 export interface RepetitionState {
@@ -109,6 +124,10 @@ export interface MasteryTopicEnvelope {
 
 export function isKnowledgeType(value: unknown): value is KnowledgeType {
   return typeof value === "string" && (KNOWLEDGE_TYPES as readonly string[]).includes(value);
+}
+
+export function isProvenance(value: unknown): value is Provenance {
+  return typeof value === "string" && (PROVENANCES as readonly string[]).includes(value);
 }
 
 export function isIsoTimestamp(value: unknown): value is string {

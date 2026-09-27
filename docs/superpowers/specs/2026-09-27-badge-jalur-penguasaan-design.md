@@ -192,3 +192,57 @@ dan di UI — bukan di payload yang ditandatangani.
 - **Reviewer menilai bukti, bukan angka.** `provenanceMinimum: 0` berarti reviewer
   sedang menilai disiplin belajar. Form reviewer harus menyatakan itu, supaya
   keputusan approve bernalar.
+
+## 6. Hasil Task 0 (spike)
+
+**`LAYANAN_BISA_PER_PESERTA: true` — bersyarat, dan belum terverifikasi sebagai
+jaminan: hanya berlaku bila `AUTH_ENABLED=true` *dan* tiap peserta Careevo punya satu
+akun non-admin AI Mastery. Syarat itu BELUM terpenuhi, jadi isolasi per-peserta tidak
+aktif hari ini dan seluruh peserta yang memakai `/ai-mastery` berbagi satu store yang
+sama. Dan meski syaratnya terpenuhi, mekanismenya adalah konvensi yang tidak ditegakkan,
+bukan jaminan struktural (butir 4).**
+
+Yang terbukti adalah *kemampuan* mengisolasi per akun, bukan isolasi yang sedang
+berjalan. Empat butir berikut; butir 2, 3, dan 4 yang menentukan apakah bridge boleh
+dibangun sekarang.
+
+1. **Mekanismenya ada, tapi hanya lewat akun non-admin.** `LearningStore()` tanpa
+   argumen (`mastery_path.py:439-448`, `storage.py:353-361`) mewarisi ContextVar
+   pengguna yang dipasang `require_auth` (`auth.py:416`), dan
+   `get_account_path_service()` (`paths.py:153-161`) mengembalikan root
+   `data/users/<uid>` yang berbeda per akun non-admin. Router memang memasang
+   `dependencies=_auth` (`main.py:614-619`; `_auth` di `main.py:590`). Rantai ini
+   punya regression test: `backend/tests/api/test_auth_contextvar.py:161`
+   (`test_path_service_resolves_per_user_workspace_through_dependency`) memeriksa
+   dependency → ContextVar → root `data/users/<uid>/` dan bukan fallback admin, dan
+   `:29` (`test_require_auth_is_async_def`) mengunci syarat `async def` yang pernah
+   rusak di #481. Presisi: test itu menjalankan rantai lewat `get_chat_history_db()`,
+   bukan store mastery — ia mengunci *rantai*-nya, bukan mastery secara spesifik.
+2. **Hari ini tidak terisolasi sama sekali.**
+   `backend/data/user/settings/auth.json` berisi `"enabled": false` dan
+   `backend/data/users/` tidak ada — nol akun non-admin. Setiap request diperlakukan
+   sebagai local-admin. Akun admin juga berbagi satu root, jadi `true` hanya berlaku
+   setelah `AUTH_ENABLED=true` *dan* satu akun non-admin diprovisioning per peserta.
+3. **Respons terisolasi tidak pernah diamati.** Store `:8011` berbaris 0 di seluruh
+   tabel data, jadi tidak ada `path_id` dan `GET /topics/{path_id}` hanya menjawab
+   `404`. Kesimpulan bertumpu pada resolusi path, config auth, dan regression test di
+   atas — bukan pada pengamatan respons yang benar-benar terisolasi.
+4. **Garansi isolasi adalah konvensi, bukan jaminan struktural.** `auth.py:411-413`
+   menyatakan invariant itu sendiri ("Skipping it leaves `get_current_path_service()`
+   falling back to the admin workspace — the silent-routing root cause of #481"), dan
+   `auth.py:438-444` menjelaskan `require_auth` sengaja `async def` karena dependency
+   `sync` membuang `ContextVar.set`-nya. Router pun punya entry point kedua yang
+   memasang identitas sendiri: WebSocket `/ws/mastery-paths` (`mastery_path.py:771-772`)
+   via `ws_require_auth` (`:779`) dan `reset_current_user` di `finally`-nya (`:883`).
+   **Kalau invariant itu pecah, semua request jatuh ke root admin — gejalanya tidak
+   dapat dibedakan dari kondisi `AUTH_ENABLED=false` sekarang.** "Aktif" dan "aman"
+   adalah dua klaim terpisah; butir 1-3 hanya mendukung yang pertama.
+
+Bridge karena itu harus memetakan peserta Careevo → akun AI Mastery secara eksplisit:
+`path_id` sendiri tidak membawa identitas peserta. Kalau plan berikutnya memprovisioning
+akun ber-preset `learner`, expect `apply_learning_policy` (`learning_access.py:34-60`)
+mengosongkan `tools`/`knowledge_bases` dan memaksa `enable_rag`/`enable_web_search` false
+untuk akun belajar; surface `"chat"` tetap tidak kena 403. **Konsekuensi:**
+`provenanceMinimum` tetap `0` pada plan ini dan bridge tetap plan terpisah — butir 1-4
+adalah prasyarat operasional, bukan perubahan pada spec ini. Bukti mentah dan langkah
+verifikasinya: `docs/ai-mastery-scope-finding.md`.

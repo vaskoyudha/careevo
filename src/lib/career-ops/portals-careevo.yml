@@ -1,0 +1,354 @@
+# portals-careevo.yml — Careevo's own scan seed.
+#
+# The engine ships engine/templates/portals.example.yml: 138 tracked_companies
+# (120 enabled) and 25 job_boards of which exactly ONE is enabled — SolidJobs IT,
+# a Polish board. Both Indonesian boards (Jobstreet ID, Glints ID) are present
+# with correct keys but `enabled: false` (spec T1), and .data/career-ops/data/
+# scan-runs.tsv records `boards=1` on all seven recorded runs.
+#
+# The cost, from the same files: `found` 8,745–14,349 postings per run, all
+# European and American, and of the 486 rows that survived into
+# scan-history.tsv exactly ONE is in Indonesia — an Allianz "Product Manager,
+# Jakarta" posting, i.e. a European employer's Jakarta req, not Indonesian
+# market coverage. `filtered_location=0` on every run: no location filter
+# existed, so nothing was ever judged. See the spec's T2 for why fixing only
+# `location_filter` could not have moved this number.
+#
+# This file is the market we actually mean.
+#
+# engine/** stays byte-identical; bootstrap.ts only changes WHICH file is copied.
+# Write-once: an existing .data/career-ops/portals.yml is never replaced.
+#
+# Field names verified against the engine: buildLocationFilter (scan.mjs:510-527)
+# reads exactly allow / always_allow / block / block_hard / strict. Anything else
+# is silently ignored.
+
+title_filter:
+  # Deliberately broad. The title filter is a SWEEP filter; Sentinel and the A-H
+  # evaluation make the real judgement downstream. Over-broad is safe, over-narrow
+  # is the failure this file exists to stop.
+  positive:
+    - developer
+    - engineer
+    - software
+    - data scientist
+    - data analyst
+    - data engineer
+    - machine learning
+    - artificial intelligence
+    - devops
+    - site reliability
+    - cloud
+    - platform engineer
+    - security engineer
+    - quality assurance
+    - test engineer
+    - mobile
+    - android
+    - ios
+    - flutter
+    - react native
+    - frontend
+    - front-end
+    - backend
+    - back-end
+    - fullstack
+    - full stack
+    - product manager
+    - product designer
+    - ux designer
+    - ui designer
+  # Non-tech roles only. "engineer" and "developer" are broad enough to pull in
+  # sales-engineering and account-management postings, so those are vetoed here.
+  #
+  # Matching is substring for entries of four characters or more
+  # (title-keywords.mjs:121 compileKeyword, whose catch-all return is
+  # `lower.includes(kw)` at :131), so `marketing` vetoes "Growth Marketing" and
+  # `sales engineer` vetoes "Software Sales Engineer". What substring matching
+  # does NOT catch is a reordering of the same two words: `sales engineer` is
+  # not a substring of "Software Engineer, Sales", so that title PASSES this
+  # sweep (verified against compileKeyword, not assumed). Two-letter and
+  # three-letter entries are the exception to the rule above: they are
+  # word-boundary anchored, which is why `ios` above cannot match inside another
+  # word.
+  #
+  # Java, PHP, Ruby and .NET are NOT vetoed. The engine template excluded them
+  # because its market was European AI/automation roles; in Indonesia they are
+  # mainstream backend languages, and excluding them removes most entry-level
+  # postings. The German degree-thesis terms (Werkstudent, Praktikum,
+  # Masterarbeit) are dropped for the same reason — and dropping them means
+  # "Werkstudent Softwareentwicklung" now PASSES this sweep (verified: `software`
+  # is a substring). What stops it is `location_filter`, because such postings
+  # are German-located. The two filters compose; neither is sufficient alone.
+  #
+  # A short negative list is safe: an empty or absent one is also safe, because
+  # title-keywords.mjs:221 normalises a non-array to [], :243 vetoes only on a
+  # match, and :242 treats an empty POSITIVE list as "no positive constraint"
+  # rather than "match nothing". So `negative: []` means "no veto", not "reject
+  # all" — the direction that fails is a too-long negative list, not a short one.
+  negative:
+    - sales engineer
+    - account executive
+    - business development
+    - marketing
+    - finance
+    - accounting
+    - human resources
+    - legal
+    - customer service
+
+location_filter:
+  # `strict` is deliberately ABSENT. It fails CLOSED — an empty location AND no
+  # URL hint returns `!strict`, i.e. reject (scan.mjs:526-537) — so a Glints row
+  # with no location field would be thrown away. It is also inert on its own:
+  # the engine only honours it when a restricting tier is set, and `allow` below
+  # is exactly that (scan.mjs:527-528). The default passes those rows instead.
+  #
+  # `always_allow` rescues multi-location postings that name Indonesia, so
+  # "Remote, Indonesia or Singapore" passes while "Remote, India" does not.
+  always_allow:
+    - Indonesia
+  # 14 real Indonesian metros. Matching is case-insensitive and word-boundary
+  # anchored (scan.mjs:341 compileLocationKeyword), so "Jakarta" covers "Jakarta
+  # Selatan" and "Jakarta Pusat" — the space is the boundary — without matching
+  # inside a longer word. 14 clears the ">= 10" floor in portals.test.ts's
+  # "does not lock the location filter to a short list of cities" test honestly,
+  # not as padding. (Named, not line-numbered: a line reference there goes stale
+  # the next time that file's comments are edited, which is how this one did.)
+  #
+  # MEASURED AGAINST THE ENGINE, not assumed. `allow` is the LAST tier before a
+  # final fallback: titleSignalsRemote (scan.mjs:561-564, the return itself at
+  # :564) admits any posting whose TITLE marks it remote, and that check is
+  # placed after `block` precisely so a remote title cannot rescue a BLOCKED
+  # location. There is no `block` tier here, so today a European posting titled
+  # "Program Manager - Remote" PASSES this filter. Verified:
+  #
+  #   buildLocationFilter({allow, always_allow})('Berlin, Germany', '',
+  #     'Program Manager - Remote')          -> true
+  #   ...with block: [Germany]               -> false
+  #
+  # So this file narrows by LOCATION, not by market. Adding `block: [<country>]`
+  # would close the hole and still keep "Remote, Indonesia or Singapore" (the
+  # always_allow tier wins over block), but it is a yield decision — it would
+  # also reject any genuinely Indonesian role whose title says Remote and whose
+  # location is only "Remote" — and that belongs with the scan, not with the
+  # seed. Task 5 reads filtered_location from the receipt to price it.
+  #
+  # WHY A DENY-LIST IS NOT THE ANSWER, for whoever considers `block: [Germany,
+  # India, Singapore, ...]` next: a country deny-list is unmaintainable, and the
+  # engine's matching is not the reason — it is stricter than a deny-list deserves.
+  #
+  #   (a) it must be right about every country on earth;
+  #   (b) it silently admits any country added to the world after it was written;
+  #   (c) `block` is compiled exactly like `allow` — compileLocationKeywordList
+  #       (scan.mjs:351-353) maps compileLocationKeyword (scan.mjs:341-349),
+  #       which anchors on word boundaries — so every entry is a WHOLE-WORD bet
+  #       that misses in both directions. Verified against the real filter:
+  #         block: [poland] vs "notpoland"              -> no match
+  #         block: [poland] vs "kraków, poland"         -> match (via `poland`)
+  #         block: [poland] vs "warsaw"                 -> no match
+  #         block: [polish] vs "polish speaking required" -> match
+  #       So a posting that names only a CITY slips past no matter how many
+  #       countries you list, and a demonym entry rejects a phrase that is not a
+  #       location at all. Neither gap is closed by writing more entries.
+  #
+  # An allow-list of places we mean is wrong only by omission, which the 14-metro
+  # guard below catches; a deny-list is wrong by commission, which nothing
+  # catches. Prefer scoping the SOURCES (see the tracked_companies section) to
+  # letting a deny-list absorb the risk — which is why the mixed-market boards
+  # were removed rather than filtered.
+  #
+  # Two cases that need no decision: an EMPTY location passes (non-strict, and
+  # that is the Glints-row case `strict` would have destroyed), and a bare
+  # "Remote" location with a non-remote title is rejected by `allow`.
+  #
+  # STILL LOAD-BEARING after the mixed-market boards were dropped below. It is
+  # the ONLY location gate in the pipeline, and it is not belt-and-braces:
+  #   - `locationHintFromUrl` returns '' for every provider in this file — it
+  #     only produces a hint for *.myworkdayjobs.com URLs (scan.mjs:439, the
+  #     hostname guard at :447) — so the decision rests entirely on the
+  #     provider's location string.
+  #   - NO provider filters by country, and there is no country gate in the scan
+  #     path. `country_eligibility_filter` matches the CANDIDATE's country
+  #     against the job DESCRIPTION (eligibility phrasing), not the location.
+  #   - The providers DISCARD the country signal they are given: jobstreet keeps
+  #     `locations[0].label` and drops the `countryCode` in the same object
+  #     (jobstreet.mjs:170); glints keeps `item.city?.name` and drops the country
+  #     (glints.mjs:136).
+  #   - The ATS providers emit employer-entered free text, and two of them
+  #     APPEND "Remote" to the location when the req is remote (smartrecruiters
+  #     .mjs:201; breezy.mjs:116 for the 'Remote' literal, :119-121 for the
+  #     append); workable.mjs:209-210 emits "<city>, <country>".
+  # So `allow` rejects, row by row, every non-Indonesian label — including the
+  # "Remote" rows those three providers generate. Removing it would be removing
+  # the filter, not simplifying it.
+  allow:
+    - Indonesia
+    - Jakarta
+    - Bekasi
+    - Tangerang
+    - Depok
+    - Bogor
+    - Bandung
+    - Surabaya
+    - Medan
+    - Yogyakarta
+    - Semarang
+    - Denpasar
+    - Makassar
+    - Palembang
+
+# Six entries, three per provider, following the SolidJobs precedent already in
+# the engine template (8 entries: IT, Engineering, Marketing, ...). One entry per
+# role family, because a single searchKeywords string cannot cover them.
+#
+# Ceiling is entries x pageSize x maxPages = 6 x 30 x 3 = 540 per scan. That is a
+# provider limit, not national coverage — do not let UI copy imply otherwise.
+job_boards:
+  - name: Jobstreet Indonesia — software engineer
+    provider: jobstreet
+    api: https://id.jobstreet.com/api/jobsearch/v5/search
+    siteKey: ID-Main
+    searchKeywords: software engineer
+    pageSize: 30
+    maxPages: 3
+    enabled: true
+    notes: SEEK v5 REST, no auth token. searchLocation intentionally omitted so location_filter does the narrowing and non-Jabodetabek roles are not lost.
+
+  - name: Jobstreet Indonesia — mobile developer
+    provider: jobstreet
+    api: https://id.jobstreet.com/api/jobsearch/v5/search
+    siteKey: ID-Main
+    searchKeywords: mobile developer
+    pageSize: 30
+    maxPages: 3
+    enabled: true
+    notes: Android/iOS/Flutter is one of the largest Indonesian tech categories.
+
+  - name: Jobstreet Indonesia — data
+    provider: jobstreet
+    api: https://id.jobstreet.com/api/jobsearch/v5/search
+    siteKey: ID-Main
+    searchKeywords: data analyst
+    pageSize: 30
+    maxPages: 3
+    enabled: true
+    notes: Data roles for learners coming from non-CS backgrounds.
+
+  - name: Glints Indonesia — software engineer
+    provider: glints
+    api: https://glints.com/api/v2-alc/graphql
+    countryCode: ID
+    searchKeywords: software engineer
+    pageSize: 30
+    maxPages: 3
+    enabled: true
+    notes: GraphQL v2-alc. Provider notes WAF blocks non-browser requests, so this entry may return 0 over plain HTTP. Jobstreet is the reliable path; an empty Glints is the first hypothesis, not a conclusion.
+
+  - name: Glints Indonesia — mobile developer
+    provider: glints
+    api: https://glints.com/api/v2-alc/graphql
+    countryCode: ID
+    searchKeywords: mobile developer
+    pageSize: 30
+    maxPages: 3
+    enabled: true
+    notes: Same WAF caveat as the entry above.
+
+  - name: Glints Indonesia — data
+    provider: glints
+    api: https://glints.com/api/v2-alc/graphql
+    countryCode: ID
+    searchKeywords: data analyst
+    pageSize: 30
+    maxPages: 3
+    enabled: true
+    notes: Same WAF caveat as the entry above.
+
+# VERIFIED 2026-09-27 — every careers_url below was produced by
+# `node engine/discover-ats.mjs --in perusahaan-id-final.yml --summary`
+# (resolved: 11 | unresolved: 0), then independently re-checked with curl -L:
+# HTTP 200, no redirect away from the board, and a careers-page <title>.
+#
+# Those 11 are the resolved-company count of the INPUT file, not the length of
+# the list below: 11 companies were resolved and verified, and 9 ship here,
+# because Grab and Bjak were later dropped for being mixed-market (see the
+# section comment on the list). Do not read "resolved: 11" as "11 entries".
+#
+# Each board was also read back through the engine's own provider to confirm it
+# lists INDONESIAN postings (jobs / indonesia-located), not just a live board.
+# That second check is what separates this list from a list of 200s.
+#
+# Only boards the engine can actually walk appear here. The famous Indonesian
+# employers whose careers pages are bespoke (GoTo/Gojek, Tokopedia, Traveloka,
+# Blibli, Indosat, Halodoc, Indodana, J&T) were verified as real careers pages
+# too, but NO engine provider claims them, so scan.mjs would skip every one
+# silently — the engine calls that verdict `no-provider`. They are deliberately
+# excluded, and the reason is provider reachability rather than quality: the
+# engine's own `loadProviders` + `resolveProvider` returns null for every one of
+# them (`node engine/audit-portals.mjs --summary` reports the verdict;
+# engine/verify-portals.mjs:907 prints the same count as "N no-provider
+# (skipped)"). A discovery command that resolves a live careers page cannot
+# answer that question, which is why it is asked separately.
+tracked_companies:
+  # --- Boards that are Indonesian-DOMINATED, plus the reason for each exclusion
+  #
+  # This is a market-scope rule, not a quality ranking. Every board below was
+  # read back through the engine's own provider on 2026-09-27 — `loadProviders`
+  # + `resolveProvider` + `provider.fetch` over these nine `careers_url`s, no
+  # filters applied — with this result: 776 live postings, of which 767 are
+  # Indonesian and 9 are not. The nine are Kredivo listing Bangalore, Manila and
+  # Singapore; Techconnect listing Dili, Timor-Leste; and Amartha listing
+  # Shenzhen. "Entirely Indonesian" would therefore be false, and 767 is the
+  # POST-FILTER count rather than the live total.
+  #
+  # Those 9 are exactly what `allow` below rejects, row by row, which is the
+  # whole reason that filter stays load-bearing instead of belt-and-braces (see
+  # the "STILL LOAD-BEARING" block in the location_filter section). The
+  # domination ratio is 98.8%, against Grab's 19% and Bjak's 5.6% below, and
+  # that contrast — not a claim of purity — is what the rule below selects on.
+  #
+  # Grab and Bjak were VERIFIED and are still deliberately absent — not because
+  # they failed verification, but because they are mixed-market: Grab is 85
+  # Indonesian of 444, Bjak 171 of 3,067, together 3,255 non-Indonesian
+  # postings for 256 Indonesian ones. Including them would trade 256 real
+  # postings for 3,255 that `location_filter` cannot reliably stop, for the
+  # reason recorded in the `allow` block of the `location_filter` section above:
+  # the titleSignalsRemote fallback is placed AFTER the `block` tier, and this
+  # config has no `block` tier, so a remote-titled posting passes regardless of
+  # its location. (The alternative — deny-listing the offending countries — is
+  # rejected there as unmaintainable.)
+  #
+  # Two DIFFERENT reasons exclude an entry, and they must not be confused:
+  #   - no engine provider claims the board  -> the famous bespoke employers
+  #     (GoTo/Gojek, Tokopedia, Traveloka, ...) above. scan.mjs skips them
+  #     silently; the verdict is `no-provider`.
+  #   - the board is mixed-market              -> Grab, Bjak. Engine-verified
+  #     and walkable, but unsafe under THIS location_filter.
+  - name: PT Telkomsel Ekosistem Digital
+    careers_url: https://apply.workable.com/indico
+    enabled: true
+  - name: Kredivo Group
+    careers_url: https://kredivo-group.breezy.hr
+    enabled: true
+  - name: Ajaib
+    careers_url: https://apply.workable.com/ajaib
+    enabled: true
+  - name: Amartha
+    careers_url: https://apply.workable.com/amartha
+    enabled: true
+  - name: BIOTA Smart Home
+    careers_url: https://apply.workable.com/biota-smart-home
+    enabled: true
+  - name: Akar Inti Teknologi
+    careers_url: https://akar-inti-teknologi.breezy.hr
+    enabled: true
+  - name: GudangAda
+    careers_url: https://careers.smartrecruiters.com/GudangAda
+    enabled: true
+  - name: Techconnect
+    careers_url: https://apply.workable.com/techconnect
+    enabled: true
+  - name: Julo
+    careers_url: https://careers.smartrecruiters.com/Julo
+    enabled: true

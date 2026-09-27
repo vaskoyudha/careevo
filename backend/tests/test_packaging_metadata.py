@@ -37,15 +37,8 @@ def test_parser_extras_track_current_upstream_floors() -> None:
     ]
 
 
-def test_python_314_is_supported_by_both_distributions() -> None:
-    expected = ">=3.11,<3.15"
-    assert _project(REPOSITORY_ROOT / "pyproject.toml")["requires-python"] == expected
-    assert (
-        _project(REPOSITORY_ROOT / "packaging" / "deeptutor-cli" / "pyproject.toml")[
-            "requires-python"
-        ]
-        == expected
-    )
+def test_python_314_is_supported() -> None:
+    assert _project(REPOSITORY_ROOT / "pyproject.toml")["requires-python"] == ">=3.11,<3.15"
 
 
 def test_python_314_rag_dependency_guards_match_every_install_surface() -> None:
@@ -55,12 +48,10 @@ def test_python_314_rag_dependency_guards_match_every_install_surface() -> None:
         "faiss-cpu>=1.12.0,<2.0.0; python_version >= '3.14'",
     ]
     root = _project(REPOSITORY_ROOT / "pyproject.toml")
-    cli_package = _project(REPOSITORY_ROOT / "packaging" / "deeptutor-cli" / "pyproject.toml")
 
     for dependencies in (
         root["dependencies"],
         root["optional-dependencies"]["cli"],
-        cli_package["dependencies"],
     ):
         assert [
             item for item in dependencies if item.startswith("llama-index-retrievers-bm25")
@@ -83,10 +74,7 @@ def test_graphrag_extra_remains_guarded_until_upstream_supports_python_314() -> 
 
 @pytest.mark.parametrize(
     "metadata_path",
-    [
-        REPOSITORY_ROOT / "pyproject.toml",
-        REPOSITORY_ROOT / "packaging" / "deeptutor-cli" / "pyproject.toml",
-    ],
+    [REPOSITORY_ROOT / "pyproject.toml"],
 )
 def test_typer_dependency_does_not_request_removed_all_extra(metadata_path: Path) -> None:
     with metadata_path.open("rb") as file:
@@ -98,10 +86,7 @@ def test_typer_dependency_does_not_request_removed_all_extra(metadata_path: Path
 
 @pytest.mark.parametrize(
     "metadata_path",
-    [
-        REPOSITORY_ROOT / "pyproject.toml",
-        REPOSITORY_ROOT / "packaging" / "deeptutor-cli" / "pyproject.toml",
-    ],
+    [REPOSITORY_ROOT / "pyproject.toml"],
 )
 def test_mcp_client_is_a_core_dependency(metadata_path: Path) -> None:
     """`mcp` must install by default, not only via an extra (issue #792).
@@ -139,13 +124,11 @@ def test_requirements_mirror_the_core_mcp_client() -> None:
 
 
 def test_cli_qrcode_dependency_matches_every_install_surface() -> None:
-    """Plain CLI installs include the QR renderer used by partner onboarding."""
+    """The QR renderer used by partner onboarding must be declared once."""
     expected = "qrcode>=7.4.0,<9.0.0"
     root = _project(REPOSITORY_ROOT / "pyproject.toml")
-    cli_package = _project(REPOSITORY_ROOT / "packaging" / "deeptutor-cli" / "pyproject.toml")
 
     assert root["dependencies"].count(expected) == 1
-    assert cli_package["dependencies"].count(expected) == 1
     assert _cli_requirement_lines().count(expected) == 1
 
 
@@ -165,12 +148,9 @@ def test_pageindex_sdk_range_matches_every_install_surface() -> None:
     expected = "pageindex>=0.2.10,<0.3.0"
     with (REPOSITORY_ROOT / "pyproject.toml").open("rb") as file:
         root = tomllib.load(file)["project"]
-    with (REPOSITORY_ROOT / "packaging" / "deeptutor-cli" / "pyproject.toml").open("rb") as file:
-        cli_package = tomllib.load(file)["project"]
 
     assert root["dependencies"].count(expected) == 1
     assert root["optional-dependencies"]["cli"].count(expected) == 1
-    assert cli_package["dependencies"].count(expected) == 1
     assert (REPOSITORY_ROOT / "requirements" / "cli.txt").read_text(
         encoding="utf-8"
     ).splitlines().count(expected) == 1
@@ -197,15 +177,12 @@ def test_lightrag_extra_is_the_exact_native_sdk_without_parser_transitives() -> 
         "reportlab>=4.0.0",
     ],
 )
-def test_cli_runtime_dependencies_match_every_install_surface(expected: str) -> None:
-    """CLI-only installs must include everything used by terminal workflows."""
+def test_runtime_dependencies_match_every_install_surface(expected: str) -> None:
+    """Declared exactly once in pyproject and once in the Docker/CI mirror."""
     with (REPOSITORY_ROOT / "pyproject.toml").open("rb") as file:
         root = tomllib.load(file)["project"]
-    with (REPOSITORY_ROOT / "packaging" / "deeptutor-cli" / "pyproject.toml").open("rb") as file:
-        cli_package = tomllib.load(file)["project"]
 
     assert root["dependencies"].count(expected) == 1
-    assert cli_package["dependencies"].count(expected) == 1
     requirement_lines = [
         line.split("#", 1)[0].strip()
         for line in (REPOSITORY_ROOT / "requirements" / "cli.txt")

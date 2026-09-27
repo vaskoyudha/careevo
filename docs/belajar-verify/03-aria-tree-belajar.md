@@ -1,0 +1,260 @@
+- generic [active] [ref=f28e1]:
+  - generic [ref=f28e20]:
+    - link "Lewati ke konten utama" [ref=f28e21] [cursor=pointer]:
+      - /url: "#main"
+    - generic [ref=f28e22]:
+      - link "Careevo" [ref=f28e23] [cursor=pointer]:
+        - /url: /
+        - img "Careevo" [ref=f28e24]
+      - navigation "Navigasi utama" [ref=f28e25]:
+        - button "Explore menu" [ref=f28e27] [cursor=pointer]:
+          - generic [ref=f28e31]: Explore
+        - link "Belajar" [ref=f28e34] [cursor=pointer]:
+          - /url: /belajar
+        - link "Jalur Belajar" [ref=f28e39] [cursor=pointer]:
+          - /url: /belajar/jalur
+        - link "AI Mastery" [ref=f28e45] [cursor=pointer]:
+          - /url: /ai-mastery
+        - link "Karya" [ref=f28e49] [cursor=pointer]:
+          - /url: /submission
+        - link "Loker" [ref=f28e54] [cursor=pointer]:
+          - /url: /loker
+        - link "Careevo Plus" [ref=f28e59] [cursor=pointer]:
+          - /url: /careevo-plus
+        - link "Bisnis" [ref=f28e63] [cursor=pointer]:
+          - /url: /business
+      - generic [ref=f28e69]:
+        - search [ref=f28e70]:
+          - generic [ref=f28e71]: Cari kursus
+          - generic [ref=f28e72]:
+            - searchbox "Cari kursus"
+            - button "Cari" [ref=f28e76] [cursor=pointer]
+        - link "Dashboard" [ref=f28e77] [cursor=pointer]:
+          - /url: /dashboard
+        - button "Buka menu akun" [ref=f28e84] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f28e85]: V
+    - main [ref=f28e88]:
+      - generic [ref=f28e89]:
+        - generic [ref=f28e91]:
+          - generic [ref=f28e92]:
+            - generic [aria-hidden] [ref=f28e93]: C
+            - generic [ref=f28e94]:
+              - generic [ref=f28e95]: Verifikasi Blok Kode C++
+              - generic [ref=f28e96]: Careevo Verify · 1 modul
+          - generic [ref=f28e97]:
+            - status [ref=f28e98]: 0% · 0/1 modul
+            - link [ref=f28e99] [cursor=pointer]:
+              - /url: "#kurikulum"
+              - text: Lanjutkan
+        - generic [ref=f28e101]:
+          - navigation "Breadcrumb" [ref=f28e102]:
+            - link "Belajar" [ref=f28e103] [cursor=pointer]:
+              - /url: /belajar
+            - text: / Verifikasi Blok Kode C++
+          - paragraph [ref=f28e104]:
+            - generic [aria-hidden] [ref=f28e105]: C
+            - text: Careevo Verify
+            - generic [aria-hidden] [ref=f28e106]: ·
+            - generic [ref=f28e107]: course
+          - heading "Verifikasi Blok Kode C++" [level=1] [ref=f28e108]
+          - paragraph [ref=f28e109]: Kursus sementara untuk verifikasi blok kode di peramban.
+          - generic [ref=f28e110]:
+            - generic [ref=f28e111]:
+              - term [ref=f28e112]: Level
+              - definition [ref=f28e113]: Pemula
+            - generic [ref=f28e114]:
+              - term [ref=f28e115]: Durasi
+              - definition [ref=f28e116]: 120 mnt
+            - generic [ref=f28e117]:
+              - term [ref=f28e118]: Modul
+              - definition [ref=f28e119]: 1 modul
+            - generic [ref=f28e120]:
+              - term [ref=f28e121]: Rating
+              - definition [ref=f28e122]: ★ 5.00
+        - generic [ref=f28e123]:
+          - generic [ref=f28e124]:
+            - region [ref=f28e125]:
+              - heading "Kurikulum" [level=2] [ref=f28e126]
+              - paragraph [ref=f28e127]: 1 modul · 120 menit total · 2 halaman
+              - generic [ref=f28e129]:
+                - paragraph [ref=f28e130]: Course ini mewajibkan sesi terverifikasi untuk menyelesaikan materi.
+                - paragraph [ref=f28e131]: Sesi ini mencatat kejadian integritas (pindah tab dan fokus yang hilang) selama berjalan. Permintaan akses kamera belum aktif; setelah tersedia, sesi terverifikasi juga memerlukan persetujuan kameramu.
+                - button "Mulai sesi terverifikasi" [ref=f28e132] [cursor=pointer]
+              - list [ref=f28e133]:
+                - listitem [ref=f28e134]:
+                  - generic [ref=f28e135]:
+                    - generic [aria-hidden] [ref=f28e136]: "1"
+                    - generic [ref=f28e137]:
+                      - heading "Modul 1 Halo C++" [level=3] [ref=f28e138]
+                      - paragraph [ref=f28e139]: Menyalin, membaca, dan memahami program C++ pertama.
+                      - paragraph [ref=f28e140]:
+                        - generic [ref=f28e141]: 30 mnt
+                        - generic [ref=f28e142]: 2 halaman
+                        - button "Buka materi" [ref=f28e143] [cursor=pointer]
+                    - button "Tandai selesai" [ref=f28e144] [cursor=pointer]
+            - complementary "Pendaftaran" [ref=f28e145]:
+              - generic [ref=f28e146]:
+                - paragraph [ref=f28e147]: Terdaftar · 0%
+                - progressbar "Progres kursus 0 persen" [ref=f28e148]
+                - paragraph [ref=f28e149]: 0 dari 1 modul selesai
+                - link "Lanjutkan belajar" [ref=f28e150] [cursor=pointer]:
+                  - /url: "#kurikulum"
+                - link "Buka materi eksternal ↗" [ref=f28e151] [cursor=pointer]:
+                  - /url: https://careevo.test
+              - region [ref=f28e152]:
+                - generic [ref=f28e158]:
+                  - heading "Tutor AI" [level=2] [ref=f28e159]
+                  - paragraph [ref=f28e160]: Tanya materi kursus ini dengan konteks utuh.
+                - generic [ref=f28e161]:
+                  - generic [ref=f28e162]:
+                    - term [ref=f28e163]: Kursus
+                    - definition [ref=f28e164]: Verifikasi Blok Kode C++
+                  - generic [ref=f28e165]:
+                    - term [ref=f28e166]: Penyedia
+                    - definition [ref=f28e167]: Careevo Verify
+                  - generic [ref=f28e168]:
+                    - term [ref=f28e169]: Cakupan
+                    - definition [ref=f28e170]: 1 modul
+                - link "Tanya tutor AI" [ref=f28e171] [cursor=pointer]:
+                  - /url: /ai-mastery?course=course_602f2d1011bb&capability=course_study
+                - paragraph [ref=f28e175]: Dibuka di AI Mastery dengan kursus ini sebagai konteks belajarnya.
+          - region [ref=f28e176]:
+            - heading "Uji pemahaman lewat challenge praktik" [level=2] [ref=f28e177]
+            - paragraph [ref=f28e178]: Ambil data dari API publik, tampilkan loading/error/empty state, dan tangani race condition saat pencarian cepat.
+            - 'link "Kerjakan: Async Data Fetching" [ref=f28e179] [cursor=pointer]':
+              - /url: /challenge/2
+    - contentinfo [ref=f28e180]:
+      - generic [ref=f28e181]:
+        - generic [ref=f28e182]:
+          - generic [ref=f28e183]:
+            - link "Careevo" [ref=f28e184] [cursor=pointer]:
+              - /url: /
+              - img "Careevo" [ref=f28e185]
+            - paragraph [ref=f28e186]: Jembatan terverifikasi dari course ke pekerjaan pertama. Proses belajar terekam, hasil ditandatangani, loker diaudit.
+            - generic [ref=f28e187]:
+              - generic [ref=f28e188]: Berlangganan newsletter
+              - generic [ref=f28e189]:
+                - textbox "Berlangganan newsletter" [ref=f28e190]:
+                  - /placeholder: email@contoh.com
+                - button "Submit" [ref=f28e191]
+            - generic [ref=f28e192]:
+              - link [ref=f28e193] [cursor=pointer]:
+                - /url: "#"
+              - link [ref=f28e197] [cursor=pointer]:
+                - /url: "#"
+              - link [ref=f28e200] [cursor=pointer]:
+                - /url: "#"
+              - link [ref=f28e203] [cursor=pointer]:
+                - /url: "#"
+              - generic [ref=f28e206]: Ikuti kami
+            - link "Contact for demo" [ref=f28e207] [cursor=pointer]:
+              - /url: /masuk
+          - generic [ref=f28e211]:
+            - generic [ref=f28e212]:
+              - heading "Perusahaan" [level=4] [ref=f28e213]
+              - list [ref=f28e214]:
+                - listitem [ref=f28e215]:
+                  - link "Tentang Kami" [ref=f28e216] [cursor=pointer]:
+                    - /url: "#tentang"
+                - listitem [ref=f28e217]:
+                  - link "Karir" [ref=f28e218] [cursor=pointer]:
+                    - /url: "#karir"
+                - listitem [ref=f28e219]:
+                  - link "Kontak" [ref=f28e220] [cursor=pointer]:
+                    - /url: /masuk
+                - listitem [ref=f28e221]:
+                  - link "Blog" [ref=f28e222] [cursor=pointer]:
+                    - /url: "#blog"
+                - listitem [ref=f28e223]:
+                  - link "Teknologi" [ref=f28e224] [cursor=pointer]:
+                    - /url: "#teknologi"
+            - generic [ref=f28e225]:
+              - heading "Produk" [level=4] [ref=f28e226]
+              - list [ref=f28e227]:
+                - listitem [ref=f28e228]:
+                  - link "Manifesto" [ref=f28e229] [cursor=pointer]:
+                    - /url: "#tentang"
+                - listitem [ref=f28e230]:
+                  - link "Loop demo" [ref=f28e231] [cursor=pointer]:
+                    - /url: "#loop"
+                - listitem [ref=f28e232]:
+                  - link "Audit log" [ref=f28e233] [cursor=pointer]:
+                    - /url: /audit
+                - listitem [ref=f28e234]:
+                  - link "Fitur Utama" [ref=f28e235] [cursor=pointer]:
+                    - /url: "#fitur"
+                - listitem [ref=f28e236]:
+                  - link "Harga" [ref=f28e237] [cursor=pointer]:
+                    - /url: "#harga"
+            - generic [ref=f28e238]:
+              - heading "Track" [level=4] [ref=f28e239]
+              - list [ref=f28e240]:
+                - listitem [ref=f28e241]:
+                  - link "Belajar terukur" [ref=f28e242] [cursor=pointer]:
+                    - /url: "#agen"
+                - listitem [ref=f28e243]:
+                  - link "Badge & attestation" [ref=f28e244] [cursor=pointer]:
+                    - /url: "#verifikasi"
+                - listitem [ref=f28e245]:
+                  - link "Loker diaudit" [ref=f28e246] [cursor=pointer]:
+                    - /url: "#masalah"
+                - listitem [ref=f28e247]:
+                  - link "Integrasi" [ref=f28e248] [cursor=pointer]:
+                    - /url: "#integrasi"
+                - listitem [ref=f28e249]:
+                  - link "API Docs" [ref=f28e250] [cursor=pointer]:
+                    - /url: "#api"
+            - generic [ref=f28e251]:
+              - heading "Sumber Daya" [level=4] [ref=f28e252]
+              - list [ref=f28e253]:
+                - listitem [ref=f28e254]:
+                  - link "NextGen Secure" [ref=f28e255] [cursor=pointer]:
+                    - /url: "#verifikasi"
+                - listitem [ref=f28e256]:
+                  - link "Stack teknis" [ref=f28e257] [cursor=pointer]:
+                    - /url: "#masalah"
+                - listitem [ref=f28e258]:
+                  - link "Cara verify" [ref=f28e259] [cursor=pointer]:
+                    - /url: /audit
+                - listitem [ref=f28e260]:
+                  - link "Pusat Bantuan" [ref=f28e261] [cursor=pointer]:
+                    - /url: "#bantuan"
+                - listitem [ref=f28e262]:
+                  - link "Komunitas" [ref=f28e263] [cursor=pointer]:
+                    - /url: "#komunitas"
+            - generic [ref=f28e264]:
+              - heading "Legal" [level=4] [ref=f28e265]
+              - list [ref=f28e266]:
+                - listitem [ref=f28e267]:
+                  - link "Zero-PII" [ref=f28e268] [cursor=pointer]:
+                    - /url: "#"
+                - listitem [ref=f28e269]:
+                  - link "UU PDP consent" [ref=f28e270] [cursor=pointer]:
+                    - /url: "#"
+                - listitem [ref=f28e271]:
+                  - link "HMAC & audit" [ref=f28e272] [cursor=pointer]:
+                    - /url: "#"
+                - listitem [ref=f28e273]:
+                  - link "Kebijakan Privasi" [ref=f28e274] [cursor=pointer]:
+                    - /url: /privasi
+                - listitem [ref=f28e275]:
+                  - link "Syarat & Ketentuan" [ref=f28e276] [cursor=pointer]:
+                    - /url: /syarat
+        - generic [ref=f28e277]:
+          - generic [ref=f28e278]: © 2026 Careevo AI Inc. All rights reserved.
+          - generic [ref=f28e279]:
+            - generic [ref=f28e280]: "Kami menerima:"
+            - generic [ref=f28e281]:
+              - generic [ref=f28e282]: Visa
+              - generic [ref=f28e283]: MC
+              - generic [ref=f28e284]: Amex
+              - generic [ref=f28e285]: PP
+          - generic [ref=f28e286]:
+            - link "Privacy Policy" [ref=f28e287] [cursor=pointer]:
+              - /url: "#"
+            - link "Terms of Service" [ref=f28e288] [cursor=pointer]:
+              - /url: "#"
+            - link "Cookie Settings" [ref=f28e289] [cursor=pointer]:
+              - /url: "#"
+  - button "Open Next.js Dev Tools" [ref=f28e15] [cursor=pointer]
+  - alert [ref=f28e19]
