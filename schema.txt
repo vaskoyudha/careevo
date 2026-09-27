@@ -1,0 +1,167 @@
+Pager usage is off.
+Border style is 0.
+                               Table "public.users"
+      Column                  Type           Collation Nullable      Default      
+------------------- ------------------------ --------- -------- -----------------
+id                  uuid                               not null gen_random_uuid()
+email_normalized    text                               not null 
+username_normalized text                               not null 
+display_name        text                               not null 
+status              text                               not null 'active'::text
+created_at          timestamp with time zone           not null now()
+updated_at          timestamp with time zone           not null now()
+Indexes:
+    "users_pkey" PRIMARY KEY, btree (id)
+    "users_email_normalized_unique" UNIQUE CONSTRAINT, btree (email_normalized)
+    "users_username_normalized_unique" UNIQUE CONSTRAINT, btree (username_normalized)
+Check constraints:
+    "users_status_check" CHECK (status = ANY (ARRAY['active'::text, 'suspended'::text, 'deleted'::text]))
+Referenced by:
+    TABLE "attestation_events" CONSTRAINT "attestation_events_actor_user_id_users_id_fk" FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE SET NULL
+    TABLE "attestations" CONSTRAINT "attestations_revoked_by_user_id_users_id_fk" FOREIGN KEY (revoked_by_user_id) REFERENCES users(id) ON DELETE SET NULL
+    TABLE "attestations" CONSTRAINT "attestations_subject_user_id_users_id_fk" FOREIGN KEY (subject_user_id) REFERENCES users(id) ON DELETE RESTRICT
+    TABLE "audit_events" CONSTRAINT "audit_events_actor_user_id_users_id_fk" FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE SET NULL
+    TABLE "badges" CONSTRAINT "badges_user_id_users_id_fk" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    TABLE "course_completions" CONSTRAINT "course_completions_user_id_users_id_fk" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    TABLE "email_verification_tokens" CONSTRAINT "email_verification_tokens_user_id_users_id_fk" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    TABLE "enrollments" CONSTRAINT "enrollments_user_id_users_id_fk" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    TABLE "integrity_violations" CONSTRAINT "integrity_violations_reviewer_user_id_users_id_fk" FOREIGN KEY (reviewer_user_id) REFERENCES users(id) ON DELETE SET NULL
+    TABLE "integrity_violations" CONSTRAINT "integrity_violations_user_id_users_id_fk" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    TABLE "learning_runs" CONSTRAINT "learning_runs_user_id_users_id_fk" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    TABLE "onboarding_profiles" CONSTRAINT "onboarding_profiles_user_id_users_id_fk" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    TABLE "password_reset_tokens" CONSTRAINT "password_reset_tokens_user_id_users_id_fk" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    TABLE "quiz_attempts" CONSTRAINT "quiz_attempts_user_id_users_id_fk" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    TABLE "reviews" CONSTRAINT "reviews_reviewer_user_id_users_id_fk" FOREIGN KEY (reviewer_user_id) REFERENCES users(id) ON DELETE RESTRICT
+    TABLE "sessions" CONSTRAINT "sessions_user_id_users_id_fk" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    TABLE "staff_invitations" CONSTRAINT "staff_invitations_invited_by_user_id_users_id_fk" FOREIGN KEY (invited_by_user_id) REFERENCES users(id) ON DELETE SET NULL
+    TABLE "submission_versions" CONSTRAINT "submission_versions_submitted_by_user_id_users_id_fk" FOREIGN KEY (submitted_by_user_id) REFERENCES users(id) ON DELETE RESTRICT
+    TABLE "submissions" CONSTRAINT "submissions_assigned_reviewer_user_id_users_id_fk" FOREIGN KEY (assigned_reviewer_user_id) REFERENCES users(id) ON DELETE SET NULL
+    TABLE "submissions" CONSTRAINT "submissions_user_id_users_id_fk" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    TABLE "user_credentials" CONSTRAINT "user_credentials_user_id_users_id_fk" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    TABLE "user_profiles" CONSTRAINT "user_profiles_user_id_users_id_fk" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    TABLE "user_roles" CONSTRAINT "user_roles_granted_by_user_id_users_id_fk" FOREIGN KEY (granted_by_user_id) REFERENCES users(id) ON DELETE SET NULL
+    TABLE "user_roles" CONSTRAINT "user_roles_user_id_users_id_fk" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+
+                         Table "public.sessions"
+  Column             Type           Collation Nullable      Default      
+---------- ------------------------ --------- -------- -----------------
+id         uuid                               not null gen_random_uuid()
+user_id    uuid                               not null 
+token_hash text                               not null 
+created_at timestamp with time zone           not null now()
+expires_at timestamp with time zone           not null 
+rotated_at timestamp with time zone                    
+revoked_at timestamp with time zone                    
+user_agent text                                        
+ip_prefix  text                                        
+Indexes:
+    "sessions_pkey" PRIMARY KEY, btree (id)
+    "sessions_expires_at_idx" btree (expires_at)
+    "sessions_token_hash_unique" UNIQUE CONSTRAINT, btree (token_hash)
+    "sessions_user_id_idx" btree (user_id)
+Foreign-key constraints:
+    "sessions_user_id_users_id_fk" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+
+                    Table "public.user_credentials"
+      Column                  Type           Collation Nullable Default 
+------------------- ------------------------ --------- -------- -------
+user_id             uuid                               not null 
+password_hash       text                               not null 
+password_changed_at timestamp with time zone           not null now()
+Indexes:
+    "user_credentials_pkey" PRIMARY KEY, btree (user_id)
+Foreign-key constraints:
+    "user_credentials_user_id_users_id_fk" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+
+                                     Table "public.audit_events"
+     Column                Type           Collation Nullable                 Default                  
+---------------- ------------------------ --------- -------- ----------------------------------------
+id               bigint                             not null nextval('audit_events_id_seq'::regclass)
+actor_user_id    uuid                                        
+action           text                               not null 
+entity_type      text                               not null 
+entity_id        text                               not null 
+payload_redacted jsonb                                       
+request_id       text                                        
+created_at       timestamp with time zone           not null now()
+Indexes:
+    "audit_events_pkey" PRIMARY KEY, btree (id)
+    "audit_events_actor_user_id_idx" btree (actor_user_id)
+Foreign-key constraints:
+    "audit_events_actor_user_id_users_id_fk" FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE SET NULL
+
+                          Table "public.learning_runs"
+     Column                 Type           Collation Nullable      Default      
+----------------- ------------------------ --------- -------- -----------------
+id                uuid                               not null gen_random_uuid()
+user_id           uuid                               not null 
+enrollment_id     uuid                               not null 
+course_id         text                               not null 
+module_id         text                                        
+state             text                               not null 'active'::text
+started_at        timestamp with time zone           not null now()
+expires_at        timestamp with time zone           not null 
+completed_at      timestamp with time zone                    
+integrity_version integer                            not null 1
+metadata_redacted jsonb                                       
+Indexes:
+    "learning_runs_pkey" PRIMARY KEY, btree (id)
+    "learning_runs_course_id_idx" btree (course_id)
+    "learning_runs_expires_at_idx" btree (expires_at)
+    "learning_runs_state_idx" btree (state)
+    "learning_runs_user_id_idx" btree (user_id)
+Check constraints:
+    "learning_runs_state_check" CHECK (state = ANY (ARRAY['active'::text, 'completed'::text, 'expired'::text]))
+Foreign-key constraints:
+    "learning_runs_enrollment_id_enrollments_id_fk" FOREIGN KEY (enrollment_id) REFERENCES enrollments(id) ON DELETE CASCADE
+    "learning_runs_user_id_users_id_fk" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+Referenced by:
+    TABLE "learning_events" CONSTRAINT "learning_events_learning_run_id_learning_runs_id_fk" FOREIGN KEY (learning_run_id) REFERENCES learning_runs(id) ON DELETE CASCADE
+
+                          Table "public.enrollments"
+    Column                Type           Collation Nullable      Default      
+--------------- ------------------------ --------- -------- -----------------
+id              uuid                               not null gen_random_uuid()
+user_id         uuid                               not null 
+course_id       text                               not null 
+status          text                               not null 'active'::text
+enrolled_at     timestamp with time zone           not null now()
+completed_at    timestamp with time zone                    
+completion_path text                                        
+Indexes:
+    "enrollments_pkey" PRIMARY KEY, btree (id)
+    "enrollments_course_id_idx" btree (course_id)
+    "enrollments_user_course_unique" UNIQUE CONSTRAINT, btree (user_id, course_id)
+Check constraints:
+    "enrollments_completion_path_check" CHECK (completion_path = ANY (ARRAY['terverifikasi'::text, 'informal'::text]))
+    "enrollments_status_check" CHECK (status = ANY (ARRAY['active'::text, 'completed'::text, 'dropped'::text]))
+Foreign-key constraints:
+    "enrollments_user_id_users_id_fk" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+Referenced by:
+    TABLE "course_completions" CONSTRAINT "course_completions_enrollment_id_enrollments_id_fk" FOREIGN KEY (enrollment_id) REFERENCES enrollments(id) ON DELETE CASCADE
+    TABLE "integrity_violations" CONSTRAINT "integrity_violations_enrollment_id_enrollments_id_fk" FOREIGN KEY (enrollment_id) REFERENCES enrollments(id) ON DELETE SET NULL
+    TABLE "learning_runs" CONSTRAINT "learning_runs_enrollment_id_enrollments_id_fk" FOREIGN KEY (enrollment_id) REFERENCES enrollments(id) ON DELETE CASCADE
+    TABLE "module_progress" CONSTRAINT "module_progress_enrollment_id_enrollments_id_fk" FOREIGN KEY (enrollment_id) REFERENCES enrollments(id) ON DELETE CASCADE
+    TABLE "quiz_attempts" CONSTRAINT "quiz_attempts_enrollment_id_enrollments_id_fk" FOREIGN KEY (enrollment_id) REFERENCES enrollments(id) ON DELETE CASCADE
+    TABLE "submissions" CONSTRAINT "submissions_enrollment_id_enrollments_id_fk" FOREIGN KEY (enrollment_id) REFERENCES enrollments(id) ON DELETE SET NULL
+
+                      Table "public.course_completions"
+    Column                Type           Collation Nullable      Default      
+--------------- ------------------------ --------- -------- -----------------
+id              uuid                               not null gen_random_uuid()
+user_id         uuid                               not null 
+course_id       text                               not null 
+enrollment_id   uuid                               not null 
+completed_at    timestamp with time zone           not null now()
+completion_path text                               not null 
+policy_version  integer                            not null 
+Indexes:
+    "course_completions_pkey" PRIMARY KEY, btree (id)
+    "course_completions_enrollment_id_unique" UNIQUE CONSTRAINT, btree (enrollment_id)
+    "course_completions_user_id_idx" btree (user_id)
+Check constraints:
+    "course_completions_completion_path_check" CHECK (completion_path = ANY (ARRAY['terverifikasi'::text, 'informal'::text]))
+Foreign-key constraints:
+    "course_completions_enrollment_id_enrollments_id_fk" FOREIGN KEY (enrollment_id) REFERENCES enrollments(id) ON DELETE CASCADE
+    "course_completions_user_id_users_id_fk" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+

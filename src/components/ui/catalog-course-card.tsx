@@ -216,8 +216,12 @@ export function courseMetaFor(resource: ResourceFixture): CourseMeta {
   };
 }
 
-/** Logo penyedia; jatuh ke inisial merek saat logo tidak ada atau gagal dimuat. */
-function ProviderMark({ logo, provider }: { logo?: string; provider: string }) {
+/** Logo penyedia; jatuh ke inisial merek saat logo tidak ada atau gagal dimuat.
+ *
+ * Diekspor supaya kartu banner `/belajar` memakai aturan fallback yang sama —
+ * satu tempat yang menentukan apa yang terjadi ketika logo penyedia hilang atau
+ * host-nya tidak bisa dimuat, bukan dua. */
+export function ProviderMark({ logo, provider }: { logo?: string; provider: string }) {
   const [errored, setErrored] = useState(false);
 
   if (logo && !errored) {

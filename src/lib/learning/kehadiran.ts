@@ -220,6 +220,60 @@ export function hitungStreak(
 }
 
 /**
+ * Label hari, **Senin lebih dulu** — konvensi kalender Indonesia.
+ *
+ * Bukan `Date.getDay()`, yang memulai minggu dari Minggu: indeks itu dipakai
+ * untuk menyusun gambar minggu, dan menggesernya di komponen akan membuat
+ * urutan Sen–Min bergantung pada satu `+1` yang mudah terlupa.
+ */
+export const LABEL_HARI_SINGKAT = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"] as const;
+
+export interface HariMinggu {
+  /** Kunci `YYYY-MM-DD` hari itu. */
+  kunci: string;
+  /** Label singkat, mis. `Sen`. */
+  label: string;
+  /** Ada sesi `completed` di hari itu — dari `hariAktif`, bukan hitungan baru. */
+  aktif: boolean;
+  /** Hari itu adalah hari `now`. */
+  hariIni: boolean;
+}
+
+/**
+ * Tujuh hari minggu berjalan (Senin–Minggu) yang memuat `now`.
+ *
+ * Dipakai kartu "Hari beruntun" untuk menggambar satu strip hari. Dihitung di
+ * sini dan **bukan** di komponen karena "hari ini" bergantung pada zona waktu
+ * tetap (`Asia/Jakarta`) dan pada `now` dari server; menyusunnya di peramban
+ * akan menandai hari yang berbeda untuk run yang sama setiap kali perangkat
+ * peserta berada di zona lain.
+ *
+ * Kalau `now` tidak terbaca, hasilnya larik kosong: lebih baik tanpa strip
+ * daripada strip yang menandai hari yang salah.
+ */
+export function mingguAktif(
+  hariAktif: readonly string[],
+  now: Date,
+  zonaWaktu: string = ZONA_WAKTU_DEFAULT,
+): HariMinggu[] {
+  const hariIni = kunciHari(now, zonaWaktu);
+  if (hariIni === "") return [];
+
+  const nomorHariIni = nomorDariKunci(hariIni);
+  // `getUTCDay()` memetakan Minggu ke 0; minggu di sini mulai Senin, jadi Minggu
+  // digeser ke ujung (`+6 % 7`) alih-alih ke awal.
+  const indeksMinggu = new Date(nomorHariIni * MS_PER_HARI).getUTCDay();
+  const offsetSenin = (indeksMinggu + 6) % 7;
+  const senin = nomorHariIni - offsetSenin;
+
+  const aktif = new Set(hariAktif);
+  return LABEL_HARI_SINGKAT.map((label, i) => {
+    const kunci = kunciDariNomor(senin + i);
+    return { kunci, label, aktif: aktif.has(kunci), hariIni: kunci === hariIni };
+  });
+}
+
+/**
  * Ringkasan kehadiran dari sekumpulan baris run.
  *
  * `jamEfektif` dibulatkan dua desimal supaya angka yang ditampilkan di UI dan

@@ -3,6 +3,7 @@ import {
   durasiMenit,
   hitungStreak,
   kunciHari,
+  mingguAktif,
   ringkasKehadiran,
   ZONA_WAKTU_DEFAULT,
   type BarisKehadiran,
@@ -206,6 +207,53 @@ describe("hitungStreak", () => {
     expect(hari(95)).toBe("2026-12-31");
     expect(hari(96)).toBe("2027-01-01");
     expect(hitungStreak(new Set([hari(94), hari(95), hari(96)]), jam(hari(96)), ZONA)).toBe(3);
+  });
+});
+
+describe("mingguAktif", () => {
+  it("mengembalikan Senin sampai Minggu yang memuat hari ini", () => {
+    // 2026-09-27 adalah hari Minggu, jadi minggu berjalannya mulai Senin
+    // 2026-09-21 dan berakhir di hari itu sendiri.
+    const minggu = mingguAktif([], NOW, ZONA);
+    expect(minggu.map((h) => h.label)).toEqual(["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"]);
+    expect(minggu.map((h) => h.kunci)).toEqual([
+      "2026-09-21",
+      "2026-09-22",
+      "2026-09-23",
+      "2026-09-24",
+      "2026-09-25",
+      "2026-09-26",
+      "2026-09-27",
+    ]);
+  });
+
+  it("menandai tepat satu hari sebagai hari ini", () => {
+    const minggu = mingguAktif([], NOW, ZONA);
+    expect(minggu.filter((h) => h.hariIni)).toHaveLength(1);
+    expect(minggu.find((h) => h.hariIni)?.kunci).toBe("2026-09-27");
+  });
+
+  it("menandai hari aktif dari hariAktif, bukan dari jam peramban", () => {
+    // Hanya 2026-09-25 dan 2026-09-27 yang punya sesi; dua hari itu — dan hanya
+    // itu — yang harus menyala. Angka `aktif` tidak dihitung ulang di sini, ia
+    // hanya membaca keanggotaan di `hariAktif`.
+    const minggu = mingguAktif(["2026-09-25", "2026-09-27"], NOW, ZONA);
+    expect(minggu.filter((h) => h.aktif).map((h) => h.kunci)).toEqual(["2026-09-25", "2026-09-27"]);
+  });
+
+  it("Senin adalah hari pertama minggu, bukan Minggu", () => {
+    // `Date.getDay()` memulai minggu dari Minggu. Kalau indeks itu dipakai apa
+    // adanya, strip akan bergeser satu hari dan hari aktif muncul di kolom yang
+    // salah. 2026-09-28 (Senin) harus membuka minggu barunya di kolom pertama.
+    const seninDepan = jam("2026-09-28");
+    const minggu = mingguAktif([], seninDepan, ZONA);
+    expect(minggu[0]?.label).toBe("Sen");
+    expect(minggu[0]?.kunci).toBe("2026-09-28");
+    expect(minggu.find((h) => h.hariIni)?.kunci).toBe("2026-09-28");
+  });
+
+  it("tanggal tidak bisa dibaca menghasilkan strip kosong, bukan hari yang salah", () => {
+    expect(mingguAktif([], new Date(Number.NaN), ZONA)).toEqual([]);
   });
 });
 

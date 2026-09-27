@@ -164,6 +164,14 @@
   --color-foam: var(--foam-line);
   --font-sans: var(--font);
   --font-mono: var(--font-mono);
+  /* Stronger custom curves. Tailwind's built-in `ease-out` is
+     `cubic-bezier(0, 0, 0.2, 1)`, which starts too gently to read as
+     responsive. These are the standard strong variants: the enter curve
+     front-loads the motion so an element is visibly moving on the first frame,
+     which is what makes a 150ms transition feel instant rather than abrupt.
+     Referenced as `ease-out-strong` / `ease-in-out-strong`. */
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -4976,6 +4984,294 @@ button.tag:hover {
   }
 }
 
+/* ===== DASHBOARD CARD SKIN (blue-sky surfaces) =====
+   The dashboard cards are not flat white. Measured off the reference
+   (docs/design-references), each card is a near-white sheet that falls into a
+   pale sky blue toward the bottom: #fdfdfe at the top edge, #e3effc at the
+   bottom edge — a ~8% lightness drop over the card height. That fall is what
+   gives the surface its depth; a flat `bg-white` reads as a plain rectangle
+   next to it, which is exactly the "too plain" the user reported.
+
+   Tokens live here, applied through the `.dash-card` marker class, so every
+   dashboard surface resolves ONE gradient instead of each component re-spelling
+   a `bg-linear-to-b` (three hand-copied ramps is how the blue drifts per card).
+   The variant classes carry the same treatment in a different hue: the
+   certificate empty state is mint (`#f2fdfb → #e2effc`), not white. */
+.dashboard-shell {
+  --dash-card-top: #fdfdfe;
+  --dash-card-bottom: #e3effc;
+  --dash-card-border: rgba(147, 197, 253, 0.38);
+  /* One elevation layer only, tinted blue rather than neutral grey so the
+     shadow belongs to the same light as the surface. */
+  --dash-card-shadow:
+    0 1px 2px rgba(10, 61, 98, 0.04),
+    0 10px 24px -16px rgba(10, 61, 98, 0.14);
+  --dash-icon-bg: #e3eefd;
+  --dash-chip-bg: rgba(227, 238, 253, 0.85);
+}
+
+/* Cards measured off the reference: 16px inner padding, 28px icon badge,
+   #fdfdfe → #e3effc.`
+   The horizontal padding is the same 16px as the vertical one — the reference
+   card is a tight, evenly-padded block, and a larger horizontal inset than
+   vertical (the usual "p-5 with px-6" instinct) is what makes a card read as
+   roomy rather than compact. */
+.dashboard-shell .dash-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid var(--dash-card-border);
+  background-image: linear-gradient(
+    170deg,
+    var(--dash-card-top) 0%,
+    #f7fbff 46%,
+    var(--dash-card-bottom) 100%
+  );
+  box-shadow: var(--dash-card-shadow);
+  padding: 16px;
+  /* One elevation layer, lifted on hover. 150ms with a strong curve: the card
+     starts moving immediately, so the lift reads as a response to the pointer
+     rather than as a delayed animation. `box-shadow` only — animating layout
+     properties here would reflow the whole grid on every hover. */
+  transition: box-shadow 150ms var(--ease-out-strong);
+}
+
+.dashboard-shell .dash-card:hover {
+  box-shadow:
+    0 1px 2px rgba(10, 61, 98, 0.05),
+    0 14px 30px -16px rgba(10, 61, 98, 0.2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-shell .dash-card {
+    transition: none;
+  }
+}
+
+/* Mint variant for the certificate empty state — the reference tints that whole
+   card green, not just its icon. */
+.dashboard-shell .dash-card-mint {
+  background-image: linear-gradient(
+    165deg,
+    #f4fdfb 0%,
+    #edfbf8 42%,
+    var(--dash-card-bottom) 100%
+  );
+  --dash-card-border: rgba(167, 226, 208, 0.5);
+}
+
+/* --- Card header: tinted icon badge + bold title + optional trailing slot --- */
+.dashboard-shell .dash-card-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.dashboard-shell .dash-icon {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 7px;
+  background: var(--dash-icon-bg);
+  color: var(--dash-head-ink, #007aff);
+}
+
+/* Green badge for the mint certificate card. */
+.dashboard-shell .dash-card-mint .dash-icon {
+  background: #d6f5e6;
+  color: #1f6b40;
+}
+
+.dashboard-shell .dash-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #0a2a3a;
+}
+
+/* Trailing header control ("Lihat semua →", the "…" menu). Not a shrinkable
+   item: it must stay whole when the title is long. */
+.dashboard-shell .dash-head-action {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* --- Compact chips and list rows ------------------------------------------ */
+
+/* Soft blue pill, used for interests and the tier chip's quiet sibling. */
+.dashboard-shell .dash-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 7px;
+  background: var(--dash-chip-bg);
+  padding: 0.2rem 0.5rem;
+  font-size: 11px;
+  font-weight: 600;
+  color: #0056d2;
+}
+
+/* Inset sub-panel inside a card (the integrity note). Sits one step bluer than
+   the card so it reads as a well, not as a second card. */
+.dashboard-shell .dash-inset {
+  border-radius: 10px;
+  background: rgba(222, 236, 252, 0.6);
+  padding: 0.55rem 0.65rem;
+}
+
+/* A progress row in the per-course list. */
+.dashboard-shell .dash-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid rgba(147, 197, 253, 0.22);
+}
+
+.dashboard-shell .dash-row:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+/* Circular tinted marker that opens a list row (course badge, etc.). */
+.dashboard-shell .dash-row-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  background: var(--dash-icon-bg);
+  color: #007aff;
+}
+
+/* --- Compact vertical rhythm ---------------------------------------------
+   The reference card is dense: every block sits 4–10px from the next, and the
+   whole first row is 256px tall. These spacing helpers name the three gaps the
+   cards actually use, so a new block cannot silently pick a roomier default
+   (`mt-4` on every sibling is exactly how the row grew from 256px to 349px).
+   They are deliberately small — at this density a 4px difference is visible, so
+   the scale is 4/8/12 rather than the usual 8/12/16. */
+.dashboard-shell .dash-gap-xs {
+  margin-top: 4px;
+}
+.dashboard-shell .dash-gap-sm {
+  margin-top: 8px;
+}
+.dashboard-shell .dash-gap-md {
+  margin-top: 12px;
+}
+
+/* The big figure (streak count, honesty score). Fixed line-height so the digit
+   box does not inherit a text default that pads the block vertically. */
+.dashboard-shell .dash-figure {
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: #0a2a3a;
+}
+
+/* Hero greeting band — a plain white surface, one of the card family.
+   It used to carry a layered blue-sky wash (a radial bloom at the lower-right
+   plus light pools). That made the band read as a decorated banner rather than
+   a card, and it fought the bento tiles right below it: the eye landed on the
+   greeting instead of the learner's own numbers. White keeps the hierarchy —
+   the greeting is a container, the tiles are the content.
+
+   Same border and shadow tokens as `.dash-card`, so the band and the tiles are
+   visibly the same kind of surface; only the fill differs. */
+.dashboard-shell .dash-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid var(--dash-card-border);
+  background: #ffffff;
+  box-shadow: var(--dash-card-shadow);
+}
+
+/* ===== DASHBOARD BENTO GRID =====
+   The dashboard is a bento mosaic, not a uniform 3-up. Tiles differ in size so
+   the grid has a reading order: a row of three stat tiles, then a certificate
+   tile beside a tall progress tile, then "Lanjutkan Belajar" full-width as the
+   closing call to action. Size carries meaning here — the tall tile is the list
+   you scroll, the wide one is the action.
+
+   Structure is `grid-template-areas` at `xl` only, so every tile has a NAMED
+   home. Assigning areas by `nth-child` instead would place tiles by their
+   position in the JSX, and reordering the page would silently swap two cards'
+   sizes rather than failing.
+
+   The area lives on a `.dash-sel-*` wrapper (one per card). The wrapper is
+   itself `display: grid`, so the single card inside stretches to fill the area
+   without every card component needing an `h-full` prop. */
+.dashboard-shell .dash-bento {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Each wrapper is a grid so its one child stretches to the tile's full height. */
+.dashboard-shell .dash-sel {
+  display: grid;
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .dashboard-shell .dash-bento {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    /* Below `xl` there are no areas: a tile is one plain grid cell, so a short
+       tile would be stretched to whatever a tall neighbour happens to be —
+       which turned the certificate card into 371px of empty gradient. Content
+       height only, until the named areas below take over. */
+    align-items: start;
+  }
+}
+
+@media (min-width: 1280px) {
+  .dashboard-shell .dash-bento {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    /* Back to stretching: at `xl` every tile has a named area, so a tile that
+       fills its cell is the point of the mosaic. The short certificate tile
+       grows to the row height and its illustration is bottom-anchored, so the
+       extra height reads as surface rather than as a hole. */
+    align-items: stretch;
+    grid-template-areas:
+      "profil profil streak streak skor   skor"
+      "sertif sertif sertif  progres progres progres"
+      "lanjut lanjut lanjut  lanjut lanjut lanjut";
+  }
+
+  .dashboard-shell .dash-sel-profil {
+    grid-area: profil;
+  }
+  .dashboard-shell .dash-sel-streak {
+    grid-area: streak;
+  }
+  .dashboard-shell .dash-sel-skor {
+    grid-area: skor;
+  }
+  .dashboard-shell .dash-sel-lanjut {
+    grid-area: lanjut;
+  }
+  .dashboard-shell .dash-sel-sertif {
+    grid-area: sertif;
+  }
+  .dashboard-shell .dash-sel-progres {
+    grid-area: progres;
+  }
+}
+
 /* ===== MARKETING LANDING (SaaSly patterns) ===== */
 .marketing-type,
 .guild-type {
@@ -5027,13 +5323,16 @@ button.tag:hover {
   margin-bottom: -0.18em;
 }
 
-.marketing-type h1,
-.marketing-type h2,
-.marketing-type h3,
-.marketing-type h4 {
-  color: var(--ocean-deep);
-}
+/* Headings in marketing scope take their ink colour from the `@layer base`
+   `h1…h6` rule further up. A `.marketing-type h1…h4 { color: var(--ocean-deep) }`
+   rule used to sit here, and because it was written at `:root` level it landed
+   OUTSIDE every cascade layer — which made it beat every Tailwind `text-*`
+   utility (those live in `@layer utilities`) on any heading in scope.
 
+   On a dark panel that is not a cosmetic loss. The closing Careevo Plus CTA
+   asked for `text-white` on its h2 and got `#0a3d62` on `#1d4ed8`: ~1.4:1, a
+   headline nobody can read. The colour is deliberately NOT restated here, and
+   redeclaring it at this level would bring the bug straight back. */
 .marketing-type a:hover {
   text-decoration: none;
 }

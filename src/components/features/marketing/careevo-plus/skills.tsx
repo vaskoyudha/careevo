@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Reveal } from "../primitives";
 
@@ -163,40 +164,60 @@ function CourseCard({
   image: string;
 }) {
   return (
-    <div className="w-64 shrink-0 overflow-hidden rounded-xl bg-white shadow-[0_2px_12px_rgba(0,0,0,0.08)] lg:w-72">
-      {/* thumbnail placeholder */}
-      <div className="relative h-40 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100">
-        <Image
-          className="size-full object-cover"
-          alt={`Ilustrasi course ${card.title}`}
-          src={image}
-          width={576}
-          height={320}
-          loading="lazy"
-        />
-        <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/40 to-transparent p-2 text-right text-2xl font-bold text-white/90">
-          {card.logo}
-        </span>
+    <div className="group flex w-64 shrink-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xs transition-shadow duration-200 hover:shadow-md lg:w-72">
+      {/* Cover — inset with a rounded corner and a margin, matching the
+          catalog card's recipe. It used to be a full-bleed `h-40` block whose
+          top corners were the card's own, with a gradient placeholder and the
+          provider's initial blown up to ~2xl sitting over the photo. That
+          letter was decoration standing in for content; the provider still
+          appears, at its real size, in the row below.
+          16:9 rather than a fixed height so every card in the row is the same
+          height whatever the source image's real ratio is. */}
+      <div className="p-3 pb-0">
+        <div className="relative aspect-[16/9] w-full overflow-hidden rounded-lg bg-gray-100">
+          <Image
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            alt={`Ilustrasi kursus ${card.title}`}
+            src={image}
+            fill
+            sizes="(max-width: 1024px) 256px, 288px"
+          />
+        </div>
       </div>
-      <div className="p-4">
-        <div className="mb-1 flex items-center gap-2 text-xs text-gray-500">
+
+      <div className="flex flex-1 flex-col p-3">
+        <div className="mb-1.5 flex items-center gap-2">
           <span
             className={cn(
-              "inline-flex size-5 items-center justify-center rounded-sm text-[10px] font-bold",
+              "inline-flex size-4 shrink-0 items-center justify-center rounded-sm text-[10px] font-bold",
               card.logoColor,
             )}
+            aria-hidden="true"
           >
             {card.logo}
           </span>
-          {card.provider}
+          <span className="truncate text-xs font-medium text-gray-600">
+            {card.provider}
+          </span>
         </div>
-        <h3 className="mb-1 text-sm font-semibold text-gray-900 line-clamp-2">
+
+        {/* `mb-1` cancels the global 1rem `p` margin so the rating row keeps its
+            own rhythm. */}
+        <h3 className="mb-1 line-clamp-2 text-sm font-bold leading-snug text-gray-900 transition-colors group-hover:text-[#0056D2]">
           {card.title}
         </h3>
-        <p className="mb-2 text-xs text-gray-500">
-          ★ {card.rating} ({card.reviews}) · {card.level} · {card.type}
-        </p>
-        <div className="flex flex-wrap gap-1.5">
+
+        {/* One rating line: rating, reviews, then the credential type, which is
+            the same order the catalog card and the banner use. */}
+        <div className="mb-2 flex items-center gap-1.5 text-xs">
+          <Star className="size-3.5 shrink-0 fill-[#eb8a04] text-[#eb8a04]" aria-hidden />
+          <span className="font-bold text-gray-900">{card.rating}</span>
+          <span className="truncate text-gray-500">
+            ({card.reviews}) · {card.type}
+          </span>
+        </div>
+
+        <div className="mt-auto flex flex-wrap gap-1.5 border-t border-gray-100 pt-2">
           {card.badge && (
             <span
               className={cn(

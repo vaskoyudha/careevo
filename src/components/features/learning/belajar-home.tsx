@@ -29,7 +29,7 @@ import { cn } from "@/lib/utils";
 import { closestPromoIndex } from "@/lib/learning/hero-promo";
 import { DitheredHeroBackdrop } from "./dithered-hero-backdrop";
 import { LandingBtnLink } from "@/components/ui/landing-btn";
-import { CatalogCourseCard } from "@/components/ui/catalog-course-card";
+import { CatalogCourseCard, ProviderMark } from "@/components/ui/catalog-course-card";
 import type { ResourceFixture, TaskFixture } from "@/lib/fixtures";
 
 export interface KursusTerdaftar {
@@ -2075,7 +2075,11 @@ export function BelajarHome({
                         className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-[#0A3D8F]/10 bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:no-underline hover:shadow-lg active:scale-[0.98]"
                       >
                         <div>
-                          {/* Inset thumbnail with 16:9 aspect ratio */}
+                          {/* Inset thumbnail with 16:9 aspect ratio. No pill is
+                              laid over it: this banner's thumbnails are often
+                              artwork that already carries its own wording, and a
+                              credential pill would both collide with that and
+                              repeat the `type` printed in the footer row. */}
                           <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl bg-gray-100">
                             <Image
                               src={card.thumbnail}
@@ -2087,19 +2091,17 @@ export function BelajarHome({
                             />
                           </div>
 
-                          {/* Partner Logo + Name */}
-                          <div className="mt-2.5 flex items-center gap-1.5">
-                            <div className="relative size-4 shrink-0 overflow-hidden">
-                              <Image
-                                src={card.partnerLogo}
-                                alt={card.partner}
-                                fill
-                                sizes="16px"
-                                className="object-contain"
-                                unoptimized
-                              />
-                            </div>
-                            <span className="truncate text-xs font-medium text-gray-700">
+                          {/* Partner Logo + Name.
+                              `ProviderMark` is the same component the catalog
+                              card uses. This row previously rendered its own
+                              <Image> unconditionally, using a Google "G" asset
+                              for partners such as Meta, UC Davis and IBM
+                              whatever their real logo was — it failed silently
+                              to a broken image instead. The shared mark falls
+                              back to a branded initial. */}
+                          <div className="mt-2.5 flex items-center gap-2">
+                            <ProviderMark logo={card.partnerLogo} provider={card.partner} />
+                            <span className="truncate text-xs font-medium text-gray-600">
                               {card.partner}
                             </span>
                           </div>
@@ -2110,10 +2112,13 @@ export function BelajarHome({
                           </h3>
                         </div>
 
-                        {/* Divider & Rating Metadata */}
+                        {/* Divider & Rating Metadata. `Star` replaces the "★"
+                            glyph for the same reason the catalog card uses it:
+                            a text star inherits the font's glyph and baseline,
+                            while the icon is drawn. */}
                         <div className="mt-2.5 border-t border-gray-100 pt-2">
                           <div className="flex items-center gap-1 text-[11px] text-gray-700">
-                            <span className="text-gray-900 font-bold">★</span>
+                            <Star className="size-3 shrink-0 fill-[#eb8a04] text-[#eb8a04]" aria-hidden />
                             <span className="font-semibold text-gray-900">
                               {card.rating}
                             </span>

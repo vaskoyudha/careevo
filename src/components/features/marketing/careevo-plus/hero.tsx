@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { BarChart3, Code2, ShieldCheck, Sparkles } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Reveal } from "../primitives";
 import { DitheredHero } from "@/components/features/marketing/dithered-hero";
-import { HARGA, rupiah } from "@/lib/pricing";
+import { HARGA, rupiah, perBulanTahunan } from "@/lib/pricing";
 
 /**
- * Skill-domain badges floating beside the ribbon. These represent the tracks
- * Careevo actually teaches (data, web, security, AI) — deliberately not
- * third-party brand logos, which would imply partnerships Careevo does not have.
+ * The tracks Careevo actually teaches (data, web, security, AI) — deliberately
+ * not third-party brand logos, which would imply partnerships Careevo does not
+ * have. These are the same four domains the floating badges used to represent;
+ * they now carry their names so a first-time visitor can read them.
  */
 function DataIcon({ className }: { className?: string }) {
   return <BarChart3 className={className} strokeWidth={2.25} aria-hidden="true" />;
@@ -25,6 +27,14 @@ function AiIcon({ className }: { className?: string }) {
   return <Sparkles className={className} strokeWidth={2.25} aria-hidden="true" />;
 }
 
+/** The four tracks Plus unlocks, with the hue each already carries on this page. */
+const JALUR = [
+  { nama: "Data & Analitik", Ikon: DataIcon, warna: "bg-blue-50 text-blue-700" },
+  { nama: "Web Development", Ikon: WebIcon, warna: "bg-emerald-50 text-emerald-700" },
+  { nama: "Keamanan Siber", Ikon: SecurityIcon, warna: "bg-rose-50 text-rose-700" },
+  { nama: "AI & Prompting", Ikon: AiIcon, warna: "bg-indigo-50 text-indigo-700" },
+] as const;
+
 function SparkleStar({ className }: { className?: string }) {
   return (
     <svg
@@ -40,9 +50,10 @@ function SparkleStar({ className }: { className?: string }) {
 
 /**
  * Careevo Plus Hero — keeps the original promotional content (logo badge,
- * headline, price, CTAs, disclaimer and the ribbon + logo-badge artwork) while
- * sitting on the shared `/belajar`-style dithered hero shell so the header
- * pattern matches the Belajar page.
+ * headline, price, CTAs, disclaimer and the ribbon artwork) while sitting on
+ * the shared `/belajar`-style dithered hero shell so the header pattern matches
+ * the Belajar page. The artwork column is a single price card plus the four
+ * track chips, so the offer reads in one glance instead of as loose stickers.
  */
 export function CareevoPlusHero() {
   return (
@@ -117,117 +128,152 @@ export function CareevoPlusHero() {
         </Reveal>
         </div>
 
-        {/* RIGHT COLUMN - VISUAL ARTWORK */}
+        {/* RIGHT COLUMN — the offer as one artefact: what Plus costs per month,
+            what the annual cycle saves, and the four tracks it unlocks. The
+            ribbon stays as the page motif, drawn crisply through the gutter
+            behind both surfaces instead of glowing over them.
+
+            The price card restates the headline offer but adds the two figures
+            the copy does not carry (the annual monthly-equivalent and the
+            rupiah saving), so it stays real, selectable content; only the
+            ribbon and sparkles are decorative. */}
         <Reveal variant="scale" delay={100}>
-          <div className="relative mx-auto h-[280px] w-full max-w-[390px] select-none sm:h-[300px]">
-            {/* Organic Wavy Ribbon SVG */}
+          {/* `@container` reads the artwork box's own width, not the viewport:
+              the split layout needs ~448px before the chip rail can sit beside
+              the card without clipping its longest track name. */}
+          <div className="@container relative mx-auto w-full max-w-[470px]">
+            {/* Ribbon — a constant-weight band flowing down the gutter between
+                the price card and the track chips. `preserveAspectRatio="none"`
+                plus `non-scaling-stroke` lets one path serve every breakpoint
+                without the band fattening as the box stretches. It only exists
+                in the split layout; stacked, there is no gutter for it and it
+                would just cross the chips. */}
             <svg
-              viewBox="0 0 340 300"
-              className="absolute inset-0 h-full w-full"
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
               fill="none"
-              xmlns="http://www.w3.org/2000/svg"
               aria-hidden="true"
+              className="pointer-events-none absolute inset-0 hidden size-full @md:block"
             >
               <defs>
-                <linearGradient id="ribbonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#93C5FD" stopOpacity="0.9" />
-                  <stop offset="50%" stopColor="#60A5FA" stopOpacity="0.75" />
-                  <stop offset="100%" stopColor="#3B82F6" stopOpacity="0.5" />
+                <linearGradient
+                  id="ribbonGrad"
+                  gradientUnits="userSpaceOnUse"
+                  x1="0"
+                  y1="100"
+                  x2="0"
+                  y2="0"
+                >
+                  <stop offset="0%" stopColor="#93C5FD" stopOpacity="0.85" />
+                  <stop offset="55%" stopColor="#60A5FA" stopOpacity="0.7" />
+                  <stop offset="100%" stopColor="#3B82F6" stopOpacity="0.42" />
                 </linearGradient>
-                <filter id="ribbonGlow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="5" result="blur" />
-                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                </filter>
               </defs>
 
-              {/* Main smooth S-curve ribbon path */}
+              {/* Main S-curve band */}
               <path
-                d="M250 15 C 285 45, 270 95, 240 135 C 205 175, 215 220, 245 250 C 260 265, 268 285, 250 295"
+                d="M58 106 C 65 92, 55 78, 61 62 C 67 46, 56 30, 62 14 C 64 6, 66 0, 68 -8"
                 stroke="url(#ribbonGrad)"
-                strokeWidth="18"
+                strokeWidth="15"
                 strokeLinecap="round"
-                filter="url(#ribbonGlow)"
+                vectorEffect="non-scaling-stroke"
               />
+              {/* Inner highlight keeps the band from reading as flat paint */}
               <path
-                d="M250 15 C 285 45, 270 95, 240 135 C 205 175, 215 220, 245 250 C 260 265, 268 285, 250 295"
+                d="M58 106 C 65 92, 55 78, 61 62 C 67 46, 56 30, 62 14 C 64 6, 66 0, 68 -8"
                 stroke="#BFDBFE"
-                strokeWidth="3.5"
+                strokeWidth="3"
                 strokeLinecap="round"
                 strokeOpacity="0.95"
+                vectorEffect="non-scaling-stroke"
               />
-
-              {/* Secondary lighter decorative trail */}
+              {/* Lighter trail, a step off the band */}
               <path
-                d="M275 40 C 300 80, 270 120, 250 160 C 230 195, 225 230, 265 275"
+                d="M66 108 C 73 94, 63 80, 69 64 C 75 48, 64 32, 70 16 C 72 8, 74 2, 76 -6"
                 stroke="#E0F2FE"
                 strokeWidth="2"
-                strokeDasharray="3 5"
+                strokeDasharray="3 6"
                 strokeLinecap="round"
-                strokeOpacity="0.65"
+                strokeOpacity="0.7"
+                vectorEffect="non-scaling-stroke"
               />
             </svg>
 
-            {/* Sparkle Stars */}
-            <SparkleStar className="absolute top-5 right-22 size-4 text-amber-300 drop-shadow-[0_0_6px_rgba(252,211,77,0.8)]" />
-            <SparkleStar className="absolute top-18 right-34 size-5.5 text-amber-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.9)]" />
-            <SparkleStar className="absolute top-32 right-28 size-3.5 text-amber-300 drop-shadow-[0_0_5px_rgba(252,211,77,0.7)]" />
-            <SparkleStar className="absolute top-44 right-10 size-3 text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.8)]" />
-            <SparkleStar className="absolute bottom-8 right-36 size-4 text-white drop-shadow-[0_0_6px_rgba(255,255,255,0.9)]" />
+            {/* Amber sparkles — the ribbon's travelling stars. Same rule as the
+                ribbon: they belong to the split layout, and in the stacked one
+                they would land on the chip row. */}
+            <SparkleStar className="absolute -top-4 left-4 hidden size-4 text-amber-300 drop-shadow-[0_0_6px_rgba(252,211,77,0.8)] @md:block" />
+            <SparkleStar className="absolute -right-1 -bottom-2 hidden size-5 text-amber-400 drop-shadow-[0_0_9px_rgba(251,191,36,0.85)] @md:block" />
 
-            {/* Floating skill-domain badges along the ribbon */}
-            {/* 1. Data */}
-            <div
-              className="absolute top-3 right-4 flex size-9.5 items-center justify-center rounded-full bg-white text-blue-700 shadow-md transition-transform duration-300 hover:scale-110 sm:size-10"
-              title="Data & Analitik"
-            >
-              <DataIcon className="size-4 sm:size-4.5" />
-            </div>
+            {/* Stacked until the artwork box is wide enough to hold the card and
+                the chip rail side by side; below that the card clips the
+                longest track name. */}
+            <div className="relative grid gap-4 @md:grid-cols-[minmax(0,268px)_minmax(0,1fr)] @md:items-center @md:gap-7">
+              {/* The offer, priced — extra detail beyond the headline copy. */}
+              <div className="w-full rounded-2xl bg-white p-4 shadow-[0_24px_46px_-22px_rgba(10,61,98,0.55)] sm:p-4.5">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-[#0a3d62]">
+                    Careevo Plus
+                  </p>
+                  <span className="rounded-full bg-[#eef4f8] px-2 py-0.5 text-[10px] font-semibold text-[#3d5a6c]">
+                    Bulanan
+                  </span>
+                </div>
 
-            {/* 2. Web Dev */}
-            <div
-              className="absolute top-16 right-4 flex size-9.5 items-center justify-center rounded-full bg-white text-emerald-700 shadow-md transition-transform duration-300 hover:scale-110 sm:size-10"
-              title="Web Development"
-            >
-              <WebIcon className="size-4 sm:size-4.5" />
-            </div>
-
-            {/* 3. Security */}
-            <div
-              className="absolute top-29 right-4 flex size-9.5 items-center justify-center rounded-full bg-white text-rose-700 shadow-md transition-transform duration-300 hover:scale-110 sm:size-10"
-              title="Keamanan Siber"
-            >
-              <SecurityIcon className="size-4 sm:size-4.5" />
-            </div>
-
-            {/* 4. AI */}
-            <div
-              className="absolute top-42 right-4 flex size-9.5 items-center justify-center rounded-full bg-white text-indigo-700 shadow-md transition-transform duration-300 hover:scale-110 sm:size-10"
-              title="AI & Prompting"
-            >
-              <AiIcon className="size-3.5 sm:size-4" />
-            </div>
-
-            {/* FLOATING DISCOUNT BADGES (Left of ribbon) */}
-            <div className="absolute top-10 left-0 z-10 flex flex-col items-start gap-2.5 sm:top-12 sm:left-2">
-              {/* 1. Magenta Price Card */}
-              <div className="w-[190px] rounded-xl bg-[#E6007E] px-4 py-2.5 shadow-[0_6px_20px_rgba(230,0,126,0.35)] sm:w-[205px] sm:px-4.5 sm:py-3">
-                <p className="text-center text-[10px] font-semibold text-white/80 sm:text-xs">
-                  Careevo Plus
-                </p>
-                <p className="mt-0.5 text-center text-xl font-extrabold text-white tracking-tight whitespace-nowrap sm:text-2xl">
-                  {rupiah(HARGA.plusBulanan)}
-                  <span className="text-[11px] font-normal text-white/90 sm:text-xs">
+                <p className="mt-3 flex items-baseline gap-1.5 whitespace-nowrap">
+                  <span className="text-[30px] font-bold leading-none -tracking-[0.02em] text-[#0a3d62] tabular-nums sm:text-[32px]">
+                    {rupiah(HARGA.plusBulanan)}
+                  </span>
+                  <span className="text-xs font-medium text-[#48606e]">
                     /bulan
                   </span>
                 </p>
-              </div>
 
-              {/* 2. Golden Yellow Savings Badge */}
-              <div className="w-[190px] rounded-lg border border-amber-600/30 bg-[#FFB703] px-3.5 py-2 shadow-[0_4px_14px_rgba(255,183,3,0.3)] sm:w-[205px] sm:py-2.5">
-                <p className="text-center text-xs font-bold text-[#002D72] tracking-wide whitespace-nowrap sm:text-sm">
-                  Hemat 2 bulan dengan tahunan
+                <div className="my-3.5 h-px bg-[#e2eef4]" />
+
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-xs font-medium text-[#48606e]">
+                    Paket tahunan
+                  </span>
+                  <span className="text-sm font-semibold text-[#0a3d62] tabular-nums">
+                    {rupiah(HARGA.plusTahunan)}
+                  </span>
+                </div>
+                <p className="mt-1 text-[11px] text-[#48606e]">
+                  Setara {perBulanTahunan(HARGA.plusTahunan)}/bulan
+                </p>
+
+                <p className="mt-3 inline-flex items-center rounded-full bg-[#FFB703] px-2.5 py-1 text-[11px] font-bold text-[#3b2600] tabular-nums">
+                  Hemat 2 bulan ·{" "}
+                  {rupiah(HARGA.plusBulanan * 12 - HARGA.plusTahunan)}
                 </p>
               </div>
+
+              {/* Tracks Careevo teaches. Named so the icons mean something and
+                  the column is not just unlabelled dots. */}
+              <ul
+                aria-label="Jalur keahlian di Careevo"
+                className="flex flex-wrap gap-2 @md:flex-col @md:items-start @md:gap-2.5"
+              >
+                {JALUR.map(({ nama, Ikon, warna }) => (
+                  <li
+                    key={nama}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-white py-1 pr-2.5 pl-1 shadow-[0_10px_20px_-12px_rgba(10,61,98,0.6)]"
+                  >
+                    <span
+                      className={cn(
+                        "flex size-6 shrink-0 items-center justify-center rounded-full",
+                        warna,
+                      )}
+                    >
+                      <Ikon className="size-3.5" />
+                    </span>
+                    <span className="text-[11px] font-semibold whitespace-nowrap text-[#0a3d62]">
+                      {nama}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
         </Reveal>

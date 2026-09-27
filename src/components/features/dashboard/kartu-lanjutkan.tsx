@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowRight, PlayCircle } from "lucide-react";
+import { ArrowRight, Play } from "lucide-react";
+import { SampulKursus } from "@/components/features/dashboard/sampul-kursus";
 import type { ProgresKursus } from "@/lib/learning/progres-kursus";
 
 /**
@@ -15,28 +16,35 @@ import type { ProgresKursus } from "@/lib/learning/progres-kursus";
  * Course yang sudah 100% **tidak pernah** dipilih: kursus yang sudah tuntas bukan
  * "lanjutkan", dan mengarahkan ke sana membuat blok ini terasa salah setiap kali
  * dipakai setelah selesai.
+ *
+ * Sampulnya memakai `courseMetaFor`/`ThumbMedia` yang sama dengan `/progres` dan
+ * kartu katalog — termasuk aturan "unggahan admin menang atas thumbnail bawaan"
+ * dan pengganti saat gambar gagal dimuat. Menyalin aturan itu di sini berarti
+ * dua tempat yang bisa menyimpang soal gambar mana yang tampil.
+ *
+ * Angka `6 modul · 12 jam` di baris meta datang dari entri katalog, bukan dari
+ * `durasi` yang dikarang: `duration_min` adalah satu-satunya sumber jam yang
+ * katalog punya, dan `modul` adalah jumlah modul kurikulum saat ini.
  */
 export function KartuLanjutkan({ course }: { course: ProgresKursus | null }) {
   if (!course) {
     return (
-      <section
-        aria-labelledby="judul-lanjutkan"
-        className="min-w-0 rounded-xl border border-gray-200 bg-white p-5 shadow-xs"
-      >
-        <h2
-          id="judul-lanjutkan"
-          className="flex items-center gap-1.5 text-base font-bold text-gray-900"
-        >
-          <PlayCircle className="size-4 text-[#0056D2]" aria-hidden="true" />
-          Lanjutkan belajar
-        </h2>
-        <p className="mt-2 text-[13px] text-gray-600">
+      <section aria-labelledby="judul-lanjutkan" className="dash-card min-w-0">
+        <div className="dash-card-head">
+          <span className="dash-icon" aria-hidden="true">
+            <Play className="size-4" />
+          </span>
+          <h2 id="judul-lanjutkan" className="dash-title">
+            Lanjutkan Belajar
+          </h2>
+        </div>
+        <p className="dash-gap-sm text-[12.5px] leading-[1.5] text-gray-600">
           Belum ada course yang sedang berjalan. Daftar ke satu course untuk
           memulai, dan course itu akan muncul di sini sampai selesai.
         </p>
         <Link
           href="/belajar"
-          className="mt-3 inline-flex items-center gap-1 text-[13px] font-medium text-[#0056D2] hover:underline"
+          className="dash-gap-md inline-flex h-9 items-center gap-1.5 rounded-full bg-[#007aff] px-4 text-[13px] font-semibold text-white transition-[background-color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-[#0064d2] active:scale-[0.97]"
         >
           Jelajahi course
           <ArrowRight className="size-3.5" aria-hidden="true" />
@@ -46,33 +54,57 @@ export function KartuLanjutkan({ course }: { course: ProgresKursus | null }) {
   }
 
   const { entri, progres, selesai, total } = course;
+  const href = `/belajar/${entri.slug}`;
+  const jam = Math.round(entri.duration_min / 60);
 
   return (
-    <section
-      aria-labelledby="judul-lanjutkan"
-      className="min-w-0 rounded-xl border border-gray-200 bg-white p-5 shadow-xs"
-    >
-      <h2
-        id="judul-lanjutkan"
-        className="flex items-center gap-1.5 text-base font-bold text-gray-900"
-      >
-        <PlayCircle className="size-4 text-[#0056D2]" aria-hidden="true" />
-        Lanjutkan belajar
-      </h2>
-
-      <Link
-        href={`/belajar/${entri.slug}`}
-        className="mt-2 block text-[15px] font-bold text-gray-900 hover:text-[#0056D2] hover:underline"
-      >
-        {entri.title}
-      </Link>
-      <p className="truncate text-[13px] text-gray-500">{entri.provider}</p>
-
-      <div className="mt-3 flex items-baseline justify-between gap-2">
-        <span className="text-[13px] font-semibold text-gray-700">Progres</span>
-        <span className="text-[13px] font-bold text-gray-900 tabular-nums">
-          {progres}%
+    <section aria-labelledby="judul-lanjutkan" className="dash-card min-w-0">
+      <div className="dash-card-head">
+        <span className="dash-icon" aria-hidden="true">
+          <Play className="size-4 fill-current" />
         </span>
+        <h2 id="judul-lanjutkan" className="dash-title">
+          Lanjutkan Belajar
+        </h2>
+        <Link
+          href="/progres"
+          className="dash-head-action inline-flex items-center gap-1 text-[13px] font-semibold text-[#007aff] transition-colors duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:text-[#0056d2]"
+        >
+          Lihat semua
+          <ArrowRight className="size-3.5" aria-hidden="true" />
+        </Link>
+      </div>
+
+      <div className="dash-gap-sm flex items-start gap-2.5">
+        <Link
+          href={href}
+          aria-label={`Lihat ${entri.title}`}
+          className="group relative block aspect-[4/3] w-[86px] shrink-0 overflow-hidden rounded-lg bg-gray-100 hover:no-underline"
+        >
+          <SampulKursus entri={entri} sizes="86px" />
+        </Link>
+
+        <div className="min-w-0 flex-1">
+        <span className="dash-chip whitespace-nowrap">Kursus</span>
+          <h3 className="dash-gap-xs line-clamp-2 text-[13.5px] leading-snug font-bold text-gray-900">
+            <Link
+              href={href}
+              className="transition-colors duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:text-[#007aff] hover:no-underline"
+            >
+              {entri.title}
+            </Link>
+          </h3>
+          <p className="mt-0.5 truncate text-[11.5px] text-gray-500">
+            {entri.provider} · {total} modul · {jam} jam
+          </p>
+        </div>
+      </div>
+
+      <div className="dash-gap-sm flex items-center justify-between text-[12px]">
+        <span className="font-semibold text-gray-700">
+          {selesai}/{total} modul
+        </span>
+        <span className="font-bold text-gray-900 tabular-nums">{progres}%</span>
       </div>
       <div
         role="progressbar"
@@ -80,23 +112,23 @@ export function KartuLanjutkan({ course }: { course: ProgresKursus | null }) {
         aria-valuenow={progres}
         aria-valuemin={0}
         aria-valuemax={100}
-        className="mt-1.5 h-2 overflow-hidden rounded-full bg-gray-200"
+        className="dash-gap-xs h-2 overflow-hidden rounded-full bg-[#dce9f8]"
       >
         <div
-          className="h-full rounded-full bg-[#0056D2]"
+          className="h-full rounded-full bg-[#007aff] transition-[width] duration-300 ease-out"
           style={{ width: `${progres}%` }}
         />
       </div>
-      <p className="mt-1.5 text-[13px] text-gray-500">
-        {selesai} dari {total} modul selesai
-      </p>
 
+      {/* CTA penuh, seperti reference: satu aksi utama per kartu. `scale(0.97)`
+          saat ditekan memberi tahu peserta bahwa tekanannya terbaca, dan itu
+          berlaku untuk semua tombol di dashboard. */}
       <Link
-        href={`/belajar/${entri.slug}`}
-        className="mt-3 inline-flex items-center gap-1 text-[13px] font-medium text-[#0056D2] hover:underline"
+        href={href}
+        className="dash-gap-sm flex h-10 w-full items-center justify-center gap-1.5 rounded-[10px] bg-[#007aff] text-[13.5px] font-semibold text-white transition-[background-color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-[#0064d2] active:scale-[0.98]"
       >
-        Buka course
-        <ArrowRight className="size-3.5" aria-hidden="true" />
+        Lanjutkan Kursus
+        <ArrowRight className="size-4" aria-hidden="true" />
       </Link>
     </section>
   );

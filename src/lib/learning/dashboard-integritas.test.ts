@@ -132,16 +132,39 @@ describe("dashboard peserta tidak mengklaim angka yang tidak bisa ditelusuri", (
 
   it("kartu skor tidak menghitung skor sendiri dan tidak membaca fixture", () => {
     // Sama seperti di atas, untuk skor: angka harus diteruskan dari
-    // `skorIntegritasDb`, bukan dihitung ulang dari `integrity_violations` yang
-    // justru tidak boleh ada di bundel browser sama sekali.
+    // `skorIntegritasDenganDelta`, bukan dihitung ulang dari
+    // `integrity_violations` yang justru tidak boleh ada di bundel browser sama
+    // sekali.
     const skor = path.join(DIR_DASHBOARD, "kartu-skor.tsx");
     const isiSkor = readFileSync(skor, "utf8");
     expect(isiSkor).not.toContain("@/lib/fixtures");
     expect(isiSkor, "kartu-skor menghitung skor sendiri").not.toMatch(
-      /hitungSkorIntegritas|integrityViolations|getDb/,
+      /hitungSkorIntegritas|integrityViolations|getDb|skorPada/,
     );
-    // Baris ini juga membaca komentar, jadi nama fungsi tidak boleh disebut di
-    // dokumentasi komponen ini (lihat catatan di atas).
+    // Chip tingkatnya juga harus turunan dari angka yang sama: ambang 90/70 yang
+    // ditulis ulang di sini akan menyimpang dari server diam-diam begitu
+    // batasnya berubah di `skor.ts`.
+    expect(isiSkor, "kartu-skor menuliskan ambang tingkatnya sendiri").not.toMatch(
+      /skor\s*>=?\s*\d/,
+    );
+    expect(isiSkor).toMatch(/labelTingkatSkor\(/);
+    // Delta juga diteruskan, bukan disimpulkan dari tanggal di peramban.
+    expect(isiSkor, "kartu-skor menghitung delta sendiri").not.toMatch(
+      /Date\.now\(\)|new Date\(|getTime\(\)/,
+    );
+  });
+
+  it("strip minggu di kartu streak juga datang dari server", () => {
+    // Aturan yang sama dengan streak: "hari ini" dan "hari mana yang aktif"
+    // adalah keputusan waktu di zona tetap (`Asia/Jakarta`), jadi strip Sen–Min
+    // tidak boleh disusun di komponen. Komponennya menerima `minggu` yang sudah
+    // dihitung `mingguAktif`, dan tidak memanggil helper kalender sendiri.
+    const streak = path.join(DIR_DASHBOARD, "kartu-streak.tsx");
+    const isiStreak = readFileSync(streak, "utf8");
+    expect(isiStreak).toMatch(/minggu/);
+    expect(isiStreak, "kartu-streak menyusun minggunya sendiri").not.toMatch(
+      /mingguAktif|kunciHari/,
+    );
   });
 
   it("halaman tetap merender dua permukaan nyata", () => {
@@ -162,7 +185,36 @@ describe("dashboard peserta tidak mengklaim angka yang tidak bisa ditelusuri", (
     expect(isi).toMatch(/<JobInboxCard\b[^>]*>/);
   });
 
-  it("halaman merender kelima permukaan angka tanpa menjaga daftar nama berkasnya", () => {
+  it("setiap kartu punya slot bento bernama, bukan ukuran yang ditebak dari posisi", () => {
+    // Bento di sini adalah `grid-template-areas` pada `xl`, dan setiap kartu
+    // dibungkus `.dash-sel-<nama>`. Kalau pembungkusnya hilang, kartu tetap
+    // merender — tapi ukurannya jatuh ke lebar kolom default, dan yang terlihat
+    // bukan error melainkan tata letak yang salah tanpa peringatan.
+    //
+    // Yang diperiksa adalah pasangan kartu ↔ slot: tiap komponen kartu harus
+    // berada di dalam pembungkus yang namanya cocok. `KartuProfil` dan
+    // `KartuSertifikat` berbagi satu berkas, jadi keduanya diperiksa terpisah.
+    const isi = readFileSync(BERKAS_DASHBOARD, "utf8");
+    const pasangan: Array<[string, string]> = [
+      ["KartuProfil", "dash-sel-profil"],
+      ["KartuStreak", "dash-sel-streak"],
+      ["KartuSkor", "dash-sel-skor"],
+      ["KartuLanjutkan", "dash-sel-lanjut"],
+      ["KartuSertifikat", "dash-sel-sertif"],
+      ["KartuProgresKursus", "dash-sel-progres"],
+    ];
+    for (const [komponen, slot] of pasangan) {
+      // Pembungkus dan kartunya berdampingan: `<div className="... dash-sel-x"><KartuX`
+      // dengan hanya spasi/enter di antaranya.
+      const pola = new RegExp(`<div[^>]*${slot}[^>]*>\\s*<${komponen}\\b`);
+      expect(isi, `${komponen} tidak berada di slot ${slot}`).toMatch(pola);
+    }
+    // Dan grid-nya sendiri harus ada, kalau tidak semua slot di atas hanya
+    // berarti tumpukan satu kolom.
+    expect(isi).toMatch(/dash-bento/);
+  });
+
+  it("halaman merender keenam permukaan angka tanpa menjaga daftar nama berkasnya", () => {
     // Penjaga penutup untuk bagian yang barusan dilonggarkan. Menghapus satu
     // blok dari dashboard harus terlihat di sini, bukan diam-diam membuat
     // halaman lebih tipis. Yang diperiksa adalah *situs render* — identifier
@@ -172,13 +224,17 @@ describe("dashboard peserta tidak mengklaim angka yang tidak bisa ditelusuri", (
     //
     // `pilihCourseDilanjutkan` ikut diperiksa karena "lanjutkan" adalah
     // permukaan dengan rules; mengosongkan pemanggilnya akan membuat kartu
-    // selalu menampilkan empty state tanpa error.
+    // selalu menampilkan empty state tanpa error. `mingguAktif` diperiksa dengan
+    // alasan yang sama: tanpa pemanggilnya, strip minggu tidak pernah dikirim ke
+    // `KartuStreak`.
     const isi = readFileSync(BERKAS_DASHBOARD, "utf8");
     expect(isi).toMatch(/<KartuProfil\b[^>]*>/);
     expect(isi).toMatch(/<KartuStreak\b[^>]*>/);
     expect(isi).toMatch(/<KartuSkor\b[^>]*>/);
     expect(isi).toMatch(/<KartuLanjutkan\b[^>]*>/);
     expect(isi).toMatch(/<KartuSertifikat\b[^>]*>/);
+    expect(isi).toMatch(/<KartuProgresKursus\b[^>]*>/);
     expect(isi).toMatch(/pilihCourseDilanjutkan\(/);
+    expect(isi).toMatch(/mingguAktif\(/);
   });
 });

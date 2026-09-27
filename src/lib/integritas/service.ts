@@ -40,7 +40,7 @@ import {
   type DefinisiPelanggaran,
   type JenisPelanggaran,
 } from "./katalog";
-import { hitungSkorIntegritas, type RingkasanSkor } from "./skor";
+import { hitungSkorIntegritas, skorPada, type RingkasanSkor } from "./skor";
 import {
   catatPelanggaran,
   listPelanggaranAktif,
@@ -132,6 +132,60 @@ function keBarisSkor(baris: readonly IntegrityViolation[]) {
 export async function skorIntegritasDb(userId: string): Promise<RingkasanSkor> {
   const aktif = await listPelanggaranAktif(userId);
   return hitungSkorIntegritas(keBarisSkor(aktif));
+}
+
+/**
+ * Skor kejujuran seorang user **beserta perubahannya dari sepekan lalu**.
+ *
+ * `skor` selalu sama dengan `skorIntegritasDb` untuk akun yang sama — keduanya
+ * memanggil `hitungSkorIntegritas` atas baris aktif yang sama. Yang ditambahkan
+ * di sini hanya pembanding historis, dan pembanding itu tetap diturunkan dari
+ * **baris yang benar-benar ada**, bukan dari angka yang disimpan:
+ *
+ * - `skorSebelumnya` adalah skor sebagaimana pada `sekarang - 7 hari`, dihitung
+ *   `skorPada` dari `created_at`/`expunged_at` tiap baris.
+ * - `delta` hanya diisi bila pembandingnya bermakna. Kalau akun ini **belum
+ *   pernah punya satu pun baris** pelanggaran, delta-nya `null`: "0 dari minggu
+ *   lalu" pada akun bersih adalah klaim kosong, dan chip "+0" di kartu hanya
+ *   jadi derau yang harus dibaca tanpa memberi tahu apa pun.
+ *
+ * Pembacaan memakai `listSemuaPelanggaran` (aktif **dan** dipulihkan) karena
+ * baris yang dipulihkan *sesudah* titik pembanding masih berlaku pada titik itu.
+ */
+export async function skorIntegritasDenganDelta(
+  userId: string,
+  opsi: { sekarang?: Date; hariPembanding?: number } = {},
+): Promise<RingkasanSkor & { skorSebelumnya: number | null; delta: number | null }> {
+  const sekarang = opsi.sekarang ?? new Date();
+  const hari = opsi.hariPembanding ?? 7;
+
+  const semua = await listSemuaPelanggaran(userId);
+
+  // Akun tanpa riwayat pelanggaran sama sekali tidak punya cerita pembanding.
+  if (semua.length === 0) {
+    return { ...hitungSkorIntegritas([]), skorSebelumnya: null, delta: null };
+  }
+
+  const ringkasan = hitungSkorIntegritas(keBarisSkor(semua.filter((b) => b.status === "active")));
+
+  const titik = new Date(sekarang.getTime() - hari * 86_400_000);
+  const sebelumnya = skorPada(
+    semua.map((b) => ({
+      id: b.id,
+      courseId: b.courseId,
+      penalty: b.penalty,
+      status: b.status === "expunged" ? ("expunged" as const) : ("active" as const),
+      createdAt: b.createdAt,
+      expungedAt: b.expungedAt,
+    })),
+    titik,
+  );
+
+  return {
+    ...ringkasan,
+    skorSebelumnya: sebelumnya.skor,
+    delta: ringkasan.skor - sebelumnya.skor,
+  };
 }
 
 /**

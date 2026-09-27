@@ -128,6 +128,100 @@ export function hitungSkorIntegritas(
 }
 
 /**
+ * Bentuk satu baris pelanggaran **beserta waktunya**, untuk skor pada satu
+ * titik waktu.
+ *
+ * `BarisPelanggaran` sengaja tidak punya `created_at`, dan itu bukan kelalaian:
+ * skor hari ini tidak butuh waktu, hanya status. Skor *masa lalu* butuh, jadi
+ * tipe yang lebih lebar dipisahkan di sini alih-alih melebarkan
+ * `BarisPelanggaran` untuk semua pemanggil.
+ */
+export interface BarisPelanggaranBertanggal extends BarisPelanggaran {
+  createdAt: Date;
+  /** `null` selama baris masih aktif. */
+  expungedAt: Date | null;
+}
+
+/**
+ * Skor kejujuran **sebagaimana pada saat `saat`**.
+ *
+ * Dipakai kartu dashboard untuk delta "dari minggu lalu". Aturannya sama persis
+ * dengan skor hari ini — penalti per course, penjepitan 0–100 — yang berubah
+ * hanya *baris mana yang berlaku*:
+ *
+ * - Baris yang **belum dicatat** pada `saat` itu belum ada, jadi tidak memotong.
+ * - Baris yang **sudah dipulihkan sebelum** `saat` itu sudah tidak berlaku.
+ *   Baris yang dipulihkan *sesudah* `saat` masih memotong pada saat itu — itu
+ *   justru isi dari cerita "skornya naik kembali".
+ *
+ * Hasilnya diturunkan dengan memanggil `hitungSkorIntegritas` yang sama, bukan
+ * hitungan kedua: dua implementasi penjepitan per course pasti akan menyimpang,
+ * dan yang menyimpang adalah angka yang dilihat peserta.
+ *
+ * `saat` yang tidak terbaca menghasilkan skor penuh: baris yang tidak bisa
+ * dibandingkan tidak boleh memotong apa pun.
+ */
+export function skorPada(
+  baris: readonly BarisPelanggaranBertanggal[],
+  saat: Date,
+): RingkasanSkor {
+  const batas = saat instanceof Date ? saat.getTime() : Number.NaN;
+  if (!Number.isFinite(batas)) return hitungSkorIntegritas([]);
+
+  const berlaku: BarisPelanggaran[] = [];
+  for (const b of baris) {
+    const dibuat = b.createdAt instanceof Date ? b.createdAt.getTime() : Number.NaN;
+    // Baris tanpa waktu dibuat tidak bisa ditempatkan di titik mana pun. Ia
+    // dibuang, bukan dipaksa ikut: memasukkannya berarti mengarang riwayat.
+    if (!Number.isFinite(dibuat) || dibuat > batas) continue;
+
+    if (b.status !== "active") {
+      const dipulihkan =
+        b.expungedAt instanceof Date ? b.expungedAt.getTime() : Number.NaN;
+      // Sudah dipulihkan sebelum `saat` → tidak lagi memotong. Dipulihkan
+      // sesudahnya → pada `saat` itu ia **masih berlaku**.
+      if (!Number.isFinite(dipulihkan) || dipulihkan <= batas) continue;
+    }
+
+    // Statusnya dinormalkan ke `active` di sini, dan itu bukan penyamaran:
+    // pertanyaan `skorPada` adalah "baris mana yang berlaku pada `saat`", dan
+    // baris yang baru dipulihkan sesudah `saat` memang berlaku saat itu. Tanpa
+    // normalisasi ini, `hitungSkorIntegritas` akan melewatinya karena statusnya
+    // `expunged` — dan skor masa lalu terbaca terlalu tinggi.
+    berlaku.push({ id: b.id, courseId: b.courseId, penalty: b.penalty, status: "active" });
+  }
+
+  return hitungSkorIntegritas(berlaku);
+}
+
+/**
+ * Tingkat skor untuk label ringkas di kartu dashboard.
+ *
+ * **Turunan dari `skor` yang sama**, bukan hitungan kedua: satu tempat yang
+ * memutuskan batas tingkat, sehingga chip di kartu dan angka besar di bawahnya
+ * tidak bisa menyimpang. Batasnya sengaja lebar di puncak — akun dengan catatan
+ * bersih tidak boleh kehilangan label "Sangat Baik" hanya karena satu pemotongan
+ * kecil.
+ *
+ * Labelnya menyatakan **kondisi catatan**, bukan vonis: kata yang dilarang
+ * `katalog.test.ts` tidak muncul di sini, dan "Baik" tidak berarti "tidak pernah
+ * salah" — kalimat penjelas di kartu yang menanggung arti itu.
+ */
+export function tingkatSkor(skor: number): "sangat-baik" | "baik" | "perhatian" {
+  if (skor >= 90) return "sangat-baik";
+  if (skor >= 70) return "baik";
+  return "perhatian";
+}
+
+/** Label Indonesia untuk `tingkatSkor`. */
+export function labelTingkatSkor(skor: number): string {
+  const tingkat = tingkatSkor(skor);
+  if (tingkat === "sangat-baik") return "Sangat Baik";
+  if (tingkat === "baik") return "Baik";
+  return "Perlu perhatian";
+}
+
+/**
  * Skor(kursus saja) untuk satu course — dipakai kartu ringkas di halaman course.
  *
  * Mengambil baris yang sama persis dengan yang jadi skor akun, jadi angka di

@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { SKOR_AWAL, hitungSkorIntegritas, type BarisPelanggaran } from "./skor";
+import {
+  SKOR_AWAL,
+  hitungSkorIntegritas,
+  labelTingkatSkor,
+  skorPada,
+  tingkatSkor,
+  type BarisPelanggaran,
+  type BarisPelanggaranBertanggal,
+} from "./skor";
 
 /** Baris pelanggaran aktif, bentuk yang repository hasilkan. */
 function baris(
@@ -152,5 +160,117 @@ describe("hitungSkorIntegritas", () => {
       baris("sedang", 10, "c"),
     ]);
     expect(hasil.perCourse.map((r) => r.courseId)).toEqual(["besar", "sedang", "kecil"]);
+  });
+});
+
+describe("skorPada", () => {
+  /** Baris bertanggal: `buat` = kapan dicatat, `pulih` = kapan dipulihkan. */
+  function barisTgl(
+    courseId: string,
+    penalty: number,
+    buat: string,
+    pulih?: string,
+  ): BarisPelanggaranBertanggal {
+    return {
+      id: `${courseId}-${buat}`,
+      courseId,
+      penalty,
+      status: pulih ? "expunged" : "active",
+      createdAt: new Date(buat),
+      expungedAt: pulih ? new Date(pulih) : null,
+    };
+  }
+
+  // `SEKARANG` sengaja lebih baru dari semua waktu di fixture, supaya "sekarang"
+  // benar-benar memuat seluruh baris dan yang membedakan hanyalah titik
+  // pembandingnya — bukan baris yang kebetulan berada di masa depan.
+  const SEKARANG = new Date("2026-10-02T00:00:00.000Z");
+  const SEHARI_LALU = new Date("2026-09-30T00:00:00.000Z");
+
+  it("mengabaikan baris yang dicatat setelah titik pembanding", () => {
+    // Pelanggaran hari ini tidak boleh muncul di skor minggu lalu — kalau ikut,
+    // delta selalu 0 dan chip "+5" tidak akan pernah bisa muncul.
+    const baris = [barisTgl("c1", 20, "2026-10-01T08:00:00.000Z")];
+    expect(skorPada(baris, SEHARI_LALU).skor).toBe(100);
+    expect(skorPada(baris, SEKARANG).skor).toBe(80);
+  });
+
+  it("masih menghitung baris yang dipulihkan setelah titik pembanding", () => {
+    // Baris yang dicatat lama lalu dipulihkan **setelah** titik pembanding masih
+    // memotong skor kemarin. Inilah isi cerita pemulihan: skornya naik, bukan
+    // hilang dari sejarah.
+    const baris = [
+      barisTgl("c1", 20, "2026-09-20T00:00:00.000Z", "2026-10-01T06:00:00.000Z"),
+    ];
+    expect(skorPada(baris, SEHARI_LALU).skor).toBe(80);
+    expect(skorPada(baris, SEKARANG).skor).toBe(100);
+  });
+
+  it("mengabaikan baris yang sudah dipulihkan sebelum titik pembanding", () => {
+    const baris = [
+      barisTgl("c1", 20, "2026-09-01T00:00:00.000Z", "2026-09-02T00:00:00.000Z"),
+    ];
+    expect(skorPada(baris, SEHARI_LALU).skor).toBe(100);
+  });
+
+  it("menjepit per course dengan aturan yang sama, bukan hitungan kedua", () => {
+    // Tujuh pelanggaran ringan di satu course: batas 20 tetap berlaku pada skor
+    // masa lalu. Kalau fungsi ini punya penjepitannya sendiri, angka ini yang
+    // pertama kali menyimpang dari kartu.
+    const baris = Array.from({ length: 7 }, (_, i) =>
+      barisTgl("c1", 5, `2026-09-1${i}T00:00:00.000Z`),
+    );
+    expect(skorPada(baris, SEHARI_LALU).skor).toBe(80);
+  });
+
+  it("mengembalikan skor penuh untuk tanggal yang tidak bisa dibaca", () => {
+    // Titik pembanding yang rusak tidak boleh memotong apa pun: lebih baik tanpa
+    // pembanding daripada pembanding yang mengarang penalti.
+    const baris = [barisTgl("c1", 20, "2026-09-01T00:00:00.000Z")];
+    expect(skorPada(baris, new Date(Number.NaN)).skor).toBe(100);
+  });
+
+  it("membuang baris yang waktu dibuatnya tidak bisa dibaca", () => {
+    const rusak: BarisPelanggaranBertanggal = {
+      id: "x",
+      courseId: "c1",
+      penalty: 20,
+      status: "active",
+      createdAt: new Date(Number.NaN),
+      expungedAt: null,
+    };
+    expect(skorPada([rusak], SEKARANG).skor).toBe(100);
+  });
+});
+
+describe("tingkatSkor", () => {
+  it("menyatakan skor penuh sebagai tingkat tertinggi", () => {
+    expect(tingkatSkor(SKOR_AWAL)).toBe("sangat-baik");
+    expect(labelTingkatSkor(SKOR_AWAL)).toBe("Sangat Baik");
+  });
+
+  it("tidak menjatuhkan akun dengan potongan kecil dari tingkat tertinggi", () => {
+    // Skor 90 masih "Sangat Baik": satu pelanggaran sedang (10) tidak boleh
+    // mengubah label itu — labelnya menyatakan kondisi catatan secara umum, bukan
+    // angka persis.
+    expect(tingkatSkor(90)).toBe("sangat-baik");
+  });
+
+  it("memisahkan tingkat pada batasnya", () => {
+    expect(tingkatSkor(89)).toBe("baik");
+    expect(tingkatSkor(70)).toBe("baik");
+    expect(tingkatSkor(69)).toBe("perhatian");
+    expect(tingkatSkor(0)).toBe("perhatian");
+  });
+
+  it("tidak pernah memakai kata yang menyatakan bersalah", () => {
+    // Batas yang sama dengan `katalog.test.ts`, tapi untuk label yang baru: kata
+    // vonis tidak boleh masuk lewat pintu ini.
+    for (const skor of [100, 90, 75, 40, 0]) {
+      const teks = labelTingkatSkor(skor).toLowerCase();
+      for (const kata of ["curang", "menyalin", "mencontek", "penyalahgunaan", "bersalah"]) {
+        expect(teks).not.toContain(kata);
+      }
+    }
   });
 });
