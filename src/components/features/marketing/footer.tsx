@@ -21,6 +21,7 @@ export function MarketingFooter() {
         { label: "Beranda", href: "#" },
         { label: "Loop Demo", href: "#demo" },
         { label: "Fitur Utama", href: "#fitur" },
+        { label: "Perbandingan", href: "#pbanding" },
         { label: "Harga", href: "#harga" },
         { label: "Integrasi", href: "#integrasi" },
         { label: "API Docs", href: "#api" },

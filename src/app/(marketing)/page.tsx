@@ -3,6 +3,8 @@ import { MarketingAgents } from "@/components/features/marketing/guild-agents";
 import { MarketingLogos } from "@/components/features/marketing/logos";
 import { MarketingProblemsSolutions } from "@/components/features/marketing/problems-solutions";
 import { MarketingFeatures } from "@/components/features/marketing/features";
+import { MarketingComparison } from "@/components/features/marketing/comparison";
+import { MarketingProof } from "@/components/features/marketing/proof";
 import { MarketingUseCases } from "@/components/features/marketing/use-cases";
 import { MarketingIntegrations } from "@/components/features/marketing/integrations";
 import { MarketingTestimonials } from "@/components/features/marketing/testimonials";
@@ -19,6 +21,8 @@ export default function Home() {
         <MarketingLogos />
         <MarketingProblemsSolutions />
         <MarketingFeatures />
+        <MarketingComparison />
+        <MarketingProof />
         <MarketingUseCases />
         <MarketingIntegrations />
         <MarketingTestimonials />
