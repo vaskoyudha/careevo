@@ -94,16 +94,13 @@ def empty_grant(user_id: str) -> dict[str, Any]:
         # ``[]`` means none, a list is an explicit whitelist. MCP tools can
         # proxy host-side capabilities, so non-admin runtime access treats
         # ``mcp_tools=None`` as deny-by-default until an admin grants explicit
-        # names. ``cli_apps`` is the same posture for installed CLI apps, keyed
-        # by app id: each one is third-party code executing in the sandbox, so
-        # an absent grant is no access rather than all of them.
+        # names.
         # ``exec_enabled`` is a tri-state override on top of the
         # deployment exec policy: ``None`` follows the policy, ``False`` always
         # denies, ``True`` is only honored where the sandbox can actually
         # isolate users (SYSTEM isolation).
         "enabled_tools": None,
         "mcp_tools": None,
-        "cli_apps": None,
         "exec_enabled": None,
         "learning_policy": None,
     }
@@ -181,7 +178,7 @@ def normalize_grant(user_id: str, payload: dict[str, Any] | None) -> dict[str, A
         raw = payload.get(key)
         values = raw if isinstance(raw, list) else []
         base[key] = [dict(item) for item in values if isinstance(item, dict)]
-    for key in ("enabled_tools", "mcp_tools", "cli_apps"):
+    for key in ("enabled_tools", "mcp_tools"):
         base[key] = _normalize_tool_list(payload.get(key))
     exec_enabled = payload.get("exec_enabled")
     base["exec_enabled"] = bool(exec_enabled) if isinstance(exec_enabled, bool) else None
@@ -196,7 +193,6 @@ def learner_grant(user_id: str) -> dict[str, Any]:
         {
             "enabled_tools": [],
             "mcp_tools": [],
-            "cli_apps": [],
             "exec_enabled": False,
             "learning_policy": {
                 "age_band": "9-12",
@@ -224,7 +220,7 @@ def load_grant(user_id: str) -> dict[str, Any]:
         raise GrantStorageError(f"Cannot read grant for user {user_id}") from exc
     if not isinstance(stored, dict):
         raise GrantStorageError(f"Grant for user {user_id} must be a JSON object")
-    for key in ("enabled_tools", "mcp_tools", "cli_apps"):
+    for key in ("enabled_tools", "mcp_tools"):
         value = stored.get(key)
         if value is not None and not isinstance(value, list):
             raise GrantStorageError(f"Grant for user {user_id} has invalid {key}")

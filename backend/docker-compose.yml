@@ -167,12 +167,6 @@ services:
     volumes:
       - "${DEEPTUTOR_WORKSPACE_HOST:-./data/user/workspace}:/workspace:ro"
       - "${DEEPTUTOR_WORKSPACE_HOST:-./data/user/workspace}/outputs:/workspace/outputs"
-      # Installed CLI apps, READ-ONLY. This is the one directory the runner
-      # executes code from that it did not receive in a request, so it must not
-      # be writable here: an escaped command that could overwrite an app's entry
-      # point would run as that app in every later turn, for every account.
-      # Installing writes it from the main container instead (services/cli_apps).
-      - ./data/cli-apps:/app/data/cli-apps:ro
 
     environment:
       - DEEPTUTOR_RUNNER_ALLOWED_WORKDIRS=/workspace/outputs

@@ -1410,7 +1410,7 @@ async def export(
     """Download the material with its annotations applied.
 
     ``pdf`` writes real PDF annotations into a copy of the original, so the
-    export keeps working outside DeepTutor; ``markdown`` returns the marks as
+    export keeps working outside AI Personalize; ``markdown`` returns the marks as
     text, which is what every non-PDF format gets.
     """
     store = _store()

@@ -264,13 +264,13 @@ class BaseTool(ABC):
 def provider_identity(tool: Any) -> tuple[str, str]:
     """``(kind, provider_id)`` for a tool from an external provider.
 
-    Returns ``("", "")`` for a built-in. ``kind`` is ``"mcp"`` or ``"cli"``;
-    ``provider_id`` names the specific server or app.
+    Returns ``("", "")`` for a built-in. ``kind`` names the provider family
+    (``"mcp"``, ``"pageindex"``, …); ``provider_id`` names the specific server.
 
     Lives in this bottom layer because two very different consumers need the
     same answer: the deferred-tool manifest groups by it, and the dispatcher
     puts it on every tool call's trace metadata so the UI can say *which* MCP
-    server or CLI app is running rather than showing a mangled tool name. A
+    server is running rather than showing a mangled tool name. A
     frontend that recovered this by parsing ``mcp_<server>_<tool>`` would guess
     wrong the moment a server's name contains an underscore.
 

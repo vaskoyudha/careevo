@@ -44,9 +44,19 @@ def build_restart_command(job: UpdateJob) -> tuple[list[str], Path]:
     if not job.restart_home or not job.restart_argv:
         raise ValueError("Update job is missing restart information")
     home = Path(job.restart_home).resolve()
-    # UpdateJob.from_dict already restricts restart_argv to
-    # `start --home <same-home> [--dev]`; preserve that exact trusted vector.
-    return [sys.executable, "-m", "deeptutor_cli.main", *job.restart_argv], home
+    # The restart used to exec `python -m deeptutor_cli.main start --home ...`.
+    # The CLI is gone from this deployment, so there is no launcher left to
+    # hand the process back to: `deeptutor.runtime.launcher.start()` was only
+    # ever reachable through it. Refuse loudly rather than spawn a module that
+    # no longer exists — the caller records a durable `failed` job, and the
+    # remedy is a restart by the process supervisor (systemd), which is how
+    # this backend is actually run.
+    raise RuntimeError(
+        "In-app self-restart is unavailable: the `deeptutor` CLI that owned the "
+        "launcher was removed. The update itself was installed; restart the "
+        "service (e.g. `systemctl --user restart sijago-backend.service`) to "
+        "run the new version."
+    )
 
 
 def _pid_is_alive(pid: int) -> bool:

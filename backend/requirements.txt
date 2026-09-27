@@ -9,7 +9,6 @@
 #
 # Preferred installs:
 #   pip install deeptutor               # Full app (public wheel)
-#   pip install deeptutor-cli           # CLI-only public wheel
 #   pip install -e .                    # Source checkout
 #   pip install -e ".[partners]"       # Server + partner channel SDKs
 #   pip install -e ".[matrix]"         # Matrix channel for partners
@@ -17,6 +16,6 @@
 #   pip install -e ".[dev]"            # Server + dev/test tools
 #   pip install -e ".[all]"            # Everything
 #
-# This file installs the full server runtime (CLI + API + partners).
+# This file installs the full server runtime (API + partners).
 
 -r requirements/partners.txt

@@ -4,7 +4,6 @@ import assert from "node:assert/strict";
 import { brandIconFor, brandInitials } from "../lib/brand-icons";
 import { BRAND_ICONS } from "../lib/brand-icons.generated";
 import {
-  CLI_BRAND_SLUGS,
   MCP_BRAND_SLUGS,
   referencedSlugs,
 } from "../lib/brand-slugs";
@@ -37,51 +36,36 @@ test("every mark is a usable 24x24 path", () => {
   }
 });
 
-test("a known entry resolves in its own namespace only", () => {
-  // `exa` is a hosted search MCP *and* an installed CLI; they are different
-  // products, so one namespace's curation must not answer for the other.
-  assert.ok(brandIconFor("mcp", "github"));
-  assert.equal(brandIconFor("cli", "github"), null);
-  assert.ok(brandIconFor("cli", "blender"));
-  assert.equal(brandIconFor("mcp", "blender"), null);
+test("a known entry resolves to its mark", () => {
+  assert.ok(brandIconFor("github"));
 });
 
 test("an unknown entry resolves to null rather than a wrong logo", () => {
   // Partial coverage is the design: the newer MCP brands are not in Simple Icons,
   // and a plausible-but-wrong mark is worse than a monogram.
-  assert.equal(brandIconFor("mcp", "tavily"), null);
-  assert.equal(brandIconFor("mcp", "definitely-not-a-service"), null);
+  assert.equal(brandIconFor("tavily"), null);
+  assert.equal(brandIconFor("definitely-not-a-service"), null);
+  // `blender` was only ever curated as a CLI app id, so with the CLI-apps
+  // surface gone it must not resolve — a stale table would resurrect the mark.
+  assert.equal(brandIconFor("blender"), null);
 });
 
 test("a renamed install still finds its mark", () => {
   // The MCP store lets the installer choose a local name, and the common edits
   // are case and separator changes.
-  assert.ok(brandIconFor("mcp", "GitHub"));
-  assert.ok(brandIconFor("mcp", "google_maps"));
-  assert.ok(brandIconFor("cli", "OBS_Studio"));
-  assert.ok(
-    brandIconFor("cli", "blender-cli"),
-    "a -cli suffix is not part of the brand",
-  );
+  assert.ok(brandIconFor("GitHub"));
+  assert.ok(brandIconFor("google_maps"));
 });
 
 test("resolution never throws on junk", () => {
   for (const value of ["", "   ", "../etc/passwd", "-", "___"]) {
-    assert.doesNotThrow(() => brandIconFor("cli", value));
+    assert.doesNotThrow(() => brandIconFor(value));
   }
 });
 
-test("the two namespaces stay in sync with what is generated", () => {
-  for (const [namespace, table] of [
-    ["mcp", MCP_BRAND_SLUGS],
-    ["cli", CLI_BRAND_SLUGS],
-  ] as const) {
-    for (const id of Object.keys(table)) {
-      assert.ok(
-        brandIconFor(namespace, id),
-        `${namespace}:${id} resolves to nothing`,
-      );
-    }
+test("the curated table stays in sync with what is generated", () => {
+  for (const id of Object.keys(MCP_BRAND_SLUGS)) {
+    assert.ok(brandIconFor(id), `mcp:${id} resolves to nothing`);
   }
 });
 

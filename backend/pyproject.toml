@@ -92,7 +92,6 @@ dependencies = [
 ]
 
 [project.scripts]
-deeptutor = "deeptutor_cli.main:main"
 deeptutor-export-frontend-contracts = "deeptutor.api.contracts.export:main"
 
 [project.entry-points."deeptutor.reading_extensions"]
@@ -104,8 +103,8 @@ translation = "deeptutor.reading.translation:TranslationExtension"
 
 [project.optional-dependencies]
 # Compatibility extra for source installs and older docs. These packages are
-# already included in the public `deeptutor` wheel; the local CLI-only project
-# under `packaging/deeptutor-cli` uses the same list without Web assets/server deps.
+# already included in the public `deeptutor` wheel, and `requirements/cli.txt`
+# (which `requirements/server.txt` includes) mirrors the same list.
 cli = [
     # LLM provider SDKs
     "anthropic>=0.30.0",
@@ -302,7 +301,7 @@ version = {attr = "deeptutor.__version__.__version__"}
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["deeptutor*", "deeptutor_cli*"]
+include = ["deeptutor*"]
 
 [tool.setuptools.package-data]
 # Runtime data shipped inside the deeptutor package: prompt YAMLs (loaded by
@@ -319,7 +318,6 @@ deeptutor = [
     "**/*.j2",
     "**/*.jinja",
 ]
-deeptutor_cli = ["**/*.md"]
 deeptutor_web = ["**/*", ".next/**/*"]
 
 # ============================================
@@ -450,7 +448,7 @@ line-ending = "auto"
 # Ruff import sorting (isort replacement)
 # ============================================
 [tool.ruff.lint.isort]
-known-first-party = ["deeptutor", "deeptutor_cli", "scripts"]
+known-first-party = ["deeptutor", "scripts"]
 force-sort-within-sections = true
 split-on-trailing-comma = true
 

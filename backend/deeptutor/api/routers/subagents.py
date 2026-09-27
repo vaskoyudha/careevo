@@ -180,7 +180,7 @@ async def message_connection(name: str, payload: SubagentMessageRequest):
     """Send a message straight to a connected subagent and stream its run.
 
     This is the sidebar's "talk to the agent directly" path: it resumes the same
-    live session DeepTutor consults (shared via the cross-turn registry, keyed by
+    live session AI Personalize consults (shared via the cross-turn registry, keyed by
     chat session + connection), so the agent keeps full context. Streams the
     native run as newline-delimited JSON, in the same channel shape the chat WS
     uses, so the sidebar transcript renders it identically.

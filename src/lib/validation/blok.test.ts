@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
   blokSchema,
-  TIPE_BLOK,
   MAKS_KODE_KARAKTER,
   MAKS_STDIN_KARAKTER,
   MAKS_OUTPUT_HARAPAN_KARAKTER,
@@ -12,10 +11,39 @@ function kode(atas: Record<string, unknown> = {}) {
   return { id: "blk-1", tipe: "kode", bahasa: "cpp", kode: "int main(){}", ...atas };
 }
 
-describe("TIPE_BLOK", () => {
-  it("memuat kode sebagai tipe keenam", () => {
-    expect(TIPE_BLOK).toContain("kode");
-    expect(TIPE_BLOK).toHaveLength(6);
+/**
+ * Tidak ada `describe("TIPE_BLOK")` di sini lagi, dan itu disengaja.
+ *
+   * Union tipe blok bukan milik test ini: ia dijaga `tsc` (lihat catatan panjang
+ * di `blok.ts` dan `TipeBlok` di `@/types/course`). Test yang pernah ada di sini
+ * menulis literal yang sama ke array yang juga ditulis test, jadi tidak ada
+ * yang bisa gagal karena kontrak yang dinamai — persis kelas cacat "test yang
+ * tidak bisa gagal".
+ *
+ * Yang boleh diuji runtime hanyalah **skema**: apakah `tipe` itu union
+ * tertutup. Itu yang diperiksa di bawah, dan ini bisa gagal kalau diskriminator
+ * dilonggarkan (`z.string()`, `z.enum` dengan nilai asing, cabang yang hilang)
+ * — bukan kalau seseorang mengetik `"kode"` di dalam test.
+ */
+describe("blokSchema diskriminator tipe", () => {
+  it("menolak tipe blok yang tidak dikenal", () => {
+    // Union tertutup: `tipe` bukan string bebas. Tanpa ini, `BlokView` dan
+    // `IsiBlok` bisa menerima bentuk yang tidak punya `case` dan bloknya hilang
+    // tanpa satu pun error.
+    const hasil = blokSchema.safeParse({
+      id: "blk-1",
+      tipe: "kerangka",
+      segmen: [{ teks: "halo" }],
+    });
+    expect(hasil.success).toBe(false);
+  });
+
+  it("menolak tipe yang hanya berbeda kapitalnya", () => {
+    // Bentuk yang sama persis dengan blok paragraf yang sah, hanya `tipe`-nya
+    // disamarkan. `z.discriminatedUnion` harus menolak berdasarkan diskriminator
+    // itu, bukan berdasarkan field lain.
+    const hasil = blokSchema.safeParse({ id: "blk-1", tipe: "Paragraf" });
+    expect(hasil.success).toBe(false);
   });
 });
 

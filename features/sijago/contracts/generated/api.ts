@@ -3138,7 +3138,7 @@ export interface paths {
     readonly put?: never;
     /**
      * Pair Device
-     * @description Pair a new MN4 device. Requires a DeepTutor session.
+     * @description Pair a new MN4 device. Requires an AI Personalize session.
      *
      *     Returns a one-time token the Add-on stores and presents on every sync.
      */
@@ -6317,7 +6317,7 @@ export interface paths {
      * @description Download the material with its annotations applied.
      *
      *     ``pdf`` writes real PDF annotations into a copy of the original, so the
-     *     export keeps working outside DeepTutor; ``markdown`` returns the marks as
+     *     export keeps working outside AI Personalize; ``markdown`` returns the marks as
      *     text, which is what every non-PDF format gets.
      */
     readonly get: operations["export_api_reading_materials__material_id__export_get"];
@@ -8762,7 +8762,7 @@ export interface paths {
      * Hub Catalog
      * @description Proxy a skill hub's public catalog for the in-app browser.
      *
-     *     The web "Import from EduHub" panel renders these rows in DeepTutor's own
+     *     The web "Import from EduHub" panel renders these rows in AI Personalize's own
      *     UI — no embedded iframe, no login — so users can browse, search, and
      *     one-click download skills. Returns ``web_url`` (the hub's site origin) so
      *     the panel can offer a "view on EduHub" link out.
@@ -8884,110 +8884,6 @@ export interface paths {
     readonly get: operations["list_tags_api_skills_tags_list_get"];
     readonly put?: never;
     readonly post?: never;
-    readonly delete?: never;
-    readonly options?: never;
-    readonly head?: never;
-    readonly patch?: never;
-    readonly trace?: never;
-  };
-  readonly "/api/space/cli-apps/apps": {
-    readonly parameters: {
-      readonly query?: never;
-      readonly header?: never;
-      readonly path?: never;
-      readonly cookie?: never;
-    };
-    /**
-     * List Apps
-     * @description Installed apps as *this* caller sees them.
-     */
-    readonly get: operations["list_apps_api_space_cli_apps_apps_get"];
-    readonly put?: never;
-    readonly post?: never;
-    readonly delete?: never;
-    readonly options?: never;
-    readonly head?: never;
-    readonly patch?: never;
-    readonly trace?: never;
-  };
-  readonly "/api/space/cli-apps/apps/{app_id}": {
-    readonly parameters: {
-      readonly query?: never;
-      readonly header?: never;
-      readonly path?: never;
-      readonly cookie?: never;
-    };
-    readonly get?: never;
-    readonly put?: never;
-    readonly post?: never;
-    /**
-     * Uninstall
-     * @description Remove one app from the deployment. Administrator only.
-     */
-    readonly delete: operations["uninstall_api_space_cli_apps_apps__app_id__delete"];
-    readonly options?: never;
-    readonly head?: never;
-    readonly patch?: never;
-    readonly trace?: never;
-  };
-  readonly "/api/space/cli-apps/apps/{app_id}/enabled": {
-    readonly parameters: {
-      readonly query?: never;
-      readonly header?: never;
-      readonly path?: never;
-      readonly cookie?: never;
-    };
-    readonly get?: never;
-    /**
-     * Set Enabled
-     * @description Switch one app on or off for the calling account.
-     *
-     *     Refused for an app the caller has not been granted: the preference file must
-     *     not become a way to record interest in something the grant denies, because a
-     *     later grant would then silently switch it on.
-     */
-    readonly put: operations["set_enabled_api_space_cli_apps_apps__app_id__enabled_put"];
-    readonly post?: never;
-    readonly delete?: never;
-    readonly options?: never;
-    readonly head?: never;
-    readonly patch?: never;
-    readonly trace?: never;
-  };
-  readonly "/api/space/cli-apps/catalog": {
-    readonly parameters: {
-      readonly query?: never;
-      readonly header?: never;
-      readonly path?: never;
-      readonly cookie?: never;
-    };
-    /**
-     * Get Catalog
-     * @description The store. Readable by anyone; installing is admin-only.
-     */
-    readonly get: operations["get_catalog_api_space_cli_apps_catalog_get"];
-    readonly put?: never;
-    readonly post?: never;
-    readonly delete?: never;
-    readonly options?: never;
-    readonly head?: never;
-    readonly patch?: never;
-    readonly trace?: never;
-  };
-  readonly "/api/space/cli-apps/catalog/{app_id}/install": {
-    readonly parameters: {
-      readonly query?: never;
-      readonly header?: never;
-      readonly path?: never;
-      readonly cookie?: never;
-    };
-    readonly get?: never;
-    readonly put?: never;
-    /**
-     * Install
-     * @description Install one app for the deployment. Administrator only.
-     */
-    readonly post: operations["install_api_space_cli_apps_catalog__app_id__install_post"];
     readonly delete?: never;
     readonly options?: never;
     readonly head?: never;
@@ -9250,7 +9146,7 @@ export interface paths {
      * @description Send a message straight to a connected subagent and stream its run.
      *
      *     This is the sidebar's "talk to the agent directly" path: it resumes the same
-     *     live session DeepTutor consults (shared via the cross-turn registry, keyed by
+     *     live session AI Personalize consults (shared via the cross-turn registry, keyed by
      *     chat session + connection), so the agent keeps full context. Streams the
      *     native run as newline-delimited JSON, in the same channel shape the chat WS
      *     uses, so the sidebar transcript renders it identically.
@@ -9315,7 +9211,7 @@ export interface paths {
     };
     /**
      * Get Memory Usage
-     * @description Resident memory of the running DeepTutor process tree.
+     * @description Resident memory of the running AI Personalize process tree.
      *
      *     Deliberately separate from ``/status``: that snapshot resolves the LLM,
      *     embedding and search configs and is fetched once per settings mount, while
@@ -11778,11 +11674,6 @@ export interface components {
     readonly EditTopicMapRequest: {
       /** Modules */
       readonly modules: readonly components["schemas"]["ModuleInput"][];
-    };
-    /** EnabledPayload */
-    readonly EnabledPayload: {
-      /** Enabled */
-      readonly enabled: boolean;
     };
     /** EnabledToolsUpdate */
     readonly EnabledToolsUpdate: {
@@ -14814,7 +14705,7 @@ export interface components {
      * TopicSourceKind
      * @description What a learner may point a mastery goal at.
      *
-     *     Everything DeepTutor already holds for them is fair game: their library
+     *     Everything AI Personalize already holds for them is fair game: their library
      *     (``BOOK``), their notes (``NOTEBOOK``), an indexed corpus or one document
      *     inside it (``KNOWLEDGE_BASE`` / ``FILE``), and — added with the mastery
      *     goal rework — the working history that shows what they have actually been
@@ -16084,7 +15975,6 @@ export type SchemaEditRequest = components["schemas"]["EditRequest"];
 export type SchemaEditResponse = components["schemas"]["EditResponse"];
 export type SchemaEditTopicMapRequest =
   components["schemas"]["EditTopicMapRequest"];
-export type SchemaEnabledPayload = components["schemas"]["EnabledPayload"];
 export type SchemaEnabledToolsUpdate =
   components["schemas"]["EnabledToolsUpdate"];
 export type SchemaEntryUpdateRequest =
@@ -36428,197 +36318,6 @@ export interface operations {
         content: {
           readonly "application/json": {
             readonly [key: string]: readonly string[];
-          };
-        };
-      };
-      /** @description Validation Error */
-      readonly 422: {
-        headers: {
-          readonly [name: string]: unknown;
-        };
-        content: {
-          readonly "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  readonly list_apps_api_space_cli_apps_apps_get: {
-    readonly parameters: {
-      readonly query?: never;
-      readonly header?: {
-        readonly Authorization?: string | null;
-      };
-      readonly path?: never;
-      readonly cookie?: {
-        readonly dt_token?: string | null;
-      };
-    };
-    readonly requestBody?: never;
-    readonly responses: {
-      /** @description Successful Response */
-      readonly 200: {
-        headers: {
-          readonly [name: string]: unknown;
-        };
-        content: {
-          readonly "application/json": {
-            readonly [key: string]: unknown;
-          };
-        };
-      };
-      /** @description Validation Error */
-      readonly 422: {
-        headers: {
-          readonly [name: string]: unknown;
-        };
-        content: {
-          readonly "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  readonly uninstall_api_space_cli_apps_apps__app_id__delete: {
-    readonly parameters: {
-      readonly query?: never;
-      readonly header?: {
-        readonly Authorization?: string | null;
-      };
-      readonly path: {
-        readonly app_id: string;
-      };
-      readonly cookie?: {
-        readonly dt_token?: string | null;
-      };
-    };
-    readonly requestBody?: never;
-    readonly responses: {
-      /** @description Successful Response */
-      readonly 200: {
-        headers: {
-          readonly [name: string]: unknown;
-        };
-        content: {
-          readonly "application/json": {
-            readonly [key: string]: unknown;
-          };
-        };
-      };
-      /** @description Validation Error */
-      readonly 422: {
-        headers: {
-          readonly [name: string]: unknown;
-        };
-        content: {
-          readonly "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  readonly set_enabled_api_space_cli_apps_apps__app_id__enabled_put: {
-    readonly parameters: {
-      readonly query?: never;
-      readonly header?: {
-        readonly Authorization?: string | null;
-      };
-      readonly path: {
-        readonly app_id: string;
-      };
-      readonly cookie?: {
-        readonly dt_token?: string | null;
-      };
-    };
-    readonly requestBody: {
-      readonly content: {
-        readonly "application/json": components["schemas"]["EnabledPayload"];
-      };
-    };
-    readonly responses: {
-      /** @description Successful Response */
-      readonly 200: {
-        headers: {
-          readonly [name: string]: unknown;
-        };
-        content: {
-          readonly "application/json": {
-            readonly [key: string]: unknown;
-          };
-        };
-      };
-      /** @description Validation Error */
-      readonly 422: {
-        headers: {
-          readonly [name: string]: unknown;
-        };
-        content: {
-          readonly "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  readonly get_catalog_api_space_cli_apps_catalog_get: {
-    readonly parameters: {
-      readonly query?: {
-        readonly category?: string;
-        readonly cursor?: string;
-        readonly installable_only?: boolean;
-        readonly limit?: number;
-        readonly q?: string;
-      };
-      readonly header?: {
-        readonly Authorization?: string | null;
-      };
-      readonly path?: never;
-      readonly cookie?: {
-        readonly dt_token?: string | null;
-      };
-    };
-    readonly requestBody?: never;
-    readonly responses: {
-      /** @description Successful Response */
-      readonly 200: {
-        headers: {
-          readonly [name: string]: unknown;
-        };
-        content: {
-          readonly "application/json": {
-            readonly [key: string]: unknown;
-          };
-        };
-      };
-      /** @description Validation Error */
-      readonly 422: {
-        headers: {
-          readonly [name: string]: unknown;
-        };
-        content: {
-          readonly "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  readonly install_api_space_cli_apps_catalog__app_id__install_post: {
-    readonly parameters: {
-      readonly query?: never;
-      readonly header?: {
-        readonly Authorization?: string | null;
-      };
-      readonly path: {
-        readonly app_id: string;
-      };
-      readonly cookie?: {
-        readonly dt_token?: string | null;
-      };
-    };
-    readonly requestBody?: never;
-    readonly responses: {
-      /** @description Successful Response */
-      readonly 200: {
-        headers: {
-          readonly [name: string]: unknown;
-        };
-        content: {
-          readonly "application/json": {
-            readonly [key: string]: unknown;
           };
         };
       };
