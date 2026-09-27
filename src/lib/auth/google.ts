@@ -5,6 +5,17 @@
  * untuk autentikasi dan pendaftaran pengguna menggunakan akun Google.
  */
 
+/**
+ * Path callback yang didaftarkan di Google Cloud Console.
+ *
+ * Disimpan sebagai konstanta, bukan ditulis inline di `tentukanRedirectUri`,
+ * karena path ini harus **sama persis** dengan yang terdaftar di Google: kalau
+ * `redirect_uri` yang dikirim saat meminta kode berbeda dari yang dipakai saat
+ * menukar kode, Google menolak pertukaran itu. Satu definisi membuat
+ * `.env.example`, route, dan test tidak bisa diam-diam berbeda.
+ */
+export const PATH_CALLBACK_GOOGLE = "/api/auth/callback/google";
+
 export interface KonfigurasiGoogle {
   clientId: string | null;
   clientSecret: string | null;
@@ -128,18 +139,31 @@ export async function ambilProfilGoogle(accessToken: string): Promise<GoogleProf
  *
  * Prioritas:
  * 1. Nilai eksplisit dari `GOOGLE_REDIRECT_URI` bila diatur.
- * 2. Origin request (`host`/`x-forwarded-host` + skema) + `/api/auth/callback/google`.
+ * 2. Origin request (`host` + skema) + `PATH_CALLBACK_GOOGLE`.
+ *
+ * **`host` menang atas `x-forwarded-host`, bukan sebaliknya.** Header
+ * `X-Forwarded-*` bisa disuplai klien apa adanya, jadi mempercayainya lebih
+ * dulu membiarkan penyerang mengarahkan `redirect_uri` ke host-nya sendiri —
+ * dan kode otorisasi lalu ditukar untuk URI itu. `Host` adalah host yang
+ * benar-benar dilayani, jadi itu yang dipakai.
+ *
+ * `x-forwarded-proto` tetap dipercaya karena skema tidak memilih tujuan, hanya
+ * menentukan apakah URI menghasilkan `http` atau `https`.
+ *
+ * Kalau reverse proxy menulis ulang `Host` ke host internal, tetapkan
+ * `GOOGLE_REDIRECT_URI` eksplisit — jebakan yang sama seperti di `.env.example`,
+ * dan gejalanya Google menolak kodenya, bukan error yang menyebut host.
  */
 export function tentukanRedirectUri(request: Request): string {
   const envRedirect = process.env.GOOGLE_REDIRECT_URI?.trim();
   if (envRedirect) return envRedirect;
 
   const url = new URL(request.url);
-  const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || url.host;
+  const host = request.headers.get("host") || request.headers.get("x-forwarded-host") || url.host;
   const proto =
     request.headers.get("x-forwarded-proto") || url.protocol.replace(":", "") || "http";
 
-  return `${proto}://${host}/api/auth/callback/google`;
+  return `${proto}://${host}${PATH_CALLBACK_GOOGLE}`;
 }
 
 /**

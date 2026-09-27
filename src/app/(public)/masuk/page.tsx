@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { landingFor } from "@/lib/auth/landing";
 import { demoAccountsAllowed } from "@/lib/config/environment";
+import { terjemahkanGalatOAuth } from "@/lib/auth/google";
 import AuthSectionTwo from "@/components/ui/auth-section-2";
 import { AuthForm } from "@/components/features/auth/auth-form";
 import { DEMO_ACCOUNTS, DEMO_PASSWORD } from "@/lib/auth/demo-accounts";
@@ -15,11 +16,14 @@ export const metadata: Metadata = {
 export default async function MasukPage({
   searchParams,
 }: {
-  searchParams: Promise<{ email?: string }>;
+  searchParams: Promise<{ email?: string; error?: string }>;
 }) {
   // Already signed in? No reason to show the login form again.
   const session = await getSession();
   if (session) redirect(await landingFor(session.role, session.userId, session.email));
+
+  const { email, error } = await searchParams;
+  const oauthError = terjemahkanGalatOAuth(error);
 
   // Demo credentials are shown only on a development machine that opted in
   // with `DEMO_MODE=1`; the accounts are also rejected by `authenticate`
@@ -27,12 +31,11 @@ export default async function MasukPage({
   if (!demoAccountsAllowed()) {
     return (
       <AuthSectionTwo title="Masuk ke akun Careevo">
-        <AuthForm mode="masuk" />
+        <AuthForm mode="masuk" errorMessage={oauthError} />
       </AuthSectionTwo>
     );
   }
 
-  const { email } = await searchParams;
   const prefill = DEMO_ACCOUNTS.some((account) => account.email === email) ? email : undefined;
 
   return (
@@ -41,6 +44,7 @@ export default async function MasukPage({
         mode="masuk"
         defaultEmail={prefill}
         defaultPassword={prefill ? DEMO_PASSWORD : undefined}
+        errorMessage={oauthError}
       />
       <p className="mt-6 mb-0 text-center text-xs leading-5 text-black/45">
         Akun demo: {DEMO_ACCOUNTS.map((account) => account.email).join(" · ")}, password{" "}
