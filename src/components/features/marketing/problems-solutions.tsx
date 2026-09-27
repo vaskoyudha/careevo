@@ -917,6 +917,8 @@ export function MarketingProblemsSolutions() {
                             onClick={() => setKartuTerbalik(item.id)}
                             aria-expanded={terbalik}
                             aria-controls={`solusi-${item.id}`}
+                            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[10px] border border-[#bfd9e7] bg-white px-6 text-[15px] font-semibold text-[#0a3d62] shadow-[0_1px_2px_rgba(10,61,98,0.06)] transition-[color,background-color,border-color,transform] duration-200 ease-out hover:border-[#2a7fb8] hover:text-[#124e78] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2a7fb8] motion-reduce:transition-none motion-reduce:active:scale-100"
+                          >
                             Lihat solusi kami
                             <ArrowRight aria-hidden="true" className="size-4" strokeWidth={1.8} />
                           </button>
@@ -982,7 +984,7 @@ export function MarketingProblemsSolutions() {
                               setKartuTerbalik(null);
                               tombolDepan.current[item.id]?.focus();
                             }}
-                            className="chrome-btn chrome-btn-white !h-11 !w-full !px-6 !text-[15px] gap-2"
+                            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[10px] border border-white/70 bg-white px-6 text-[15px] font-semibold text-[#0a3d62] shadow-[0_1px_2px_rgba(7,42,63,0.18)] transition-[color,background-color,border-color,transform] duration-200 ease-out hover:border-white hover:bg-white/90 hover:text-[#124e78] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8fd6e3] motion-reduce:transition-none motion-reduce:active:scale-100"
                           >
                             <ArrowLeft aria-hidden="true" className="size-4" strokeWidth={1.8} />
                             Kembali ke masalah
