@@ -27,7 +27,7 @@ export default async function OnboardingPage({
 
   const { edit } = await searchParams;
   const isEdit = edit === "1";
-  const profile = await getProfile(session.email);
+  const profile = await getProfile(session.userId, session.email);
 
   if (profile && !isEdit) redirect(homeForRole(session.role));
 

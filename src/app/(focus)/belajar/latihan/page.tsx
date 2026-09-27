@@ -22,7 +22,7 @@ export default async function LatihanIndexPage() {
   if (!session) return null;
 
   const [profile, catalog, enrollments, latihan] = await Promise.all([
-    getProfile(session.email),
+    getProfile(session.userId, session.email),
     katalogBelajar(),
     listPendaftaran(session.email),
     listLatihan(session.email),

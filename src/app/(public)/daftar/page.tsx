@@ -14,7 +14,7 @@ export default async function DaftarPage() {
   // Already signed in? Sending a second registration form is a dead end — go
   // where this account belongs (onboarding if they still need it).
   const session = await getSession();
-  if (session) redirect(await landingFor(session.role, session.email));
+  if (session) redirect(await landingFor(session.role, session.userId, session.email));
 
   return (
     <AuthSectionTwo title="Buat akun Careevo">
