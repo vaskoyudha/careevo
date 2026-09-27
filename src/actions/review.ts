@@ -9,7 +9,7 @@ import {
   GalatReview,
   KEPUTUSAN_REVIEW,
   buatSubmissionDb,
-  daftarKursusSubmission,
+  kelayakanKursusSubmission,
   kirimSubmissionDb,
   tetapkanReviewerDb,
   mulaiReviewDb,
@@ -29,7 +29,10 @@ export interface ReviewState {
 
 const idSchema = z.uuid();
 const buatSchema = z.object({
+  courseId: z.string().min(1),
   enrollmentId: idSchema,
+  // Slug hanya untuk revalidatePath — path cache Next.js, bukan otoritas.
+  slug: z.string().trim().min(1).max(200),
   judul: z.string().trim().min(3).max(160),
   // Catatan **opsional**. `FormData.get()` mengembalikan `null` (field tidak
   // ada) atau `""` (dikosongkan), jadi skema wajib-string menolak keduanya dan
@@ -59,7 +62,14 @@ async function jalankanMutation(
   if (!id.success) return { ok: false, error: "Submission tidak valid." };
   try {
     await operation(session, id.data);
-    safeRevalidate("/submission", `/submission/${id.data}`, "/review", `/review/${id.data}`);
+    safeRevalidate("/review", `/review/${id.data}`);
+    // `slug` (opsional) dikirim detail Project (`/belajar/[slug]/karya/[id]`)
+    // supaya halaman course ikut disegarkan; path revalidasi bukan otoritas,
+    // jadi slug yang keliru paling-paling membatalkan cache path yang salah.
+    const slug = String(formData.get("slug") ?? "").trim();
+    if (slug) {
+      safeRevalidate(`/belajar/${slug}/karya`, `/belajar/${slug}/karya/${id.data}`, `/belajar/${slug}`);
+    }
     return { ok: true, submissionId: id.data, message: "Perubahan tersimpan." };
   } catch (error) {
     if (error instanceof GalatReview) return { ok: false, error: error.message };
@@ -71,23 +81,29 @@ export async function buatSubmissionAction(_prev: ReviewState, formData: FormDat
   const session = await getSession();
   if (!session?.userId) return { ok: false, error: PESAN_AKSES_DITOLAK };
   const parsed = buatSchema.safeParse({
+    courseId: formData.get("courseId"),
     enrollmentId: formData.get("enrollmentId"),
+    slug: formData.get("slug"),
     judul: formData.get("judul"),
     catatan: formData.get("catatan"),
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Input tidak valid." };
   try {
-    const pilihan = (await daftarKursusSubmission(session)).find(
-      (item) => item.enrollmentId === parsed.data.enrollmentId,
-    );
-    if (!pilihan) return { ok: false, error: "Kursus belum memenuhi syarat untuk submission." };
+    // courseId/enrollmentId datang dari page server course sebagai hidden field.
+    // Keduanya **bukan** otoritas — service memastikan enrollment milik principal,
+    // terikat ke course yang diminta, dan completion-nya terverifikasi. Dengan
+    // begini klien tidak bisa mengikat submission ke course yang bukan jalurnya.
+    const layak = await kelayakanKursusSubmission(session, parsed.data.courseId);
+    if (!layak || layak.enrollmentId !== parsed.data.enrollmentId) {
+      return { ok: false, error: "Kursus belum memenuhi syarat untuk submission." };
+    }
     const { submission } = await buatSubmissionDb({
       principal: session,
-      courseId: pilihan.courseId,
-      enrollmentId: pilihan.enrollmentId,
+      courseId: layak.courseId,
+      enrollmentId: layak.enrollmentId,
       konten: { judul: parsed.data.judul, catatan: parsed.data.catatan },
     });
-    safeRevalidate("/submission");
+    safeRevalidate(`/belajar/${parsed.data.slug}`, `/belajar/${parsed.data.slug}/karya`);
     return { ok: true, submissionId: submission.id, message: "Draf karya dibuat." };
   } catch (error) {
     if (error instanceof GalatReview) return { ok: false, error: error.message };
@@ -211,7 +227,7 @@ export async function decideReview(
           : "Disetujui; credential sudah ada untuk review ini."
         : `Submission ${DECISION_LABEL[decision] ?? decision} dan tersimpan.`;
 
-    safeRevalidate("/review", `/review/${submissionId}`, "/submission", `/submission/${submissionId}`);
+    safeRevalidate("/review", `/review/${submissionId}`);
     return { ok: true, decision, message: pesan };
   } catch (error) {
     if (error instanceof GalatReview) {

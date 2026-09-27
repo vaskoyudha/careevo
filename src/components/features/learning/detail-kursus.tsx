@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useRef } from "react";
 import Link from "next/link";
+import { Lock, Rocket } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ModulKursus } from "@/lib/courses/kurikulum";
 import { levelLabel } from "@/lib/onboarding/types";
@@ -42,6 +43,21 @@ export interface TugasTerkait {
   id: string;
   title: string;
   brief: string;
+}
+
+/**
+ * Status panel Project di halaman course.
+ *
+ * `terkunci` dihitung **server** (`belajar/[slug]/page.tsx` memeriksa
+ * completion terverifikasi), bukan diturunkan dari jumlah modul selesai di
+ * klien: 100% modul lewat jalur informal tetap tidak membuka Project. `judul`
+ * dan `ringkasan` berasal dari modul checkpoint `proyek` bila ada — di course
+ * lama yang belum punya modul proyek, copy default yang tampil.
+ */
+export interface RingkasanProject {
+  terkunci: boolean;
+  judul: string;
+  ringkasan: string;
 }
 
 export interface DetailKursusData {
@@ -85,6 +101,7 @@ export function DetailKursus({
   tugas,
   kebijakan,
   aiCourseId,
+  proyek,
 }: {
   kursus: DetailKursusData;
   modul: ModulKursus[];
@@ -98,6 +115,8 @@ export function DetailKursus({
    * bila bridging tidak tersedia — lihat `tutor-ai-kursus.ts`.
    */
   aiCourseId?: string;
+  /** Status Project (locked/siap) — dihitung server dari completion terverifikasi. */
+  proyek: RingkasanProject;
 }) {
   return (
     <CourseSessionProvider courseId={kursus.id} kebijakan={kebijakan}>
@@ -109,6 +128,7 @@ export function DetailKursus({
         terkait={terkait}
         tugas={tugas}
         aiCourseId={aiCourseId ?? kursus.id}
+        proyek={proyek}
       />
     </CourseSessionProvider>
   );
@@ -129,6 +149,7 @@ function RuangBelajar({
   terkait,
   tugas,
   aiCourseId,
+  proyek,
 }: {
   kursus: DetailKursusData;
   modul: ModulKursus[];
@@ -137,6 +158,7 @@ function RuangBelajar({
   terkait: KursusTerkait[];
   tugas: TugasTerkait | null;
   aiCourseId: string;
+  proyek: RingkasanProject;
 }) {
   const [selesai, setSelesai] = useState<string[]>(() =>
     irisModulSelesai(selesaiAwal, modul),
@@ -661,6 +683,50 @@ function RuangBelajar({
             </Link>
           </section>
         ) : null}
+
+        <section
+          aria-labelledby="judul-proyek"
+          className={cn(
+            "rounded-2xl border px-6 py-8 lg:px-10",
+            proyek.terkunci ? "border-gray-200 bg-white" : "border-emerald-200 bg-emerald-50/60",
+          )}
+        >
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0 max-w-2xl">
+              <p
+                className={cn(
+                  "text-xs font-semibold tracking-wider uppercase",
+                  proyek.terkunci ? "text-gray-500" : "text-emerald-700",
+                )}
+              >
+                Project course
+              </p>
+              <h2 id="judul-proyek" className="mt-1 text-xl font-bold tracking-tight text-gray-900">
+                {proyek.judul}
+              </h2>
+              <p className="mt-1 text-sm leading-relaxed text-gray-600">{proyek.ringkasan}</p>
+            </div>
+            {proyek.terkunci ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600">
+                <Lock className="size-3.5" aria-hidden="true" /> Terkunci
+              </span>
+            ) : (
+              <Link
+                href={`/belajar/${kursus.slug}/karya`}
+                className="inline-flex items-center gap-1.5 rounded-full bg-[#0056D2] px-4 py-2 text-sm font-semibold text-white hover:bg-[#00419e]"
+              >
+                <Rocket className="size-4" aria-hidden="true" /> Kerjakan project
+              </Link>
+            )}
+          </div>
+          {proyek.terkunci ? (
+            <p className="mt-3 text-sm text-gray-500">
+              {terdaftar
+                ? "Selesaikan semua modul lewat sesi terverifikasi untuk membuka pengumpulan karya."
+                : "Daftar dan selesaikan semua modul lewat sesi terverifikasi untuk membuka pengumpulan karya."}
+            </p>
+          ) : null}
+        </section>
 
         {terkait.length > 0 ? (
           <section aria-labelledby="judul-terkait">
