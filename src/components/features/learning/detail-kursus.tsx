@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { ModulKursus } from "@/lib/courses/kurikulum";
+import { levelLabel } from "@/lib/onboarding/types";
 import { hitungProgres, irisModulSelesai } from "@/lib/courses/kurikulum";
 import { checkpointEfektif, checkpointTerverifikasi, wajibSesiTerverifikasi } from "@/lib/learning/akses";
 import { daftarKursusAction, tandaiModulAction } from "@/actions/enrollment";
@@ -19,6 +20,7 @@ import {
 } from "./course-session";
 import { KejadianPanel } from "./kejadian-panel";
 import { KuisView } from "./kuis-view";
+import { KursusAiPanel } from "./kursus-ai-panel";
 import type { KebijakanCourse, TipeMateri } from "@/types/course";
 
 const LABEL_TIPE: Record<TipeMateri, string> = {
@@ -302,7 +304,7 @@ function RuangBelajar({
           </div>
           <dl className="mt-5 grid max-w-2xl grid-cols-2 gap-3 sm:grid-cols-4">
             {[
-              ["Level", kursus.level === "dasar" ? "Pemula" : kursus.level === "menengah" ? "Menengah" : "Lanjutan"],
+              ["Level", levelLabel(kursus.level)],
               ["Durasi", `${kursus.duration_min} mnt`],
               ["Modul", `${modul.length} modul`],
               ...(kursus.rating !== null ? [["Rating", `★ ${kursus.rating.toFixed(2)}`] as [string, string]] : []),
@@ -627,7 +629,7 @@ function RuangBelajar({
                     {item.title}
                   </h3>
                   <p className="mt-1 text-xs text-gray-500">
-                    {item.level === "dasar" ? "Pemula" : item.level === "menengah" ? "Menengah" : "Lanjutan"} ·{" "}
+                    {levelLabel(item.level)} ·{" "}
                     {item.duration_min} mnt · {item.is_free ? "Gratis" : "Plus"}
                   </p>
                 </Link>
