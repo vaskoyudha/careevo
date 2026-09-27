@@ -377,13 +377,13 @@ export async function selesaikanMateriAction(input: {
   }
 
   // Setiap modul bisa menjadi yang terakhir. Rekam completion dari progres
-  // server-side; tanpa ini pilihan kursus untuk submission tidak pernah muncul.
+  // server-side; tanpa ini panel Project di halaman course tidak pernah terbuka.
   const completion = await selesaikanKursusDb({
     principal: session,
     courseId: kursus.id,
     policyVersion: kebijakan.versi,
   });
-  if (completion.selesai) safeRevalidate("/submission");
+  if (completion.selesai) safeRevalidate(`/belajar/${kursus.slug}/karya`);
 
   // Revalidasi disamakan dengan `tandaiModulAction` (`/belajar` dan halaman
   // kursus): keduanya menulis progres yang sama, jadi keduanya harus menyegarkan

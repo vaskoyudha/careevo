@@ -80,14 +80,20 @@ export function MarketingFooter() {
               <label htmlFor="newsletter" className="block text-xs font-medium text-gray-700 mb-2">
                 Berlangganan newsletter
               </label>
-              <div className="flex gap-2">
+              {/* One line once there is room for it; stacked on the smallest
+                  widths, where the button's own padding pushed it past the
+                  container's right edge. `min-w-0` lets the input shrink. */}
+              <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
                 <input
                   type="email"
                   id="newsletter"
                   placeholder="email@contoh.com"
-                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                  className="min-w-0 flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                 />
-                <button className="px-4 py-2 text-sm bg-[#0C3D5F] text-white rounded-lg hover:bg-[#0A304A] transition-colors font-medium">
+                <button
+                  type="button"
+                  className="w-full shrink-0 px-4 py-2 text-sm bg-[#0C3D5F] text-white rounded-lg hover:bg-[#0A304A] transition-colors font-medium sm:w-auto"
+                >
                   Submit
                 </button>
               </div>

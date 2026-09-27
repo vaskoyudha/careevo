@@ -408,7 +408,7 @@ describe("selesaikanMateriAction — penyimpanan progres terverifikasi", () => {
     expect(selesaikanKursusDb).toHaveBeenCalledWith({
       principal: sesi, courseId: "crs-2", policyVersion: 1,
     });
-    expect((await import("next/cache")).revalidatePath).toHaveBeenCalledWith("/submission");
+    expect((await import("next/cache")).revalidatePath).toHaveBeenCalledWith(`/belajar/membangun-rest-api-modern-dengan-nodejs/karya`);
   });
 
   it("menyimpan modul selesai di kursus wajib yang terverifikasi", async () => {

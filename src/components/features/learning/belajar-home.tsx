@@ -87,9 +87,9 @@ const HERO_PROMO_CARDS: HeroPromoCard[] = [
     eyebrow: "Karya nyata",
     title: "Bangun kemampuan yang terverifikasi",
     description:
-      "Selesaikan proyek dan tunjukkan bukti karyamu kepada dunia kerja.",
-    cta: "Lihat cara kerja",
-    href: "/submission",
+      "Selesaikan proyek course dan tunjukkan bukti karyamu kepada dunia kerja.",
+    cta: "Lihat progresmu",
+    href: "/progres",
     image: "/images/customer-stories/railway-cover.webp",
     imagePosition: "object-[60%_center]",
     tone: "mist",
