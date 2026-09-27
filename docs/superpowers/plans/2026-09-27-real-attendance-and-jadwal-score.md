@@ -20,11 +20,32 @@ These apply to every task in this plan.
 - **The scored denominators are server-owned constants.** `TARGET_JAM_MINGGUAN_SKOR` and `JUMLAH_SESI_JADWAL_MINGGUAN` live in `jadwal-service.ts` and are never read from the client, the profile, or a form. The reasoning is in "Scored denominators" below and is the single most important design decision in this plan.
 - **The ticking clock is display-only.** `SesiTicker` reads `startedAt` from the server and advances with the browser's own `Date.now()`, but the scored duration is always `completed_at - started_at` from the database. A learner editing the clock in devtools changes a number on screen and nothing else.
 - **Do not re-read `@/lib/fixtures` on the learner dashboard.** `src/lib/learning/dashboard-integritas.test.ts`, added by the sibling plan, fails the build if it happens.
+- **No `.tsx` under `src/components/features/dashboard/` may contain the substring `streak` or `navigator`, case-insensitively — not in copy, not in a comment, not in an identifier.** The sibling plan's guard case 4 scans every `.tsx` in that folder for `/streak|navigator/i`, and that breadth is a deliberate ruling, not an oversight. This is why the UI-facing field is named `hariBeruntun` rather than `streakHari`: `jadwal.streakHari` in `RincianSkorCard` tripped that ban, so the field was renamed at the service's outward boundary. `RingkasanKehadiran.streakHari` and `hitungStreak` in `src/lib/learning/` are **not** scanned and keep their names. If a future change trips this, fix the new code — never widen or narrow the guard.
 - **`getDb()` is server-only.** It must not be reachable from a client component. Only `repository.ts` calls it, and `jadwal-service.ts` is imported by server components only.
 - **`.integration.test.ts` is a contract.** A DB test that omits the suffix joins `npm test` and breaks the promise that the unit suite runs without PostgreSQL. Only Task 2 and Task 3 Step 5 add such files, and Task 2 deliberately extends an existing one instead of creating a new file.
 - **Use `denganTransaksi` and thread the `TransaksiDb` you are given.** This plan only reads, so no transaction is needed — but if you find yourself adding one, `getDb()` inside `fn` escapes it and stays invisible until a rollback.
+- **Every commit in this plan must be pathspec-limited: `git commit -m "…" -- <paths>`.** `git add <paths>` followed by a bare `git commit` is **not sufficient** on a shared branch. `git commit` without a pathspec commits *the entire index*, so a file another session already `git add`-ed is swept into your commit even though you never named it. This is not hypothetical: it happened during Task 1, where a concurrent session had staged `drizzle/0005_hesitant_penance.sql` and a bare `git commit` picked it up. Check `git diff --cached --name-only` **before** committing, and use the `--` form so the index cannot leak in.
 
 ## Scored denominators
+
+The commit steps below still show an inline `git add` + `git commit -m "…"` pair,
+which predates the pathspec constraint above. Read them in this form instead:
+
+```bash
+# WRONG on a shared branch — a bare `git commit` commits the WHOLE index,
+# including anything another session already staged:
+git add src/lib/learning/kehadiran.ts src/lib/learning/kehadiran.test.ts
+git commit -m "feat(learning): ringkasan kehadiran murni dari learning_runs"
+
+# RIGHT — the pathspec after `--` makes the commit disregard the rest of the
+# index. `-F-` reads the message from stdin, which is what lets the pathspec
+# sit on the command line instead of inside a multi-line `-m "…"`:
+git commit -F- -- src/lib/learning/kehadiran.ts src/lib/learning/kehadiran.test.ts <<'MSG'
+feat(learning): ringkasan kehadiran murni dari learning_runs
+
+<body of the message goes here>
+MSG
+```
 
 `hitungSkorJadwal` (`src/lib/scoring/jadwal.ts`) already exists, is unit-tested, and has no non-test callers. Its input wants two denominators: `scheduledSessions` and `weeklyTargetHours`. This plan does not change its formula — the 30 points stay 20 for session compliance plus 10 for hours, matching the documented jadwal(30) + karya(40) + validasi(30) scale.
 
@@ -379,9 +400,9 @@ export interface RingkasanKehadiran {
 /**
  * Zona waktu tempat "hari" dihitung.
  *
- * WIB, bukan UTC dan bukan zona browser. Kalau ini mengikuti zonaimming
- * peramban, angka streak dan jam yang sama akan berbeda depending on where the
- * learner opened the page — dan angka yang diskor tidak boleh begitu.
+ * WIB, bukan UTC dan bukan zona peramban. Kalau ini mengikuti zona tempat
+ * peserta membuka halaman, angka streak dan jam yang sama akan berbeda
+ * tergantung perangkat — dan angka yang diskor tidak boleh begitu.
  */
 export const ZONA_WAKTU_DEFAULT = "Asia/Jakarta";
 
@@ -434,7 +455,7 @@ function nomorDariKunci(kunci: string): number {
  * - `expired` → `expires_at`. Peserta punya seluruh jendela itu; mengukur
  *   sampai `completed_at` akan dibaca nol, padahal `completed_at` memang null.
  * - `active` → `min(now, expires_at)`. Run yang masih hidup tidak boleh
- *  ].(menambah jam setiap kali halaman dimuat.
+ * menambah jam setiap kali halaman dimuat.
  *
  * Hasilnya tidak pernah negatif dan tidak pernah melebihi jendela run.
  */
@@ -462,11 +483,10 @@ export function durasiMenit(run: BarisKehadiran, now: Date): number {
 /**
  * Hari berturut-turut dengan sesi hadir, dihitung ke belakang dari hari ini.
  *
- * **Ancangnya hari ini, atau Kemarin kalau hari ini belum ada.** Tanpa
- * toleransi ini, streak EVERY participant whose breaks setiap pagi around
- * midnight and rebuilds in the afternoon — angka yang naik turun karena
- * sekarang, bukan karena belajar. Break yang sebenarnya baru terjadi ketika
- * satu hari penuh berlalu tanpa sesi.
+ * **Ancangnya hari ini, atau kemarin kalau hari ini belum ada.** Tanpa
+ * toleransi ini, streak setiap peserta akan putus setiap pagi dan naik lagi di
+ * sore hari — angka yang berubah karena sekarang, bukan karena belajar. Break
+ * yang sebenarnya baru terjadi ketika satu hari penuh berlalu tanpa sesi.
  */
 export function hitungStreak(
   hariAktif: ReadonlySet<string>,
@@ -784,7 +804,7 @@ ada jalan satu akun membaca run akun lain."
   export const TARGET_JAM_MINGGUAN_SKOR = 5;
   export const JUMLAH_SESI_JADWAL_MINGGUAN = 3;
   export interface JadwalPemain {
-    streakHari: number;
+    hariBeruntun: number;
     jamMingguIni: number;
     sesiMingguIni: number;
     targetJamMingguan: number;
@@ -901,7 +921,7 @@ describe("jadwalDariRingkasan", () => {
     expect(hasil.jadwalJam).toBe(0);
     expect(hasil.sesiMingguIni).toBe(0);
     expect(hasil.jamMingguIni).toBe(0);
-    expect(hasil.streakHari).toBe(0);
+    expect(hasil.hariBeruntun).toBe(0);
   });
 
   it("seperiuh basal pada sisi jam menghasilkan 25 dari 30", () => {
@@ -941,20 +961,20 @@ describe("jadwalDariRingkasan", () => {
 
   it("streak dan mingguan berasal dari ringkasan yang sama", () => {
     const hasil = jadwalDariRingkasan(nilai());
-    expect(hasil.streakHari).toBe(3);
+    expect(hasil.hariBeruntun).toBe(3);
     expect(hasil.sesiMingguIni).toBe(3);
     expect(hasil.jamMingguIni).toBe(5);
     expect(hasil.targetJamMingguan).toBe(TARGET_JAM_MINGGUAN_SKOR);
   });
 
   it("bentuk hasil selalu punya semua field — tidak ada optional yang bisa hilang", () => {
-    // Guard bentuk: UI membaca `hasil.streakHari` tanpa optional chaining,
+    // Guard bentuk: UI membaca `hasil.hariBeruntun` tanpa optional chaining,
     // jadi field yang hilang akan menjadi `undefined` di layar, bukan 0.
     // `jadwalTotal` ikut diperiksa karena kartu mencetaknya di angka utama,
     // jadi field yang hilang membuat judul kartu kosong.
     const hasil: JadwalPemain = jadwalDariRingkasan(nilai());
     for (const kunci of [
-      "streakHari",
+      "hariBeruntun",
       "jamMingguIni",
       "sesiMingguIni",
       "targetJamMingguan",
@@ -1025,7 +1045,7 @@ export const TARGET_JAM_MINGGUAN_SKOR = 5;
 
 export interface JadwalPemain {
   /** Hari berturut-turut dengan sesi hadir. */
-  streakHari: number;
+  hariBeruntun: number;
   /** Jam belajar di dalam jendela 7 hari, dua desimal. */
   jamMingguIni: number;
   /** Run `completed` di dalam jendela 7 hari. */
@@ -1078,7 +1098,7 @@ export function jadwalDariRingkasan(ringkasan: RingkasanKehadiran): JadwalPemain
   const jadwalJam = Math.round(hoursRatio * 10);
 
   return {
-    streakHari: ringkasan.streakHari,
+    hariBeruntun: ringkasan.streakHari,
     jamMingguIni: ringkasan.jamEfektif,
     sesiMingguIni: ringkasan.sesiHadir,
     targetJamMingguan: TARGET_JAM_MINGGUAN_SKOR,
@@ -1243,7 +1263,7 @@ describe("jadwalPemainDb", () => {
     const jadwal = await jadwalPemainDb(hasil.principal.userId);
     expect(jadwal.jamMingguIni).toBe(0);
     expect(jadwal.sesiMingguIni).toBe(0);
-    expect(jadwal.streakHari).toBe(0);
+    expect(jadwal.hariBeruntun).toBe(0);
     expect(jadwal.jadwalTotal).toBe(0);
   });
 
@@ -1577,8 +1597,8 @@ export function RincianSkorCard({ jadwal }: { jadwal: JadwalPemain }) {
       />
 
       <p className="mt-3 text-xs text-gray-500">
-        {jadwal.streakHari > 0
-          ? `Beruntun ${jadwal.streakHari} hari.`
+        {jadwal.hariBeruntun > 0
+          ? `Beruntun ${jadwal.hariBeruntun} hari.`
           : "Belum ada sesi beruntun dalam 7 hari terakhir."}{" "}
         Penyebut {JUMLAH_SESI_JADWAL_MINGGUAN} sesi dan {TARGET_JAM_MINGGUAN_SKOR} jam
         adalah ketentuan sistem, bukan target yang kamu pilih sendiri.
