@@ -277,6 +277,47 @@ describe("KodeView sebagai berkas sumber", () => {
     expect(sumber).toMatch(/\{dapatJalankan === true \?/);
     expect(sumber).not.toMatch(/\{\s*dapatJalankan \?/);
   });
+
+  it("memakai warna chrome editor untuk panel hasil di susunan lab", () => {
+    // Permintaan pemilik produk: kolom kanan harus terbaca sebagai **satu
+    // terminal**, bukan editor gelap dengan kartu putih menempel di bawahnya.
+    //
+    // Permukaannya **diturunkan dari `susunan`**, bukan dari prop `tema`
+    // tersendiri. Prop terpisah harus diingat di setiap pemanggil, dan yang
+    // lupa memasangnya tidak menghasilkan error apa pun — hanya kartu putih
+    // yang kembali. Yang dijaga di sini: `gelap` diikat ke `susunan === "lab"`,
+    // dan warna chrome-nya benar-benar dipakai di pane hasil.
+    expect(sumber).toMatch(/const gelap = susunan === "lab"/);
+    expect(sumber).toMatch(/gelap \? "border-white\/10 bg-\[#06202f\]" : "border-gray-200 bg-white"/);
+    // Judul pane memakai latar yang lebih gelap lagi (`#04161f`), sama seperti
+    // header editor, supaya hierarkinya konsisten.
+    expect(sumber).toMatch(
+      /gelap \? "border-b border-white\/10 bg-\[#04161f\]" : "border-b border-gray-100"/,
+    );
+    // Teks hasilnya terang di atas latar gelap; `text-gray-800` akan hilang
+    // di sana.
+    expect(sumber).toContain('gelap ? "text-[#d7eef7]" : "text-gray-800"');
+    // Tidak boleh ada prop `tema` yang menggantung tanpa dipasang pemanggil.
+    expect(sumber).not.toMatch(/tema\?:/);
+    expect(sumber).not.toMatch(/tema = "terang"/);
+  });
+
+  it("tidak menampilkan placeholder di area hasil", () => {
+    // Permintaan pemilik produk: kotak ajakan "Tekan Jalankan …" dibuang.
+    // Sebelum ada hasil, area hasil **kosong** — yang tampil hanya editor dan
+    // bilah jalankan.
+    //
+    // Dijaga dari sumber karena `null` tidak pernah muncul di HTML hasil render:
+    // yang bisa diperiksa hanyalah bahwa teks placeholder-nya benar-benar tidak
+    // ada lagi di JSX. Kalimatnya dipecah supaya komentar ini sendiri tidak
+    // ikut cocok dengan assertion-nya.
+    const ajakan = ["untuk melihat keluaran", "program di sini"].join(" ");
+    expect(sumber).not.toContain(ajakan);
+    expect(sumber).not.toContain("Tekan{\" \"}");
+    // Area hasil tetap dirender (bukan dihapus) supaya `paneHasil` punya tempat
+    // saat `Jalankan` ditekan.
+    expect(sumber).toMatch(/lg:max-h-\[42%\]"[^>]*>\{paneHasil\}/);
+  });
 });
 
 describe("Panggilan KodeView di dua jalur", () => {

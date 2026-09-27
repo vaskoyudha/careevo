@@ -386,24 +386,20 @@ describe("motion — the drawer animates in and out", () => {
   });
 });
 
-describe("shell — no dead strip above the reading column", () => {
-  it("does not wrap KejadianPanel in an always-rendered padded div", () => {
-    // `KejadianPanel` returns `null` when no session is running and no gap has
-    // been recorded — the common case. An always-rendered `pt-3` wrapper still
-    // left 12px above the reading column. Checked against the source, because
-    // `null` never appears in rendered HTML.
+describe("shell — no strip above the reading column", () => {
+  it("does not render the session strip in the reader", () => {
+    // Product owner removed the "Sesi terverifikasi aktif" strip from the
+    // reader: it was chrome sitting directly above the reading column with no
+    // value to the participant. Checked against the source because the panel
+    // hides itself when no session runs, so a clean HTML render would not prove
+    // the mount was actually removed for the running case.
     const shell = readFileSync(
       path.join(ROOT, "src/components/features/learning/materi-shell.tsx"),
       "utf8",
     );
-    expect(shell).toContain("<KejadianPanel />");
+    expect(shell).not.toContain("<KejadianPanel");
+    // The spacing that used to live on the panel left with it: no always-rendered
+    // padded wrapper should take its place above the reading column.
     expect(shell).not.toContain('className="px-3 pt-3 sm:px-5"');
-    // The spacing moved onto the panel itself, so it disappears with it.
-    const panel = readFileSync(
-      path.join(ROOT, "src/components/features/learning/kejadian-panel.tsx"),
-      "utf8",
-    );
-    expect(panel).toContain("mx-3 mt-3");
-    expect(panel).toContain("sm:mx-5");
   });
 });

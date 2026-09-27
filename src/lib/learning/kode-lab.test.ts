@@ -162,4 +162,21 @@ describe("KodeLab sebagai berkas sumber", () => {
     expect(blokLab).not.toContain("height: 100%");
     expect(css).toMatch(/\.kode-view-lab \.cm-scroller \{[\s\S]*?max-height: min\(62vh, 640px\)/);
   });
+
+  it("memakai warna chrome editor untuk panel keluaran yang diharapkan", () => {
+    // Permintaan pemilik produk: seluruh kolom kanan lab harus terbaca sebagai
+    // **satu terminal**. Panel "Keluaran yang diharapkan" dulu kartu abu
+    // terang (`bg-[#f5f7fa]`) yang menempel di bawah pane hasil — kartu ketiga
+    // yang tidak sejalan di antara dua permukaan gelap.
+    //
+    // Yang dijaga: latarnya chrome editor (`#06202f`), bilah judulnya lebih
+    // gelap lagi (`#04161f`), dan teksnya terang (`#d7eef7`). Kartu terangnya
+    // tidak boleh tersisa.
+    expect(sumber).toContain("bg-[#06202f]");
+    expect(sumber).toContain("text-[#d7eef7]");
+    // Kartu terangnya tidak boleh tersisa di kelas mana pun — komentar yang
+    // menyebut nama kelas lama tidak dihitung.
+    expect(sumber).not.toMatch(/className="[^"]*bg-\[#f5f7fa\]/);
+    expect(sumber).not.toMatch(/className="[^"]*text-gray-700/);
+  });
 });

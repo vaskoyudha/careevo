@@ -7,7 +7,6 @@ import { MateriFocusBar } from "./materi-focus-bar";
 import { ReaderPanelSilabus } from "./reader-silabus";
 import { MateriFootBar } from "./materi-foot-bar";
 import { TutorDrawer } from "./tutor-drawer";
-import { KejadianPanel } from "./kejadian-panel";
 import { useSelesaikanModul, modulSelesaiMembaca } from "./selesaikan-modul";
 import { cn } from "@/lib/utils";
 import { halamanPunyaLabKode } from "@/lib/courses/blok";
@@ -39,9 +38,9 @@ import type { KebijakanCourse } from "@/types/course";
  * Panelnya `portal` ke `<body>`, jadi status buka/tutupnya hidup di sini — portal
  * tidak bisa menyimpan state-nya sendiri di dalam bar.
  *
- * `KejadianPanel` dirender di sini — panel itu satu-satunya tempat peserta bisa
- * melihat apa yang sudah tercatat selama sesi (spec §2), dan ia menyembunyikan
- * dirinya sendiri saat tidak relevan (`kejadian-panel.tsx:76`).
+ * Strip sesi (`KejadianPanel`) **tidak lagi dirender di sini**: ia dibuang dari
+ * reader atas permintaan pemilik produk, jadi yang tersisa di atas baris baca
+ * adalah barisnya sendiri. Komponennya tetap ada untuk dipakai di tempat lain.
  */
 export function MateriShell({
   slug,
@@ -334,16 +333,16 @@ export function MateriShell({
         tombolSilabusRef={tombolSilabusRef}
       />
 
-      {/* Strip sesi (status + catatan yang bisa dibuka).
+      {/* Strip sesi ("Sesi terverifikasi aktif" + catatan yang bisa dibuka)
+          **dihapus dari reader** atas permintaan pemilik produk — ia pita
+          chrome tepat di atas baris baca yang tidak dibutuhkan peserta.
 
-         Jorongnya (`mx-3 mt-3 sm:mx-5`) ada di `KejadianPanel` itu
-          sendiri, bukan di pembungkus di sini. Pembungkus selalu dirender —
-          sedangkan `KejadianPanel` mengembalikan `null` saat sesi tidak berjalan
-          dan belum ada celah — jadi `pt-3`-nya tetap menyisakan pita 12px di
-          atas baris baca pada course `opsional`. Di `xl` pita itu juga yang
-          mendorong tepi atas drawer tutor 12px lebih rendah dari bar fokus,
-          padahal drawer itu sekarang menempel ke baris baca. */}
-      <KejadianPanel />
+          Yang ikut hilang bersamanya, dan itu disengaja pada keputusan ini:
+          tombol "Akhiri sesi" di dalam reader (sesi tetap berjalan sampai
+          kedaluwarsa, dan masih bisa diakhiri dari halaman detail kursus), serta
+          pengungkapan pemantauan ringkas. Komponennya (`kejadian-panel.tsx`)
+          sengaja **tidak** dihapus supaya bisa dipasang lagi di tempat lain
+          kalau ternyata dibutuhkan. */}
 
       {/* Baris baca. `relative` bukan hanya untuk bar kaki: di `xl` ia juga
           containing block drawer tutor, sehingga `top: 0` pada drawer berarti
@@ -415,9 +414,9 @@ export function MateriShell({
                   benar memutuskan masuk — bukan sebagai pita yang ikut
                   menggulir bersama bacaan.
 
-                  Yang tersisa di reader adalah `KejadianPanel` di atas baris
-                  baca: ia **pelaporan** selama sesi berjalan, bukan ajakan
-                  sebelum masuk, jadi tempatnya memang di sini. */}
+                  Tidak ada lagi permukaan sesi di reader: strip
+                  `KejadianPanel` di atas baris baca ikut dibuang atas permintaan
+                  pemilik produk. */}
               {children}
             </div>
           </main>

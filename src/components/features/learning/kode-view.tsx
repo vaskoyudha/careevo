@@ -194,10 +194,12 @@ const GAYA_SOROTAN = HighlightStyle.define([
  * `mastery-topic-view.tsx`. Nilai hex tidak ditulis tangan di sini karena
  * `--color-success` sudah jadi token tema.
  */
-const GAYA_NADA: Record<NadaJalankan, string> = {
-  sukses: "text-success",
-  galat: "text-red-700",
-  info: "text-gray-600",
+const GAYA_NADA: Record<NadaJalankan, (gelap: boolean) => string> = {
+  // Di panel gelap, `text-success` dan `text-red-700` tidak cukup kontras atau
+  // jadi kotor; yang dipakai versi terangnya dari palet editor.
+  sukses: (gelap) => (gelap ? "text-emerald-300" : "text-success"),
+  galat: (gelap) => (gelap ? "text-red-300" : "text-red-700"),
+  info: (gelap) => (gelap ? "text-[#9fc3d3]" : "text-gray-600"),
 };
 
 /**
@@ -299,6 +301,20 @@ export function KodeView({
   susunan?: SusunanKode;
   className?: string;
 }) {
+  /**
+   * Permukaan gelap mengikuti susunannya, bukan prop tersendiri.
+   *
+   * Di `lab` seluruh kolom kanan memang sudah gelap — kartu editornya sendiri
+   * `bg-[#06202f]`. Panel hasil dan bilah jalankan harus memakai warna chrome
+   * yang sama, kalau tidak ada kartu putih menempel di bawah editor gelap dan
+   * kolomnya terbaca sebagai dua potongan yang tidak sejalan. Karena warna itu
+   * sudah ditentukan oleh susunannya, ia **diturunkan** dari sini: satu sumber
+   * kebenaran, dan tidak mungkin lupa disetel di pemanggil.
+   *
+   * Di `inline` (jalur baca) latarnya kertas, jadi panelnya tetap kartu putih:
+   * di sana blok kode adalah contoh di tengah prosa.
+   */
+  const gelap = susunan === "lab";
   const wadah = useRef<HTMLDivElement>(null);
   const tampilan = useRef<EditorView | null>(null);
   const sifatRef = useRef(new Compartment());
@@ -509,7 +525,7 @@ export function KodeView({
       >
         {menjalankan ? "Menjalankan…" : "Jalankan"}
       </button>
-      <span className="text-[11px] text-gray-500">
+      <span className={cn("text-[11px]", gelap ? "text-[#7fa6b8]" : "text-gray-500")}>
         Kompilasi dan dijalankan di server, di kontainer terpisah.
       </span>
     </div>
@@ -525,7 +541,16 @@ export function KodeView({
    * baris.
    */
   const paneHasil = hasil ? (
-    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+    <div
+      className={cn(
+        "overflow-hidden rounded-lg border",
+        // Di lab, panel hasil memakai warna chrome editor (`#04161f`/`#06202f`)
+        // supaya ia terbaca sebagai **bagian dari terminal**, bukan kartu terang
+        // yang menempel di bawahnya. Di jalur baca ia tetap kartu putih: di sana
+        // blok kode adalah contoh di tengah prosa.
+        gelap ? "border-white/10 bg-[#06202f]" : "border-gray-200 bg-white",
+      )}
+    >
       {/*
         `role="status"` ada di blok **judul saja**, bukan di pane seluruhnya.
         Karena itu `detail` ikut terbaca sebagai bagian dari pengumuman yang
@@ -533,12 +558,20 @@ export function KodeView({
         bisa puluhan baris, dan membacakan seluruhnya sekaligus lebih buruk
         daripada membiarkan peserta navigasi ke `<pre>`-nya sendiri.
       */}
-      <div className={cn("border-b border-gray-100 px-3 py-1.5", GAYA_NADA[hasil.nada])}>
+      <div
+        className={cn(
+          "px-3 py-1.5",
+          gelap ? "border-b border-white/10 bg-[#04161f]" : "border-b border-gray-100",
+          GAYA_NADA[hasil.nada](gelap),
+        )}
+      >
         <p className="text-xs font-semibold" role="status">
           {hasil.judul}
         </p>
         {hasil.detail ? (
-          <p className="mt-0.5 text-[11px] text-gray-500">{hasil.detail}</p>
+          <p className={cn("mt-0.5 text-[11px]", gelap ? "text-[#7fa6b8]" : "text-gray-500")}>
+            {hasil.detail}
+          </p>
         ) : null}
       </div>
 
@@ -558,13 +591,23 @@ export function KodeView({
             // Garis pemisah hanya di antara dua isi. Tanpa syarat ini, blok
             // terakhir selalu menggantung garis di bawahnya meski tidak ada
             // apa pun lagi setelahnya.
-            hasil.stdout ? "border-b border-gray-100" : "",
+            hasil.stdout ? (gelap ? "border-b border-white/10" : "border-b border-gray-100") : "",
           )}
         >
-          <p className="text-[11px] font-semibold tracking-wider text-gray-500 uppercase">
+          <p
+            className={cn(
+              "text-[11px] font-semibold tracking-wider uppercase",
+              gelap ? "text-[#7fa6b8]" : "text-gray-500",
+            )}
+          >
             {hasil.dariKompilator ? "Pesan dari kompilator" : "Pesan dari program"}
           </p>
-          <pre className="overflow-x-auto font-mono text-[12px] whitespace-pre-wrap text-gray-800">
+          <pre
+            className={cn(
+              "overflow-x-auto font-mono text-[12px] whitespace-pre-wrap",
+              gelap ? "text-[#d7eef7]" : "text-gray-800",
+            )}
+          >
             {hasil.stderr}
           </pre>
         </div>
@@ -572,10 +615,20 @@ export function KodeView({
 
       {hasil.stdout ? (
         <div className="px-3 py-2">
-          <p className="text-[11px] font-semibold tracking-wider text-gray-500 uppercase">
+          <p
+            className={cn(
+              "text-[11px] font-semibold tracking-wider uppercase",
+              gelap ? "text-[#7fa6b8]" : "text-gray-500",
+            )}
+          >
             Keluaran program
           </p>
-          <pre className="overflow-x-auto font-mono text-[12px] whitespace-pre-wrap text-gray-800">
+          <pre
+            className={cn(
+              "overflow-x-auto font-mono text-[12px] whitespace-pre-wrap",
+              gelap ? "text-[#d7eef7]" : "text-gray-800",
+            )}
+          >
             {hasil.stdout}
           </pre>
         </div>
@@ -612,7 +665,7 @@ export function KodeView({
    */
   if (susunan === "lab") {
     return (
-      <div className={cn("flex min-h-0 flex-col gap-3", className)}>
+      <div className={cn("flex min-h-0 flex-col gap-1.5", className)}>
         {/*
           Kartunya **tidak** `flex-1`: tingginya mengikuti isi editor (yang
           sendiri dibatasi `.kode-view-lab .cm-scroller`), bukan diregangkan
@@ -623,12 +676,12 @@ export function KodeView({
         */}
         <section
           aria-label={label}
-          className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-[#06202f] shadow-[0_20px_44px_-32px_rgba(10,61,98,0.9)]"
+          className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-[#06202f] p-1.5 shadow-[0_20px_44px_-32px_rgba(10,61,98,0.9)]"
         >
           {/* Baris tab. Berkasnya `main.cpp` karena itulah yang dikompilasi
               runner; menulis nama lain berarti menyebut berkas yang tidak
               pernah ada. */}
-          <header className="flex shrink-0 items-center gap-2 border-b border-white/10 bg-[#04161f] px-3 py-2">
+          <header className="flex shrink-0 items-center gap-2 border-b border-white/10 bg-[#04161f] px-3 py-1.5">
             <FileCode2 className="size-3.5 shrink-0 text-[#7fa6b8]" aria-hidden="true" />
             <span className="font-mono text-[11.5px] font-semibold text-[#d7eef7]">
               main.cpp
@@ -644,7 +697,7 @@ export function KodeView({
               putih; di sini ia duduk di dalam mesinnya, di dasar editor —
               tempat tangan sudah berada setelah selesai mengetik. */}
           {dapatJalankan === true ? (
-            <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-t border-white/10 bg-[#04161f] px-3 py-2">
+            <div className="mt-1.5 flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 rounded-lg bg-[#04161f] px-3 py-1.5">
               <button
                 type="button"
                 onClick={jalankan}
@@ -661,14 +714,20 @@ export function KodeView({
           ) : null}
         </section>
 
-        <div className="min-h-0 max-h-[45vh] shrink-0 overflow-y-auto lg:max-h-[42%]">
-          {paneHasil ?? (
-            <p className="rounded-xl border border-dashed border-gray-300 bg-white/60 px-4 py-5 text-center text-[12.5px] leading-relaxed text-gray-500">
-              Tekan <strong className="font-semibold text-gray-700">Jalankan</strong> untuk
-              melihat keluaran program di sini.
-            </p>
-          )}
-        </div>
+        {/*
+          Sebelum dijalankan, area hasil **kosong** — tidak ada kotak ajakan
+          bergaris putus yang menyuruh peserta menekan tombol Jalankan.
+
+          Placeholder itu dibuang atas permintaan pemilik produk: ia satu-satunya
+          isi kartu dasbor bergaris putus yang tingginya ikut ditentukan isinya,
+          jadi sebelum peserta menekan apa pun layar sudah menampilkan dua panel
+          (bilah jalankan + placeholder) yang tidak berisi hasil apa-apa. Area
+          hasil sekarang baru muncul saat memang ada hasil untuk dibaca.
+
+          Div pembungkusnya tetap ada karena `paneHasil` bisa muncul kapan saja
+          setelah `Jalankan` ditekan.
+        */}
+        <div className="min-h-0 max-h-[45vh] shrink-0 overflow-y-auto lg:max-h-[42%]">{paneHasil}</div>
       </div>
     );
   }
