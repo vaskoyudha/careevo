@@ -29,6 +29,7 @@ export const NAMA_KEBIJAKAN = [
   "studyChat",
   "verifyPublik",
   "pdfPublik",
+  "jalankanKode",
 ] as const;
 
 export type NamaKebijakan = (typeof NAMA_KEBIJAKAN)[number];
@@ -163,6 +164,24 @@ export const AMBANG: Record<NamaKebijakan, SpesifikasiKebijakan> = {
     failOpen: false,
     bucketPrincipal: true,
     label: "Berkas PDF publik",
+  },
+  // Kompilasi C++ memakan CPU dan hanya berguna sebentar. 20 percobaan per 10
+  // menit cukup untuk belajar sambil bereksperimen, dan menahan program yang
+  // sengaja didesain untuk menguras mesin.
+  //
+  // `bucketPrincipal: true` itu wajib, bukan pilihan. Satu kelas belajar
+  // berada di satu jaringan, jadi pengelompokan per IP akan membatasi satu
+  // geng dan membiarkan penyalahguna berpindah IP.
+  //
+  // `failOpen: false` karena endpoint ini menjalankan biner. Lebih baik
+  // menolak daripada membuka kompilator.
+  jalankanKode: {
+    limit: 20,
+    window: "10 m",
+    resetDetik: 600,
+    failOpen: false,
+    bucketPrincipal: true,
+    label: "Jalankan kode",
   },
 };
 
