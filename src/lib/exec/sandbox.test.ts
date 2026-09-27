@@ -70,6 +70,8 @@ for (const isi of [
 petakan["137-dikilled"] = p(137, kosong, "Killed");
 petakan["139-core"] = p(139, kosong, "timeout: the monitored command dumped core");
 petakan["3-bukan-galat-runner"] = p(3, "hasil\\n", kosong);
+petakan["kosong"] = p(null, kosong, kosong);
+petakan["kosong-pakai-keluaran"] = p(null, "hasil\\n", kosong);
 
 let namaRust = null;
 try { m.namaBerkas("rust"); } catch (galat) { namaRust = String(galat.message); }
@@ -453,6 +455,26 @@ describe("petakanExitCode mengikuti angka yang diukur", () => {
     for (const keluar of [125, 126, 127]) {
       expect(nyata.petakan[`koso-${keluar}`], `kode ${keluar}`).toBe("galat_runner");
     }
+  });
+
+  it("tidak menganggap tidak adanya kode keluar sebagai sukses", () => {
+    // `null` bukan kode yang dipilih program, melainkan "podman tidak sempat
+    // menghasilkan kode": binar podman hilang, PATH salah, atau prosesnya
+    // dibunuh dari luar. Peristiwanya terjadi sebelum program peserta jalan
+    // sama sekali, jadi melaporkannya `sukses` berarti peserta diberi tahu
+    // "selesai tanpa galat" padahal tidak ada yang pernah dijalankan.
+    //
+    // Ini bukan `batas_dilampaui` juga: tidak ada batas yang meletus, dan
+    // menyalahkan program peserta atas runner yang salah konfigurasi
+    // mengarahkan orang ke tempat yang salah.
+    //
+    // `server.mjs` memetakan bentuk `null` yang ia hasilkan sendiri sebelum
+    // memanggil fungsi ini, jadi tanpa kasus di sini pemetaan itu yang benar
+    // sementara fungsi diam-diam salah untuk pemanggil berikutnya.
+    expect(nyata.petakan["kosong"]).toBe("galat_runner");
+    // Keluaran yang kebetulan ada tidak mengubah penilaiannya: program belum
+    // sempat jalan, jadi isi keluaran bukan miliknya.
+    expect(nyata.petakan["kosong-pakai-keluaran"]).toBe("galat_runner");
   });
 
   it("memetakan 134 ke galat_program, karena itu exception yang tidak tertangkap", () => {
