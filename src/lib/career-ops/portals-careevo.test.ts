@@ -252,7 +252,7 @@ describe("config pindai Indonesia", () => {
   it("memindai lebih dalam di Jobstreet dan Kalibrr — minimal 12 halaman", () => {
     // Depth is the lever, not breadth. At maxPages 3 each keyword family stops
     // at 90 postings, while Jobstreet lists 2,226 for "software engineer" and
-    // 2,876 for "quality assurance" (measured 2026-09-29). Nothing in the
+    // 2,876 for "quality assurance" (measured 2026-09-27). Nothing in the
     // engine errors when depth is too shallow: the scan completes with a
     // plausible-looking count, a third of what the board offered. That silence
     // is exactly why this needs a guard.

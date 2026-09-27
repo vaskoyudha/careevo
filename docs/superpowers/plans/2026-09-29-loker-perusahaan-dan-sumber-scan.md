@@ -282,7 +282,7 @@ Expected: FAIL on `"menyapu minimal delapan keluarga peran"` (the config ships 3
 In `src/lib/career-ops/portals-careevo.yml`, find the last existing `job_boards` entry — the one whose `name` is `Dealls Indonesia — data` and whose `notes` ends `Data analyst and science roles in Indonesia.` Insert this block **immediately after it** (before the `# VERIFIED 2026-09-27` comment that precedes `tracked_companies:`):
 
 ```yaml
-  # --- Keluarga peran yang ditambahkan 2026-09-29 -------------------------
+  # --- Keluarga peran yang ditambahkan 2026-09-27 -------------------------
   #
   # Lima keluarga peran tech besar yang belum disapu, masing-masing untuk tiga
   # provider yang MENJAWAB (Jobstreet, Kalibrr, Dealls). Glints sengaja tidak
@@ -512,7 +512,7 @@ peran, dan minimal 27 papan aktif.
 
 ## Task 3: Deepen the scan on the two boards that answer
 
-The config scans each keyword family to `maxPages: 3` — 90 postings per keyword. Measured on 2026-09-29, that leaves most of Jobstreet's catalogue untouched: the board reports **61,887** postings, and the eight configured families alone match far more than 90 apiece (software engineer 2,226, quality assurance 2,876, data analyst 2,114, backend 906, full stack 611, frontend 446, DevOps 403). Kalibrr is the same shape (full-stack 995, data analyst 484). Depth, not breadth, is the lever: **breadth is already covered** — the eight families span the market, and each added page buys 30 more real postings per family, while an extra keyword family buys almost nothing.
+The config scans each keyword family to `maxPages: 3` — 90 postings per keyword. Measured on 2026-09-27, that leaves most of Jobstreet's catalogue untouched: the board reports **61,887** postings, and the eight configured families alone match far more than 90 apiece (software engineer 2,226, quality assurance 2,876, data analyst 2,114, backend 906, full stack 611, frontend 446, DevOps 403). Kalibrr is the same shape (full-stack 995, data analyst 484). Depth, not breadth, is the lever: **breadth is already covered** — the eight families span the market, and each added page buys 30 more real postings per family, while an extra keyword family buys almost nothing.
 
 This task raises `maxPages` from **3 to 12** on the eight Jobstreet and eight Kalibrr entries. It leaves Glints (3 entries) and Dealls (8 entries) at 3, because neither responds to depth: Glints is WAF-blocked and returns zero at any depth, and Dealls dries out at page 1 (11 results for software engineer, 0 for frontend developer).
 
@@ -535,7 +535,7 @@ That is roughly **2× the rows and 2× the employers** from one number per entry
 - Consumes: `papanAktif()` (added in Task 2), `config()`.
 - Produces: nothing consumed by later tasks; the shipped config is the deliverable.
 
-**Do not use `engine/discover-ats.mjs` in this task.** It resolves company names to ATS boards, which is the *breadth* lever this task deliberately rejects. Measured on 2026-09-29, a ~5,700-probe sweep of that resolver across 11 vendors against ~100 Indonesian employers found only about nine clean Indonesian boards, nearly all listing 1–9 postings; its large hits were wrong-entity matches (Super → an Irish sports-gaming firm, Flip → Los Angeles/New York, Fuse → a US laser company). Indonesian employers mostly do not publish on Western ATS vendors, so `tracked_companies` is a weak lever for this market. The depth change below reaches far more postings from the boards that already answer. (Task 5 records this finding so the investigation is not repeated.)
+**Do not use `engine/discover-ats.mjs` in this task.** It resolves company names to ATS boards, which is the *breadth* lever this task deliberately rejects. Measured on 2026-09-27, a ~5,700-probe sweep of that resolver across 11 vendors against ~100 Indonesian employers found only about nine clean Indonesian boards, nearly all listing 1–9 postings; its large hits were wrong-entity matches (Super → an Irish sports-gaming firm, Flip → Los Angeles/New York, Fuse → a US laser company). Indonesian employers mostly do not publish on Western ATS vendors, so `tracked_companies` is a weak lever for this market. The depth change below reaches far more postings from the boards that already answer. (Task 5 records this finding so the investigation is not repeated.)
 
 - [ ] **Step 1: Write the failing depth guard**
 
@@ -545,7 +545,7 @@ The `Papan` interface from Task 2 already declares `provider`, `maxPages`, and `
   it("memindai lebih dalam di Jobstreet dan Kalibrr — minimal 12 halaman", () => {
     // Depth is the lever, not breadth. At maxPages 3 each keyword family stops
     // at 90 postings, while Jobstreet lists 2,226 for "software engineer" and
-    // 2,876 for "quality assurance" (measured 2026-09-29). Nothing in the
+    // 2,876 for "quality assurance" (measured 2026-09-27). Nothing in the
     // engine errors when depth is too shallow: the scan completes with a
     // plausible-looking count, a third of what the board offered. That silence
     // is exactly why this needs a guard.
@@ -608,7 +608,7 @@ Expected: the first `grep` prints `16`, the second prints `11` (the three Glints
 Also append a comment to the `job_boards` block header recording the measurement, so the next reader knows why the numbers are what they are and does not "tidy" them back to 3:
 
 ```yaml
-  # --- Kedalaman 2026-09-29 -------------------------------------------------
+  # --- Kedalaman 2026-09-27 -------------------------------------------------
   #
   # Jobstreet dan Kalibrr dipindai 12 halaman per keluarga peran, bukan 3.
   # Diukur lewat engine/scan.mjs terhadap data root sementara: 27 entri pada
@@ -662,7 +662,7 @@ git commit -m "feat(career-ops): pindai 12 halaman di Jobstreet dan Kalibrr
 
 Kedalaman, bukan cakupan, adalah tuasnya. Pada maxPages 3 setiap keluarga
 peran berhenti di 90 lowongan, sementara Jobstreet mencantumkan 2.226 untuk
-software engineer dan 2.876 untuk quality assurance (terukur 2026-09-29).
+software engineer dan 2.876 untuk quality assurance (terukur 2026-09-27).
 Pindai bersih lewat engine/scan.mjs terhadap data root sementara: 416-456
 baris / 276-296 perusahaan naik jadi 862 baris / 516 perusahaan, dalam ~58
 detik.
@@ -674,7 +674,7 @@ Penjaga baru: Jobstreet dan Kalibrr minimal 12 halaman, dan anggaran halaman
 total minimal 200 (16x12 + 11x3 = 225).
 
 Catatan: generator perusahaan lewat engine/discover-ats.mjs TIDAK dipakai di
-sini. Sapuan 2026-09-29 menemukan ~9 papan Indonesia bersih dengan 1-9
+sini. Sapuan 2026-09-27 menemukan ~9 papan Indonesia bersih dengan 1-9
 lowongan masing-masing, dengan kekeliruan entitas pada hit besarnya; pemberi
 kerja Indonesia umumnya tidak memakai ATS Barat.
 "
@@ -927,7 +927,7 @@ No gaps.
 
 **Sibling spec — `2026-09-29-enrichment-multi-papan-design.md`** (committed at `3c68f5f`). This plan is *orthogonal* to that one and neither blocks the other. That spec makes enrichment multi-board so the 77 non-Jobstreet rows stop rendering "Belum diperiksa"; it adds `src/lib/career-ops/boards/`, `job-cache.ts`, and `scripts/enrich-inbox.ts`, and its §"Tidak diubah" pins `engine/**`, the DB schema, Sentinel, and the fixtures. It never mentions `portals-careevo.yml` — because enrichment reads the description of a row the scan *already discovered*, whereas this plan changes what the scan *discovers*. Different halves of the same pipeline, and the two files sets do not overlap. Both start from the same measured 257-row / 181-employer corpus, so if the two land together the counts Task 4 measures will be *larger* than either alone — expected, not a contradiction, since Task 4 measures the tree it actually runs on. The one ordering rule: if both land in the same working tree, run this plan's Task 4 scan **after** the enrichment spec's cache migration, so the row counts it records are the final ones.
 
-## Execution record — 2026-09-29
+## Execution record — 2026-09-27
 
 All five tasks ran. Commits, in order:
 

@@ -206,7 +206,7 @@ location_filter:
 # Ceiling is entries x pageSize x maxPages = 12 x 30 x 3 = 1080 per scan. That is
 # a provider limit, not national coverage — do not let UI copy imply otherwise.
 job_boards:
-  # --- Kedalaman 2026-09-29 -------------------------------------------------
+  # --- Kedalaman 2026-09-27 -------------------------------------------------
   #
   # Jobstreet dan Kalibrr dipindai 12 halaman per keluarga peran, bukan 3.
   # Diukur lewat engine/scan.mjs terhadap data root sementara: 27 entri pada
@@ -335,7 +335,7 @@ job_boards:
     enabled: true
     notes: Data analyst and science roles in Indonesia.
 
-  # --- Keluarga peran yang ditambahkan 2026-09-29 -------------------------
+  # --- Keluarga peran yang ditambahkan 2026-09-27 -------------------------
   #
   # Lima keluarga peran tech besar yang belum disapu, masing-masing untuk tiga
   # provider yang MENJAWAB (Jobstreet, Kalibrr, Dealls). Glints sengaja tidak

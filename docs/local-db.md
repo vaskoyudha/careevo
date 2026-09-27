@@ -389,7 +389,7 @@ Batas-batas ini harus dibaca apa adanya, bukan sebagai jangkauan pasar:
   ~58 detik. Naik lagi ke 20 memberi 945 baris, ke 30 memberi 1.069 — imbal
   hasilnya mengecil sementara margin timeout 5 menit
   (`src/lib/career-ops/tracker.ts`) menyempit.
-- Angka terukur pada 2026-09-29: **877 baris, 523 perusahaan
+- Angka terukur pada 2026-09-27: **877 baris, 523 perusahaan
   berbeda**. Jadi ini **bukan cakupan nasional**, dan copy UI tidak boleh
   menjanjikan sebegitu. Frasa seperti "ribuan lowongan tech Indonesia" tidak
   didukung bukti yang ada sekarang.
