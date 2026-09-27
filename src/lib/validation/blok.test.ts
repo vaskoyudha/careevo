@@ -59,6 +59,14 @@ describe("blokSchema varian kode", () => {
     );
   });
 
+  it("membatasi panjang kode awal", () => {
+    // `kodeAwal` memakai konstanta yang sama dengan `kode` tapi punya pesan
+    // sendiri, jadi batasnya bisa dilepas tanpa terlihat dari sisi lain.
+    expect(
+      blokSchema.safeParse(kode({ kodeAwal: "a".repeat(MAKS_KODE_KARAKTER + 1) })).success,
+    ).toBe(false);
+  });
+
   it("membatasi panjang stdin", () => {
     expect(
       blokSchema.safeParse(kode({ stdin: "a".repeat(MAKS_STDIN_KARAKTER + 1) })).success,
