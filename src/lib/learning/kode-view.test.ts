@@ -22,9 +22,35 @@ describe("KodeView sebagai berkas sumber", () => {
   });
 
   it("membangun EditorView di dalam useEffect, bukan saat render", () => {
-    // CodeMirror mengukur DOM saat dibangun. Membangunnya saat render berarti
-    // menjalankannya saat server merender, dan itu menjatuhkan build.
-    expect(sumber.indexOf("new EditorView(")).toBeGreaterThan(sumber.indexOf("useEffect"));
+    // CodeMirror mengukur DOM saat dibangun. Membangunnya saat render atau di
+    // lingkup modul berarti menjalankannya saat server merender, dan itu
+    // menjatuhkan build.
+    //
+    // Uji ini pernah membandingkan dua `indexOf`, dan itu tidak berguna:
+    // `indexOf("useEffect")` yang pertama adalah baris `import`, jadi
+    // pembandingannya selalu benar. Yang dikunci di sini adalah bentuknya —
+    // konstruksi berada di dalam `useEffect` yang larik dependensinya kosong,
+    // jadi ia dibangun sekali saat mount. construction di dalam efek lain yang
+    // punya dependensi akan membangun ulang tampilan tiap `kode` berubah.
+    expect(sumber).toMatch(/useEffect\(\(\) => \{[\s\S]*?new EditorView\([\s\S]*?\}, \[\]\);/);
+  });
+
+  it("wadah kode tidak ikut bergulir; yang bergulir adalah scroller CodeMirror", () => {
+    // `scrollDOM` CodeMirror adalah `.cm-scroller`. Kalau `.kode-view` yang
+    // diberi `overflow`, `scrollIntoView` menulis ke `scrollTop` yang selalu 0
+    // dan kursor tidak pernah terlihat. typecheck, lint, vitest, dan build
+    // semuanya buta terhadap ini, jadi sifatnya harus dikunci dari sumber.
+    const css = readFileSync(
+      fileURLToPath(new URL("../../app/globals.css", import.meta.url)),
+      "utf8",
+    );
+    const blok = css.match(/\.kode-view \{([\s\S]*?)\n\}/);
+    expect(blok).not.toBeNull();
+    expect(blok![1]).not.toContain("overflow");
+    // `min-height` memaksa celah kosong di bawah cuplikan pendek; yang membatasi
+    // adalah `max-height` pada scroller.
+    expect(blok![1]).not.toContain("min-height");
+    expect(css).toMatch(/\.kode-view \.cm-scroller \{[^}]*max-height/);
   });
 
   it("menghancurkan tampilan saat unmount", () => {

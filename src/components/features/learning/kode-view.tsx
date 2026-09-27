@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { cpp } from "@codemirror/lang-cpp";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { Compartment, EditorState } from "@codemirror/state";
-import { EditorView, keymap, lineNumbers } from "@codemirror/view";
+import { EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers } from "@codemirror/view";
 import { cn } from "@/lib/utils";
 import type { BahasaKode } from "@/types/course";
 
@@ -79,8 +79,10 @@ export function KodeView({
     onChangeRef.current = onChange;
   }, [onChange]);
 
-  // Efek pembuatan. Deklarasikan lebih dulu supaya `tampilan.current` sudah
-  // terisi ketika efek `editable` di bawah berjalan pada render yang sama.
+  // Efek pembuatan. Wajib dideklarasikan sebelum efek `editable` dan `kode`
+  // di bawahnya: keduanya membaca `tampilan.current`, dan efek berjalan sesuai
+  // urutan deklarasi. Letakkan juga di depan efek sinkron `onChangeRef` itu
+  // tidak salah — hanya tidak perlu, sebab pembuatan tidak membaca ref itu.
   useEffect(() => {
     const elemen = wadah.current;
     if (!elemen) return;
@@ -92,6 +94,12 @@ export function KodeView({
           cpp(),
           TEMA,
           lineNumbers(),
+          // Dua plugin terpisah, satu untuk tiap kelas. Tanpa keduanya aturan
+          // `.cm-activeLine` dan `.cm-activeLineGutter` di `TEMA` tidak pernah
+          // cocok, dan sorotan baris aktif adalah satu-satunya penanda yang
+          // menautkan mata ke kursor di mode baca.
+          highlightActiveLine(),
+          highlightActiveLineGutter(),
           EditorView.lineWrapping,
           keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
           history(),
