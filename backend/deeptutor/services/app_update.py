@@ -436,7 +436,7 @@ class UpdateJobStore:
         current = _normalise_stable_version(current_version)
         target = _normalise_stable_version(target_version)
         if _version_tuple(target) <= _version_tuple(current):
-            raise UpdateRequestError("No newer DeepTutor release is available")
+            raise UpdateRequestError("No newer release is available")
         self.root.mkdir(parents=True, exist_ok=True)
         job = UpdateJob(
             id=uuid.uuid4().hex,

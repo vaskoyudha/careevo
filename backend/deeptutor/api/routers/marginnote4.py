@@ -1,10 +1,10 @@
 """HTTP bridge for MarginNote 4 Add-on devices.
 
 The MN4 Add-on (JavaScript running inside MarginNote 4) calls these endpoints
-to pair with this DeepTutor instance and push synced study data.
+to pair with this AI Personalize instance and push synced study data.
 
 Authentication layers:
-* ``/pair``, ``/devices``, ``/status`` -- DeepTutor session auth (the logged-in
+* ``/pair``, ``/devices``, ``/status`` -- AI Personalize session auth (the logged-in
   user manages their own devices). The router is mounted with ``_auth`` in
   ``main.py``.
 * ``/sync``, ``/heartbeat`` -- device-token auth via
@@ -148,7 +148,7 @@ class DeviceInfo(BaseModel):
 
 @router.post("/pair", response_model=PairResponse, dependencies=_auth)
 async def pair_device(body: PairRequest, request: Request) -> PairResponse:
-    """Pair a new MN4 device. Requires a DeepTutor session.
+    """Pair a new MN4 device. Requires an AI Personalize session.
 
     Returns a one-time token the Add-on stores and presents on every sync.
     """

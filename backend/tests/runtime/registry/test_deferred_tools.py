@@ -167,20 +167,14 @@ def test_manifest_caps_a_long_description() -> None:
     assert len(entry) < 300
 
 
-def test_cli_apps_share_one_header_and_carry_their_provider_id() -> None:
-    """Each CLI app is its own provider with one tool.
-
-    Per-provider headers would cost one header per installed app, so they are
-    grouped together with the app id on the line instead.
-    """
+def test_pageindex_tools_get_their_own_header() -> None:
+    """PageIndex is not MCP, so it must not be filed under an MCP server."""
     tools = [
-        _ProviderTool("cli_gimp", kind="cli", provider="gimp", description="Image editing"),
-        _ProviderTool("cli_krita", kind="cli", provider="krita", description="Digital painting"),
+        _ProviderTool("pageindex_search", kind="pageindex", provider="pageindex", description="d"),
         _FakeDeferredTool("mcp_gh_search", server="gh"),
     ]
     manifest = render_deferred_tools_manifest(tools)
-    assert manifest.count("### CLI apps") == 1
-    assert "`gimp`" in manifest and "`krita`" in manifest
+    assert "### PageIndex Cloud" in manifest
     assert "### MCP server: gh" in manifest
 
 

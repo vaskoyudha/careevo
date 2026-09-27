@@ -402,7 +402,7 @@ async def lifespan(app: FastAPI):
 from deeptutor.services.workspace.activity import WorkspaceActivityMiddleware
 
 app = FastAPI(
-    title="DeepTutor API",
+    title="AI Personalize API",
     version="1.0.0",
     lifespan=lifespan,
     # Disable automatic trailing slash redirects to prevent protocol downgrade issues
@@ -554,7 +554,6 @@ from deeptutor.api.routers import (
     sessions,
     settings,
     skills,
-    space_cli_apps,
     space_mcp,
     subagents,
     system,
@@ -709,16 +708,6 @@ app.include_router(
     tags=["space-mcp"],
     dependencies=_auth,
 )
-# CLI apps. Only ``_auth`` here as well, but for a different reason: the two
-# routes that install or remove an app carry their own ``require_admin``, and
-# what is left for an ordinary account is reading the catalog and toggling its
-# own preference among apps an administrator already granted it.
-app.include_router(
-    space_cli_apps.router,
-    prefix="/api/space/cli-apps",
-    tags=["space-cli-apps"],
-    dependencies=_auth,
-)
 app.include_router(skills.router, prefix="/api/skills", tags=["skills"], dependencies=_auth)
 app.include_router(
     subagents.router, prefix="/api/subagents", tags=["subagents"], dependencies=_auth
@@ -786,7 +775,7 @@ app.include_router(quiz_judge.router, prefix="/ws", tags=["quiz-judge"])
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to DeepTutor API"}
+    return {"message": "Welcome to AI Personalize API"}
 
 
 @app.get("/health/live")

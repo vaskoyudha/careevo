@@ -5,15 +5,15 @@
 DeepTutor is an **agent-native** intelligent learning companion organized
 around a two-layer plugin model — single-shot **Tools** invoked by the
 LLM, and multi-stage **Capabilities** that take over a turn — exposed
-through three entry points: CLI, WebSocket API, and Python SDK. All three
+through two entry points: WebSocket API and Python SDK. Both
 enter the durable turn application service before the shared turn engine
 routes a normalized context to the selected capability.
 
 ## Architecture
 
 ```
-Entry Points:  CLI (Typer)  |  WebSocket /ws  |  Python SDK
-                    ↓                   ↓                   ↓
+Entry Points:  WebSocket /ws  |  Python SDK
+                          ↓            ↓
               ┌─────────────────────────────────────────────────┐
               │          TurnApplicationService                 │
               │   persists, coordinates, and replays turns      │
@@ -85,32 +85,33 @@ All capabilities converge on `emit_capability_result()` in
 (response payload + `cost_summary` from `UsageTracker`). Status copy and
 prompts are i18n'd via `capabilities/prompts/{en,zh}/<name>.yaml`.
 
-## CLI Usage
+## Running the API
+
+The `deeptutor` command-line program was **removed** — this deployment serves a
+website and nothing calls the CLI. Start the API directly:
 
 ```bash
-# Install
-pip install deeptutor      # Full app (CLI + Web/API + packaged Web assets)
-pip install deeptutor-cli  # CLI-only
+pip install -e .[server]     # or: pip install -r requirements/server.txt
 
-# Run any capability
-deeptutor run chat "Explain Fourier transform"
-deeptutor run deep_solve "Solve x^2=4" -t rag --kb my-kb
-deeptutor run visualize "Animate sine wave" --config render_mode=manim_video
-
-# Interactive REPL
-deeptutor chat
-# (inside the REPL: /regenerate or /retry re-runs the last user message)
-
-# Partners (IM-connected companions)
-deeptutor partner list
-
-# Knowledge bases, memory, server
-deeptutor kb list
-deeptutor kb create my-kb --doc textbook.pdf
-deeptutor memory show
-deeptutor serve --port 8001       # API server only
-deeptutor start                   # backend + frontend together
+python -m uvicorn deeptutor.api.main:app --host 127.0.0.1 --port 8011
 ```
+
+Consequences worth knowing:
+
+- `deeptutor_cli/` is gone, so there is no `deeptutor` console script, no
+  `deeptutor start`, and no `python -m deeptutor`. `deeptutor/__main__.py`
+  raises with these instructions rather than failing as a missing module.
+- `deeptutor.runtime.launcher._launch_detached()` (detached start) and
+  `update_worker.build_restart_command()` (restart after an in-app update) both
+  used to exec the CLI. They now raise a `RuntimeError` naming the remedy:
+  restart under a process supervisor (this backend runs as
+  `sijago-backend.service`). An update therefore installs and then reports a
+  durable `failed` job awaiting a supervisor restart.
+- `requirements/cli.txt` and the `.[cli]` extra **stay**. Despite the name they
+  are the core dependency set — `requirements/server.txt` includes the former
+  via `-r cli.txt`.
+- `typer`, `prompt_toolkit`, and `questionary` are now unused by `deeptutor/`
+  but remain declared; pruning them needs a venv reinstall.
 
 ## Key Files
 
@@ -129,7 +130,6 @@ deeptutor start                   # backend + frontend together
 | `deeptutor/tools/builtin/__init__.py`      | All built-in tool wrappers           |
 | `deeptutor/capabilities/`                  | Built-in capability implementations  |
 | `deeptutor/app.py`                         | `DeepTutorApp` — Python SDK facade    |
-| `deeptutor_cli/main.py`                    | Typer CLI entry point                |
 | `deeptutor/api/routers/unified_ws.py`      | Unified WebSocket endpoint           |
 
 ## Dependency Layers
@@ -138,12 +138,12 @@ Public install paths and source extras are defined in `pyproject.toml`.
 Requirements files mirror the same dependency groups for Docker/CI installs.
 
 ```
-pip install deeptutor      — Full app (CLI + Web/API + packaged Web assets)
-pip install deeptutor-cli  — CLI-only (LLM + RAG + providers + document parsing)
+pip install deeptutor      — Full app (Web/API + packaged Web assets)
 pip install -e .           — Source install for development
 
 Source extras (.[ extra ], defined in pyproject.toml):
-.[cli]            — CLI-only dependency set
+.[cli]            — Core dependency set (kept: requirements/server.txt includes
+                    requirements/cli.txt, which mirrors it)
 .[server]         — Web/API server dependencies
 .[partners]       — Partner channel SDKs  (legacy alias: .[tutorbot])
 .[matrix]         — Matrix channel for Partners (matrix-nio; needs libolm)

@@ -29,22 +29,6 @@ _MESSAGES: dict[str, dict[str, str]] = {
         "api.soul_library_not_found": "Soul '{name}' not found in library",
         "api.soul_not_found": "Soul not found",
         "api.tool_not_found": "Tool '{name}' not found",
-        "cli_apps.abi_mismatch": (
-            "The CLI app {app!r} was installed for {installed} but this runtime is "
-            "{current}. An administrator needs to reinstall it."
-        ),
-        "cli_apps.args_required": (
-            "{tool} needs an 'args' array — one command-line argument per element."
-        ),
-        "cli_apps.entry_admin_only": (
-            "CLI apps are installed by an administrator; ask yours to add this one."
-        ),
-        "cli_apps.install_in_progress": "That app is already being installed.",
-        "cli_apps.not_in_catalog": "No CLI app named {id!r} in the catalog.",
-        "cli_apps.not_installed": (
-            "The CLI app {app!r} is not installed on this deployment any more."
-        ),
-        "cli_apps.still_running": "{app} is still running ({seconds}s)",
         "mcp.configure_command_or_url": "Server {name!r}: configure either a command (stdio) or a url.",
         "mcp.configure_before_testing": "Configure either a command (stdio) or a url before testing.",
         "mcp.server_error": "Server {name!r}: {error}",
@@ -82,15 +66,6 @@ _MESSAGES: dict[str, dict[str, str]] = {
         "api.soul_library_not_found": "素材库中未找到 soul '{name}'",
         "api.soul_not_found": "未找到 soul",
         "api.tool_not_found": "未找到工具 '{name}'",
-        "cli_apps.abi_mismatch": (
-            "CLI 应用 {app!r} 是为 {installed} 安装的，当前运行环境是 {current}，需要管理员重新安装。"
-        ),
-        "cli_apps.args_required": "{tool} 需要 args 数组：每个命令行参数占一个元素。",
-        "cli_apps.entry_admin_only": "CLI 应用由管理员安装，请联系管理员添加。",
-        "cli_apps.install_in_progress": "该应用正在安装中。",
-        "cli_apps.not_in_catalog": "目录中没有名为 {id!r} 的 CLI 应用。",
-        "cli_apps.not_installed": "CLI 应用 {app!r} 已不在本部署中。",
-        "cli_apps.still_running": "{app} 仍在运行（已 {seconds} 秒）",
         "mcp.configure_command_or_url": "服务器 {name!r}：请配置 command（stdio）或 url。",
         "mcp.configure_before_testing": "测试前请先配置 command（stdio）或 url。",
         "mcp.server_error": "服务器 {name!r}：{error}",

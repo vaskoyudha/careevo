@@ -81,7 +81,6 @@ def _save_learner_grant(user_id: str, material_id: str):
         {
             "enabled_tools": [],
             "mcp_tools": [],
-            "cli_apps": [],
             "exec_enabled": False,
             "learning_policy": {
                 "age_band": "9-12",

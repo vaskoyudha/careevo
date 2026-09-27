@@ -8,10 +8,11 @@ socket and raced to close it; a FIN landing on a socket the pool was handing to
 a new request killed it with ``ECONNRESET``, which the proxy turned into a 500
 ("Failed to proxy ... socket hang up" -> "Failed to load sessions" in the UI).
 ``--timeout-keep-alive`` fixes it, and ``--ws-max-size`` has the same shape:
-correct only if *every* launch point passes it, and DeepTutor has five (two
-Dockerfile stages, the ``deeptutor start`` launcher, the CLI, run_server). A
-launch point that forgets one reintroduces the bug for whoever starts the
-backend that way, which no per-module test would catch.
+correct only if *every* launch point passes it, and DeepTutor has four (two
+Dockerfile stages, the ``deeptutor start`` launcher, run_server). A launch
+point that forgets one reintroduces the bug for whoever starts the backend
+that way, which no per-module test would catch. (The CLI's own launch point was
+a fifth; it was removed with the ``deeptutor`` command.)
 """
 
 from __future__ import annotations
@@ -28,7 +29,6 @@ _CLI_FLAGS = ("--no-proxy-headers", "--ws-max-size", "--timeout-keep-alive")
 _LAUNCH_POINTS = [
     ("deeptutor/runtime/launcher.py", '"uvicorn",', _CLI_FLAGS),
     ("deeptutor/api/run_server.py", "uvicorn.run(", _PYTHON_FLAGS),
-    ("deeptutor_cli/main.py", "uvicorn.run(", _PYTHON_FLAGS),
 ]
 
 
