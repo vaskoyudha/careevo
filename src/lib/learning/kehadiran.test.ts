@@ -4,6 +4,7 @@ import {
   hitungStreak,
   kunciHari,
   ringkasKehadiran,
+  ZONA_WAKTU_DEFAULT,
   type BarisKehadiran,
 } from "@/lib/learning/kehadiran";
 
@@ -29,10 +30,21 @@ function selesai(
   menit: number,
   state: BarisKehadiran["state"] = "completed",
 ): BarisKehadiran {
+  const kedaluwarsa = new Date(mulai.getTime() + 120 * 60_000);
   return {
     startedAt: mulai,
-    completedAt: state === "completed" ? new Date(mulai.getTime() + menit * 60_000) : null,
-    expiresAt: new Date(mulai.getTime() + 120 * 60_000),
+    // `akhiriRun` menulis `completed_at` untuk `completed` maupun `expired`, dan
+    // tidak pernah mengosongkannya lagi. Untuk `expired` kolom itu berisi waktu
+    // **penyapu** menutup run — yang selalu melewati jendela, bukan waktu peserta
+    // berhenti belajar. Helper ini membuat baris expired sesuai kenyataan itu,
+    // bukan baris dengan `completed_at` null yang tidak pernah ada di database.
+    completedAt:
+      state === "completed"
+        ? new Date(mulai.getTime() + menit * 60_000)
+        : state === "expired"
+          ? new Date(kedaluwarsa.getTime() + 60 * 60_000)
+          : null,
+    expiresAt: kedaluwarsa,
     state,
   };
 }
@@ -52,6 +64,29 @@ describe("kunciHari", () => {
     // "hari ini" akan menghitung sesi tidak valid sebagai kehadiran.
     expect(kunciHari(new Date(Number.NaN), ZONA)).toBe("");
   });
+
+  it("ZONA_WAKTU_DEFAULT terkunci dan jadi nilai bawaan semua fungsi", () => {
+    // Konstanta ini menentukan SETIAP angka produksi: streak, `hariAktif`, dan
+    // jam yang diskor. Mengubahnya ke "UTC" tidak akan membuat satu pun test lain
+    // gagal kalau semua test memakai literal sendiri — makanya ia dipin di sini.
+    expect(ZONA_WAKTU_DEFAULT).toBe("Asia/Jakarta");
+
+    // 20:00Z = 03:00 WIB tanggal 27, dan di UTC masih tanggal 26 — inilah
+    // momen yang membedakan WIB dari UTC, jadi assertions di bawah gagal kalau
+    // konstantanya diganti. 15:00Z = 22:00 WIB tanggal 27 tetap tanggal 27 di
+    // kedua zona: sesi larut malam tidak melompati hari di sisi lokal.
+    const sebelumTengahMalam = new Date("2026-09-26T20:00:00.000Z");
+    const setelahTengahMalam = new Date("2026-09-27T15:00:00.000Z");
+    expect(kunciHari(sebelumTengahMalam)).toBe("2026-09-27");
+    expect(kunciHari(setelahTengahMalam)).toBe("2026-09-27");
+
+    // Jalur parameter bawaan `hitungStreak` juga ikut diuji di sini: tanpa
+    // argumen zona hasilnya harus sama dengan zona yang disebut eksplisit.
+    expect(hitungStreak(new Set(["2026-09-27"]), NOW)).toBe(
+      hitungStreak(new Set(["2026-09-27"]), NOW, ZONA_WAKTU_DEFAULT),
+    );
+    expect(hitungStreak(new Set(["2026-09-27"]), NOW)).toBe(1);
+  });
 });
 
 describe("durasiMenit", () => {
@@ -59,12 +94,28 @@ describe("durasiMenit", () => {
     expect(durasiMenit(selesai(jam("2026-09-27"), 90), NOW)).toBe(90);
   });
 
-  it("run expired memakai expires_at dikurangi started_at", () => {
-    // Peserta hadir dan memakai sebagian jendela; run-nya berakhir karena
-    // kedaluwarsa, bukan karena ia selesai. Kehadiran dihitung terpisah —
-    // durasi ini tidak boleh nol hanya karena state-nya `expired`.
+  it("run completed dijepit expires_at ketika completed_at melewati jendela", () => {
+    // `akhiriRun` tidak punya prasyarat `expires_at` — hanya `state = 'active'` —
+    // jadi peserta yang membiarkan run basi lalu menutupnya menulis
+    // `completed_at > expires_at`. Jam di luar jendela bukan jam belajar, dan
+    // `jamEfektif` masuk ke `hitungSkorJadwal` sebagai 30 dari 100 poin.
+    const mulai = jam("2026-09-27");
+    const run: BarisKehadiran = {
+      startedAt: mulai,
+      completedAt: new Date(mulai.getTime() + 600 * 60_000), // 10 jam setelah mulai
+      expiresAt: new Date(mulai.getTime() + 120 * 60_000), // jendela hanya 2 jam
+      state: "completed",
+    };
+    expect(durasiMenit(run, NOW)).toBe(120);
+  });
+
+  it("run expired memakai expires_at, mengabaikan completed_at setelah kedaluwarsa", () => {
+    // Baris `expired` di produksi tetap punya `completed_at`: waktu penyapu
+    // menutupnya, yang selalu SETELAH `expires_at`. Cabang ini ada justru untuk
+    // mengabaikannya — kalau tidak, durasi ikut tumbuh bersama waktu penyapu dan
+    // bisa melebihi jendela.
     const run = selesai(jam("2026-09-27"), 0, "expired");
-    expect(run.completedAt).toBeNull();
+    expect(run.completedAt!.getTime()).toBeGreaterThan(run.expiresAt.getTime());
     expect(durasiMenit(run, NOW)).toBe(120);
   });
 
@@ -142,6 +193,20 @@ describe("hitungStreak", () => {
       hitungStreak(new Set(["2026-09-29", "2026-09-30", "2026-10-01"]), akhirOkt, ZONA),
     ).toBe(3);
   });
+
+  it("melewati batas tahun tetap dihitung berurutan", () => {
+    // 31 Desember dan 1 Januari adalah dua hari berturut-turut, dan kode ini
+    // membedakan kunci hari sebagai bilangan absolut — bukan dengan mengiterasi
+    // kalender — jadi pergantian tahun tidak menambah cabang kode baru: yang
+    // diuji di sini persis jalur yang sama dengan batas bulan di atas.
+    //
+    // Kuncinya dipin eksplisit: tanpa baris ini, test ini akan tetap hijau untuk
+    // tiga hari berturut-turut yang sama sekali tidak melewati tahun baru.
+    expect(hari(94)).toBe("2026-12-30");
+    expect(hari(95)).toBe("2026-12-31");
+    expect(hari(96)).toBe("2027-01-01");
+    expect(hitungStreak(new Set([hari(94), hari(95), hari(96)]), jam(hari(96)), ZONA)).toBe(3);
+  });
 });
 
 describe("ringkasKehadiran", () => {
@@ -197,18 +262,34 @@ describe("ringkasKehadiran", () => {
     expect(ringkasan.jamEfektif).toBe(1.67);
   });
 
-  it("run dengan startedAt rusak diabaikan tanpa menggagalkan seluruh ringkasan", () => {
-    const rusak: BarisKehadiran = {
+  it("run dengan startedAt rusak tidak menggagalkan seluruh ringkasan", () => {
+    const rusakAktif: BarisKehadiran = {
       startedAt: new Date(Number.NaN),
       completedAt: null,
       expiresAt: new Date(Number.NaN),
       state: "active",
     };
-    const ringkasan = ringkasKehadiran([rusak, selesai(jam("2026-09-27"), 60)], {
-      now: NOW,
-      zonaWaktu: ZONA,
-    });
-    expect(ringkasan.sesiHadir).toBe(1);
+    // Baris `completed` dengan `started_at` rusak: ia tetap **dihitung sebagai
+    // sesi hadir** — run-nya memang selesai — tetapi tidak menyumbang kunci hari
+    // dan tidak menyumbang menit. Tanggal yang tidak terbaca membatalkan
+    // kalender, bukan kehadiran; dan `durasiMenit` sudah mengembalikan 0 menit
+    // untuknya, jadi `jamEfektif` tidak ikut rusak.
+    const rusakSelesai: BarisKehadiran = {
+      startedAt: new Date(Number.NaN),
+      completedAt: new Date("2026-09-27T05:00:00.000Z"),
+      expiresAt: new Date("2026-09-27T06:00:00.000Z"),
+      state: "completed",
+    };
+    const ringkasan = ringkasKehadiran(
+      [rusakAktif, rusakSelesai, selesai(jam("2026-09-27"), 60)],
+      { now: NOW, zonaWaktu: ZONA },
+    );
+    // Dua sesi hadir: `rusakSelesai` dan yang sehat. Baris `active` tidak pernah
+    // sampai ke penghitungan kehadiran.
+    expect(ringkasan.sesiHadir).toBe(2);
+    // Hanya run sehat yang menyumbang menit maupun kunci hari.
     expect(ringkasan.jamEfektif).toBe(1);
+    expect(ringkasan.hariAktif).toEqual(["2026-09-27"]);
+    expect(ringkasan.streakHari).toBe(1);
   });
 });

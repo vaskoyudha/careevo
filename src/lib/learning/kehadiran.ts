@@ -66,14 +66,27 @@ export const ZONA_WAKTU_DEFAULT = "Asia/Jakarta";
 
 const MS_PER_HARI = 86_400_000;
 
+/**
+ * Bentuk satu-satunya yang boleh keluar dari `kunciHari`.
+ *
+ * Dijaga karena `hitungStreak` mem-parsing kunci hasil `kunciHari` menjadi
+ * bilangan hari: kunci yang tidak berbentuk ISO menghasilkan `NaN` di sana, dan
+ * `NaN` akan melempar `RangeError` dari `toISOString()` — bukan gagal diam-diam.
+ */
+const POLA_HARI = /^\d{4}-\d{2}-\d{2}$/;
+
 const formatter = new Map<string, Intl.DateTimeFormat>();
 
 function formatterZona(zonaWaktu: string): Intl.DateTimeFormat {
   const ada = formatter.get(zonaWaktu);
   if (ada) return ada;
-  // `en-CA` menghasilkan bentuk ISO `YYYY-MM-DD`. Locale lain seperti
-  // `id-ID` menghasilkan `27/09/2026`, yang tidak bisa dihitung sebagai
-  // selisih hari tanpa parsing ulang.
+  // Locale di sini **tidak menentukan bentuk kunci**: `kunciHari` merakitnya dari
+  // `formatToParts`, bukan dari `.format()`. Yang dipin dari locale hanya kalender
+  // dan bentuk digit — `th-TH` memakai tahun Buddha, dan beberapa locale memakai
+  // digit non-ASCII yang tidak bisa di-`Date.parse`.
+  //
+  // Bentuk `YYYY-MM-DD` juga tidak diminta dari locale: `id-ID` memberi
+  // `27/09/2026`, yang tidak bisa dihitung sebagai selisih hari tanpa parsing ulang.
   const dibuat = new Intl.DateTimeFormat("en-CA", {
     timeZone: zonaWaktu,
     year: "numeric",
@@ -87,11 +100,19 @@ function formatterZona(zonaWaktu: string): Intl.DateTimeFormat {
 /**
  * Kunci hari kalender `YYYY-MM-DD` untuk satu momen, di zona waktu tersebut.
  *
- * Tanggal yang tidak bisa dibaca menjadi string kosong — bukan kunci hari ini.
+ * Kunci dirakit dari bagian `year`/`month`/`day` hasil `formatToParts`, bukan
+ * dari `.format()`, sehingga bentuknya tidak bergantung pada pola tanggal locale
+ * — hanya pada nilai bagiannya, yang numerik. Kalau rakitannya tetap tidak
+ * berbentuk ISO, hasilnya string kosong, sama seperti tanggal yang tidak
+ * terbaca: lebih baik tanpa kunci daripada kunci yang salah dan ikut menjadi
+ * bagian `hariAktif` yang membuat `hitungStreak` melempar.
  */
 export function kunciHari(tanggal: Date, zonaWaktu: string = ZONA_WAKTU_DEFAULT): string {
   if (!(tanggal instanceof Date) || !Number.isFinite(tanggal.getTime())) return "";
-  return formatterZona(zonaWaktu).format(tanggal);
+  const bagian = formatterZona(zonaWaktu).formatToParts(tanggal);
+  const nilai = (jenis: string): string => bagian.find((b) => b.type === jenis)?.value ?? "";
+  const kunci = `${nilai("year")}-${nilai("month")}-${nilai("day")}`;
+  return POLA_HARI.test(kunci) ? kunci : "";
 }
 
 /** Kunci hari dari bilangan hari absolut sejak epoch UTC. */
@@ -108,14 +129,19 @@ function nomorDariKunci(kunci: string): number {
  * Durasi belajar satu run, dalam menit.
  *
  * Titik penutup mengikuti status run:
- * - `completed` → `completed_at`. Ini satu-satunya sumber durasi yang dipakai
- *   untuk skor, karena ia ditulis server saat run ditutup.
- * - `expired` → `expires_at`. Peserta punya seluruh jendela itu; mengukur
- *   sampai `completed_at` akan dibaca nol, padahal `completed_at` memang null.
+ * - `completed` → `min(completed_at, expires_at)`. `completed_at` adalah sumber
+ *   durasi yang dipakai untuk skor, karena ia ditulis server saat run ditutup.
+ *   Tapi `akhiriRun` tidak memeriksa `expires_at`, hanya `state = 'active'`, jadi
+ *   kolom itu tidak boleh dipercaya melewati jendela.
+ * - `expired` → `expires_at`. Peserta punya seluruh jendela itu. `completed_at`
+ *   pada run `expired` berisi waktu **penyapu** menutupnya — selalu setelah
+ *   kedaluwarsa — jadi mengukurnya akan menghitung waktu pesto, bukan belajar.
  * - `active` → `min(now, expires_at)`. Run yang masih hidup tidak boleh
  *   menambah jam setiap kali halaman dimuat.
  *
- * Hasilnya tidak pernah negatif dan tidak pernah melebihi jendela run.
+ * Hasilnya tidak pernah negatif dan tidak pernah melebihi jendela run: ketiga
+ * cabang di atas dijepit oleh `expires_at` — atau oleh `now` untuk `active` —
+ * dan `started_at` yang tidak terbaca menghasilkan 0.
  */
 export function durasiMenit(run: BarisKehadiran, now: Date): number {
   const mulai = run.startedAt instanceof Date ? run.startedAt.getTime() : Number.NaN;
@@ -126,7 +152,12 @@ export function durasiMenit(run: BarisKehadiran, now: Date): number {
 
   let tutup: number;
   if (run.state === "completed") {
-    tutup = run.completedAt instanceof Date ? run.completedAt.getTime() : Number.NaN;
+    const ditutup = run.completedAt instanceof Date ? run.completedAt.getTime() : Number.NaN;
+    // Tanpa penjepit ini, run basi yang ditutup belakangan bisa membayarkan jam
+    // tanpa batas, dan `jamEfektif` ikut masuk ke `hitungSkorJadwal`.
+    // `expires_at` tidak terbaca → jatuh ke `completed_at` apa adanya, bukan nol.
+    tutup =
+      Number.isFinite(ditutup) && Number.isFinite(batas) ? Math.min(ditutup, batas) : ditutup;
   } else if (run.state === "expired") {
     tutup = batas;
   } else {
@@ -188,10 +219,13 @@ export function ringkasKehadiran(
   for (const run of runs) {
     menitTotal += durasiMenit(run, opsi.now);
     if (run.state !== "completed") continue;
+    // `sesiHadir` dihitung dari `state`, bukan dari tanggal: run `completed`
+    // dengan `started_at` rusak tetap dihitung hadir — ia memang selesai —
+    // tetapi tidak menyumbang kunci hari, jadi tidak berpengaruh apa pun selain
+    // penghitung ini. Kegagalan baca tanggal membatalkan kalender, bukan
+    // kehadiran; menitnya sudah nol karena `durasiMenit` menolak baris seperti ini.
     sesiHadir += 1;
     const kunci = kunciHari(run.startedAt, zonaWaktu);
-    // Kunci kosong berarti `startedAt` tidak bisa dibaca; baris seperti itu
-    // sudah menyumbang 0 menit lewat `durasiMenit`, jadi dilewati sepenuhnya.
     if (kunci !== "") hari.add(kunci);
   }
 
