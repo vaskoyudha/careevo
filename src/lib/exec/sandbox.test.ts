@@ -55,7 +55,7 @@ const p = (exitCode, stdout, stderr) => m.petakanExitCode({ exitCode, stdout, st
 const kosong = "";
 
 const petakan = {};
-for (const k of [0, 1, 2, 3, 7, 40, 42, 124, 125, 126, 137, 138, 139, 255]) {
+for (const k of [0, 1, 2, 3, 7, 40, 42, 124, 125, 126, 127, 134, 137, 138, 139, 255]) {
   petakan["koso-" + k] = p(k, kosong, kosong);
 }
 petakan["42-diagnostik"] = p(42, kosong, "main.cpp:1:14: error: expected ';' before '}' token");
@@ -406,15 +406,53 @@ describe("petakanExitCode mengikuti angka yang diukur", () => {
     expect(nyata.petakan["42-diagnostik"]).toBe("gagal_kompilasi");
   });
 
-  it("memetakan kode yang tidak dikenal menjadi sukses, bukan galat runner", () => {
+  it("memetakan kode pilihan program menjadi sukses, bukan galat runner", () => {
     // Ini yang paling mudah salah dan paling merusak. Program peserta boleh
     // mengembalikan kode apa pun; `return 3` adalah eksekusi yang berhasil.
     // Melaporkan itu sebagai "layanan eksekusi tidak tersedia" mengirim
     // peserta ke tempat yang salah.
-    for (const keluar of [1, 2, 3, 7, 124, 125, 126, 138, 255]) {
+    //
+    // Perhatikan yang TIDAK ada di daftar ini: 125, 126, 127, dan 255. Empat
+    // kode itu bukan pilihan program — semuanya milik podman, dan test
+    // berikutnya mengunci keputusan untuk masing-masing.
+    for (const keluar of [1, 2, 3, 7, 124, 138]) {
       expect(nyata.petakan[`koso-${keluar}`], `kode ${keluar}`).toBe("sukses");
     }
     expect(nyata.petakan["3-bukan-galat-runner"]).toBe("sukses");
+  });
+
+  it("memetakan kode podman ke batas, bukan ke sukses", () => {
+    // Ini pasangan dari test di atas, dan kalau yang ini hilang, program yang
+    // menggantung sampai cadangan menyala dilaporkan ke peserta sebagai
+    // "selesai tanpa galat". Kebohongan yang sama dengan yang di atas, hanya
+    // arahnya berlawanan.
+    expect(nyata.petakan["koso-255"]).toBe("batas_dilampaui");
+  });
+
+  it("memetakan 125, 126, dan 127 ke galat runner", () => {
+    // Ketiganya berarti kita yang salah, bukan program peserta: baris perintah
+    // podman salah atau image bermasalah (125), perintah tidak bisa dijalankan
+    // (126), atau tidak ditemukan (127). Untuk `sh -c` yang dipakai di sini,
+    // ketiganya berarti image rusak.
+    //
+    // `galat_runner` dan bukan `batas_dilampaui`, karena tidak ada batas yang
+    // meletus dan program tidak sempat jalan. Melaporkannya sebagai "program
+    // melampaui batas" akan menyalahkan peserta atas kegagalan image yang bukan
+    // miliknya.
+    for (const keluar of [125, 126, 127]) {
+      expect(nyata.petakan[`koso-${keluar}`], `kode ${keluar}`).toBe("galat_runner");
+    }
+  });
+
+  it("tidak ditulis sebagai rentang, yang akan menelan kode peserta", () => {
+    // Godaan shortcut-nya nyata: "kalau 125 ke atas, itu status kita" —
+    // tapi kode 126 sampai 255 semuanya bisa dipilih program peserta sendiri,
+    // dan `return 3` yang paling sering terjadi. Test ini menahan ketiga
+    // belah batas itu sekaligus: 137 (batas aktif), 255 (cadangan podman),
+    // dan 139 (program berhenti sendiri).
+    expect(nyata.petakan["koso-137"]).toBe("batas_dilampaui");
+    expect(nyata.petakan["koso-255"]).toBe("batas_dilampaui");
+    expect(nyata.petakan["koso-139"]).toBe("galat_program");
   });
 
   it("tidak pernah mengembalikan status di luar kosakata port", () => {
@@ -443,9 +481,11 @@ describe("petakanExitCode mengikuti angka yang diukur", () => {
 
   it("membawa kode keluar apa adanya untuk diagnosis", () => {
     // Angka asli tetap ada di `HasilJalankan.exitCode`. Status untuk peserta,
-    // angka untuk orang yang menelusuri.
+    // angka untuk orang yang menelusuri. Yang diuji di sini statusnya, bukan
+    // angkanya: `petakanExitCode` tidak punya jalur yang mengubah atau
+    // membulatkan `exitCode`.
     expect(nyata.petakan["koso-7"]).toBe("sukses");
-    expect(nyata.petakan["koso-255"]).toBe("sukses");
+    expect(nyata.petakan["koso-125"]).toBe("galat_runner");
   });
 });
 

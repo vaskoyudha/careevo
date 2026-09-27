@@ -80,6 +80,36 @@ export const BATAS = {
 const PENANDA_SUMBER = 40;
 const PENANDA_KOMPILASI = 42;
 
+/**
+ * Kode keluar yang berarti **kita** yang keliru, bukan program peserta.
+ *
+ * Ini ditulis sebagai tabel, bukan sebagai daftar `if`, supaya pertanyaannya
+ * punya satu jawaban yang tertulis: kode mana yang milik podman dan kode mana
+ * yang milik program peserta di dalam kontainer. Tanpa tabel itu, kode-kode ini
+ * jatuh ke `sukses` hanya karena tidak dipikirkan, dan peserta yang programnya
+ * benar-benar berhenti karena layanan berjalan lambat akan diberi tahu
+ * "selesai tanpa galat".
+ *
+ * Kode podman sendiri (dari `podman-run(1)`):
+ *
+ * | kode | artinya |
+ * |---|---|
+ * | 125 | podman sendiri gagal: baris perintahnya salah, atau image tidak ada |
+ * | 126 | perintah di dalam kontainer tidak bisa dijalankan |
+ * | 127 | perintah di dalam kontainer tidak ditemukan |
+ * | 255 | podman mati atau dibunuh — di sini, cadangan `--timeout` yang menyala |
+ */
+const KODE_PODMAN = {
+  /** Cadangan `--timeout` yang menyala: kontainer yang macet kita bunuh. */
+  cadangan: 255,
+  /** Baris perintah podman salah, atau image tidak ada. */
+  barisPerintah: 125,
+  /** Perintah di dalam kontainer tidak bisa dijalankan. */
+  tidakDapatDijalankan: 126,
+  /** Perintah di dalam kontainer tidak ditemukan. */
+  tidakDitemukan: 127,
+};
+
 const BERKAS_BAHASA = { cpp: "main.cpp" };
 
 /**
@@ -233,12 +263,21 @@ export function bangunArgumenPodman({
  *    tiga nama akan membuat runner menebak salah satu dari tiga, dan
  *    `petakanStatus` di `port.ts` sudah menyimpulkan itu: judulnya menyebut
  *    seluruh batas, bukan satu.
- * 2. **Kode yang tidak dikenal berarti `sukses`, bukan `galat_runner`.**
+ * 2. **Kode milik program peserta berarti `sukses`, bukan `galat_runner`.**
  *    Program peserta boleh mengembalikan kode apa pun, jadi `return 3` adalah
  *    eksekusi yang berhasil. Melaporkannya sebagai "layanan eksekusi tidak
  *    tersedia" adalah kebohongan yang mengirim peserta ke tempat yang salah.
- *    Kode 40 adalah satu-satunya hal yang benar-benar urusan kita: sumbernya
- *    tidak bisa dibaca dari dalam, jadi itu galat runner.
+ * 3. **Kode milik podman dipetakan ke batas atau ke galat runner.** Ini yang
+ *    paling mudah lupa: `255` bukan kode pilihan peserta, itu cadangan
+ *    `--timeout` kita yang menyala. Kalau dibiarkan jatuh ke `sukses`, program
+ *    yang menggantung cukup lama dilaporkan ke peserta sebagai "selesai tanpa
+ *    galat" — kebohongan yang sama dengan yang di atas, hanya arahnya berlawanan.
+ *
+ * Jadi pemetaan ini **tidak** lagi berarti "apa pun yang tidak dikenali berarti
+ * sukses". Yang berarti sukses adalah kode-kode yang memang bisa dipilih
+ * program di dalam kontainer. Kode milik podman dan penanda miliknya
+ * ditangani satu per satu di `KODE_PODMAN` dan dua `PENANDA_*`, dan hanya
+ * sisanya yang jatuh ke `sukses`.
  *
  * 124 sengaja tidak dikasus khusus. Dengan `timeout -s KILL`, `timeout` sendiri
  * tidak pernah mengembalikan 124 — ia meneruskan SIGKILL, jadi yang muncul
@@ -266,9 +305,41 @@ export function petakanExitCode({ exitCode, stdout, stderr }) {
   if (exitCode === 137) return "batas_dilampaui";
   // 128 + 11, yaitu SIGSEGV. Program berhenti sendiri, bukan karena layanan.
   if (exitCode === 139) return "galat_program";
-  // Angka lain berarti program berjalan dan memilih kodenya sendiri, dan
-  // stdout-nya adalah jawabannya. `petakanStatus("sukses")` tidak menampilkan
-  // angka exit, dan `HasilJalankan.exitCode` tetap memegangnya untuk diagnosis.
+  // Cadangan `--timeout` podman yang menyala: kontainer yang macet kita bunuh
+  // sendiri. Batas yang aktif, jadi `batas_dilampaui` — bukan `sukses`, dan
+  // bukan `galat_runner`, karena pelakunya memang batas dan bukan kelesetan.
+  //
+  // Penting: kode 255 ini **bukan** kode pilihan program peserta. Kalau
+  // dibiarkan jatuh ke `sukses`, program yang menggantung sampai cadangan
+  // menyala akan dilaporkan sebagai "selesai tanpa galat".
+  if (exitCode === KODE_PODMAN.cadangan) return "batas_dilampaui";
+  // 125/126/127 semuanya berarti kita yang salah: baris perintah podman salah
+  // atau image bermasalah (125), perintah di dalam kontainer tidak bisa
+  // dijalankan (126), atau tidak ditemukan sama sekali (127). Untuk
+  // `sh -c` yang dipakai di sini, ketiganya berarti image rusak — `sh` selalu
+  // ada dan selalu bisa dijalankan di image yang benar.
+  //
+  // Kenapa `galat_runner` dan bukan `batas_dilampaui`: tidak ada batas yang
+  // meletus, dan program tidak sempat jalan. Melaporkan ini sebagai "program
+  // dihentikan karena melampaui batas" akan menyalahkan program peserta atas
+  // kegagalan image yang bukan miliknya.
+  if (
+    exitCode === KODE_PODMAN.barisPerintah ||
+    exitCode === KODE_PODMAN.tidakDapatDijalankan ||
+    exitCode === KODE_PODMAN.tidakDitemukan
+  ) {
+    return "galat_runner";
+  }
+  // Sisanya adalah kode yang memang bisa dipilih program di dalam kontainer:
+  // program berjalan, selesai, dan mengembalikan kodenya sendiri, jadi
+  // `sukses`. `return 3` adalah eksekusi yang berhasil, dan stdout-nya
+  // adalah jawabannya.
+  //
+  // Catatan: ini **bukan** "apa pun yang tidak dikenali berarti sukses". Kode
+  // podman dan penanda miliknya sudah ditangani di atas. Yang jatuh ke sini
+  // adalah kode peserta, dan hanya itu. `petakanStatus("sukses")` tidak
+  // menampilkan angka exit, dan `HasilJalankan.exitCode` tetap memegangnya
+  // untuk diagnosis.
   return "sukses";
 }
 
