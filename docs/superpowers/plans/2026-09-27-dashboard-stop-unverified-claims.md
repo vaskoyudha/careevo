@@ -61,16 +61,16 @@ Create `src/lib/learning/dashboard-integritas.test.ts`:
  * Pemeriksaan statis untuk halaman dashboard peserta — **bukan** uji render.
  *
  * Repositori ini menjalankan Vitest di `environment: node` (tanpa jsdom), jadi
- * komponen server tidak bisa dirender di sini. Properti yang dijagapun adalah
+ * komponen server tidak bisa dirender di sini. Properti yang dijaga adalah
  * properti *batas*: halaman dashboard tidak boleh membaca data fixture dan
  * tidak boleh menampilkan klaim yang tidak bisa ditelusuri ke baris milik akun
  * yang sedang masuk. Pendekatan sumber-teks ini sama dengan yang dipakai
- * `src/lib/learning/security.test.ts`, dan alasannailsnya juga sama: yang hilang
+ * `src/lib/learning/security.test.ts`, dan alasannya juga sama: yang hilang
  * paling cepat di sini adalah sebuah kartu yang ditambahkan kembali.
  *
  * Uji ini sengaja memindai seluruh folder komponen dashboard, bukan satu
- * berkas. Akar masalahnya bukan satu file yang salah — itu_folder_ yang
- *কেholds the prototype, dan file berikutnya akan menirunya.
+ * berkas. Akar masalahnya bukan satu berkas yang salah — folder itulah yang
+ * memegang prototipe, dan berkas berikutnya akan menirunya.
  */
 
 import { readdirSync, readFileSync } from "node:fs";
@@ -104,9 +104,10 @@ describe("dashboard peserta tidak mengklaim angka yang tidak bisa ditelusuri", (
     }
   });
 
-  it("kartu yang dihapus tidak kembali sebagai nama komponen", () => {
-    // both the file and the exported name are checked: a file can be renamed to
-    // dodge the first check, but it still has to render something.
+  it("kartu yang dihapus tidak kembali sebagai nama berkas", () => {
+    // Nama berkasnya yang diperiksa: sebuah berkas bisa diganti namanya untuk
+    // menghindari pemeriksaan lain, tapi ia tetap harus merender sesuatu, dan
+    // apa pun yang dirender akan tertangkap oleh dua uji di atas.
     for (const { nama } of sumberKomponenDashboard()) {
       expect(nama).not.toBe("checkin-widget.tsx");
       expect(nama).not.toBe("dashboard-view.tsx");
@@ -115,14 +116,14 @@ describe("dashboard peserta tidak mengklaim angka yang tidak bisa ditelusuri", (
 
   it("copy halaman tidak lagi menjanjikan streak dan Navigator", () => {
     // `PageHead.lead` di halaman ini masih menyebut "Jadwal, streak, rekomendasi
-    // Navigator" — janji yang tidak lagi didukung halaman apa pun setelah Task 2.
+    // Navigator" — janji yang tidak lagi didukung halaman mana pun setelah Task 2.
     const isi = readFileSync(BERKAS_DASHBOARD, "utf8");
     expect(isi).not.toMatch(/streak/i);
     expect(isi).not.toMatch(/navigator/i);
   });
 
   it("halaman tetap menampilkan dua permukaan nyata", () => {
-    // Penjaga penutup. Tanpa ini, cara palingcheap untuk membuat semua uji di
+    // Penjaga penutup. Tanpa ini, cara termurah untuk membuat semua uji di
     // atas hijau adalah mengosongkan halaman — dan halaman kosong juga lolos.
     // Rekomendasi personal dan tauran lowongan adalah dua hal yang benar-benar
     // ada, jadi keduanya harus tetap di sini.
