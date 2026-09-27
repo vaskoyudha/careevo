@@ -16,7 +16,7 @@ const POIN = [
   },
   {
     icon: Ban,
-    judul: "Bisa dicabut, bukan Dicetak sekali",
+    judul: "Bisa dicabut, bukan dicetak sekali",
     teks:
       "Kredensial bukan gambar yang selamanya ada. Bisa dicabut, dan halaman verifikasinya ikut berubah.",
   },
