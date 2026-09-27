@@ -5,6 +5,7 @@ import { KodeLab } from "./kode-lab";
 import { MateriView } from "./materi-view";
 import { KuisView } from "./kuis-view";
 import { CourseSessionGate, useCourseSession } from "./course-session";
+import { cn } from "@/lib/utils";
 import type { ModulKursus } from "@/lib/courses/kurikulum";
 import { halamanPunyaLabKode } from "@/lib/courses/blok";
 import { halamanDipilih } from "@/lib/courses/halaman";
@@ -97,7 +98,7 @@ export function MateriPane({
   }
 
   return (
-    <div className="space-y-6">
+    <div className={cn("space-y-6", labKode && "lg:flex lg:min-h-0 lg:flex-1 lg:flex-col")}>
       {/* Prosa selalu bebas: membaca bukan penyelesaian, jadi tidak ada gerbang
           di atas `HalamanView`. Pager di dalamnya **tidak** diberi
           `onPindahHalaman`: tanpa callback ia merender `Link` ke

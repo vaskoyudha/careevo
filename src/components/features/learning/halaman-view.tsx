@@ -55,6 +55,7 @@ export function HalamanView({
   halaman,
   onPindahHalaman,
   sembunyikanKodeDijalankan = false,
+  sembunyikanPager = false,
   className,
 }: {
   /**
@@ -87,6 +88,17 @@ export function HalamanView({
    * tetap tinggal di sini — ia contoh bacaan, bukan latihan.
    */
   sembunyikanKodeDijalankan?: boolean;
+  /**
+   * Sembunyikan pager "Sebelumnya / Berikutnya" di dasar halaman.
+   *
+   * Dipakai tata letak lab (`kode-lab.tsx`): halaman itu sudah punya tombol
+   * "Selanjutnya" di bar kaki reader (`materi-foot-bar.tsx`) yang berpindah
+   * **modul**, dan pager di sini berpindah **halaman di dalam modul** — dua
+   * tombol "Berikutnya" di satu layar, dengan tujuan berbeda. Di jalur baca
+   * biasa pager ini satu-satunya jalan pindah halaman, jadi ia tetap ada;
+   * menyembunyikannya di lab membuat satu layar hanya punya satu tombol maju.
+   */
+  sembunyikanPager?: boolean;
   className?: string;
 }) {
   const semuaHalaman = halamanUntukModul(modul);
@@ -164,7 +176,7 @@ export function HalamanView({
         )}
       </article>
 
-      {semuaHalaman.length > 1 ? (
+      {semuaHalaman.length > 1 && !sembunyikanPager ? (
         <nav aria-label="Navigasi halaman" className="flex items-center justify-between gap-3">
           {sebelumnya ? (
             <NavHalaman

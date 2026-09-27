@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { FileCode2, Play } from "lucide-react";
 import { cpp } from "@codemirror/lang-cpp";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
@@ -583,23 +584,80 @@ export function KodeView({
   ) : null;
 
   /**
-   * Susunan `lab`: satu kolom dengan **editor di atas** (mengisi ruang) dan
+   * Susunan `lab`: **editor mengisi tinggi yang tersedia** (di atas) dan
    * **hasil di bawah**. Keduanya tetap milik komponen ini — `kode-lab.tsx`
    * hanya menyusun kolom kanan, dan tidak pernah menyentuh `teks` maupun
    * `jalankan`. Itu yang menjaga satu-satunya jalur eksekusi tetap di sini.
+   *
+   * ## Kenapa permukaannya gelap, dan kenapa ia kartunya sendiri
+   *
+   * Di jalur baca, blok kode adalah **contoh** yang duduk di dalam prosa, jadi
+   * ia tampil sebagai panel gelap kecil di tengah halaman terang. Di lab,
+   * editor adalah **alat kerjanya**: seluruh kolom kanan adalah mesin yang
+   * dipakai peserta, dan menaruhnya di dalam kartu putih membuatnya terbaca
+   * sebagai halaman, bukan sebagai editor.
+   *
+   * Karena itu lab menggambar kartunya sendiri — baris tab gelap di atas,
+   * permukaan editor mengisi sisanya, dan bilah jalankan menempel di dasarnya —
+   * pola yang sama dengan IDE mana pun. Yang **tidak** berubah adalah bahasa
+   * visualnya: warna, radius, dan tipografinya tetap dari palet repo ini.
+   *
+   * ## Kenapa editor `flex-1` + `min-h-0`
+   *
+   * Tinggi kolomnya dipatok oleh `kode-lab.tsx`. Tanpa `min-h-0` di sini,
+   * kolom flex menolak menyusut di bawah tinggi isinya, sehingga program yang
+   * panjang mendorong bilah jalankan dan hasilnya keluar layar — kebalikan dari
+   * gunanya lab. Dengan `min-h-0 flex-1`, editor **mengisi** sisa ruang dan
+   * menggulir di dalam kotaknya sendiri.
    */
   if (susunan === "lab") {
     return (
-      <div className={cn("flex flex-col gap-3", className)}>
-        <div>
+      <div className={cn("flex min-h-0 flex-col gap-3", className)}>
+        <section
+          aria-label={label}
+          className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-[#06202f] shadow-[0_20px_44px_-32px_rgba(10,61,98,0.9)]"
+        >
+          {/* Baris tab. Berkasnya `main.cpp` karena itulah yang dikompilasi
+              runner; menulis nama lain berarti menyebut berkas yang tidak
+              pernah ada. */}
+          <header className="flex shrink-0 items-center gap-2 border-b border-white/10 bg-[#04161f] px-3 py-2">
+            <FileCode2 className="size-3.5 shrink-0 text-[#7fa6b8]" aria-hidden="true" />
+            <span className="font-mono text-[11.5px] font-semibold text-[#d7eef7]">
+              main.cpp
+            </span>
+            <span className="ml-auto font-mono text-[10.5px] tracking-wider text-[#7fa6b8] uppercase">
+              {bahasa === "cpp" ? "C++" : bahasa}
+            </span>
+          </header>
+
           <div ref={wadah} className="kode-view kode-view-lab" />
-          {dapatJalankan === true ? <div className="pt-2">{isiTombolJalankan}</div> : null}
-        </div>
-        <div className="min-w-0">
+
+          {/* Bilah jalankan. Di jalur baca tombolnya berdiri di atas kertas
+              putih; di sini ia duduk di dalam mesinnya, di dasar editor —
+              tempat tangan sudah berada setelah selesai mengetik. */}
+          {dapatJalankan === true ? (
+            <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-t border-white/10 bg-[#04161f] px-3 py-2">
+              <button
+                type="button"
+                onClick={jalankan}
+                disabled={menjalankan}
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-[#0056D2] px-3.5 py-1.5 text-[13px] font-semibold text-white transition-colors hover:bg-[#00419e] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Play className="size-3.5 fill-current" aria-hidden="true" />
+                {menjalankan ? "Menjalankan…" : "Jalankan"}
+              </button>
+              <span className="text-[11px] text-[#7fa6b8]">
+                Kompilasi dan dijalankan di server, di kontainer terpisah.
+              </span>
+            </div>
+          ) : null}
+        </section>
+
+        <div className="min-h-0 max-h-[45vh] shrink-0 overflow-y-auto lg:max-h-[42%]">
           {paneHasil ?? (
-            <p className="rounded-lg border border-dashed border-gray-300 px-3 py-6 text-center text-[12.5px] leading-relaxed text-gray-500">
-              Tekan <strong className="font-semibold text-gray-700">Jalankan</strong> untuk melihat
-              keluaran program di sini.
+            <p className="rounded-xl border border-dashed border-gray-300 bg-white/60 px-4 py-5 text-center text-[12.5px] leading-relaxed text-gray-500">
+              Tekan <strong className="font-semibold text-gray-700">Jalankan</strong> untuk
+              melihat keluaran program di sini.
             </p>
           )}
         </div>

@@ -275,4 +275,19 @@ describe("HalamanView — pager", () => {
     );
     expect(html).not.toContain("Berikutnya");
   });
+
+  it("menyembunyikan pager saat diminta — tata letak lab", () => {
+    // Lab sudah punya tombol maju di bar kaki reader ("Selanjutnya"). Pager
+    // halaman di dasar kolom prosa akan jadi tombol "Berikutnya" kedua di layar
+    // yang sama, dengan tujuan berbeda (halaman vs modul).
+    const html = renderToStaticMarkup(
+      createElement(HalamanView, {
+        modul: modulSatuBab([satu, dua]),
+        halaman: satu,
+        sembunyikanPager: true,
+      }),
+    );
+    expect(html).not.toContain("Berikutnya");
+    expect(html).not.toContain("?halaman=");
+  });
 });

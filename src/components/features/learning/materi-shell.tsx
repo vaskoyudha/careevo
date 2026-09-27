@@ -366,6 +366,19 @@ export function MateriShell({
                 // berdesakan dan editor kode jadi terlalu sempit untuk dibaca.
                 // Halaman biasa tetap `max-w-3xl` — lebar baca yang nyaman.
                 lebarLab ? "max-w-6xl" : "max-w-3xl",
+                // Halaman ber-lab juga **membagi tinggi** area baca, bukan
+                // menggulir seperti prosa. Editor butuh tinggi yang pasti untuk
+                // bisa mengisi kolomnya; tanpa rantai ini `flex-1` di bawah
+                // tidak punya apa pun untuk dibagi. `CourseSessionPrompt` di
+                // atasnya ikut terhitung — itulah kenapa tingginya diambil dari
+                // sini, bukan dari rumus `100dvh` yang menebak tinggi chrome.
+                //
+                // `min-h-0` di sepanjang rantai wajib utuh; tanpanya kolom flex
+                // menolak menyusut di bawah tinggi isinya dan `flex-1` tidak
+                // berarti apa-apa. Pane lab yang punya saudara (kuis, lampiran)
+                // memang berbagi tinggi dengan mereka — editor menyusut, bukan
+                // meluber ke luar kotaknya.
+                lebarLab && "lg:flex lg:h-full lg:min-h-0 lg:flex-col",
               )}
             >
               {/* Ajakan memulai sesi, tepat di atas kartu materi.

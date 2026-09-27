@@ -61,4 +61,37 @@ describe("KodeLab sebagai berkas sumber", () => {
   it("tidak pernah memakai dangerouslySetInnerHTML", () => {
     expect(sumber).not.toContain("dangerouslySetInnerHTML");
   });
+
+  it("mematikan pager halaman di kolom prosa", () => {
+    // Bar kaki reader sudah punya tombol maju ("Selanjutnya"). Pager halaman di
+    // dasar kolom kiri akan jadi tombol "Berikutnya" kedua di layar yang sama,
+    // dengan tujuan berbeda (halaman vs modul).
+    expect(sumber).toContain("sembunyikanPager");
+  });
+
+  it("mengisi tinggi area baca, bukan memakai kartu putih bertumpuk", () => {
+    // Editor di lab adalah **alat kerja**, bukan contoh di tengah prosa. Kolom
+    // kanannya mengambil `flex-1` dari rantai flex shell → pane, dan `KodeView`
+    // diberi `flex-1` supaya editor mengisi ruang yang tersisa. Kalau rantainya
+    // putus, editor tumbuh mengikuti isinya dan pane hasilnya keluar layar.
+    //
+    // Tingginya sengaja **tidak** dihitung dari `100dvh`: itu salah begitu
+    // `CourseSessionPrompt` ikut memakan tinggi di atasnya (kolomnya meleset
+    // turun dan dasarnya terselip di balik bar kaki). `min-h-0` di sepanjang
+    // rantai adalah yang membuat kolom flex boleh menyusut di bawah tinggi
+    // isinya — tanpa itu `flex-1` tidak berarti apa-apa.
+    expect(sumber).toContain("lg:flex-1");
+    // Lantai supaya editor tetap punya ruang kerja saat halaman juga memuat
+    // kuis; tinggi sebenarnya dibagi lewat rantai flex di atasnya.
+    expect(sumber).toContain("lg:min-h-[20rem]");
+    expect(sumber).toContain("lg:sticky");
+    expect(sumber).toContain("lg:h-full");
+    // Tidak ada tinggi viewport yang dipatok dengan angka ajaib. Yang benar
+    // adalah rantai flex di atas; `h-[calc(...)]`/`h-[min(...)]` adalah
+    // persis pola yang gagal begitu isi di atas kolom ikut berubah tinggi.
+    expect(sumber).not.toMatch(/h-\[(calc|min)\(/);
+    // `min-h-0 flex-1` pada `KodeView` adalah pasangan `flex-1` yang membuat
+    // kotaknya boleh lebih pendek dari isinya.
+    expect(sumber).toMatch(/className="min-h-0 flex-1"/);
+  });
 });

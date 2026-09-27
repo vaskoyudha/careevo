@@ -99,6 +99,18 @@ describe("seed konten kursus", () => {
     }
   });
 
+  it("kursus verifikasi tetap di luar katalog peserta", () => {
+    // Ini kursus perkakas: ia ada untuk membuktikan blok kode C++ bisa
+    // dikompilasi runner, dan tidak pernah ditawarkan. `katalogBelajar()` hanya
+    // membaca kursus `published`, jadi `draft` di sini adalah yang menariknya
+    // dari `/belajar` sekaligus dari rute reader. Kalau seseorang menghapus
+    // `status` ini, kursus verifikasi muncul lagi di daftar kursus peserta tanpa
+    // satu pun error — hanya satu kartu yang tidak seharusnya ada.
+    const verifikasi = SEMUA_KURSUS_SEED.find((k) => k.slug === "verifikasi-blok-kode-cpp");
+    expect(verifikasi, "seed verifikasi-blok-kode-cpp").toBeDefined();
+    expect(verifikasi!.status).toBe("draft");
+  });
+
   it("blok kode yang bisa dijalankan selalu punya outputHarapan", () => {
     // `dapatDijalankan: true` tanpa `outputHarapan` berarti peserta melihat
     // tombol Jalankan yang tidak bisa dibandingkan dengan apa pun.

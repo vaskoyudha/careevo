@@ -4703,19 +4703,42 @@ button.tag:hover {
 }
 
 /* Permukaan kode di dalam lab (`.kode-lab.tsx`): editor dan hasilnya berbagi
-   kolom kanan, jadi editor **wajib** punya tinggi terbatas dan menggulir di
-   dalam kotaknya sendiri. Tanpa batas ini, program yang panjang membuat editor
-   tumbuh setinggi isinya dan pane hasil terdorong keluar layar — kebalikan dari
-   gunanya lab. Batasnya `vh`-relatif supaya ikut mengecil di layar pendek;
-   `min-height` memberi ruang kerja yang layak meski kodenya pendek. */
+   kolom kanan, dan kolom itu menerima tingginya dari rantai flex shell → pane
+   (lihat `kode-lab.tsx`). Editor di sini **mengisi** ruang yang tersisa dan
+   menggulir di dalam kotaknya sendiri — bukan tumbuh setinggi isinya seperti
+   `.kode-view` di jalur baca.
+
+   `height: 100%` + `min-height: 0` adalah pasangan yang membuat itu bekerja:
+   `flex-1` pada induknya memberi tinggi, dan `min-height: 0` mencabut lantai
+   bawaan kolom flex (isi) sehingga kotaknya boleh lebih pendek dari kodenya.
+   Tanpa `min-height: 0`, satu program 200 baris mendorong bilah jalankan dan
+   pane hasil keluar layar — persis yang tata letak ini ada untuk mencegah. */
 .kode-view-lab {
   border-radius: var(--radius-md);
   border: 1px solid rgba(215, 238, 247, 0.14);
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
+.kode-view-lab .cm-editor {
+  height: 100%;
+  min-height: 0;
+}
+
+/* Lantai kerja editor. Sengaja **kecil**: kolom kanan lab bisa jadi pendek saat
+   halamannya juga memuat kuis atau lampiran, dan lantai yang tinggi di sini akan
+   memaksa kolomnya meluber ke luar `main` — menimpa kartu di bawahnya. Yang
+   memutuskan tinggi sebenarnya adalah rantai `min-h-0` → `flex-1` di atasnya;
+   ini hanya jaring pengaman supaya viewport yang sangat pendek tidak
+   menyusutkan editor jadi satu baris. `max-height: none` mencabut batas `60vh`
+   milik `.kode-view` — di sini kolomnya yang menentukan, bukan viewport. */
 .kode-view-lab .cm-scroller {
-  max-height: min(52vh, 520px);
-  min-height: 220px;
+  min-height: 96px;
+  max-height: none;
+  overflow-y: auto;
 }
 
 .log-list-app {

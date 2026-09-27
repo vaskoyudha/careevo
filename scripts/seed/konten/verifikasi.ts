@@ -25,6 +25,21 @@ export const KURSUS_VERIFIKASI: KursusSeed[] = [
     tags: ["C++", "dasar pemrograman", "verifikasi"],
     level: "dasar",
     track: "web-dev",
+    /**
+     * `draft`, bukan `published`.
+     *
+     * Ini kursus perkakas, bukan kursus yang ditawarkan: ia ada supaya blok kode
+     * C++ terbukti bisa dikompilasi runner, dan tidak pernah dimaksudkan muncul
+     * di daftar `/belajar` sebelah kursus sungguhan. `katalogBelajar()` hanya
+     * membaca kursus `published`, jadi `draft` menariknya dari katalog **dan**
+     * dari rute reader sekaligus (`/belajar/[slug]` maupun `/materi/[modulId]`
+     * mencari lewat katalog yang sama). Ia tetap terlihat di daftar kursus admin
+     * dan bisa dipratinjau dari sana.
+     *
+     * Untuk membukanya kembali sementara — mis. memverifikasi blok kode lewat
+     * peramban — ubah ke `published`, jalankan ulang seed ini, lalu kembalikan.
+     */
+    status: "draft",
     modul: [
       // -----------------------------------------------------------------------
       // Modul yang SUDAH ADA — dipertahankan tanpa `halaman`, hanya ditambah kuis.
