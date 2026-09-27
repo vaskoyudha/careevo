@@ -11,7 +11,7 @@ Four trees are excluded from `tsconfig.json` and `eslint.config.mjs`. Do not lin
 | Path | What it is | Tracked? |
 |---|---|---|
 | `features/sijago/` | A second, complete Next app derived from DeepTutor, branded **AI Mastery**, framed at `/ai-mastery` | yes |
-| `backend/` | The DeepTutor **FastAPI backend** AI Mastery talks to (3.4k files) | yes |
+| `backend/` | The DeepTutor **FastAPI backend** AI Mastery talks to (36k files) | yes |
 | `engine/` | Verbatim vendored core of career-ops, orchestrated via `child_process` from `src/lib/career-ops/` | yes |
 | `career-ops/` | The original upstream career-ops checkout, kept only as a reference | **no** — gitignored |
 
