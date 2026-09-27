@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef } from "react";
+import Link from "next/link";
 import createGlobe, { type COBEOptions } from "cobe";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
@@ -134,13 +135,20 @@ export default function Featured_05({ className }: { className?: string }) {
       <div className="mx-auto max-w-7xl flex flex-col-reverse items-center justify-between gap-10 md:flex-row">
         <div className="z-10 max-w-xl text-left">
           <h2 className="text-3xl font-normal text-neutral-900 dark:text-white tracking-tight">
-            Build with <span className="text-primary font-medium">Ruixen UI</span>{" "}
+            Setiap lowongan di sini pernah melewati{" "}
+            <span className="text-primary font-medium">Sentinel</span>{" "}
             <span className="text-neutral-500 dark:text-neutral-400 block mt-2 text-lg leading-relaxed">
-              Empower your team with fast, elegant, and scalable UI components. Ruixen UI brings simplicity and performance to your modern apps.
+              Sebelum kamu membacanya, lowongan itu diaudit lebih dulu. Sentinel membaca
+              isinya dan mencari tanda penipuan yang memang terjadi di Indonesia: permintaan
+              transfer ke rekening pribadi, link unduhan APK, tiket travel fiktif, pungutan
+              seragam, dan permintaan KTP atau OTP. Lowongan yang bersih ditandai aman — dan
+              alasannya bisa kamu periksa sendiri, bukan label yang menempel.
             </span>
           </h2>
-          <Button className="mt-6 inline-flex items-center gap-2 rounded-none bg-foreground px-5 py-2 text-sm font-semibold text-background transition hover:bg-black">
-            Join Today <ArrowRight className="h-4 w-4" />
+          <Button asChild className="mt-6 inline-flex items-center gap-2 rounded-none bg-foreground px-5 py-2 text-sm font-semibold text-background transition hover:bg-black">
+            <Link href="/loker">
+              Lihat papan lowongan <ArrowRight className="h-4 w-4" />
+            </Link>
           </Button>
         </div>
         <div className="relative h-[220px] sm:h-[260px] md:h-[280px] w-full max-w-xl overflow-hidden md:overflow-visible">

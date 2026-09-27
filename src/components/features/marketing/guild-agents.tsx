@@ -1,3 +1,5 @@
+"use client";
+
 import {
   ArrowUpRight,
   BadgeCheck,
@@ -15,8 +17,9 @@ import {
   X,
 } from "lucide-react";
 import Image from "next/image";
+import * as React from "react";
 import { LandingBtnLink } from "@/components/ui/landing-btn";
-import { Reveal } from "./primitives";
+import { useGuildAgentsMotion } from "./guild-agents-motion";
 
 type Tone = "emerald" | "sky" | "blue" | "amber";
 
@@ -52,7 +55,6 @@ type AgentCard = {
   name: string;
   description: string;
   status: keyof typeof STATUS;
-  delay: number;
 };
 
 const CARDS: AgentCard[] = [
@@ -63,7 +65,6 @@ const CARDS: AgentCard[] = [
     name: "pencari lowongan",
     description: "Pindai papan lowongan publik tiap hari; hasilnya masuk ke inbox kamu.",
     status: "running",
-    delay: 0,
   },
   {
     position: "left-[17%] top-[2%] rotate-2",
@@ -72,7 +73,6 @@ const CARDS: AgentCard[] = [
     name: "pengecek loker",
     description: "Saring lowongan pakai aturan tetap: biaya, APK, domain baru.",
     status: "queued",
-    delay: 0.6,
   },
   {
     position: "right-[16%] top-[4%] -rotate-2",
@@ -81,7 +81,6 @@ const CARDS: AgentCard[] = [
     name: "pencocok skill",
     description: "Skor 1–5 dari lima dimensi, plus gap skill versus syarat lowongan.",
     status: "idle",
-    delay: 1.2,
   },
   {
     position: "right-[2%] top-[22%] rotate-3",
@@ -90,7 +89,6 @@ const CARDS: AgentCard[] = [
     name: "penandatangan",
     description: "Tanda tangani hasil kerjamu, biar rekruter bisa cek sendiri lewat satu tautan.",
     status: "running",
-    delay: 1.8,
   },
   {
     position: "bottom-[16%] left-[6%] rotate-2",
@@ -99,7 +97,6 @@ const CARDS: AgentCard[] = [
     name: "penilai",
     description: "Dinilai verifikator manusia pakai lima kriteria berbobot.",
     status: "running",
-    delay: 2.4,
   },
   {
     position: "bottom-[13%] right-[5%] -rotate-2",
@@ -108,7 +105,6 @@ const CARDS: AgentCard[] = [
     name: "penemu materi",
     description: "Susun kursus khusus buat lowongan yang kamu incar, bukan katalog umum.",
     status: "queued",
-    delay: 3.0,
   },
   {
     position: "left-[26%] top-[13%] rotate-1",
@@ -117,7 +113,6 @@ const CARDS: AgentCard[] = [
     name: "penyusun jalur",
     description: "Ubah lowongan itu jadi daftar topik yang harus kamu kuasai, urut.",
     status: "idle",
-    delay: 3.6,
   },
   {
     position: "bottom-[6%] left-[31%] -rotate-1",
@@ -126,7 +121,6 @@ const CARDS: AgentCard[] = [
     name: "jadwal",
     description: "Target mingguan dan check-in; dihitung jadi 30 dari 100 poin.",
     status: "running",
-    delay: 4.2,
   },
   {
     position: "bottom-[9%] right-[28%] rotate-2",
@@ -135,7 +129,6 @@ const CARDS: AgentCard[] = [
     name: "pelacak lamaran",
     description: "Lacak dari lamar sampai hasil akhir; yang ditolak Sentinel nggak bisa dilamar.",
     status: "queued",
-    delay: 4.8,
   },
 ];
 
@@ -177,23 +170,41 @@ function AgentCardView({ card }: { card: AgentCard }) {
   );
 }
 
-function Bracket({ className }: { className?: string }) {
+function Bracket({
+  className,
+  flip = false,
+  ...rest
+}: {
+  className?: string;
+  flip?: boolean;
+} & React.SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 8 8" fill="none" className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 8 8"
+      fill="none"
+      className={className}
+      aria-hidden="true"
+      {...rest}
+    >
       <path
         d="M0.8 0.8H3.2M0.8 0.8V3.2M0.8 7.2H3.2M0.8 7.2V4.8"
         stroke="currentColor"
         strokeWidth="1.4"
         strokeLinecap="round"
+        transform={flip ? "scale(-1,1) translate(-8,0)" : undefined}
       />
     </svg>
   );
 }
 
 export function MarketingAgents() {
+  const sectionRef = React.useRef<HTMLElement>(null);
+  useGuildAgentsMotion(sectionRef);
+
   return (
     <section
       id="agen"
+      ref={sectionRef}
       className="guild-type relative isolate overflow-hidden bg-white text-[#0d0c11] [--agen-ratio:1.8827] [--agen-h:calc(100vw/var(--agen-ratio))]"
     >
       {/*
@@ -274,19 +285,31 @@ export function MarketingAgents() {
         />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_46%_42%_at_50%_48%,rgba(255,255,255,0.22)_0%,rgba(255,255,255,0.15)_55%,rgba(255,255,255,0)_100%)]" />
       </div>
+      {/*
+        Three nested elements per card, one animation each: `data-ag="card"`
+        takes the scrubbed parallax and keeps the Tailwind tilt below it,
+        `data-ag="enter"` takes the fly-in from the centre, `data-ag="drift"`
+        takes the ambient orbit. Two animations on one element means the later
+        tween overwrites the earlier `transform` and the card snaps.
+
+        The `Reveal` wrapper and `.guild-float` that used to be here are gone.
+        `Reveal` is a plain IntersectionObserver fade shared by twenty other
+        marketing sections, so it cannot carry a per-card direction, and
+        `.guild-float` gave all nine cards the same 7s period, so the
+        constellation pulsed as one object. Both are now this section's own
+        motion, in `guild-agents-motion.ts`.
+      */}
       {CARDS.map((card) => (
         <div
           key={card.name}
+          data-ag="card"
           className={`absolute hidden lg:block ${card.position}`}
         >
-          <Reveal>
-            <div
-              className="guild-float"
-              style={{ animationDelay: `${card.delay}s` }}
-            >
+          <div data-ag="enter">
+            <div data-ag="drift">
               <AgentCardView card={card} />
             </div>
-          </Reveal>
+          </div>
         </div>
       ))}
 
@@ -299,50 +322,66 @@ export function MarketingAgents() {
         is shorter than the headline and cards need.
       */}
       <div className="relative mx-auto flex min-h-[max(var(--agen-h),560px)] max-w-3xl flex-col items-center justify-center px-5 py-28 text-center">
-        <Reveal>
-          <div className="flex items-center justify-center gap-3 font-mono text-xs tracking-[0.02em] text-[#110f1a]/55 uppercase">
-            <Bracket className="size-2 text-blue-500" />
-            Yang bantu kamu
-            <Bracket className="size-2 rotate-180 text-blue-500" />
-          </div>
-        </Reveal>
+        <div
+          data-ag="eyebrow"
+          className="flex items-center justify-center gap-3 font-mono text-xs tracking-[0.02em] text-[#110f1a]/55 uppercase"
+        >
+          <Bracket className="size-2 text-blue-500" data-ag="bracket-l" />
+          Yang bantu kamu
+          <Bracket
+            className="size-2 text-blue-500"
+            data-ag="bracket-r"
+            flip
+          />
+        </div>
 
-        <Reveal delay={90}>
-          <h2 className="mt-6 text-5xl leading-[1.08] font-light tracking-[-0.03em] text-[#0d0c11] sm:text-6xl lg:text-[64px] lg:leading-[1.06]">
-            Cari lowongan, targetkan, lamar,
-            <br />
-            sampai kamu keterima
-          </h2>
-        </Reveal>
+        <h2
+          data-ag="title"
+          className="mt-6 text-5xl leading-[1.08] font-light tracking-[-0.03em] text-[#0d0c11] sm:text-6xl lg:text-[64px] lg:leading-[1.06]"
+        >
+          Cari lowongan,{" "}
+          {/* The flat `#0056D2`, not a Tailwind `blue-500`: this is the blue
+              DESIGN.md reserves for inline text on a light surface, and at 64px
+              it holds ~6.4:1 here. `blue-500` lands at ~3:1 unscrimmed. */}
+          <span className="text-[#0056D2]">targetkan, lamar,</span>
+          <br />
+          sampai kamu keterima
+        </h2>
 
-        <Reveal delay={180}>
-          {/* /70, not /55: over this artwork's copy region /70 measures
-              4.95:1 with no scrim at all and 5.38:1 under the 22% radial
-              centre. /55 only reaches 2.91:1 unscrimmed, so it fails AA
-              outright here. */}
-          <p className="mx-auto mt-6 max-w-xl text-[15px] leading-relaxed text-[#110f1a]/70">
-            Sembilan agen AI yang ngerjain bagian administratifnya: pindai papan
-            lowongan, saring penipuan, hitung kecocokan, susun kursus dan jalur
-            belajar khusus lowongan itu, sampai nyatet progres lamaranmu. Kamu
-            tetap yang ngerjain, dan hasil kerjamu dinilai verifikator manusia —
-            bukan model.
-          </p>
-        </Reveal>
+        {/* /70, not /55: over this artwork's copy region /70 measures
+            4.95:1 with no scrim at all and 5.38:1 under the 22% radial
+            centre. /55 only reaches 2.91:1 unscrimmed, so it fails AA
+            outright here. */}
+        <p
+          data-ag="body"
+          className="mx-auto mt-6 max-w-xl text-[15px] leading-relaxed text-[#110f1a]/70"
+        >
+          Sembilan agen AI yang ngerjain bagian administratifnya: pindai papan
+          lowongan, saring penipuan, hitung kecocokan, susun kursus dan jalur
+          belajar khusus lowongan itu, sampai nyatet progres lamaranmu. Kamu
+          tetap yang ngerjain, dan hasil kerjamu dinilai verifikator manusia —
+          bukan model.
+        </p>
 
-        <Reveal delay={270}>
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
-            <LandingBtnLink href="/daftar" className="shrink-0">
-              Cobain satu challenge, gratis
-            </LandingBtnLink>
-            <LandingBtnLink href="#loop" variant="secondary" className="group shrink-0">
-              Lihat alurnya
-              <ArrowUpRight
-                className="size-4 text-blue-500 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-                strokeWidth={2}
-              />
-            </LandingBtnLink>
-          </div>
-        </Reveal>
+        <div
+          data-ag="actions"
+          className="mt-8 flex flex-wrap items-center justify-center gap-2 sm:gap-3"
+        >
+          <LandingBtnLink href="/daftar" className="shrink-0">
+            Cobain satu challenge, gratis
+          </LandingBtnLink>
+          <LandingBtnLink
+            href="#loop"
+            variant="secondary"
+            className="group shrink-0"
+          >
+            Lihat alurnya
+            <ArrowUpRight
+              className="size-4 text-blue-500 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+              strokeWidth={2}
+            />
+          </LandingBtnLink>
+        </div>
       </div>
     </section>
   );

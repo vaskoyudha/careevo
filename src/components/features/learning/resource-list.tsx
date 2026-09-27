@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { ResourceFixture } from "@/lib/fixtures";
-import { levelLabel } from "@/lib/onboarding/types";
+import { levelLabel, tipeLabel } from "@/lib/onboarding/types";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
@@ -77,7 +77,7 @@ export function ResourceList({ resources }: { resources: ResourceFixture[] }) {
               </Button>
             </span>
             <span className="row-meta">
-              {resource.provider} · {resource.type} · {resource.duration_min} menit
+              {resource.provider} · {tipeLabel(resource.type)} · {resource.duration_min} menit
               {resource.is_free ? "" : " · berbayar"}
             </span>
           </li>

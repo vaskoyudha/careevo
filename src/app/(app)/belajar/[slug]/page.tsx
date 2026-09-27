@@ -11,6 +11,7 @@ import { progresKursusDb } from "@/lib/learning/service";
 import { getCourseById } from "@/lib/courses/store";
 import { kebijakanDefault } from "@/lib/courses/kebijakan";
 import { kelayakanKursusSubmission, ambilKredensialCourse } from "@/lib/review/service";
+import { tipeLabel } from "@/lib/onboarding/types";
 import { ringkasanPelanggaranCourseDb } from "@/lib/integritas/service";
 import { tasks } from "@/lib/fixtures";
 import { selaraskanKursusAi } from "@/lib/learning/tutor-ai-kursus";
@@ -41,7 +42,7 @@ export default async function DetailKursusPage({
   const kursusAsli = await getCourseById(entri.id);
   const deskripsi =
     kursusAsli?.description ??
-    `Pelajari ${entri.tags.join(", ")} melalui ${entri.type} ${entri.duration_min} menit dari ${entri.provider}.`;
+    `Pelajari ${entri.tags.join(", ")} melalui ${tipeLabel(entri.type)} ${entri.duration_min} menit dari ${entri.provider}.`;
 
   const modul = await modulUntukSumber({
     id: entri.id,

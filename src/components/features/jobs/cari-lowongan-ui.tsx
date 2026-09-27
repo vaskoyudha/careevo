@@ -1,112 +1,120 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  ArrowUp,
-  ExternalLink,
-  GraduationCap,
-  LayoutGrid,
-  MapPin,
-  Search,
-  X,
-} from "lucide-react";
-import type { InboxJob } from "@/lib/career-ops";
+import { ExternalLink, GraduationCap, MapPin, Search, X } from "lucide-react";
 import { filterInbox } from "@/lib/jobs/kueri-inbox";
 import { monogram } from "@/lib/jobs/monogram";
-import { Button } from "@/components/ui/button";
+import { labelSinyal } from "@/lib/agents/sentinel";
+import type { BarisDiaudit, InboxJob } from "@/lib/career-ops";
 
 /**
- * Komponen bersama untuk pencarian lowongan dengan gaya kartu chat AI Mastery.
+ * Satu baris inbox setelah audit: data lowongan + hasil Sentinel.
+ *
+ * Didefinisikan di sini, bukan di `inbox-list.tsx`, karena `verdictBadge`
+ * pindah ke modul ini dan `inbox-list` mengimpor builder itu. Menarik type-nya
+ * juga ke sini berarti satu bentuk baris untuk semua pemanggil, bukan dua.
+ */
+export type Baris = InboxJob & { firstSeen?: string } & Partial<BarisDiaudit>;
+
+/**
+ * Komponen bersama untuk hasil pencarian lowongan, bergaya kartu chat AI Mastery.
  *
  * Diujiplak dari `features/sijago/components/chat/home/` (AI Mastery):
  *   - `CapabilityConfigCard` — chrome kartu: `rounded-xl` + border rambut
  *     (`--border`/55) + bayangan berlapis `color-mix`.
  *   - `MasteryHandoffCard` — sigil bulat: ring `color-mix` primary + isian
  *     radial-gradient, mark monogram di tengahnya.
- *   - `ComposerInput` — composer: `rounded-xl` + border + shadow, fokus
- *     memunculkan ring primary, textarea transparan, tombol kirim bulat.
  *
- * Dipakai di dua permukaan: dashboard (`PapanLokerDashboard`) dan inbox
- * (`InboxList`). Yang dipindah adalah bahasanya, bukan logikanya — kartu di
- * sini merender baris hasil pindai, bukan payload tool dari backend AI Mastery.
+ * Yang dipinjam dari AI Mastery adalah *kartu* hasil, bukan composer-nya. Kotak
+ * pencarian pindah ke `permukaan-cari-loker.tsx` sebagai form conventional
+ * (teks + kota + kategori + tombol Cari), karena pemanggilnya punya bentuk form
+ * yang harus diterapkan saat tombol ditekan, bukan menyaring sambil mengetik.
+ * Yang dipindah tetap bahasanya, bukan logikanya — kartu di sini merender baris
+ * hasil pindai, bukan payload tool dari backend AI Mastery.
  */
 
 /**
- * Composer — kotak pertanyaan bergaya composer chat AI Mastery.
+ * Hasil audit Sentinel untuk satu baris, sudah diterjemahkan ke bahasa manusia.
  *
- * Mengetik langsung menyaring; tombol kirim mencegah reload saja, karena
- * penyaringan sudah terjadi enquanto mengetik.
+ * Didefinisikan sekali di sini karena bentuknya sebelumnya ditulis ulang di
+ * tiga tempat (`KartuLokerInbox`, `DaftarLokerLayarPenuh`, `inbox-list.tsx`) dan
+ * ketiganya bisa diam-diam melenceng — persis kegagalan kontrak-field yang
+ * `careevo-review` memperingatkan.
  *
- * Ikon kisi di dalam composer adalah jalan ke daftar lengkap: halaman ini
- * menampilkan hasil pencarian saja, jadi tanpa ikon ini ratusan lowongan tidak
- * akan pernah muncul. Angkanya ikut terbawa di pojok ikon — itu cara paling
- * murah untuk mengetahui ada yang terlewat sebelum menyaring.
+ * **`sinyal` adalah alasan sebenarnya, bukan status.** `status` hanya
+ * bounce satu kata (AMAN / KARANTINA / DITOLAK) dan tidak pernah menjelaskan
+ * kenapa; dulu `PopupDetailLoker` menerima `status` saja sehingga popup tidak
+ * pernah bisa menampilkan penyebabnya. `sinyal` membawa label lengkap dari
+ * `labelSinyal` supaya popup bisa menampilkannya.
+ *
+ * `terperiksa` membedakan "aman" dari "belum sempat dicek": `auditBaris`
+ * mengembalikan `quarantined` untuk keduanya, jadi tanpa flag ini lowongan
+ * yang gagal di-enrichment akan terbaca sebagai GERAH RIPUAN.
  */
-export function ComposerCariLowongan({
-  kueri,
-  onKueri,
-  onBukaDaftar,
-  jumlahTersedia,
-}: {
-  kueri: string;
-  onKueri: (next: string) => void;
-  onBukaDaftar: () => void;
-  jumlahTersedia: number;
-}) {
-  const [kirim, setKirim] = useState(false);
+export type VerdictLoker = {
+  /** Kata verdict untuk badge: AMAN / KARANTINA / DITOLAK. */
+  label: string;
+  /** Kelas CSS untuk badge pill. */
+  cls: string;
+  /** Alasan lengkap, sudah dibaca orang. Untuk `title` dan popup. */
+  title: string;
+  /** Alasan per-flag, dipisah " · ". Kosong untuk verdict clean. */
+  sinyal: string[];
+  status?: "clean" | "quarantined" | "rejected";
+  /** false = data lowongan tidak bisa diambil, jadi belum pernah diaudit. */
+  terperiksa: boolean;
+};
 
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        setKirim(true);
-        window.setTimeout(() => setKirim(false), 0);
-      }}
-      className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-2.5 shadow-[0_1px_2px_color-mix(in_srgb,var(--foreground)_5%,transparent),0_4px_14px_color-mix(in_srgb,var(--foreground)_5%,transparent)] transition-shadow focus-within:border-[var(--primary)]/40 focus-within:shadow-[0_1px_2px_color-mix(in_srgb,var(--primary)_8%,transparent),0_4px_14px_color-mix(in_srgb,var(--primary)_8%,transparent)]"
-    >
-      <label htmlFor="composer-cari-lowongan" className="sr-only">
-        Cari lowongan
-      </label>
-      <textarea
-        id="composer-cari-lowongan"
-        rows={1}
-        value={kueri}
-        onChange={(e) => onKueri(e.target.value)}
-        placeholder="Coba: backend, Amartha, atau Jakarta…"
-        className="cari-lowongan-input w-full resize-none border-0 bg-transparent px-2 py-1.5 text-[15px] leading-relaxed text-[var(--foreground)] placeholder:text-[var(--muted-foreground)]"
-      />
-      <div className="flex items-center justify-between gap-2 px-1 pt-1">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--background)]/60 px-3 py-1.5 text-xs font-medium text-[var(--muted-foreground)]">
-          <Search className="size-3.5" aria-hidden />
-          Cari lowongan
-        </span>
-        <div className="flex items-center gap-1.5">
-          <Button
-            type="button"
-            variant="brand"
-            size="icon"
-            onClick={onBukaDaftar}
-            aria-label={`Tampilkan daftar lengkap, ${jumlahTersedia} lowongan`}
-            className="relative"
-          >
-            <LayoutGrid className="size-4" aria-hidden />
-            {jumlahTersedia > 0 ? (
-              <span className="absolute -top-1 -right-1 inline-flex min-w-4 items-center justify-center rounded-full bg-[var(--ocean-deep)] px-1 text-[9px] font-semibold text-white">
-                {jumlahTersedia > 999 ? "999+" : jumlahTersedia}
-              </span>
-            ) : null}
-          </Button>
-          <Button type="submit" variant="brand" size="icon" aria-label="Cari lowongan">
-            <ArrowUp className="size-4" aria-hidden />
-          </Button>
-        </div>
-      </div>
-      {/* Satu live region untuk perubahan hasil, filter atau composer. */}
-      <p aria-live="polite" className="sr-only">
-        {kirim ? "Mencari" : ""}
-      </p>
-    </form>
-  );
+/**
+ * Verdict satu baris, dalam bahasa manusia. Dihidupkan di sini, bukan di `inbox-list.tsx`, karena
+ * `kartu-rekomendasi-profil.tsx` juga membutuhkannya: mengikuti aturan
+ * `careevo-review` soal jangan menyimpan dua salinan aturan yang bisa berbeda.
+ *
+ * `auditBaris` (`inbox-audit.ts:55`) mengembalikan `quarantined` untuk lowongan
+ * yang GAGAL di-enrichment, sama seperti lowongan yang sungguhan mencurigakan.
+ * Yang membedakan keduanya hanya `enriched` dan flag `data_tidak_terverifikasi`
+ * — jadi `terperiksa` di sini, kalau tidak, lowongan yang belum sempat dicek
+ * akan tampil badge "Perlu ditinjau", dan popup-nya akan menampilkan
+ * "KARANTINA" — sebuah tuduhan yang belum bisa dibuktikan.
+ */
+export function verdictBadge(row: Baris): VerdictLoker | null {
+  if (!row.audit) return null;
+
+  if (!row.enriched) {
+    return {
+      label: "Belum diperiksa",
+      cls: "verdict-unverified",
+      status: "quarantined",
+      title: "Data lowongan ini belum bisa diambil dari papan aslinya, jadi belum diverifikasi.",
+      sinyal: ["Data lowongan belum bisa diambil dari papan aslinya"],
+      terperiksa: false,
+    };
+  }
+
+  // `flags` bisa kosong hanya untuk `clean`; `quarantined`/`rejected` selalu
+  // punya minimal satu, tapi `||` menjaga agar badge tidak menampilkan "Sinyal: ".
+  const sinyal = row.audit.flags.map(labelSinyal);
+
+  if (row.audit.status === "clean") {
+    return {
+      label: "Aman",
+      cls: "verdict-clean",
+      status: "clean",
+      title: "Tidak ditemukan pola penipuan pada lowongan ini.",
+      sinyal,
+      terperiksa: true,
+    };
+  }
+
+  const ditolak = row.audit.status === "rejected";
+  return {
+    label: ditolak ? "Ditolak" : "Perlu ditinjau",
+    cls: ditolak ? "verdict-rejected" : "verdict-quarantined",
+    status: row.audit.status,
+    title: sinyal.length > 0 ? `Sinyal: ${sinyal.join(" · ")}` : "Ada sinyal yang perlu diperiksa lebih lanjut.",
+    sinyal,
+    terperiksa: true,
+  };
 }
 
 /**
@@ -128,15 +136,13 @@ export function KartuLokerInbox({
   jumlahKursus,
 }: {
   job: InboxJob;
-  verdict?:
-    | { label: string; cls: string; title: string; status?: "clean" | "quarantined" | "rejected" }
-    | null;
-  onBukaDetail?: (url: string, status?: "clean" | "quarantined" | "rejected") => void;
+  verdict?: VerdictLoker | null;
+  onBukaDetail?: (url: string, verdict?: VerdictLoker | null) => void;
   /** Berapa kursus yang cocok, dihitung server. 0 = tidak ada. */
   jumlahKursus?: number;
 }) {
   return (
-    <article className="group flex flex-col overflow-hidden rounded-xl border border-[var(--border)]/55 bg-[var(--card)] shadow-[0_1px_2px_color-mix(in_srgb,var(--foreground)_5%,transparent),0_4px_14px_color-mix(in_srgb,var(--foreground)_5%,transparent)] transition-colors hover:border-[var(--primary)]/40">
+    <article className="group flex flex-col overflow-hidden rounded-[var(--radius-dock-inner)] border border-[var(--border)]/55 bg-[var(--card)] shadow-[0_1px_2px_color-mix(in_srgb,var(--foreground)_5%,transparent),0_4px_14px_color-mix(in_srgb,var(--foreground)_5%,transparent)] transition-colors hover:border-[var(--primary)]/40">
       {/* SELURUH badan kartu adalah satu tombol yang membuka popup detail.
           Dulu hanya baris lokasi yang bisa diklik, dan itu yang membuat
           "klik kartunya tidak terjadi apa-apa" — sebagian besar kartu lowongan
@@ -147,7 +153,7 @@ export function KartuLokerInbox({
           asli tetap ada sebagai "Buka" di footer. */}
       <button
         type="button"
-        onClick={() => onBukaDetail?.(job.url, verdict?.status)}
+        onClick={() => onBukaDetail?.(job.url, verdict)}
         disabled={!onBukaDetail}
         aria-label={`Lihat detail ${job.role} di ${job.company}`}
         className="block w-full text-left transition-colors enabled:hover:bg-[color-mix(in_srgb,var(--primary)_5%,transparent)] disabled:cursor-default"
@@ -199,7 +205,7 @@ export function KartuLokerInbox({
         {onBukaDetail ? (
           <button
             type="button"
-            onClick={() => onBukaDetail(job.url, verdict?.status)}
+            onClick={() => onBukaDetail(job.url, verdict)}
             className="inline-flex items-center gap-1 rounded-full border border-[var(--border)] px-2 py-[2px] text-[10px] font-semibold text-[var(--muted-foreground)] transition-colors hover:border-[var(--primary)]/40 hover:text-[var(--primary)]"
           >
             Detail
@@ -249,14 +255,12 @@ export function DaftarLokerLayarPenuh({
 }: {
   baris: InboxJob[];
   onTutup: () => void;
-  renderVerdict?: (
-    job: InboxJob,
-  ) => { label: string; cls: string; title: string; status?: "clean" | "quarantined" | "rejected" } | null;
+  renderVerdict?: (job: InboxJob) => VerdictLoker | null;
   /** Kueri dari composer halaman, jadi panel dibuka dalam konteks yang sama. */
   kueriAwal?: string;
   /** Jumlah kursus per posting, dihitung server. */
   jumlahKursusPerUrl?: Map<string, number>;
-  onBukaDetail?: (url: string, status?: "clean" | "quarantined" | "rejected") => void;
+  onBukaDetail?: (url: string, verdict?: VerdictLoker | null) => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [kueri, setKueri] = useState(kueriAwal);

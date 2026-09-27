@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRef, useState, type ReactNode } from "react";
 import { MoreVertical } from "lucide-react";
-import { Search } from "./icons";
 import { ExploreMenu } from "./explore-menu";
 import { AccountMenu, DashboardButton, learnerNavItems } from "./chrome-parts";
 import { MobileNavDrawer, type MobileNavItem } from "./mobile-nav-drawer";
@@ -16,8 +15,9 @@ import type { SessionPayload } from "@/lib/auth/types";
  * to the top of the page.
  *
  * The only difference from `LearnerChrome` is the silhouette. The colour,
- * the items, the search field and the account menu are the same light glass
- * the rest of the site uses — the wing is the feature, not a restyle.
+ * the items and the account menu are the same light glass the rest of the site
+ * uses — the wing is the feature, not a restyle. Neither bar carries a search
+ * field; `/belajar` owns the one search surface.
  *
  * Two deliberate departures from the `.chrome` morph that the other navbars use,
  * both forced by the page rather than chosen for looks:
@@ -41,7 +41,6 @@ export function AiMasteryNavbar({
   session,
   pageLabel,
   sidebarToggle,
-  showSearch = true,
 }: {
   session: SessionPayload;
   /** Page name shown in the chip beside the brand (dashboard shell only). */
@@ -49,9 +48,6 @@ export function AiMasteryNavbar({
   /** Control rendered in `.chrome-actions` before the account menu (dashboard
    *  shell's sidebar toggle; omitted on `/ai-mastery`). */
   sidebarToggle?: ReactNode;
-  /** The dashboard shell hides the search field — a search box beside a page
-   *  that already has its own navigation reads as a second command surface. */
-  showSearch?: boolean;
 }) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -86,7 +82,14 @@ export function AiMasteryNavbar({
             <MoreVertical size={20} strokeWidth={2} aria-hidden="true" />
           </button>
         )}
-        <div className="flex min-w-0 items-center gap-2">
+        {/* `flex-1` is load-bearing, not spacing: the brand is wrapped in a div
+            (it carries the optional page-label chip), and that div is what the
+            bar lays out as its left flank. Without the grow it collapses to the
+            logo's width while `.chrome-actions` keeps `flex: 1 1 0` on the
+            right, so the nav row is laid out off-centre — measured 97px left of
+            the viewport centre at 1280px. Growing both flanks equally is what
+            centres `.nav-float`, which is `flex: 0 0 auto`. */}
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <Link className="chrome-brand" href="/" aria-label="Careevo">
             <Image
               src="/careevo-logo.png"
@@ -126,35 +129,6 @@ export function AiMasteryNavbar({
           })}
         </nav>
         <div className="chrome-actions">
-          {showSearch ? (
-            <form
-              role="search"
-              action="/belajar"
-              method="get"
-              className="learner-search hidden min-w-0 flex-1 items-center md:flex"
-            >
-              <label htmlFor="ai-mastery-search" className="sr-only">
-                Cari kursus
-              </label>
-              <div className="flex h-10 w-full max-w-xs items-center gap-2 rounded-full border border-black/15 bg-white/80 pr-1 pl-3.5 focus-within:border-[#0056D2]">
-                <Search className="h-4 w-4 shrink-0 text-black/50" aria-hidden="true" />
-                <input
-                  id="ai-mastery-search"
-                  name="q"
-                  type="search"
-                  autoComplete="off"
-                  placeholder="Mau belajar apa?"
-                  className="w-full bg-transparent text-[13.5px] text-black outline-none placeholder:text-black/45"
-                />
-                <button
-                  type="submit"
-                  className="brand-fill shrink-0 cursor-pointer rounded-full px-3.5 py-1.5 text-[13px] font-semibold"
-                >
-                  Cari
-                </button>
-              </div>
-            </form>
-          ) : null}
           <DashboardButton />
           <AccountMenu session={session} />
         </div>

@@ -23,7 +23,6 @@ function LearnerTopPromoBar() {
 
 export function LearnerShell({
   session,
-  queryAwal = "",
   overlayMain = false,
   promoBars = false,
   showFooter = true,
@@ -32,7 +31,6 @@ export function LearnerShell({
   children,
 }: {
   session: SessionPayload;
-  queryAwal?: string;
   overlayMain?: boolean;
   promoBars?: boolean;
   /** Full-height pages (e.g. the framed AI Mastery app) opt out: the footer would
@@ -55,7 +53,7 @@ export function LearnerShell({
       } ${shellClassName}`}
     >
       {promoBars ? <LearnerTopPromoBar /> : null}
-      {chrome ?? <LearnerChrome session={session} queryAwal={queryAwal} />}
+      {chrome ?? <LearnerChrome session={session} />}
       {promoBars ? <CareevoPlusPromoBanner href="/careevo-plus" /> : null}
 
       <main id="main">{children}</main>

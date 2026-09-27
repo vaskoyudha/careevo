@@ -94,7 +94,7 @@ export function KursusAiPanel({
           {/* `disabled` pada <button> asli, bukan `aria-disabled` pada sebuah
               link: `aria-disabled` mengeluarkan node dari accessibility tree,
               bukan dari urutan tab, jadi link-nya tetap bisa di-fokus dan
-              di-Enter. Lihat careevo-browser-verify, "focusable but hidden". */}
+              di-Enter — "focusable but hidden", tak terlihat di diff. */}
           <button
             type="button"
             disabled

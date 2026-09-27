@@ -11,6 +11,8 @@ import {
   type JalurInboxState,
 } from "@/actions/loker-inbox-persiapan";
 import { KartuDetailLoker } from "@/components/features/jobs/kartu-detail-loker";
+import { ShieldCheck } from "lucide-react";
+import type { VerdictLoker } from "@/components/features/jobs/cari-lowongan-ui";
 
 /**
  * Popup detail lowongan hasil pindai, memakai kartu yang sama dengan hero
@@ -29,12 +31,20 @@ import { KartuDetailLoker } from "@/components/features/jobs/kartu-detail-loker"
  */
 export function PopupDetailLoker({
   url,
-  status,
+  verdict,
   onTutup,
 }: {
   url: string;
-  /** Verdict dari baris yang diklik — di sini supaya tidak dibaca ulang. */
-  status?: "clean" | "quarantined" | "rejected";
+  /**
+   * Verdict lengkap dari baris yang diklik, bukan hanya `status`.
+   *
+   * Dulu popup menerima `status` dan menampilkan `<StatusBadge>`, yaitu satu
+   * kata: AMAN / KARANTINA / DITOLAK. Jadi popup tidak pernah bisa bilang
+   * KENAPA sebuah lowongan ditahan — dan itu satu-satunya alasan orang membuka
+   * detail. Alasan itu sudah ada di kartu (`verdict.title`) lalu dibuang di
+   * `onBukaDetail`, jadi sekarang ikut dibawa.
+   */
+  verdict?: VerdictLoker | null;
   onTutup: () => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -103,12 +113,62 @@ export function PopupDetailLoker({
                 location: state.location,
                 salary: state.compensation,
                 source: state.source,
-                status: state.status ?? status,
+                // `state.status` dihitung ulang di server saat popup dibuka, jadi
+                // itulah yang menang untuk WARNA. Tapi `state.status` kembali
+                // membawa `quarantined` untuk lowongan yang gagal di-enrichment
+                // — dan label badge ikut bawaan, sehingga UI menampilkan
+                // "KARANTINA" pada lowongan yang belum pernah dibaca siapa pun.
+                // Karena itu label di-override dari `verdict`, satu-satunya pihak
+                // yang tahu `terperiksa`.
+                status: state.status ?? verdict?.status,
+                statusLabel: verdict?.label,
                 description: state.description,
                 tags: state.tags,
                 externalApplyUrl: state.url,
               }}
             />
+
+            {/* Hasil audit Sentinel: bukan cuma kata "KARANTINA", tapi sinyal
+                yang menjadi sebabnya. Tanpa blok ini popup menjawab pertanyaan
+                yang tidak ditanyakan siapa pun — "aman" — dan diam tentang
+                pertanyaan yang jelas ditanyakan: kenapa ini ditahan? */}
+            {verdict ? (
+              <section
+                aria-label="Hasil audit Sentinel"
+                className="border-b border-neutral-200 bg-white px-6 py-5 sm:px-7"
+              >
+                <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                  <ShieldCheck className="size-4" aria-hidden />
+                  Hasil audit Sentinel
+                </h3>
+
+                {verdict.sinyal.length > 0 ? (
+                  <ul className="mt-2.5 space-y-1.5">
+                    {verdict.sinyal.map((s) => (
+                      <li
+                        key={s}
+                        className="flex items-start gap-2 text-sm leading-relaxed text-neutral-700"
+                      >
+                        <span aria-hidden className="mt-1.5 size-1.5 shrink-0 rounded-full bg-neutral-400" />
+                        <span>{s}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-sm leading-relaxed text-neutral-700">
+                    {verdict.title}
+                  </p>
+                )}
+
+                {!verdict.terperiksa ? (
+                  <p className="mt-2.5 text-[11px] leading-relaxed text-neutral-500">
+                    Bukan lowongan yang mencurigakan. Lowongan ini belum sempat
+                    dibaca dari papan aslinya, jadi belum ada yang dinilai aman
+                    maupun mencurigakan.
+                  </p>
+                ) : null}
+              </section>
+            ) : null}
 
             {/* Persiapan: kursus, alasan dari model, dan jalur penguasaan.
                 Sumber tunggal untuk rekomendasi di inbox; per-kartu hanya

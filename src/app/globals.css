@@ -60,6 +60,10 @@
      shells agree; two layers (a contact shadow plus a soft lift) because a
      panel that floats needs both to read as detached from the page. */
   --radius-dock: 26px;
+  /* Nested cards sit inside a dock-radius container. The inner curve has to be
+     tighter by the container's padding, or the two curves fight and the corners
+     look bulged at the gutter. */
+  --radius-dock-inner: calc(var(--radius-dock) - 12px);
   --shadow-dock:
     0 1px 2px rgba(10, 61, 98, 0.05),
     0 10px 28px -14px rgba(10, 61, 98, 0.18);
@@ -504,21 +508,57 @@ h6 {
   border-radius: 0;
 }
 
-/* `/belajar` opts into the same sticky chrome while letting its hero sit
-   behind the transparent full-width state. The wrapped mobile navbar is
-   taller, so the offset follows the exact breakpoint where `.chrome` wraps. */
-.learner-shell--overlay {
-  --learner-chrome-height: 104px;
-}
+/* The bar's vertical footprint — the ONE number every "let my hero sit behind
+   the transparent navbar" rule offsets by. Measured, and split at the same
+   769px `.chrome` itself uses to swap to the single-row mobile bar:
 
-.learner-shell--overlay > main {
-  margin-top: calc(-1 * var(--learner-chrome-height));
+     >= 769px  48px logo        + 2 x 8px padding + 2 x 1px border = 66px
+     <  769px  44px tap target  + 2 x 8px padding + 2 x 1px border = 62px
+
+   It lives here, next to the bar and to the rules below that consume it, so
+   there is nowhere else to look for it and nothing to keep in sync. The old
+   spelling was three independent literals, none of them right, which is what
+   opened the white band at the top of `/loker` and
+   `/professional-certificates/[slug]`: those pages pulled themselves up by a
+   hand-written `-mt-[60px]` while the bar is 66px, so 6px of page background
+   showed through the `is-top` bar (which is transparent by design). Same
+   mistake in `.learner-shell--overlay`, which used 104px on mobile on the
+   premise that the bar wraps to two rows there — it does not (the mobile rules
+   set `flex-wrap: nowrap` and hide `.nav-float` / `.chrome-actions`), so 42px
+   of `/belajar/[slug]`'s hero was hidden *under* the bar instead.
+
+   Re-measure with `getBoundingClientRect().height` on `.chrome` when the bar's
+   internals change, and change it HERE only. `.chrome.is-winged` is excluded on
+   purpose: the AI Mastery bar is a different silhouette at 64px and publishes
+   its own `--app-chrome-h`. */
+:root {
+  --chrome-h: 62px;
 }
 
 @media (min-width: 769px) {
-  .learner-shell--overlay {
-    --learner-chrome-height: 60px;
+  :root {
+    --chrome-h: 66px;
   }
+}
+
+/* Pulls a page's first block up so it starts at the very top of the document
+   and the transparent `is-top` bar floats over it. Prefer this class over a
+   negative margin written by hand: the offset is read from `--chrome-h`, so it
+   cannot fall out of step with the bar the way `-mt-[60px]` did. */
+.under-chrome {
+  margin-top: calc(-1 * var(--chrome-h));
+}
+
+/* `/belajar/[slug]` opts into the same sticky chrome while letting its hero sit
+   behind the transparent full-width state. `--learner-chrome-height` survives as
+   an alias because `belajar-home.tsx` adds it to its hero padding; it resolves
+   to the same measurement and must never become a second number. */
+.learner-shell--overlay {
+  --learner-chrome-height: var(--chrome-h);
+}
+
+.learner-shell--overlay > main {
+  margin-top: calc(-1 * var(--chrome-h));
 }
 
 /* Once scrolled: floating pill. Only geometry here — the surface, its edge, its
@@ -594,12 +634,6 @@ h6 {
   .chrome.is-scrolled:not(.is-winged)::before {
     background: rgba(255, 255, 255, 0.97);
   }
-}
-
-/* Learner chrome: navbar search only exists in full-width top mode,
-   hidden once the bar morphs into the floating pill. */
-.chrome.is-scrolled .learner-search {
-  display: none;
 }
 
 /* ===== Scroll sub-header (ScrollSubNav) ===== */
@@ -1079,7 +1113,10 @@ h6 {
 @media (max-width: 768px) {
   .chrome {
     flex-wrap: nowrap;
-    min-height: 60px;
+    /* The 44px `.mobile-nav-trigger` plus this padding and `.chrome`'s 1px
+       border already reach 62px, so no `min-height` is needed — and none should
+       be added here: a second literal bar height is exactly how the offsets
+       above went stale. `--chrome-h` is the number. */
     padding: 0.5rem 0.75rem;
   }
   .mobile-sidebar-toggle,
@@ -2565,6 +2602,43 @@ h6 {
   outline: none;
 }
 
+/* The account-menu trigger in `chrome-parts.tsx`. Same cascade reason as
+   `.cari-lowongan-input` above: the global `:focus-visible` is unlayered and
+   therefore always beats `@layer utilities`, so the `focus-visible:outline-none`
+   utility that used to sit on this button never actually did anything — the
+   2px blue box was painted regardless. It is the box the navbar was asked to
+   stop drawing, and a utility cannot switch it off, hence the rule here.
+
+   Focus does not disappear with it: the trigger carries
+   `data-input="keyboard"` (set from the last real input event, see
+   `AccountMenu`) and paints a soft fill from that. Chromium reports
+   `:focus-visible` as TRUE when Radix restores focus to this button after a
+   mouse-only hover closes the menu, so a `:focus-visible`-only indicator
+   cannot be used here — it would reappear on exactly the hover path it is
+   meant to stay off. */
+.account-menu-trigger:focus,
+.account-menu-trigger:focus-visible {
+  outline: none;
+}
+
+/* …and the trigger must stay hittable while the panel is open.
+   `DropdownMenu.Root` defaults to `modal`, so Radix's `RemoveScroll` sets
+   `pointer-events: none` on `body` for as long as the menu is open — which
+   un-hittable-ifies the trigger itself. The browser then re-hit-tests,
+   fires `pointerleave` on the avatar the cursor is still resting on, the
+   hover handler schedules a close, restoring `pointer-events` re-hittable-
+   ifies the trigger and fires `pointerenter`, and the menu re-opens: a
+   ~330ms open/close flicker loop, measured at 7 cycles in 1.8s.
+
+   A descendant re-enables its own hit-testing by declaring another value
+   (pointer-events is inherited, not a hard block), so one declaration here
+   breaks the loop and leaves `modal` — and with it the focus trap and the
+   scroll lock — exactly as it was. `modal={false}` would also stop the
+   toggle, at the cost of both of those for click and keyboard users. */
+.account-menu-trigger {
+  pointer-events: auto;
+}
+
 /* The field label doubles as a floating placeholder: it sits vertically
    centered while the input is empty and untouched, then shrinks and moves to
    the top-left of the box on focus or once the field has content, instead of
@@ -3569,6 +3643,39 @@ button.tag:hover {
   padding: clamp(24px, 2.8vw, 36px) var(--page-pad) clamp(56px, 7vw, 80px);
 }
 
+.dashboard-shell .app-main.app-main-wide,
+.dashboard-shell .app-main:has(.loker-wide-layout) {
+  max-width: min(1760px, calc(100% - 2rem));
+  width: 100%;
+  padding-top: 1rem;
+  padding-bottom: 1.25rem;
+  flex: 1 1 0%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The wide inbox is a fixed-height board: the search panel, the stats and the
+   results all stay on screen, and only the two inner lists scroll. Locking the
+   shell is what makes that possible — otherwise `min-height: 100vh` on the shell
+   stacks *below* the 64px sticky chrome and the document keeps ~64px of dead
+   scroll no matter how the content is sized.
+
+   Desktop only: below `lg` the columns stack, and a locked viewport there would
+   trap the lower half of the page behind `overflow: hidden`. */
+@media (min-width: 1024px) {
+  .dashboard-shell:has(.loker-wide-layout) {
+    min-height: 0;
+    height: calc(100dvh - var(--dashboard-chrome-h));
+    overflow: hidden;
+  }
+
+  .dashboard-shell:has(.loker-wide-layout) .app-main.app-main-wide,
+  .dashboard-shell:has(.loker-wide-layout) .app-main:has(.loker-wide-layout) {
+    overflow: hidden;
+  }
+}
+
 .dashboard-shell .page-head {
   margin-bottom: 1.5rem;
 }
@@ -3822,25 +3929,30 @@ button.tag:hover {
   animation: status-pulse 3s ease-in-out infinite;
 }
 
-@keyframes guild-float {
-  0%,
-  100% {
-    transform: translateY(-3px);
-  }
-  50% {
-    transform: translateY(3px);
-  }
-}
-
-.guild-float {
-  animation: guild-float 7s ease-in-out infinite;
-}
-
+/* The agent cards' own motion is JS (see `guild-agents-motion.ts`) and is
+   already gated on `prefers-reduced-motion` via `gsap.matchMedia`, so this
+   keyframe is the only part of the section that needs the CSS opt-out. */
 @media (prefers-reduced-motion: reduce) {
-  .status-pulse,
-  .guild-float {
+  .status-pulse {
     animation: none;
   }
+}
+
+/* Clip box for every text-reveal mask on the marketing pages.
+   `SplitText`'s `mask` option — and any hand-rolled `overflow: hidden` wrapper —
+   sizes the clip to the *line box*, not the glyph ink box. Every headline here
+   runs a tight leading (1.06 to 1.25), so descenders fall outside that box and
+   get shaved: the "g" in "lowongan,", the "p" in "dibuktikan", the "g" in "Tiga".
+
+   The padding grows the clip box; the negative margin puts the line height back
+   so revealing a line never reflows the heading. One rule, not one per section:
+   three identical copies existed (0.14em, 0.16em and 0.18em), and the copy that
+   drifts is the one that silently starts clipping. Applied from JS as
+   `TEXT_MASK_CLASS` (see `src/lib/motion/gsap.ts`); also safe to write into
+   markup, which is how the two-tone h2 in `problems-solutions.tsx` uses it. */
+.text-mask {
+  padding-bottom: 0.18em;
+  margin-bottom: -0.18em;
 }
 
 .marketing-type h1,
@@ -3871,6 +3983,37 @@ button.tag:hover {
 
 .animate-infinite-scroll {
   animation: infinite-scroll 25s linear infinite;
+}
+
+/* ===== Partner logo strip (marketing home) =====
+   The mask fades the strip into the wave artwork behind it; `:hover` pauses the
+   track so a visitor who moves the pointer over it can read a name instead of
+   chasing text that keeps sliding away. The pause is scoped to this wrapper
+   rather than to each name, because the row translates continuously — a
+   per-name hover would flicker while the text is still moving, and would only
+   settle once the animation is already paused.
+
+   `prefers-reduced-motion` is handled by the `.animate-infinite-scroll` rule in
+   the block below, which drops the animation entirely. */
+.partner-marquee {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black 128px,
+    black calc(100% - 200px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black 128px,
+    black calc(100% - 200px),
+    transparent 100%
+  );
+}
+
+.partner-marquee:hover .animate-infinite-scroll {
+  animation-play-state: paused;
 }
 
 .reveal {
@@ -4290,6 +4433,11 @@ button.tag:hover {
   }
 }
 
+/* The split headline in `hero-financial.tsx` reveals word by word. SplitText
+   sizes each word mask to the word's box, so descenders (the tail of
+   "berpikir,", the bowl of "p") get shaved. This padding grows the clip box
+   without moving the word, and the negative margin puts the line height back.
+   Kept here so the mask and the headline's line-height cannot drift apart. */
 .animate-loading-skeleton {
   animation: loading-skeleton 2s ease-in-out infinite;
 }

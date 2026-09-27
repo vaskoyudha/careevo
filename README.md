@@ -53,15 +53,15 @@ Aplikasi ini masih berupa **MVP/prototipe aktif**. Sebagian domain sudah memakai
 
 ## Bukti visual
 
-Dashboard Careevo menyatukan rekomendasi kursus, lowongan, sesi belajar, skor, dan badge terverifikasi dalam satu ruang kerja:
+Halaman utama Careevo memuat ajakan mencoba satu challenge gratis, jalan menuju lowongan yang lolos cek, dan workspace AI Mastery untuk latihan interview:
 
 <p align="center">
-  <a href="docs/shots/02-dashboard.png">
-    <img src="docs/shots/02-dashboard.png" alt="Dashboard Careevo dengan kursus, lowongan, skor, sesi belajar, dan badge terverifikasi" width="860" />
+  <a href="docs/shots/20-hero-landing.png">
+    <img src="docs/shots/20-hero-landing.png" alt="Halaman utama Careevo dengan judul ajakan mencoba challenge gratis, tiga tombol aksi, dan tampilan workspace AI Mastery" width="860" />
   </a>
 </p>
 
-<p align="center"><em>Contoh dashboard learner — aset visual repository.</em></p>
+<p align="center"><em>Hero landing page — aset visual repository.</em></p>
 
 <details>
 <summary><strong>Lihat contoh alur lain</strong></summary>

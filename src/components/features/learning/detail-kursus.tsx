@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Lock, Rocket } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ModulKursus } from "@/lib/courses/kurikulum";
-import { levelLabel } from "@/lib/onboarding/types";
+import { levelLabel, tipeLabel } from "@/lib/onboarding/types";
 import { hitungProgres, irisModulSelesai } from "@/lib/courses/kurikulum";
 import { checkpointEfektif, checkpointTerverifikasi, wajibSesiTerverifikasi } from "@/lib/learning/akses";
 import { daftarKursusAction, tandaiModulAction } from "@/actions/enrollment";
@@ -446,7 +446,7 @@ function RuangBelajar({
             </span>
             <span>{kursus.provider}</span>
             <span aria-hidden="true" className="text-neutral-400">·</span>
-            <span className="capitalize">{kursus.type}</span>
+            <span>{tipeLabel(kursus.type)}</span>
           </p>
           <h1 id="judul-kursus" className="mt-2.5 max-w-3xl text-3xl font-bold tracking-tight text-neutral-950 sm:text-4xl">
             {kursus.title}

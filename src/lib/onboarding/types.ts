@@ -189,3 +189,17 @@ export function levelLabel(level: string): string {
       return level;
   }
 }
+
+/**
+ * Indonesian display label for a catalog entry `type` (`tipeKatalog`).
+ *
+ * The value is data, not copy: `ResourceFixture.type` is compared and passed
+ * around as `"video" | "artikel" | "course"`. Only the rendered label is
+ * translated, and only `course` needs it — `artikel` and `video` are already
+ * Indonesian. Lives beside `levelLabel` rather than in `courses/katalog.ts`
+ * because that module reads the course store from disk and is server-only,
+ * while the course detail page showing this badge is a client component.
+ */
+export function tipeLabel(tipe: string): string {
+  return tipe === "course" ? "Kursus" : tipe;
+}

@@ -18,6 +18,14 @@ import {
 import { HeroSubNav } from "@/components/ui/hero-subnav";
 import { DitheredHeroBackdrop } from "@/components/features/learning/dithered-hero-backdrop";
 import type { ProgramDetails } from "@/lib/courses/catalog-data";
+import {
+  kategoriProgram,
+  kredensialProgram,
+  keterampilanProgram,
+  levelProgram,
+  mulaiProgram,
+  subkategoriProgram,
+} from "@/components/features/dashboard/jelajah/format";
 
 export function ProgramDetailView({ program }: { program: ProgramDetails }) {
   return <ProgramDetail program={program} />;
@@ -27,18 +35,31 @@ export function ProgramDetailView({ program }: { program: ProgramDetails }) {
  * Isi halaman. Wrapper client hanya untuk `useRef` hero: `HeroSubNav`
  * memicunya dari elemen hero yang benar-benar keluar dari viewport, karena
  * tinggi hero di sini berubah-ubah mengikuti judul program dan jumlah seri.
+ *
+ * Kolom `type`, `level`, `startDate`, `category`, `subcategory`, dan `skills`
+ * **tidak pernah dirender apa adanya** — semuanya lewat `format.ts`. Nilai di
+ * `catalog-data.ts` sengaja tetap bahasa Inggris karena `explore-queries.ts`
+ * mencocokkannya dengan string literal untuk `/browse`, `/search`, dan
+ * `/career-academy/roles`; dengan menambahkan idiom Indonesia di sini, halaman
+ * ini berhenti menjadi satu-satunya tempat yang menampilkan "Beginner level".
  */
 function ProgramDetail({ program }: { program: ProgramDetails }) {
   const heroRef = useRef<HTMLElement>(null);
 
   return (
-    <div className="relative min-h-screen -mt-[60px] bg-white text-gray-900 overflow-x-hidden">
+    // `under-chrome`, bukan margin negatif yang diketik manual: navbar
+    // `position: sticky` memakan tinggi sungguhan di flow, dan hero di sini
+    // harus mulai tepat di y=0 agar bar transparan mengambang di atasnya. Angka
+    // yang dipakai sebelumnya (60) bukan tinggi bar — 66px di desktop, 62px di
+    // mobile — jadi enam piksel latar halaman tersingkap sebagai pita putih di
+    // atas layar. Satu pengukuran ada di `--chrome-h`; lihat `.under-chrome`.
+    <div className="under-chrome relative min-h-screen bg-white text-gray-900 overflow-x-hidden">
       <HeroSubNav
         trigger={heroRef}
-        badge={program.type}
+        badge={kredensialProgram(program.type)}
         title={program.title}
-        subtitle={`${program.seriesCount} course series · ${program.level}`}
-        cta={{ href: "/daftar", label: "Enroll for free" }}
+        subtitle={`${program.seriesCount} seri kursus · ${levelProgram(program.level)}`}
+        cta={{ href: "/daftar", label: "Daftar gratis" }}
       />
       {/* Hero Section: dithered bit field (lihat catatan di `detail-kursus.tsx`) */}
       <header
@@ -68,29 +89,29 @@ function ProgramDetail({ program }: { program: ProgramDetails }) {
 
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           {/* Top Breadcrumb Trail inside Hero */}
-          <nav aria-label="Breadcrumb" className="mb-6">
+          <nav aria-label="Jejak navigasi" className="mb-6">
             <ol className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-gray-600">
               <li className="flex items-center gap-1.5">
                 <Link href="/" className="flex items-center gap-1 text-gray-500 hover:text-gray-900 transition-colors">
                   <Home className="size-3.5" />
-                  <span className="sr-only">Home</span>
+                  <span className="sr-only">Beranda</span>
                 </Link>
                 <ChevronRight className="size-3 text-gray-400" />
               </li>
               <li className="flex items-center gap-1.5">
                 <Link href="/explore/most-popular-courses" className="hover:text-gray-900 transition-colors">
-                  Categories
+                  Kategori
                 </Link>
                 <ChevronRight className="size-3 text-gray-400" />
               </li>
               <li className="flex items-center gap-1.5">
                 <Link href="/explore/most-popular-courses" className="hover:text-gray-900 transition-colors">
-                  {program.category}
+                  {kategoriProgram(program.category)}
                 </Link>
                 <ChevronRight className="size-3 text-gray-400" />
               </li>
               <li className="text-gray-900 font-medium truncate max-w-[200px] sm:max-w-none">
-                {program.subcategory}
+                {subkategoriProgram(program.subcategory)}
               </li>
             </ol>
           </nav>
@@ -125,7 +146,7 @@ function ProgramDetail({ program }: { program: ProgramDetails }) {
                 </div>
               )}
               <span className="rounded-full bg-blue-100/80 px-2.5 py-0.5 text-xs font-semibold text-[#0056D2]">
-                {program.type}
+                {kredensialProgram(program.type)}
               </span>
             </div>
 
@@ -152,7 +173,7 @@ function ProgramDetail({ program }: { program: ProgramDetails }) {
                 />
               </div>
               <span className="text-sm text-gray-700">
-                Instructor:{" "}
+                Pengajar:{" "}
                 <Link href="#instructor" className="font-semibold text-[#0056D2]">
                   {program.instructor}
                 </Link>
@@ -165,23 +186,23 @@ function ProgramDetail({ program }: { program: ProgramDetails }) {
                 href="/daftar"
                 className="inline-flex flex-col items-center justify-center rounded-lg bg-[#0056D2] px-8 py-3 text-white shadow-md transition-all hover:bg-[#00419e] active:scale-[0.98]"
               >
-                <span className="text-base font-bold leading-tight">Enroll for free</span>
-                <span className="text-xs text-blue-100">{program.startDate}</span>
+                <span className="text-base font-bold leading-tight">Daftar gratis</span>
+                <span className="text-xs text-blue-100">{mulaiProgram(program.startDate)}</span>
               </Link>
 
               <span className="text-sm text-gray-700">
-                <strong className="text-gray-900 font-bold">{program.enrolled}</strong> already enrolled
+                <strong className="text-gray-900 font-bold">{program.enrolled}</strong> sudah mendaftar
               </span>
             </div>
 
             {/* Included with Careevo PLUS */}
             <div className="mt-4 flex items-center gap-2 text-xs sm:text-sm text-gray-600">
               <span>
-                Included with <strong className="text-[#00255D] font-bold">careevo PLUS</strong>
+                Termasuk dalam <strong className="text-[#00255D] font-bold">careevo PLUS</strong>
               </span>
               <span className="text-gray-400">•</span>
               <Link href="/careevo-plus" className="font-semibold text-[#0056D2]">
-                Learn more
+                Selengkapnya
               </Link>
             </div>
           </div>
@@ -192,10 +213,10 @@ function ProgramDetail({ program }: { program: ProgramDetails }) {
               {/* Column 1: Course series */}
               <div className="p-4 sm:p-5">
                 <div className="text-base font-bold text-gray-900 underline decoration-gray-300 underline-offset-4">
-                  {program.seriesCount} course series
+                  {program.seriesCount} seri kursus
                 </div>
                 <p className="mt-1 text-xs text-gray-500 leading-normal">
-                  Earn a career credential that demonstrates your expertise
+                  Dapatkan kredensial karier yang membuktikan keahlianmu
                 </p>
               </div>
 
@@ -206,31 +227,31 @@ function ProgramDetail({ program }: { program: ProgramDetails }) {
                   <Star className="size-4 fill-amber-400 text-amber-400" />
                 </div>
                 <p className="mt-1 text-xs text-gray-500 leading-normal">
-                  from {program.reviews || "10,000+"} reviews of courses in this program
+                  dari {program.reviews || "10,000+"} ulasan kursus dalam program ini
                 </p>
               </div>
 
               {/* Column 3: Level */}
               <div className="p-4 sm:p-5">
                 <div className="flex items-center gap-1.5 text-base font-bold text-gray-900">
-                  <span>{program.level}</span>
+                  <span>{levelProgram(program.level)}</span>
                   <Info className="size-4 text-gray-400" />
                 </div>
                 <p className="mt-1 text-xs text-gray-500 leading-normal">
-                  Recommended experience
+                  Pengalaman yang disarankan
                 </p>
               </div>
 
               {/* Column 4: Schedule */}
               <div className="p-4 sm:p-5">
                 <div className="text-base font-bold text-gray-900">
-                  {program.pace || "Flexible schedule"}
+                  {program.pace || "Jadwal fleksibel"}
                 </div>
                 <p className="mt-1 text-xs text-gray-500 leading-normal">
-                  {program.durationWeeks} weeks at {program.hoursPerWeek} hours a week
+                  {program.durationWeeks} minggu, {program.hoursPerWeek} jam per minggu
                 </p>
                 <p className="mt-0.5 text-xs text-gray-400">
-                  Learn at your own pace
+                  Belajar dengan kecepatanmu sendiri
                 </p>
               </div>
             </div>
@@ -248,7 +269,7 @@ function ProgramDetail({ program }: { program: ProgramDetails }) {
           lebih buruk. Flush tanpa celah karena strip ini lanjutan dari satu
           stack yang sama, bukan pita tersendiri. */}
       <nav
-        aria-label="Course section tabs"
+        aria-label="Tab bagian program"
         className="subnav-sticky-flush border-b border-gray-200 bg-white/95 sticky z-10 backdrop-blur-md"
       >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -257,31 +278,31 @@ function ProgramDetail({ program }: { program: ProgramDetails }) {
               href="#about"
               className="rounded-full bg-[#EBF3FF] px-4 py-1.5 text-sm font-semibold text-[#0056D2]"
             >
-              About
+              Tentang
             </Link>
             <Link
               href="#outcomes"
               className="rounded-full px-4 py-1.5 text-sm font-semibold text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
             >
-              Outcomes
+              Hasil Belajar
             </Link>
             <Link
               href="#courses"
               className="rounded-full px-4 py-1.5 text-sm font-semibold text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
             >
-              Courses
+              Kursus
             </Link>
             <Link
               href="#testimonials"
               className="rounded-full px-4 py-1.5 text-sm font-semibold text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
             >
-              Testimonials
+              Testimoni
             </Link>
             <Link
               href="#reviews"
               className="rounded-full px-4 py-1.5 text-sm font-semibold text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
             >
-              Reviews
+              Ulasan
             </Link>
           </div>
         </div>
@@ -295,7 +316,7 @@ function ProgramDetail({ program }: { program: ProgramDetails }) {
             {/* What you'll learn */}
             <section id="about" aria-labelledby="what-learn-heading" className="subnav-scroll-mt-deep rounded-2xl border border-gray-200 bg-white p-6 sm:p-8 shadow-2xs">
               <h2 id="what-learn-heading" className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900">
-                What you&apos;ll learn
+                Yang akan kamu kuasai
               </h2>
               <div className="mt-6 space-y-4">
                 {program.whatYouWillLearn.map((item, idx) => (
@@ -310,9 +331,9 @@ function ProgramDetail({ program }: { program: ProgramDetails }) {
             {/* Skills & Tools Section */}
             <section id="outcomes" className="subnav-scroll-mt-deep rounded-2xl border border-gray-200 bg-white p-6 sm:p-8 shadow-2xs space-y-8">
               <div>
-                <h3 className="text-lg sm:text-xl font-bold text-gray-900">Skills you&apos;ll gain</h3>
+                <h3 className="text-lg sm:text-xl font-bold text-gray-900">Keterampilan yang kamu dapatkan</h3>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {program.skills.map((skill) => (
+                  {keterampilanProgram(program.skills).map((skill) => (
                     <span
                       key={skill}
                       className="rounded-full border border-gray-200 bg-[#F5F7FA] px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-gray-800"
@@ -324,7 +345,7 @@ function ProgramDetail({ program }: { program: ProgramDetails }) {
               </div>
 
               <div className="border-t border-gray-100 pt-6">
-                <h3 className="text-lg sm:text-xl font-bold text-gray-900">Tools you&apos;ll learn</h3>
+                <h3 className="text-lg sm:text-xl font-bold text-gray-900">Perangkat yang akan kamu pakai</h3>
                 <div className="mt-4 flex flex-wrap gap-2">
                   {program.tools.map((tool) => (
                     <span
@@ -342,10 +363,10 @@ function ProgramDetail({ program }: { program: ProgramDetails }) {
             <section id="courses" aria-labelledby="courses-heading" className="subnav-scroll-mt-deep space-y-6">
               <div>
                 <h2 id="courses-heading" className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
-                  Courses in this {program.type}
+                  Kursus dalam {kredensialProgram(program.type)} ini
                 </h2>
                 <p className="mt-1 text-sm text-gray-600">
-                  This program contains {program.seriesCount} courses that prepare you for verified mastery.
+                  Program ini berisi {program.seriesCount} kursus yang disiapkan untuk penguasaan terverifikasi.
                 </p>
               </div>
 
@@ -368,7 +389,7 @@ function ProgramDetail({ program }: { program: ProgramDetails }) {
                       </div>
                       <div>
                         <div className="flex items-center gap-2 text-xs font-semibold text-[#0056D2]">
-                          <span>Course {c.number}</span>
+                          <span>Kursus {c.number}</span>
                           <span>•</span>
                           <span className="text-gray-500">{c.hours}</span>
                         </div>
@@ -390,7 +411,7 @@ function ProgramDetail({ program }: { program: ProgramDetails }) {
                         href="/daftar"
                         className="text-xs font-bold text-[#0056D2]"
                       >
-                        Explore course →
+                        Lihat kursus →
                       </Link>
                     </div>
                   </div>
@@ -401,7 +422,7 @@ function ProgramDetail({ program }: { program: ProgramDetails }) {
             {/* Instructor Section */}
             <section id="instructor" className="subnav-scroll-mt-deep rounded-2xl border border-gray-200 bg-white p-6 sm:p-8 shadow-2xs">
               <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900">
-                Instructor
+                Pengajar
               </h2>
               <div className="mt-6 flex flex-col gap-5 sm:flex-row sm:items-start">
                 <div className="relative size-20 shrink-0 overflow-hidden rounded-full border border-gray-200">
@@ -434,40 +455,40 @@ function ProgramDetail({ program }: { program: ProgramDetails }) {
                 (131-188px) dan menutupi 53px kepalanya. */}
             <div className="subnav-sticky-deep sticky rounded-2xl border border-gray-200 bg-white p-6 shadow-sm space-y-6">
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Program Details</h3>
-                <p className="mt-1 text-xs text-gray-500">Everything you need to know before starting.</p>
+                <h3 className="text-lg font-bold text-gray-900">Detail Program</h3>
+                <p className="mt-1 text-xs text-gray-500">Semua yang perlu kamu tahu sebelum mulai.</p>
               </div>
 
               <div className="space-y-4 border-t border-gray-100 pt-4 text-sm">
                 <div className="flex items-start gap-3">
                   <Award className="size-5 shrink-0 text-[#0056D2] mt-0.5" />
                   <div>
-                    <strong className="block text-gray-900 font-semibold">Shareable Certificate</strong>
-                    <span className="text-xs text-gray-600">Add directly to your LinkedIn profile or Careevo Attestation CV.</span>
+                    <strong className="block text-gray-900 font-semibold">Sertifikat untuk Portofolio</strong>
+                    <span className="text-xs text-gray-600">Tambahkan langsung ke profil LinkedIn atau CV Atestasi Careevo.</span>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3">
                   <Globe2 className="size-5 shrink-0 text-[#0056D2] mt-0.5" />
                   <div>
-                    <strong className="block text-gray-900 font-semibold">Taught in English</strong>
-                    <span className="text-xs text-gray-600">Subtitles and transcripts available in multiple languages.</span>
+                    <strong className="block text-gray-900 font-semibold">Materi dalam Bahasa Inggris</strong>
+                    <span className="text-xs text-gray-600">Subtitle dan transkrip tersedia dalam beberapa bahasa.</span>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3">
                   <Sparkles className="size-5 shrink-0 text-[#0056D2] mt-0.5" />
                   <div>
-                    <strong className="block text-gray-900 font-semibold">Updated Regularly</strong>
-                    <span className="text-xs text-gray-600">Current syllabus featuring modern AI tools and practical frameworks.</span>
+                    <strong className="block text-gray-900 font-semibold">Diperbarui Rutin</strong>
+                    <span className="text-xs text-gray-600">Silabus terkini dengan perangkat AI modern dan kerangka kerja praktis.</span>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3">
                   <ShieldCheck className="size-5 shrink-0 text-[#0056D2] mt-0.5" />
                   <div>
-                    <strong className="block text-gray-900 font-semibold">HMAC Attestation Verified</strong>
-                    <span className="text-xs text-gray-600">Tamper-proof completion attestations verifiable by employers.</span>
+                    <strong className="block text-gray-900 font-semibold">Atestasi HMAC Terverifikasi</strong>
+                    <span className="text-xs text-gray-600">Atestasi penyelesaian yang tahan diubah dan dapat diverifikasi oleh perekrut.</span>
                   </div>
                 </div>
               </div>
@@ -477,11 +498,11 @@ function ProgramDetail({ program }: { program: ProgramDetails }) {
                   href="/daftar"
                   className="chrome-btn chrome-btn-brand w-full !h-12 !text-base"
                 >
-                  <span>Enroll in Program</span>
+                  <span>Daftar ke Program</span>
                   <ArrowRight className="size-4" />
                 </Link>
                 <p className="mt-2 text-center text-xs text-gray-500">
-                  Try free for 7 days, cancel anytime.
+                  Coba gratis 7 hari, batalkan kapan saja.
                 </p>
               </div>
             </div>

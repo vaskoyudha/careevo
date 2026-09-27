@@ -3,20 +3,46 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { TimelineAnimation } from "@/components/ui/hero-financial-utils/timeline-animation";
+import { useHeroMotion } from "@/components/ui/hero-financial-utils/hero-motion";
 import { EcommerceDash } from "@/components/ui/hero-financial-utils/assets-index";
 
 export const HeroFinancial = () => {
-  const timelineRef = React.useRef<HTMLDivElement>(null);
+  const sectionRef = React.useRef<HTMLElement>(null);
+  const headlineRef = React.useRef<HTMLHeadingElement>(null);
+  const backdropRef = React.useRef<HTMLDivElement>(null);
+
+  /**
+   * Entrance order, in reading order. `useHeroMotion` staggers these by DOM
+   * position, so the list is the single place the sequence is defined — the
+   * previous per-child `animationNum` prop let the third CTA and the dashboard
+   * frame share a number and land together.
+   */
+  const sequence = React.useRef<(HTMLElement | null)[]>([]);
+  const step = React.useCallback(
+    (index: number) => (el: HTMLElement | null) => {
+      sequence.current[index] = el;
+    },
+    [],
+  );
+
+  useHeroMotion({
+    section: sectionRef,
+    headline: headlineRef,
+    backdrop: backdropRef,
+    sequence,
+  });
 
   return (
     <section
-      ref={timelineRef}
+      ref={sectionRef}
       aria-labelledby="hero-title"
       className="relative flex min-h-screen min-h-[100svh] flex-col items-center bg-white text-[#1e293b]"
     >
       {/* Mountain Backdrop */}
-      <div className="pointer-events-none absolute inset-x-0 -top-28 z-0 h-[640px] sm:h-[780px] md:h-[920px] lg:h-[1050px] w-full overflow-hidden select-none">
+      <div
+        ref={backdropRef}
+        className="pointer-events-none absolute inset-x-0 -top-28 z-0 h-[640px] sm:h-[780px] md:h-[920px] lg:h-[1050px] w-full overflow-hidden select-none"
+      >
         <Image
           src="/images/hero-mountain.png"
           alt="Careevo hero background"
@@ -32,9 +58,8 @@ export const HeroFinancial = () => {
 
       {/* Hero Content */}
       <div className="relative z-10 flex w-full flex-col gap-6 px-4 pt-24 pb-16 text-center">
-        <TimelineAnimation
-          animationNum={1}
-          timelineRef={timelineRef}
+        <div
+          ref={step(0)}
           className="bg-white w-fit mx-auto text-black px-1.5 py-1 rounded-full inline-flex items-center gap-2 shadow-lg shadow-blue-500/20 border-2 border-white"
         >
           <span className="bg-neutral-900 text-white px-2 py-0.5 rounded-full text-xs font-medium uppercase tracking-widest">
@@ -43,79 +68,65 @@ export const HeroFinancial = () => {
           <span className="text-sm font-medium">
             Latihan interview kerja, satu challenge per minggu
           </span>
-        </TimelineAnimation>
+        </div>
 
-        <TimelineAnimation
-          as="h1"
+        <h1
+          ref={headlineRef}
           id="hero-title"
-          animationNum={2}
-          timelineRef={timelineRef}
           className="mx-auto w-full max-w-4xl text-balance text-4xl font-medium tracking-tight text-neutral-900 sm:text-5xl md:text-6xl"
         >
-          Perusahaan mau lihat cara kamu berpikir,
-          <br />
-          bukan cuma proyek dan sertifikat usaha dari AI
-        </TimelineAnimation>
+          Perusahaan mau lihat cara kamu berpikir, bukan cuma proyek dan
+          sertifikat usaha dari AI
+        </h1>
 
-        <TimelineAnimation
-          as="p"
-          animationNum={3}
-          timelineRef={timelineRef}
+        <p
+          ref={step(1)}
           className="mx-auto w-full max-w-2xl px-4 text-base font-medium leading-relaxed text-neutral-500 md:text-lg"
         >
           Setiap keputusan kodemu dicatat, termasuk yang salah dan kamu perbaiki
           sendiri. Perusahaan bisa buka rekamannya lewat satu tautan.
-        </TimelineAnimation>
+        </p>
 
         <div className="flex w-full flex-wrap justify-center gap-3 sm:gap-4">
-          <TimelineAnimation
-            as={Link}
+          <Link
+            ref={step(2)}
             href="/daftar"
-            animationNum={4}
-            timelineRef={timelineRef}
             className="grad-btn rounded-lg px-4 py-2.5 text-base transition"
           >
             Cobain satu challenge, gratis
-          </TimelineAnimation>
-          <TimelineAnimation
-            as={Link}
+          </Link>
+          <Link
+            ref={step(3)}
             href="/loker"
-            animationNum={5}
-            timelineRef={timelineRef}
             className="rounded-lg border border-neutral-300 bg-linear-to-br from-neutral-50 via-neutral-100 to-neutral-300 px-4 py-2.5 text-base text-black shadow-sm transition"
           >
             Lihat loker yang lolos cek
-          </TimelineAnimation>
-          <TimelineAnimation
-            as={Link}
+          </Link>
+          <Link
+            ref={step(4)}
             href="/jelajah"
-            animationNum={6}
-            timelineRef={timelineRef}
             className="rounded-lg border border-neutral-300 bg-linear-to-br from-neutral-50 via-neutral-100 to-neutral-300 px-4 py-2.5 text-base text-black shadow-sm transition"
           >
             Jelajahi kursus
-          </TimelineAnimation>
+          </Link>
         </div>
       </div>
 
       {/* Dashboard UI Frame */}
       <div className="relative mx-auto mt-10 w-full max-w-7xl rounded-xl">
-        <TimelineAnimation
-          animationNum={6}
-          timelineRef={timelineRef}
+        <div
+          ref={step(5)}
           className="rounded-2xl bg-white/50 backdrop-blur-lg p-4"
         >
-          <TimelineAnimation
-            as="img"
-            animationNum={7}
-            timelineRef={timelineRef}
+          <Image
+            ref={step(6)}
             src={EcommerceDash.src}
             alt={EcommerceDash.alt}
             width={EcommerceDash.width}
             height={EcommerceDash.height}
             className="w-full relative z-4 rounded-2xl"
           />
-        </TimelineAnimation>
+        </div>
       </div>
     </section>
   );
