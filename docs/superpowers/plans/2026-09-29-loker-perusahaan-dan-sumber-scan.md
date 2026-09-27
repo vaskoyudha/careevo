@@ -633,7 +633,7 @@ Same rule as Task 2 Step 7: the Task 3 edits are **not committed yet**, so back 
 
 ```bash
 cp src/lib/career-ops/portals-careevo.yml /tmp/opencode/portals-careevo.bak.yml
-sed -i 's/^    maxPages: 12$/    maxPages: 3$/' src/lib/career-ops/portals-careevo.yml
+sed -i 's/^    maxPages: 12$/    maxPages: 3/' src/lib/career-ops/portals-careevo.yml
 npx vitest run src/lib/career-ops/portals-careevo.test.ts
 ```
 
