@@ -273,13 +273,19 @@ describe("MateriShell", () => {
     const html = render();
     // Baris flex di bawah bar fokus wajib punya rantai `min-h-0`: tanpa itu
     // kolom-kolom flex menolak menyusut di bawah tinggi isinya.
-    expect(html).toContain('<div class="flex min-h-0 flex-1">');
-    // Pane masuk ke kolom baca.
-    expect(html).toContain('<main class="min-w-0 flex-1');
+    expect(html).toContain('<div class="relative flex min-h-0 flex-1">');
+    // Pane masuk ke kolom baca. `h-full` penting sejak bar kaki dikeluarkan dari
+    // aliran: `main` kini satu-satunya penentu tinggi di dalam pembungkus
+    // `relative`, dan tanpa `h-full` ia runtuh ke tinggi isinya sehingga
+    // `overflow-y-auto`-nya tidak pernah menggulir.
+    expect(html).toContain('<main class="h-full min-w-0 overflow-y-auto');
     expect(html).toContain("Isi modul.");
-    // Drawer adalah `<aside>` **saudara** main di dalam satu baris flex, bukan
-    // portal/overlay: itu yang membuat docking `xl` Task 6 bekerja — ia
-    // menggeser pane, bukan menutupinya.
+    // Drawer adalah `<aside>` **saudara** pembungkus baca di dalam satu baris
+    // flex, bukan portal: pembungkus `relative` itu adalah containing block-nya
+    // di `xl` (`.reader-drawer` di globals.css), jadi baris baca — bukan
+    // viewport — yang menentukan tinggi drawer, dan `top: 0` berarti "tepat di
+    // bawah bar fokus". Drawer sengaja di luar pembungkus baca supaya bar kaki
+    // yang `absolute` tidak pernah mengukur/merambah ke area drawer.
     expect(html).toMatch(/<aside id="drawer-tutor"[^>]*class="[^"]*\bhidden\b/);
   });
 

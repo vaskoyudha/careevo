@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { RefreshCw, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { jalankanScanAction, type HasilScanAction } from "@/actions/inbox";
 import { filterInbox } from "@/lib/jobs/kueri-inbox";
@@ -24,7 +24,6 @@ import {
   type VerdictLoker,
 } from "@/components/features/jobs/cari-lowongan-ui";
 import {
-  KepalaCariLoker,
   KosongLoker,
   PanelCariLoker,
   RingkasanLoker,
@@ -39,8 +38,12 @@ import { cn } from "@/lib/utils";
 
 const PILIHAN_STATUS = ["Aman", "Perlu ditinjau", "Belum diperiksa", "Ditolak"] as const;
 
+// Menyebut letaknya, bukan sekadar namanya: pemicunya kini ikon saja di dalam
+// kotak pencarian, jadi "tekan tombol Pindai lowongan baru" tidak lagi berguna
+// bagi orang yang mencari tulisan itu di layar. Yang ditunjuk adalah ikon
+// kaca-pembesar-pindai, tepat di sebelah kanan kotak cari.
 const KOSONG_BELUM_PINDAI =
-  "Tekan “Pindai lowongan baru” untuk mengambil lowongan dari papan publik KarirHub, Glints, Jobstreet, dan ATS publik.";
+  "Tekan ikon pindai di sebelah kanan kotak pencarian untuk mengambil lowongan dari papan publik KarirHub, Glints, Jobstreet, dan ATS publik.";
 const KOSONG_PESAN_DEFAULT =
   "Coba ubah kata kunci, lokasi, atau kategori pekerjaan untuk menemukan peluang yang lebih banyak.";
 
@@ -122,35 +125,25 @@ export function InboxList({
   return (
     <div className="relative flex-1 flex flex-col w-full min-h-0">
       {/*
-        Header + tombol pindai, SELALU terlihat.
+        Tidak ada header halaman yang terlihat di sini: judul "Lowongan
+        ditemukan", subjudul, lencana "JOB SEEKER", dan catatan tangan
+        dekoratifnya sudah dilepas. Nama halaman tetap hidup di chip navbar
+        (`AppShell` → `pageLabel` dari `PAGE_LABELS["/loker"]`).
 
-        Tombol ini dulu hanya dirender di dalam empty-state, sehingga ia hanya
-        bisa dijangkau saat inbox benar-benar kosong dan belum pernah ada
-        riwayat scan. Begitu sebuah scan berhasil menambahkan baris, tombolnya
-        hilang dan tidak ada lagi cara memicu scan dari UI — lowongan berhenti
-        bertambah selamanya. Satu-satunya pemanggil `jalankanScanAction` di
-        seluruh aplikasi ada di sini, jadi gate itu mematikan seluruh fitur,
-        bukan hanya tombolnya.
+        Judulnya tetap ada sebagai `<h1 className="sr-only">`, bukan dihapus
+        seluruhnya: halaman tanpa satu pun heading level 1 kehilangan namanya
+        untuk pembaca layar yang menavigasi lewat daftar heading, dan chip
+        navbar bukan bagian dari konten. Yang dilepas adalah tampilannya, bukan
+        strukturnya.
 
-        Karena itu tombol pindai berdiri sendiri di header dan empty-state di
-        bawah tidak mengulanginya (dua tombol untuk satu aksi adalah tombol
-        yang cepat atau lambat berbeda perilaku).
+        Pemicu scan ikut pindah ke dalam kartu pencarian (`PanelCariLoker`),
+        tepat di samping kotak teks. Ia dulu berdiri sendiri di header, dan
+        bahayanya sudah tercatat di `inbox-list.scan-trigger.test.ts`: begitu
+        ia menjadi bagian dari header yang bersyarat, seluruh fitur mati tanpa
+        satu pun error. Karena itu ia sekarang adalah bagian tetap dari baris
+        pertama kartu cari, yang dirender tanpa cabang.
       */}
-      <KepalaCariLoker
-        aksi={
-          <Button
-            type="button"
-            variant="brand"
-            size="pill"
-            disabled={pending}
-            onClick={pindai}
-            className="gap-2 shadow-sm font-semibold text-sm"
-          >
-            <RefreshCw className={cn("size-4", pending && "animate-spin")} />
-            {pending ? "Memindai…" : "Pindai lowongan baru"}
-          </Button>
-        }
-      />
+      <h1 className="sr-only">Lowongan ditemukan</h1>
 
       {/* Background Decorative Soft Sky-Blue Waves matching the design */}
       <svg
@@ -208,8 +201,13 @@ export function InboxList({
           onBukaDetail={setDetailUrl}
         />
 
-        {/* Kolom Kanan: Saringan, Ringkasan, dan Hasil Pencarian */}
-        <div className="flex-1 min-w-0 w-full flex flex-col gap-3 h-full lg:min-h-0 lg:overflow-y-auto">
+        {/* Kolom Kanan: Saringan, Ringkasan, dan Hasil Pencarian.
+
+            `h-full` hanya berlaku di `lg`, sama seperti kolom rekomendasi:
+            di mobile kedua kolom ditumpuk di dalam satu flex-column yang
+            tingginya auto, dan tinggi persen di sana hanya menyelesaikan ke
+            tinggi tumpukan itu — bukan ke isi kolomnya sendiri. */}
+        <div className="flex-1 min-w-0 w-full flex flex-col gap-3 lg:h-full lg:min-h-0 lg:overflow-y-auto">
           <PanelCariLoker
             draft={draft}
             onDraft={setDraft}
@@ -237,6 +235,8 @@ export function InboxList({
             total={antrean.length}
             onBukaDaftar={() => setDaftarTerbuka(true)}
             refKueri={refKueri}
+            pending={pending}
+            onPindai={pindai}
           />
 
           <RingkasanLoker
@@ -254,7 +254,7 @@ export function InboxList({
           */}
           {kosong ? (
             !adaRiwayat && antrean.length === 0 ? (
-              // Tombol pindai sudah ada di header dan selalu terlihat, jadi
+              // Pemicu pindai hidup di dalam kotak cari di atas, jadi
               // empty-state ini menjelaskan saja — tidak mengulang aksinya.
               <KosongLoker
                 judul="Belum pernah dipindai"
@@ -283,9 +283,9 @@ export function InboxList({
               </KosongLoker>
             )
           ) : (
-            <section className="flex-1 lg:min-h-0 flex flex-col rounded-[var(--radius-dock)] border border-slate-200/90 bg-white p-5 shadow-sm m-0 mt-0">
-              <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
-                <p className="text-sm font-medium text-slate-600" aria-live="polite">
+            <section className="flex-1 lg:min-h-0 flex flex-col rounded-[var(--radius-dock)] border border-slate-200/90 bg-white p-4 shadow-sm m-0 mt-0 sm:p-5">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-slate-100 pb-3">
+                <p className="min-w-0 text-sm font-medium text-slate-600" aria-live="polite">
                   Menampilkan <strong className="text-slate-900">{tersaring.length}</strong> dari{" "}
                   {antrean.length} lowongan
                   {kueri.trim() ? (
@@ -307,7 +307,7 @@ export function InboxList({
                     setPerusahaan("");
                     setStatus("");
                   }}
-                  className="text-xs text-slate-500 hover:text-red-600"
+                  className="h-11 shrink-0 rounded-lg px-3 text-xs text-slate-500 hover:text-red-600 pointer-fine:h-6 pointer-fine:px-2"
                 >
                   Reset filter
                 </Button>

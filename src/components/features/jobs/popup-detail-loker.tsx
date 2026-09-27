@@ -83,14 +83,19 @@ export function PopupDetailLoker({
       onClick={(e) => {
         if (e.target === e.currentTarget) onTutup();
       }}
-      className="m-auto max-h-[min(88dvh,940px)] w-[min(1120px,calc(100vw-2rem))] max-w-none overflow-y-auto overflow-x-hidden rounded-2xl border border-neutral-300 bg-white p-0 shadow-[0_24px_64px_color-mix(in_srgb,var(--foreground)_28%,transparent)] backdrop:bg-[color-mix(in_srgb,var(--foreground)_45%,transparent)] backdrop:backdrop-blur-sm"
+      /* Papan dialog nyaris memenuhi layar di mobile, dengan alasan yang sama
+         seperti `DaftarLokerLayarPenuh`: kartunya sudah punya batas sendiri
+         dan 16px padding di tiap sisi adalah lebar yang hilang dari judul
+         lowongan. Dibatasi tinggi supaya isi yang panjang tetap menggulir di
+         dalam panel, bukan mendorong halaman. */
+      className="m-auto max-h-[min(92dvh,940px)] w-full max-w-none overflow-y-auto overflow-x-hidden rounded-none border border-neutral-300 bg-white p-0 shadow-[0_24px_64px_color-mix(in_srgb,var(--foreground)_28%,transparent)] backdrop:bg-[color-mix(in_srgb,var(--foreground)_45%,transparent)] backdrop:backdrop-blur-sm sm:w-[min(1120px,calc(100vw-2rem))] sm:rounded-2xl"
     >
       <div className="relative">
         <button
           type="button"
           onClick={onTutup}
           aria-label="Tutup detail lowongan"
-          className="absolute top-3 right-3 z-10 inline-flex size-9 items-center justify-center rounded-full border border-neutral-200 bg-white/90 text-neutral-500 transition-colors hover:border-neutral-300 hover:text-neutral-900"
+          className="absolute top-3 right-3 z-10 inline-flex size-11 items-center justify-center rounded-full border border-neutral-200 bg-white/90 text-neutral-500 transition-colors hover:border-neutral-300 hover:text-neutral-900 pointer-fine:size-9"
         >
           <X className="size-4" aria-hidden />
         </button>
@@ -235,7 +240,7 @@ export function PopupDetailLoker({
                     type="button"
                     onClick={buatJalur}
                     disabled={pendingJalur}
-                    className="chrome-btn chrome-btn-brand !h-9 !px-4 !text-xs gap-1.5 disabled:opacity-60"
+                    className="chrome-btn chrome-btn-brand pointer-coarse:!h-11 !h-9 !px-4 !text-xs gap-1.5 disabled:opacity-60"
                   >
                     {pendingJalur ? (
                       <Loader2 className="size-3.5 animate-spin" aria-hidden />

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useCourseSession, CourseSessionPrompt } from "./course-session";
 import { MateriFocusBar } from "./materi-focus-bar";
 import { ReaderPanelSilabus } from "./reader-silabus";
+import { MateriFootBar } from "./materi-foot-bar";
 import { TutorDrawer } from "./tutor-drawer";
 import { KejadianPanel } from "./kejadian-panel";
 import { useSelesaikanModul } from "./selesaikan-modul";
@@ -228,33 +229,61 @@ export function MateriShell({
         tombolSilabusRef={tombolSilabusRef}
       />
 
-      {/* Strip sesi (status + catatan yang bisa dibuka). Menyembunyikan dirinya
-          sendiri saat status bukan `aktif` dan tanpa celah, jadi jarak di
-          bawahnya tidak menyisakan rongga kosong di kursus `opsional`. */}
-      <div className="px-3 pt-3 sm:px-5">
-        <KejadianPanel />
-      </div>
+      {/* Strip sesi (status + catatan yang bisa dibuka).
 
-      <div className="flex min-h-0 flex-1">
-        <main className="min-w-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
-          <div className="mx-auto w-full max-w-3xl space-y-6">
-            {/* Ajakan memulai sesi, tepat di atas kartu materi.
-                Dulu ia tinggal di bar fokus yang `sticky`, dan di situ kartu
-                amber setinggi beberapa baris menutupi judul modul selama
-                seluruh halaman digulir — persis saat peserta membacanya.
-                `CourseSessionPrompt` sudah menyembunyikan dirinya saat sesi
-                berjalan, jadi ia tidak pernah menumpuk dengan `KejadianPanel`
-                di atas: keduanya tidak tampil bersamaan.
+         Jorongnya (`mx-3 mt-3 sm:mx-5`) ada di `KejadianPanel` itu
+          sendiri, bukan di pembungkus di sini. Pembungkus selalu dirender —
+          sedangkan `KejadianPanel` mengembalikan `null` saat sesi tidak berjalan
+          dan belum ada celah — jadi `pt-3`-nya tetap menyisakan pita 12px di
+          atas baris baca pada course `opsional`. Di `xl` pita itu juga yang
+          mendorong tepi atas drawer tutor 12px lebih rendah dari bar fokus,
+          padahal drawer itu sekarang menempel ke baris baca. */}
+      <KejadianPanel />
 
-                Jaraknya dari `space-y-6` pembungkus ini, **bukan** `mb` pada
-                elemennya sendiri: course `opsional` membuat komponen ini
-                mengembalikan `null`, dan `mb` yang menempel padanya akan
-                menyisakan rongga kosong di atas kartu pertama. `space-y-6`
-                hanya memberi jarak ke saudara yang benar-benar dirender. */}
-            <CourseSessionPrompt />
-            {children}
-          </div>
-        </main>
+      {/* Baris baca. `relative` bukan hanya untuk bar kaki: di `xl` ia juga
+          containing block drawer tutor, sehingga `top: 0` pada drawer berarti
+          "tepat di bawah bar fokus" dan `bottom: 0` berarti "tepat di dasar
+          tampilan" — bukan 16px di dalam viewport, yang pernah menutupi tombol
+          "Selesai" milik bar itu sendiri. */}
+      <div className="relative flex min-h-0 flex-1">
+        {/* Pembungkus `relative` untuk area baca saja, sehingga bar kaki
+            diposisikan `absolute` terhadap **wilayah baca** dan tidak pernah
+            ikut bergeser ke dalam area drawer. Bar kaki juga tidak boleh bergerak
+            untuk accommodate drawer: di `xl` ia naik ke `z-index: 45` di atas
+            drawer, bukan menyingkir ke samping. */}
+        <div className="relative min-w-0 flex-1">
+          <main className="h-full min-w-0 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
+            <div className="mx-auto w-full max-w-3xl space-y-6">
+              {/* Ajakan memulai sesi, tepat di atas kartu materi.
+                  Dulu ia tinggal di bar fokus yang `sticky`, dan di situ kartu
+                  amber setinggi beberapa baris menutupi judul modul selama
+                  seluruh halaman digulir — persis saat peserta membacanya.
+                  `CourseSessionPrompt` sudah menyembunyikan dirinya saat sesi
+                  berjalan, jadi ia tidak pernah menumpuk dengan `KejadianPanel`
+                  di atas: keduanya tidak tampil bersamaan.
+
+                  Jaraknya dari `space-y-6` pembungkus ini, **bukan** `mb` pada
+                  elemennya sendiri: course `opsional` membuat komponen ini
+                  mengembalikan `null`, dan `mb` yang menempel padanya akan
+                  menyisakan rongga kosong di atas kartu pertama. `space-y-6`
+                  hanya memberi jarak ke saudara yang benar-benar dirender. */}
+              <CourseSessionPrompt />
+              {children}
+            </div>
+          </main>
+
+          {/* Bar kaki hidup di dalam area baca supaya `absolute`-nya mengacu ke
+              sini, dan `main` di atasnya (yang menggulir) memberi tinggi. */}
+          <MateriFootBar
+            slug={slug}
+            modulSemua={modul}
+            modulAktif={modulAktif.id}
+            drawerBuka={drawerBuka}
+            onToggleDrawer={() => setDrawerBuka((v) => !v)}
+            bolehTutor={keputusanTutor.tipe === "bebas"}
+            alasanTutor={keputusanTutor.tipe === "ditolak" ? keputusanTutor.pesan : undefined}
+          />
+        </div>
 
         <TutorDrawer
           src={tutorSrc}

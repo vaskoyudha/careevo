@@ -29,10 +29,20 @@ import { cn } from "@/lib/utils";
  * `boleh` false — frame yang dimuat lalu ditutup tetap sudah memanggil backend.
  */
 
-/** Lebar default drawer; sama dengan lebar tetap DeepTutor sebelum bisa di-resize. */
-const LEBAR_BAWAAN = 400;
-const LEBAR_MIN = 300;
-const LEBAR_MAKS = 640;
+/**
+ * Lebar default drawer.
+ *
+ * Dinaikkan dari 400px ke 520px: sejak drawer-nya mengapung (bukan lagi
+ * ter-dock), lebarnya tidak lagi mengambil ruang dari kolom baca, jadi tidak ada
+ * alasan untuk tetap sempit. Isinya juga bukan lagi panel samping yang sempit
+ * tapi aplikasi chat AI Mastery utuh — pada 400px composer dan daftar sarananya
+ * terasa sesak. `LEBAR_MAKS` naik mengikuti supaya pengguna masih punya ruang
+ * melebarkan, dan `maxWidth: 92vw` di bawah tetap menjaganya tidak melewati
+ * viewport pada layar 1280px.
+ */
+const LEBAR_BAWAAN = 520;
+const LEBAR_MIN = 320;
+const LEBAR_MAKS = 760;
 const KUNCI_SIMPAN = "careevo.reader.tutorWidth";
 
 export function TutorDrawer({
@@ -59,7 +69,9 @@ export function TutorDrawer({
     if (typeof window === "undefined") return LEBAR_BAWAAN;
     try {
       const tersimpan = Number(window.localStorage.getItem(KUNCI_SIMPAN));
-      return Number.isFinite(tersimpan) && tersimpan >= LEBAR_MIN && tersimpan <= LEBAR_MAKS
+      return Number.isFinite(tersimpan) &&
+        tersimpan >= LEBAR_MIN &&
+        tersimpan <= LEBAR_MAKS
         ? tersimpan
         : LEBAR_BAWAAN;
     } catch {
@@ -68,6 +80,24 @@ export function TutorDrawer({
     }
   });
   const mulaiRef = useRef<{ x: number; lebar: number } | null>(null);
+
+  /**
+   * Lebar drawer **tidak** dipublikasikan ke CSS.
+   *
+   * Pernah ada: sebuah efek menulis `--reader-drawer-w` ke `:root` setiap lebar
+   * berubah, dan `.reader-foot-bar` memakainya untuk memusatkan diri di kolom
+   * baca yang tidak tertutup drawer. Channel itu dihapus bersama slidnya —
+   * membuka tutor menggeser pusat bar kaki dari `756` ke `260` pada `1280`.
+   *
+   * Alasannya bukan sekadar selera. CSS tidak bisa membaca lebar saudaranya, jadi
+   * satu-satunya saluran ke `.reader-foot-bar` adalah properti kustom — dan
+   * begitu ada properti seperti itu, CSS **wajib** bergerak setiap kali drawer
+   * bergerak. Tidak ada rumus yang memenuhi syarat itu tanpa menggeser bar.
+   *
+   * Yang menggantikannya adalah lapisan: di `xl` bar kaki naik ke `z-index: 45`,
+   * di atas drawer, jadi tombolnya tetap terjangkau tanpa berpindah satu piksel
+   * pun. Lihat catatan `.reader-foot-bar` di `globals.css`.
+   */
 
   /**
    * `Escape` menutup drawer — pola yang sama dengan mode belajar DeepTutor.
@@ -85,8 +115,57 @@ export function TutorDrawer({
     return () => document.removeEventListener("keydown", padaTombol);
   }, [buka, onTutup]);
 
+  /**
+   * Fase menutup, supaya animasi keluar punya waktu untuk terlihat.
+   *
+   * Tanpa ini, menekan tombol langsung memasang utility `hidden` dan drawer-nya
+   * lenyap tanpa gerak sama sekali — hanya animasi masuk yang terlihat, dan itu
+   * justru terbaca seperti panel yang lupa tertutup. Polanya persis milik panel
+   * silabus (`reader-silabus.tsx`): `hidden` dilepas lebih dulu, lalu dipasang
+   * lagi setelah `animationend`.
+   *
+   * **Yang tidak berubah: iframe tidak pernah di-unmount.** Fase ini hanya
+   * menahan pergantian *kelas*; `<iframe>` tetap ada di pohon React sepanjang
+   * animasi, jadi transkrip dan WebSocket tidak tersentuh.
+   *
+   * Di-reset **saat render**, bukan di dalam effect: `setState` sinkron di effect
+   * ditolak lint repo ini (`react-hooks/set-state-in-effect`), alasan yang sama
+   * dengan yang sudah dicatat di `materi-shell.tsx` dan `reader-silabus.tsx`.
+   */
+  const [bukaSebelumnya, setBukaSebelumnya] = useState(buka);
+  const [sedangMenutup, setSedangMenutup] = useState(false);
+  if (bukaSebelumnya !== buka) {
+    setBukaSebelumnya(buka);
+    // Dibuka lagi di tengah animasi keluar: fase menutup dibatalkan di sini.
+    // Kalau tidak, penandanya tertinggal dan penutupan **berikutnya** dimulai
+    // dari keadaan yang salah.
+    setSedangMenutup(bukaSebelumnya && !buka);
+  }
+  const tampil = buka || sedangMenutup;
+
+  /**
+   * Jaring pengaman kalau `animationend` tidak pernah datang.
+   *
+   * `animation-name` yang ditimpa, animasi yang dihentikan elemen induk, atau
+   * peramban yang tidak menjalankannya bisa membuat penanda itu tertinggal
+   * `true` selamanya: panelnya sudah `translateX(100%)` sehingga tidak terlihat,
+   * tapi satu elemen tetap ter-mount. Batasnya sengaja lebih longgar dari durasi
+   * animasinya supaya jalur normal selalu menang lebih dulu. Tidak ada jaring
+   * khusus reduced-motion: blok global `prefers-reduced-motion` membuat animasi
+   * selesai seketika, jadi `animationend` yang sampai lebih dulu.
+   */
+  useEffect(() => {
+    if (!sedangMenutup || buka) return;
+    const id = window.setTimeout(() => setSedangMenutup(false), 400);
+    return () => window.clearTimeout(id);
+  }, [sedangMenutup, buka]);
+
+  /** Gestur resize sedang berjalan — hanya untuk sorotan gagang. */
+  const [menyeret, setMenyeret] = useState(false);
+
   const mulaiResize = (e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
+    setMenyeret(true);
     mulaiRef.current = { x: e.clientX, lebar };
     const padaGerak = (ev: PointerEvent) => {
       const mulai = mulaiRef.current;
@@ -98,7 +177,9 @@ export function TutorDrawer({
     const padaLepas = () => {
       window.removeEventListener("pointermove", padaGerak);
       window.removeEventListener("pointerup", padaLepas);
+      window.removeEventListener("pointercancel", padaLepas);
       mulaiRef.current = null;
+      setMenyeret(false);
       setLebar((sekarang) => {
         try {
           window.localStorage.setItem(KUNCI_SIMPAN, String(sekarang));
@@ -110,6 +191,10 @@ export function TutorDrawer({
     };
     window.addEventListener("pointermove", padaGerak);
     window.addEventListener("pointerup", padaLepas);
+    // `pointercancel` ikut dipasang: gestur yang dibatalkan sistem — panggilan
+    // masuk, gestur telapak — tidak boleh menyisakan gagang yang tetap menyala
+    // dan lebar yang terkunci di nilai terakhir.
+    window.addEventListener("pointercancel", padaLepas);
   };
 
   return (
@@ -117,12 +202,20 @@ export function TutorDrawer({
       {/* Scrim: hanya di bawah `xl`, tempat drawer menjadi sheet di atas
           dokumen. Di `xl` drawer ter-dock, jadi menutup layar justru menghalangi
           membaca — persis kesalahan yang pernah terjadi di DeepTutor, di mana
-          scrim tunggal meredupkan dokumen yang sedang dibaca. */}
-      {buka && boleh ? (
+          scrim tunggal meredupkan dokumen yang sedang dibaca.
+
+          Ia ikut melewati fase menutup. Scrim yang hilang mendadak sementara
+          panelnya masih meluncur keluar terbaca seperti kedipan, dan klik di
+          atasnya tidak boleh menutup apa pun saat sudah dalam keadaan menutup. */}
+      {tampil && boleh ? (
         <div
-          onClick={onTutup}
+          onClick={buka ? onTutup : undefined}
+          data-menutup={!buka && sedangMenutup ? "" : undefined}
           aria-hidden="true"
-          className="fixed inset-0 z-30 bg-black/30 xl:hidden"
+          className={cn(
+            "reader-drawer-scrim fixed inset-0 z-30 bg-black/30 xl:hidden",
+            !buka && "pointer-events-none",
+          )}
         />
       ) : null}
 
@@ -134,31 +227,66 @@ export function TutorDrawer({
         // WebSocket tidak putus. Ini beda dari `companionOpen && <Panel/>` milik
         // DeepTutor, yang boleh membongkar panelnya karena state-nya ada di
         // provider di atas — di sini state-nya ada di dalam iframe.
-        // Di `xl` drawer ter-dock dan tetap **in-flow**; `relative` (bukan
-        // `static`) dipakai karena gagang resize di dalamnya `absolute`, dan
-        // `static` tidak membentuk containing block — tanpa ini gagangnya
-        // mengukur ke initial containing block dan muncul sebagai garis 4px di
-        // tepi kiri viewport, bukan di tepi kiri drawer. `inset-y-0 right-0`
-        // dari keadaan `fixed` tetap terpasang di sini, tapi semuanya nol
-        // (`left:auto` pada elemen relative resolve ke `-right` = 0), jadi
-        // drawer tidak tergeser saat menjadi `relative`.
+        //
+        // Di `xl` geometrinya pindah ke `.reader-drawer` di `globals.css` —
+        // kolom penuh yang membentang dari tepi atas sampai tepi bawah viewport
+        // dan melintas di belakang bar fokus (`z-index` di bawah bar itu,
+        // `padding-top` sebesar tinggi bar). Kelas `xl:*` yang dulu
+        // membentuknya sudah dibuang, karena deklarasinya yang tak berlapis
+        // (unlayered) mengalahkan utility Tailwind, jadi menyisakannya hanya
+        // menghasilkan dua sumber kebenaran yang bisa berbeda.
+        //
+        // Yang penting: jangan menaruh `display` di sana — keadaan tertutup
+        // adalah utility `hidden`, dan `display` yang tak berlapis akan membuat
+        // drawer tertutup tetap terlihat.
+        //
+        // `data-buka` / `data-menutup` inilah pintu gerak animasinya, dan
+        // penandanya harus ikut berubah ketimbang berada di aturan dasar. Drawer
+        // ini tidak pernah di-unmount, jadi animasi yang terpasang di
+        // `.reader-drawer` hanya berjalan sekali saat halaman dimuat — ketika
+        // elemennya masih `display: none` dan tidak ada yang terlihat. Menyematkan
+        // animasi ke perubahan penandalah yang membuatnya diputar setiap kali
+        // dibuka.
+        data-buka={buka ? "" : undefined}
+        data-menutup={!buka && sedangMenutup ? "" : undefined}
+        // `animationend` juga menyala untuk animasi anak mana pun, jadi hanya
+        // elemen ini sendiri yang dihitung. Di sini penyaringnya lebih penting
+        // lagi daripada di panel silabus: `<iframe>` memuat dokumen lain, dan
+        // keyframe dari dokumen itu tidak boleh menutup fase yang belum selesai.
+        onAnimationEnd={(e) => {
+          if (e.target !== e.currentTarget) return;
+          if (!buka) setSedangMenutup(false);
+        }}
         className={cn(
-          "border-gray-200 bg-white",
-          buka
-            ? "fixed inset-y-0 right-0 z-40 flex flex-col border-l shadow-xl xl:relative xl:z-auto xl:shadow-none"
+          "reader-drawer border-gray-200 bg-white",
+          tampil
+            ? "fixed inset-y-0 right-0 z-40 flex flex-col border-l shadow-xl"
             : "hidden",
         )}
-        style={buka ? { width: `${lebar}px`, maxWidth: "92vw" } : undefined}
+        style={tampil ? { width: `${lebar}px`, maxWidth: "92vw" } : undefined}
       >
         {boleh ? (
           <>
-            {/* Gagang resize hanya di layar lebar, tempat drawer benar-benar ter-dock. */}
+            {/* Gagang resize hanya di layar lebar, tempat drawer benar-benar
+                ter-dock. `left-0`, bukan `-left-0.5`: di `xl` drawer memakai
+                `overflow: hidden` supaya iframe-nya (persegi) tidak melampaui
+                sudut membulat, dan gagang yang menjorok ke luar akan terpotong
+                separuh — target yang jadi 2px.
+
+                Garis petunjuknya ada di gagang itu sendiri (`::after`), bukan di
+                drawer: selama fase menutup gagangnya tidak menerima pointer,
+                sehingga tidak ada gestur yang tertangkap di tengah animasi. */}
             <div
               role="separator"
               aria-orientation="vertical"
               aria-label="Ubah lebar tutor"
-              onPointerDown={mulaiResize}
-              className="absolute inset-y-0 -left-0.5 z-10 hidden w-1 cursor-col-resize hover:bg-blue-200 xl:block"
+              aria-disabled={!buka || undefined}
+              onPointerDown={buka ? mulaiResize : undefined}
+              data-menyeret={menyeret ? "" : undefined}
+              className={cn(
+                "reader-drawer-grip absolute inset-y-0 left-0 z-10 hidden w-1 cursor-col-resize xl:block",
+                !buka && "pointer-events-none",
+              )}
             />
             <iframe
               src={src}
@@ -168,7 +296,12 @@ export function TutorDrawer({
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
               referrerPolicy="no-referrer"
               allow="clipboard-read; clipboard-write"
-              className="h-full w-full flex-1 border-0 bg-transparent"
+              // `min-h-0` because the drawer is a padded flex column: a
+              // flex item defaults to `min-height: auto`, so without it the frame
+              // refuses to shrink into the remaining space and the composer ends
+              // up outside the viewport — the same failure class already recorded
+              // in `materi-shell.tsx` for `main`.
+              className="h-full min-h-0 w-full flex-1 border-0 bg-transparent"
             />
           </>
         ) : (

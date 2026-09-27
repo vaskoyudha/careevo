@@ -42,12 +42,19 @@ function aturanSemua(selector: string): string {
   return (CSS.match(re) ?? []).join("\n");
 }
 
+const shell = CSS.match(/\.reader-shell \{[\s\S]*?\n\}/)?.[0] ?? "";
+
 const sayapKiri = aturanSemua(".reader-bar::before");
 const sayapKanan = aturanSemua(".reader-bar::after");
 
 describe("bar fokus reader — lebar", () => {
   it("memakai batas yang lebih lebar dari --max, tapi bukan full-bleed", () => {
-    const cap = bar.match(/--reader-bar-max:\s*(\d+)px/)?.[1];
+    // The token lives on `.reader-shell`, not on `.reader-bar`: the reader has
+    // two bars now and both must cap at the same width, and a custom property
+    // declared on one sibling is invisible to the other. The assertion follows
+    // the token to its new home rather than the old selector, so it keeps
+    // guarding "wider than --max, but not full-bleed" wherever it is declared.
+    const cap = shell.match(/--reader-bar-max:\s*(\d+)px/)?.[1];
     expect(cap, "batas bar tidak ditemukan").toBeDefined();
     expect(Number(cap)).toBeGreaterThan(1280);
     expect(bar).not.toMatch(/width:\s*100%/);

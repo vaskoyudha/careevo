@@ -168,7 +168,7 @@ export function KartuLokerInbox({
         aria-label={`Lihat detail ${job.role} di ${job.company}`}
         className="block w-full text-left transition-colors enabled:hover:bg-[color-mix(in_srgb,var(--primary)_5%,transparent)] disabled:cursor-default"
       >
-        <span className="flex items-center gap-2.5 px-3.5 py-2.5">
+        <span className="flex min-h-11 items-center gap-2.5 px-3.5 py-2.5">
           <span
             aria-hidden
             className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--primary)_22%,transparent)] bg-[radial-gradient(circle_at_30%_25%,color-mix(in_srgb,var(--primary)_14%,transparent),transparent_70%)] text-[11px] font-bold tracking-tight text-[var(--primary)]"
@@ -183,9 +183,15 @@ export function KartuLokerInbox({
               {job.company}
             </span>
           </span>
+          {/* Badge verdict truncate, tidak lagi boleh melebar tanpa batas:
+              label "Belum diperiksa" adalah yang terpanjang dan di lebar kartu
+              269px ia mendorong judul lowongan sampai tersisa beberapa
+              karakter saja. Dibiarkan `shrink-0` dulu karena judulnya
+              `truncate` sehingga tidak ada yang terlihat rusak — hanya
+              judulnya yang tak terbaca. */}
           {verdict ? (
             <span
-              className={`shrink-0 rounded-full px-2 py-[2px] text-[10px] font-semibold ${verdict.cls}`}
+              className={`max-w-[45%] shrink-0 truncate rounded-full px-2 py-[2px] text-[10px] font-semibold ${verdict.cls}`}
               title={verdict.title}
             >
               {verdict.label}
@@ -201,13 +207,22 @@ export function KartuLokerInbox({
         </span>
       </button>
 
+      {/* Footer aksi.
+
+          Di mobile setiap chip memakai `min-h-11` (44px) dan `flex-1` supaya
+          tiga sasaran sentuh kecil — "Buka" 20px, "Detail" 22px — yang
+          sebelumnya berdempetan di sudut kiri kartu menjadi tiga sasaran
+          selebar kartu. Ini baris yang paling sering salah tekan: "Buka"
+          meninggalkan halaman ke situs asing, jadi meleset satu chip ke
+          samping adalah kerugian nyata, bukan sekadar ketidaknyamanan.
+          Dari `sm` ke atas ukuran chip aslinya kembali. */}
       <div className="flex items-center gap-1.5 px-3.5 py-2">
         <a
           href={job.url}
           target="_blank"
           rel="noopener noreferrer"
           aria-label={`Buka lowongan ${job.role} di ${job.company} di situs aslinya`}
-          className="inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] px-2 py-[2px] text-[10px] font-semibold text-[var(--primary)] transition-opacity hover:opacity-80"
+          className="inline-flex min-h-11 flex-1 items-center justify-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] px-2 py-[2px] text-[10px] font-semibold text-[var(--primary)] transition-opacity hover:opacity-80 pointer-fine:min-h-0 pointer-fine:flex-none"
         >
           <ExternalLink className="size-3" aria-hidden />
           Buka
@@ -216,7 +231,7 @@ export function KartuLokerInbox({
           <button
             type="button"
             onClick={() => onBukaDetail(job.url, verdict)}
-            className="inline-flex items-center gap-1 rounded-full border border-[var(--border)] px-2 py-[2px] text-[10px] font-semibold text-[var(--muted-foreground)] transition-colors hover:border-[var(--primary)]/40 hover:text-[var(--primary)]"
+            className="inline-flex min-h-11 flex-1 items-center justify-center gap-1 rounded-full border border-[var(--border)] px-2 py-[2px] text-[10px] font-semibold text-[var(--muted-foreground)] transition-colors hover:border-[var(--primary)]/40 hover:text-[var(--primary)] pointer-fine:min-h-0 pointer-fine:flex-none"
           >
             Detail
           </button>
@@ -224,7 +239,7 @@ export function KartuLokerInbox({
         {jumlahKursus && jumlahKursus > 0 ? (
           <span
             title={`${jumlahKursus} kursus di katalog yang cocok`}
-            className="inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] px-2 py-[2px] text-[10px] font-semibold text-[var(--primary)]"
+            className="inline-flex min-h-11 flex-1 items-center justify-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] px-2 py-[2px] text-[10px] font-semibold text-[var(--primary)] pointer-fine:min-h-0 pointer-fine:flex-none"
           >
             <GraduationCap className="size-3" aria-hidden />
             {jumlahKursus} kursus
@@ -299,10 +314,16 @@ export function DaftarLokerLayarPenuh({
         // panel kartu akan membubble ke sini dan menutupnya tanpa sengaja.
         if (e.target === e.currentTarget) onTutup();
       }}
-      className="m-auto max-h-[min(85dvh,900px)] w-[min(1180px,calc(100vw-2rem))] max-w-none overflow-hidden rounded-2xl border border-[var(--border)]/60 bg-[var(--card)] p-0 shadow-[0_24px_64px_color-mix(in_srgb,var(--foreground)_28%,transparent)] backdrop:bg-[color-mix(in_srgb,var(--foreground)_40%,transparent)] backdrop:backdrop-blur-sm"
+      /* Di mobile lapisan ini nyaris memenuhi layar: `100vw - 2rem` menyisakan
+         16px di setiap sisi dan `85dvh` memotong daftar lebih awal, padahal
+         tidak ada latar bermakna di belakangnya untuk dijaga. Karena itu
+         `w-full max-h-[92dvh]` tanpa radius di bawah `sm` — sudut membulat
+         pada panel yang menempel tepi hanya memakan lebar yang justru
+         dibutuhkan kartu. Dari `sm` ke atas resep mengambangnya kembali. */
+      className="m-auto max-h-[min(92dvh,900px)] w-full max-w-none overflow-hidden rounded-none border border-[var(--border)]/60 bg-[var(--card)] p-0 shadow-[0_24px_64px_color-mix(in_srgb,var(--foreground)_28%,transparent)] backdrop:bg-[color-mix(in_srgb,var(--foreground)_40%,transparent)] backdrop:backdrop-blur-sm sm:w-[min(1180px,calc(100vw-2rem))] sm:rounded-2xl"
     >
-      <div className="flex max-h-[min(85dvh,900px)] flex-col">
-        <header className="shrink-0 border-b border-[var(--border)]/60 bg-[var(--card)] px-5 py-3.5">
+      <div className="flex max-h-[min(92dvh,900px)] flex-col">
+        <header className="shrink-0 border-b border-[var(--border)]/60 bg-[var(--card)] px-4 py-3.5 sm:px-5">
           <div className="flex items-center justify-between gap-4">
             <div>
               <h2
@@ -321,7 +342,7 @@ export function DaftarLokerLayarPenuh({
               type="button"
               onClick={onTutup}
               aria-label="Tutup daftar lowongan"
-              className="inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--muted-foreground)] transition-colors hover:border-[var(--primary)]/40 hover:text-[var(--primary)]"
+              className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--muted-foreground)] transition-colors hover:border-[var(--primary)]/40 hover:text-[var(--primary)] pointer-fine:size-9"
             >
               <X className="size-4" aria-hidden />
             </button>

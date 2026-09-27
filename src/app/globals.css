@@ -928,16 +928,50 @@ h6 {
    room left for that — they were clipped by the viewport and the silhouette
    flattened into a plain rounded rectangle.
 
+   ## The shared tokens live on `.reader-shell`, not on `.reader-bar`
+
+   `--wing`, `--wing-fill`, `--wing-edge` and `--reader-bar-max` are declared on
+   the **shell**, because the reader now has two bars and they must agree.
+
+   Custom properties inherit, so a token declared on the top bar is inherited by
+   the top bar's *descendants* and by nothing else — the foot bar, which is a
+   sibling, could not see it. That failure is silent and specific: the foot bar's
+   width was `calc(100% - 2 * var(--page-pad))` with a dangling `var(--wing)`, the
+   `calc()` became invalid at computed-value time, and the browser **dropped the
+   declaration entirely** rather than falling back — so the bar rendered at its
+   default width and looked like the CSS was ignored. Declaring them on the shell
+   is what makes "change a wing number once, both bars move" actually true.
+
    The geometry keeps the invariant that makes the wings work at every size:
    the bar is `100% - 2*--page-pad - 2*--wing` at its widest, so the wings, which
    hang `--wing` beyond each edge, always land inside the viewport with the page
    padding to spare. That is why the cap is a `min()` and not a fixed width — the
    wings can never be pushed off-screen, at 1280px or at 2560px. */
-.reader-bar {
+.reader-shell {
+  /* Shared by both of the reader's bars — see the note above on why these cannot
+     live on `.reader-bar`. `--wing` steps up at 769px to match the top bar's
+     larger ears; the foot bar only reads the geometry tokens it needs, but
+     declaring them together is what keeps one number authoritative. */
   --wing: 30px;
   --wing-fill: var(--card);
   --wing-edge: rgba(10, 42, 58, 0.16);
   --reader-bar-max: 1680px;
+  /* The foot bar's own height. It is `position: fixed`, so it no longer
+     contributes height to the shell — anything that needs to clear it (the
+     scroll padding on `main`, and its own `min-height`) reads this one number
+     instead of repeating a literal. The value is the bar's content height at the
+     44px control floor: 44px + 2 * 0.5rem padding + 1px top border = 61px. */
+  --reader-foot-h: 61px;
+  background: var(--reader-canvas);
+}
+
+@media (min-width: 769px) {
+  .reader-shell {
+    --wing: 44px;
+  }
+}
+
+.reader-bar {
   position: sticky;
   top: 0;
   z-index: 30;
@@ -955,7 +989,9 @@ h6 {
 
 @media (min-width: 769px) {
   .reader-bar {
-    --wing: 44px;
+    /* `--wing` is NOT redeclared here — it comes from `.reader-shell` above, which
+       both bars read. Redeclaring it on the top bar is what previously left the
+       foot bar reading a `--wing` its sibling had set and it could not inherit. */
     border-bottom-left-radius: 36px;
     border-bottom-right-radius: 36px;
     padding: 0 1.25rem;
@@ -1032,6 +1068,152 @@ h6 {
 
 @media (max-width: 767px) {
   .reader-brand-nama {
+    display: none;
+  }
+}
+
+/* ===== Reader foot bar: prev | AI Mastery | next =====
+   The bottom edge of the reader. It deliberately has **no wings**: `.reader-bar`
+   carries them because it is the page's *top* edge, where two fillets join the
+   bar's silhouette to the screen sides. This one is the *bottom* edge, so a wing
+   here would hang above the viewport's bottom with nothing to connect to and
+   read as decoration in the wrong place. What it borrows is the visual
+   language — white capsule, 1px edge, rounded corners, a soft shadow — so the
+   two edges still read as one surface.
+
+   **The bar hugs its buttons and is docked, not floating.** It carries three small
+   controls, so a wide bar leaves a band of empty white on either side of them; at
+   the reading column's width (768px) the outer buttons were still ~660px apart.
+   `width: max-content` instead makes the bar exactly as wide as its contents, so
+   the surface ends where the controls end. `max-width` is the phone guard: below
+   ~640px the labels are dropped (see `.reader-foot-teks`), so the content never
+   exceeds the viewport, but the clamp keeps the last pixel safe.
+
+   It is **docked flush to the bottom edge** (`bottom: 0`, no bottom margin), so
+   its lower edge sits exactly on the viewport's bottom. That is why only the *top*
+   corners are rounded: the bottom two are off-screen at the viewport edge, and
+   rounding them would re-introduce the floating look the dock is meant to remove.
+
+   **It overlays the content; it is not a layer above it.** The bar used to be a
+   flex sibling of the reading row, so it claimed its own 61px band and `main`
+   ended above it — the article visibly stopped at a seam with the bar sitting in
+   a strip of its own below. `position: absolute` takes it out of flow: the
+   reading row now runs the full height of the shell and the content scrolls
+   *behind* the bar, which is what makes it read as an overlay on the page rather
+   than as a separate row bolted underneath. `main` gets a matching
+   `padding-bottom` (below) so the overlap cannot swallow the last line.
+
+   **Absolute, not fixed.** Its containing block is the `relative` wrapper around
+   `main` only (`materi-shell.tsx`). `fixed` would measure against the viewport,
+   so a centred bar could slide out over the tutor drawer and bury
+   "Selanjutnya". `z-index: 20` keeps it **below every focused surface**: the
+   tutor scrim (`z-30`), the tutor drawer (`z-40`) and the syllabus panel (`90`).
+   That ordering matters on a phone, where the drawer's scrim must dim this bar
+   with everything else rather than have the bar float undimmed above it.
+
+   **Above `xl` it rises above the tutor drawer instead of moving.** The
+   wrapper excludes the drawer, but the drawer is out of flow, so that wrapper is
+   still the *full* width — which made an older claim here ("can never reach the
+   drawer") quietly false. Measured at `1280`/`1366`/`1440`, this bar's right end
+   sat **108px/65px/28px** under the drawer; only the drawer's vertical clearance
+   was keeping "Selanjutnya" reachable. The clearance is gone, and the bar does
+   **not** dodge sideways to compensate — see the `xl` override below, which only
+   changes `z-index`.
+
+   The formula has no wing term, unlike `.reader-bar`: the top bar gives up
+   `2 * --wing` for its ears, and this one has no ears. */
+.reader-foot-bar {
+  position: absolute;
+  z-index: 20;
+  /* `left`/`right` pinned with `margin: auto` centres a `max-content` box in the
+     reading area without a `translateX(-50%)`. */
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: max-content;
+  max-width: calc(100% - 2 * var(--page-pad));
+  margin: 0 auto;
+  min-height: var(--reader-foot-h);
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--wing-edge);
+  border-bottom: none;
+  background: var(--card);
+  /* Top corners only — see the dock note above. */
+  border-radius: 1.25rem 1.25rem 0 0;
+  box-shadow: 0 -4px 20px -12px rgba(10, 42, 58, 0.35);
+}
+
+/* The foot bar does **not** move for the sidebar either.
+
+   A first attempt centred it in the column the drawer was *not* covering, via
+   `right: var(--reader-drawer-w)` fed by a custom property the drawer published
+   on every drag. Reverted, and the whole `--reader-drawer-w` channel is gone
+   with it: opening the tutor slid the bar left by up to **496px** (its centre
+   measured 756 → 260 at `1280`), so the control the reader is about to press
+   teleported across the screen. Both this bar and `.reader-bar` are the reader's
+   fixed frame; neither may move for a floating panel.
+
+   `z-index` rises above the drawer instead. The sidebar is full-height and
+   painted over the bar (`.reader-drawer` at `40`), and it starts as far left as
+   `100% - drawer width`, so on a narrow desktop the bar's right end *is* under
+   it — measured **108px** at `1280` with the default 520px drawer. Raising the
+   bar's layer keeps all three buttons reachable without moving a pixel. The
+   drawer still paints over everything else it covers, which is the point of it
+   being a panel.
+
+   Scoped to `xl` on purpose: below it the drawer is a full-screen sheet with a
+   scrim at `z-30`, and this bar has to stay *under* that scrim so it dims with
+   the rest of the page instead of floating undimmed above it. The syllabus panel
+   is portalled to `<body>` at `90` and `.skip-link` is at `100`, so both still
+   cover this. */
+@media (min-width: 1280px) {
+  .reader-foot-bar {
+    z-index: 45;
+  }
+}
+
+/* Room at the end of the scroll so the overlay cannot permanently hide the last
+   line. Without it a fixed bar over a scroll container strands the final
+   paragraph underneath with no way to scroll it into view — the reader could
+   never finish the page. This does not undo the overlap: while scrolling, the
+   content still passes behind the bar; only the very end comes to rest clear of
+   it. `.reader-shell main` is unlayered, so it wins over the `py-6` utility on
+   that element (Tailwind v4 utilities live in a cascade layer). */
+.reader-shell main {
+  padding-bottom: calc(var(--reader-foot-h) + 1.25rem);
+}
+
+/* One row: navigation at the two ends and the AI Mastery door in the middle.
+   A plain flex row, not the 3-column grid this used to be. The grid existed to
+   spread the outer buttons to the *ends* of a wide bar, which is exactly the
+   emptiness the bar is sized to avoid; with the bar hugging its contents there
+   is nothing left to distribute, and a grid's `1fr` columns would re-open that
+   gap.
+
+   The `gap` is 0.5rem, not 0. At `gap: 0` the three controls sat flush against
+   each other, which was survivable only while they were flat text. Now that each
+   carries its own surface — `chrome-btn` gives them a border, a soft gradient
+   and a drop shadow — flush edges make three separate buttons read as one
+   illegible slab, with adjacent borders doubling into a 2px seam. The gap is
+   what separates the surfaces; the bar stays `max-content`, so the extra width
+   comes out of the empty space the hug already removed, not from the bar
+   growing. */
+.reader-foot-bar-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* The `justify-self` rules that used to sit here are gone with the grid: they
+   positioned the outer controls against the ends of a wide bar. A `max-content`
+   flex row has no spare space to distribute, so there is nothing to justify.
+
+   Below 641px the three labels need more width than a phone has. The two
+   navigation buttons keep their chevrons and drop their words; the centre button
+   keeps its label, because it is the one control whose meaning is not carried by
+   its icon. */
+@media (max-width: 640px) {
+  .reader-foot-teks {
     display: none;
   }
 }
@@ -1308,6 +1490,63 @@ h6 {
   }
 }
 
+/* Drawer tutor: masuk dari tepi kanan, keluar kembali ke sana.
+   -----------------------------------------------------------------------------
+
+   Arahnya dari kanan karena tepi kanan itulah yang ter-dock di `xl` — `right: 0`
+   di kedua keadaan. Menggeser sebesar lebar kotaknya sendiri karena itu sudah
+   cukup: sisi kanan mulai di `0` dan berakhir di luar layar, jadi tidak perlu
+   tahu `left`-nya berapa.
+
+   Bedanya dengan panel silabus di atas bukan gaya, melainkan **kapan** animasinya
+   berjalan. Panel itu di-mount dan di-unmount React, jadi animasi di aturan
+   dasarnya berputar sendiri setiap kali ia muncul. Drawer ini tidak pernah
+   di-unmount — lihat catatan di `tutor-drawer.tsx` — jadi animasi di aturan
+   dasarnya justru berputar sekali saat halaman dimuat, ketika elemennya masih
+   `display: none`. Geraknya karena itu disematkan ke penanda `data-buka` /
+   `data-menutup` yang ikut berubah tiap kali drawer dibuka atau ditutup.
+
+   `opacity` dan `box-shadow` ikut dianimasikan bersama `transform`: bayangannya
+   menguat saat drawer terangkat dari tepi lalu mengendap ketika diam, sehingga
+   panelnya terbaca terlepas dari halaman dan bukan sekadar tergeser. Keduanya
+   properti 200ms sekali jalan — bukan `width`, yang akan memaksa relayout tiap
+   frame berikut aplikasi AI Mastery di dalam iframe.
+
+   `both` yang membuatnya aman: sebelum animasi mulai, `from` yang dipakai; kalau
+   `animationend` tidak pernah datang, `to` yang bertahan. Jadi drawer tidak
+   pernah tersangkut di `translateX(100%)` yang tidak terlihat.
+
+   Reduced-motion tidak ditulis di sini: blok global di kepala berkas sudah
+   menekan durasi animasi ke 0.01ms, jadi animasinya selesai seketika dan
+   `animationend` tetap menyala — `sedangMenutup` di komponen tidak tertinggal. */
+@keyframes reader-drawer-masuk {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+    box-shadow: 0 40px 90px -30px rgba(10, 42, 58, 0.55);
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+    box-shadow: 0 24px 60px -24px rgba(10, 42, 58, 0.45);
+  }
+}
+
+/* Kebalikan persis dari `masuk`, dan itu bukan kerapian: peserta yang menutup
+   lalu langsung membuka lagi di tengah animasi membuat keyframe-nya berbalik
+   dari nilai yang sedang berjalan, bukan melompat. Ini yang juga disebut di
+   catatan panel silabus di atas. */
+@keyframes reader-drawer-keluar {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
 /* The panel is **detached top and bottom only**; its left edge stays flush with
    the screen. It used to be `inset: 0 auto 0 0` at `height: 100dvh`, i.e. flush
    with the top, bottom *and* left edges at once, which is why it read as welded
@@ -1493,6 +1732,184 @@ h6 {
   border-color: var(--brand-border-hover);
   color: #fff;
 }
+
+/* ===== Reader tutor drawer: the reader's right-hand column =====
+   `/belajar/[slug]/materi/[id]`. It mirrors `.reader-panel` where mirroring
+   matters — `.reader-panel` rounds its free **right** edge, this rounds its
+   free **left** edge, and both stay un-rounded on the screen edge they dock to.
+   Rounding the docked edge instead leaves that corner sitting inside the screen
+   edge, which reads as a mistake rather than a shape.
+
+   The two are **not** the same shape in one respect, and the difference is the
+   point. `.reader-panel` is an overlay with a scrim behind it, so it is
+   detached from the screen's top and bottom to read as a layer above the page.
+   This one is a *column of the reader itself*: it has no scrim above `xl`, and
+   the page behind it stays live. At `xl` it therefore spans the **whole
+   viewport**, top edge to bottom edge, and is painted **over** the focus bar.
+   The bar is what gives way — see the `.reader-bar` override in the media query
+   below, which is not optional: without it the bar's own "Tutor AI" and
+   "Selesai" buttons sit under the sidebar, hit-test returns `IFRAME`, and the
+   reader is left with no way to close the tutor or finish the module.
+
+   **Why this file owns the geometry.** These declarations are unlayered, and
+   Tailwind utilities live in `@layer utilities`, so an unlayered rule beats a
+   layered one *regardless of specificity or order*. That is what lets this
+   block override the utilities on the element (`inset-y-0`, `shadow-xl`)
+   without a single `!`. It also means this block must **never** set `display`:
+   the closed state is the utility `hidden` (`display: none`), and an unlayered
+   `display: flex` would silently make a closed drawer visible.
+
+   **It floats; it does not dock.** It used to be `xl:relative`, i.e. an in-flow
+   flex sibling, so opening the tutor shrank the article to make room. It is out
+   of flow at every width now, so the reading column keeps its full width and the
+   drawer floats over it.
+
+   **`position: fixed` is what makes the top edge the top of the *view*.** Its
+   former containing block was the reading row, which starts below the focus bar,
+   so `top: 0` there only ever reached the bar's *underside* — which is the gap
+   this change exists to remove.
+
+   **The `--reader-foot-h` clearance at the bottom is gone**, and with it the only
+   reason it was load-bearing. The foot bar is `absolute` with
+   `left/right: 0; margin: 0 auto`, so it centres on the *whole* row — and the
+   drawer is out of flow, so that row is the full width. The two therefore
+   overlap horizontally well before the viewport is wide: measured at
+   `1280`/`1366`/`1440` the bar's right end sat **108px/65px/28px** under the
+   drawer. Vertical clearance was the only thing hiding that. It is now handled by
+   layering instead — `.reader-foot-bar` raises its `z-index` at `xl` so it paints
+   above this drawer, and neither bar moves a pixel. `.reader-shell main`
+   deliberately keeps its own centring too: the article does not move either.
+
+   `overflow: hidden` is what makes the radius real: the iframe is a square
+   rectangle and would otherwise paint over the rounded corners. */
+.reader-drawer {
+  --reader-drawer-inset-y: 1rem;
+  position: fixed;
+  /* `right: 0` docks it; `top`/`bottom` come from the height below. */
+  inset: var(--reader-drawer-inset-y) 0 auto auto;
+  z-index: 40;
+  /* Same `dvh` reasoning as `.reader-panel`: a `bottom`-pinned box resolves
+     against the layout viewport, which keeps its foot under mobile browser
+     chrome where it cannot be reached. Subtracting the insets instead keeps it
+     clear of both horizontal screen edges while preserving that. Only the sheet
+     below `xl` needs this; above it the height comes from `top`/`bottom`. */
+  height: calc(100dvh - 2 * var(--reader-drawer-inset-y));
+  overflow: hidden;
+  border-left-width: 0;
+  border-radius: 1.25rem 0 0 1.25rem;
+  box-shadow: 0 24px 60px -24px rgba(10, 42, 58, 0.45);
+}
+
+@media (min-width: 1280px) {
+  /* Above `xl` there is **no scrim**, so the page behind the drawer stays live
+     and the drawer becomes a real column: `fixed` + `top/bottom: 0` spans the
+     whole viewport, edge to edge, and it is painted **over** the focus bar, which
+     does not move — see the note below.
+
+     `height: auto` is load-bearing: the base rule pins a `100dvh`-derived height,
+     and a specified height wins over `bottom` on an absolutely positioned box,
+     so leaving it would stretch the drawer past the bottom of the viewport and
+     push the chat's composer off screen. */
+  .reader-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    height: auto;
+  }
+}
+
+/* Gerak drawer: disematkan ke keadaan, bukan ke aturan dasar.
+   -----------------------------------------------------------------------------
+
+   `data-buka` dipasang React persis selama drawer-nya terlihat, `data-menutup`
+   selama fase keluarnya. Aturan dasar `.reader-drawer` tidak boleh memuat
+   `animation`: elemen ini tidak pernah di-unmount, jadi animasi di sana berputar
+   sekali saat halaman dimuat — ketika drawer masih `display: none` dan tidak ada
+   yang terlihat — lalu tidak pernah lagi, karena propertinya tidak pernah
+   berubah. Itu justru menghapus animasi yang diminta.
+
+   Kurva dan durasinya sama dengan panel silabus (200ms), sesuai rentang transisi
+   180–220ms di `DESIGN.md`. */
+.reader-drawer[data-buka] {
+  animation: reader-drawer-masuk 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Ini **bukan** `animation-name` saja seperti di panel silabus, dan bedanya
+   disengaja.
+
+   Panel silabus menaruh shorthands-nya di aturan dasar yang cocok di kedua
+   keadaan, jadi mengganti nama saja sudah cukup — durasinya sudah terpasang di
+   sana. Drawer ini tidak punya aturan dasar yang seperti itu: `data-buka` yang
+   memasang shorthand-nya, dan `data-buka` justru **hilang** saat menutup.
+   Menulis `animation-name` saja di sini karenanya mewarisi `animation-duration:
+   0s` dari nilai awalnya, dan animasi keluarnya selesai dalam ~9ms alih-alih
+   200ms — terukur, bukan dugaan. Hasilnya drawer menghilang begitu saja, persis
+   bug yang fase menutup ini ada untuk mencegah. */
+.reader-drawer[data-menutup] {
+  animation: reader-drawer-keluar 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Scrim: `masuk` di aturan dasar karena elemennya memang di-mount dan
+   di-unmount React, jadi tiap kemunculan memutar animasinya sendiri. Ini
+   kebalikan dari drawer di atas; keduanya harus berbeda karena cara hidupnya
+   berbeda. */
+.reader-drawer-scrim {
+  animation: reader-scrim-masuk 200ms linear both;
+}
+
+.reader-drawer-scrim[data-menutup] {
+  animation-name: reader-scrim-keluar;
+}
+
+/* Gagang resize: garis petunjuk yang hanya muncul saat dicari.
+   -----------------------------------------------------------------------------
+
+   Gagangnya sendiri `w-1` (4px) dan tinggal di dalam tepi drawer, karena di `xl`
+   drawer memakai `overflow: hidden` — gagang yang menjorok ke luar akan
+   terpotong separuh. Yang bisa dibuat terlihat karena itu adalah isinya, bukan
+   lebarnya: `::after` menggambar garis 2px di sisi kiri drawer yang menguat saat
+   kursor mendekat dan menyala penuh selama diseret. Tanpa ini satu-satunya
+   petunjuk "bisa diubah lebarnya" adalah kursor yang berubah bentuk, yang tidak
+   terlihat sampai kursornya sudah di atas gagang.
+
+   Garisnya juga yang menggantikan `hover:bg-blue-200` yang dulu di utility:
+   latar biru di seluruh tinggi kolom terbaca sebagai pita, sedangkan garis 2px
+   di tepinya terbaca sebagai pegangan. */
+.reader-drawer-grip::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  background: var(--ocean);
+  opacity: 0;
+  transition: opacity 160ms ease-out;
+}
+
+.reader-drawer-grip:hover::after,
+.reader-drawer-grip:focus-visible::after,
+.reader-drawer-grip[data-menyeret]::after {
+  opacity: 1;
+}
+
+/* The focus bar does **not** move for the sidebar.
+
+   A first attempt gave it `width: … - var(--reader-drawer-w)` plus a half-drawer
+   `translateX` so its controls would clear the sidebar. Reverted: the bar is the
+   reader's fixed frame of reference — the reader's own exit (the brand), where
+   you are (the course title and progress), and the module's completion control
+   all live in it, and sliding it sideways on every toggle moved all three for a
+   sidebar that is a floating panel rather than a layout change. `position:
+   sticky` on `.reader-bar` keeps it exactly where it is, at every width and in
+   both drawer states.
+
+   The consequence is deliberate and worth stating: the sidebar is painted over
+   the bar (`z-index: 40` against the bar's `30`), so the bar's right-hand
+   cluster — the tutor toggle and `Selesai` — sits underneath it while the tutor
+   is open. Closing the tutor is still possible from the foot bar's own
+   `AI Mastery` button and with `Escape`; `Selesai` needs the tutor closed. The
+   alternative — raising the bar above the sidebar — is the arrangement that was
+   rejected. */
 
 .chrome-brand {
   display: inline-flex;

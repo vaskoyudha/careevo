@@ -59,18 +59,28 @@ describe("TutorDrawer", () => {
     expect(render()).toContain('id="drawer-tutor"');
   });
 
-  it("di xl drawer memakai `relative`, bukan `static`, agar gagang resize punya containing block", () => {
-    // Gagang resize adalah anak `absolute`. Elemen `static` tidak membentuk
-    // containing block, dan tidak ada leluhur yang `position`-ed (body tidak),
-    // jadi dengan `xl:static` gagangnya mengukur ke initial containing block:
-    // garis ~4px setinggi viewport di tepi kiri, bukan di tepi kiri drawer.
+  it("di xl drawer mengapung (bukan lagi ter-dock), dan bukan `static`", () => {
+    // Drawer dulu `xl:relative` — saudara flex yang ter-dock, sehingga membuka
+    // tutor **menyusutkan** kolom baca. Sekarang ia `fixed` seperti panel
+    // silabus: kolom baca tetap selebar penuh dan drawer mengapung di atasnya.
+    //
+    // Kelas `xl:*`-nya sendiri sudah dibuang dari komponen — geometri `xl`
+    // tinggal di `.reader-drawer` (`globals.css`), karena deklarasi yang tak
+    // berlapis mengalahkan utility Tailwind sehingga dua tempat itu akan
+    // berbeda diam-diam. Yang dikunci di sini: tidak ada lagi `xl:relative`,
+    // dan `static` tetap tidak boleh dipakai (gagang resize adalah anak
+    // `absolute`; tanpa containing block ia mengukur ke initial containing
+    // block dan muncul sebagai garis di tepi viewport).
     //
     // Ini assertion kehadiran kelas pada markup, bukan pemeriksaan layout
-    // sungguhan — repo ini tidak punya jsdom, jadi tidak ada cara mengukur
-    // containing block di test. Yang dikunci hanya "kelas yang benar ada di
-    // <aside>"; regresi layout nyata tetap butuh mata di browser.
+    // sungguhan — repo ini tidak punya jsdom. Yang mengukur `fixed`-nya
+    // sungguhan adalah `.reader-drawer` di `globals.css` (dijaga di
+    // `reader-tutor-drawer.test.ts`).
     const aside = render().match(/<aside[^>]*>/)?.[0] ?? "";
-    expect(aside).toContain("xl:relative");
+    expect(aside).not.toContain("xl:relative");
     expect(aside).not.toContain("xl:static");
+    expect(aside).toContain("reader-drawer");
+    // `fixed` tetap dipakai di bawah `xl` (lembar penuh dengan scrim).
+    expect(aside).toContain("fixed");
   });
 });

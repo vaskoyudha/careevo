@@ -259,7 +259,11 @@ export function KejadianPanel() {
   return (
     <section
       aria-labelledby="judul-panel-kejadian"
-      className="overflow-hidden rounded-xl border border-gray-200 bg-white"
+      /* Jorongnya ada di sini, bukan di pembungkus shell. `KejadianPanel`
+         mengembalikan `null` saat tidak relevan, jadi jorong yang menempel di
+         luar akan tetap menyisakan pita kosong — dan di `xl` pita itulah yang
+         mendorong tepi atas drawer tutor menjauh dari bar fokus. */
+      className="mx-3 mt-3 overflow-hidden rounded-xl border border-gray-200 bg-white sm:mx-5"
     >
       {/* Judul asli tetap ada sebagai heading supaya section ini punya nama di
           accessibility tree; label yang terlihat hidup di dalam tombol, dan

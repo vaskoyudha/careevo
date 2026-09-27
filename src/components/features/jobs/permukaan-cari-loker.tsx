@@ -9,6 +9,8 @@ import {
   ChevronDown,
   LayoutGrid,
   MapPin,
+  RefreshCw,
+  ScanSearch,
   Search,
   SlidersHorizontal,
   Zap,
@@ -85,6 +87,7 @@ function SelectPolos({
   onChange,
   pilihan,
   semuaLabel,
+  className,
 }: {
   id: string;
   label: string;
@@ -92,9 +95,10 @@ function SelectPolos({
   onChange: (next: string) => void;
   pilihan: readonly { nilai: string; label: string }[];
   semuaLabel: string;
+  className?: string;
 }) {
   return (
-    <div className="relative inline-flex items-center">
+    <div className={cn("relative inline-flex items-center", className)}>
       <label htmlFor={id} className="sr-only">
         {label}
       </label>
@@ -102,7 +106,16 @@ function SelectPolos({
         id={id}
         value={nilai}
         onChange={(e) => onChange(e.target.value)}
-        className="h-8 cursor-pointer appearance-none rounded-lg bg-transparent pr-5 pl-1 text-[13px] font-medium text-slate-600 transition-colors outline-none hover:text-slate-900 focus:ring-2 focus:ring-[#0066ff]/20"
+        /* h-11 adalah default; hanya perangkat dengan penunjuk presisi (mouse)
+           yang turun ke h-8. Dibalik begitu supaya ukuran target sentuh tidak
+           pernah bergantung pada lebar viewport: tablet 768px yang dipegang
+           tangan adalah `pointer: coarse` dan tetap butuh 44px, sedangkan
+           aturan `sm:h-8` akan memberinya 32px hanya karena layarnya lebar.
+           Sebaran audit mobile repo ini sudah mencatatnya ("auditing 768px as
+           a mouse device would skip exactly the touch rules this sweep exists
+           to check"), dan `globals.css` memakai `@media (pointer: coarse)`
+           untuk alasan yang sama. */
+        className="h-11 cursor-pointer appearance-none rounded-lg bg-transparent pr-6 pl-1 text-[13px] font-medium text-slate-600 transition-colors outline-none hover:text-slate-900 focus:ring-2 focus:ring-[#0066ff]/20 pointer-fine:h-8 pointer-fine:pr-5"
       >
         <option value="">{semuaLabel}</option>
         {pilihan.map((item) => (
@@ -114,75 +127,60 @@ function SelectPolos({
       <ChevronDown
         aria-hidden
         strokeWidth={1.8}
-        className="pointer-events-none absolute top-1/2 right-0.5 size-3.5 -translate-y-1/2 text-slate-400"
+        className="pointer-events-none absolute top-1/2 right-1.5 size-3.5 -translate-y-1/2 text-slate-400 pointer-fine:right-0.5"
       />
     </div>
   );
 }
 
-/* -------------------------------------------------------------- header ---- */
+/* --------------------------------------------------------- scan trigger ---- */
 
 /**
- * Catatan tangan dekoratif "Karier yang lebih baik dimulai di sini" + panah centang
- * Sesuai persis dengan gambar referensi di pojok kanan atas.
+ * Pemicu scan — **ikon saja**, dan tinggal di dalam baris kotak cari.
+ *
+ * `jalankanScanAction` (`src/actions/inbox.ts`) punya tepat satu pemanggil di
+ * seluruh aplikasi, yaitu tombol ini: tidak ada cron, tidak ada scan saat
+ * halaman dimuat. Karena itu tombolnya tidak boleh bersyarat — ia dirender
+ * tanpa cabang apa pun, dan satu-satunya tempat ia muncul adalah di sini.
+ *
+ * Bentuknya ikon saja, jadi namanya **hanya** bisa datang dari `aria-label`:
+ * sebuah tombol ikon tanpa nama aksesibel adalah tombol yang tidak bisa
+ * dijelaskan ke pembaca layar, dan `title` memberi tooltip yang sama ke
+ * pengguna tetikus. Label yang sama dipakai sebagai `aria-busy` — ikon yang
+ * berputar tidak berarti apa-apa tanpa status itu.
+ *
+ * Ikonnya berganti, bukan berputar di tempat: `ScanSearch` saat diam (pindai
+ * permintaan pengguna), `RefreshCw` yang berputar saat berjalan (pekerjaan
+ * sedang berlangsung) — sehingga keadaan "sedang memindai" terlihat bahkan
+ * ketika tombolnya dinonaktifkan.
  */
-function CatatanTanganDekoratif() {
+export function TombolPindai({
+  pending,
+  onPindai,
+}: {
+  pending: boolean;
+  onPindai: () => void;
+}) {
+  const label = pending ? "Memindai…" : "Pindai lowongan baru";
+
   return (
-    <div
-      aria-hidden="true"
-      className="pointer-events-none relative hidden select-none md:flex flex-col items-end pr-2"
+    <Button
+      type="button"
+      variant="brand"
+      size="icon-lg"
+      disabled={pending}
+      onClick={onPindai}
+      aria-label={label}
+      aria-busy={pending}
+      title={label}
+      className="size-11 shrink-0 rounded-xl shadow-sm"
     >
-      <div
-        className="text-right text-[#0066ff] leading-tight font-medium"
-        style={{
-          fontFamily:
-            "'Caveat', 'Patrick Hand', 'Dancing Script', 'Chilanka', 'Comic Neue', cursive, sans-serif",
-          fontSize: "17px",
-          transform: "rotate(-2deg)",
-        }}
-      >
-        <div>Karier yang lebih baik</div>
-        <div>dimulai di sini</div>
-      </div>
-      <svg
-        viewBox="0 0 36 28"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className="size-7 -mr-2 mt-0.5 text-[#0066ff]"
-      >
-        <path
-          d="M6 14C10 18 13.5 22 15 24C17.5 19 24 10 32 4"
-          stroke="currentColor"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    </div>
-  );
-}
-
-export function KepalaCariLoker({ aksi }: { aksi?: ReactNode }) {
-  return (
-    <header className="relative mb-6 flex flex-wrap items-start justify-between gap-x-8 gap-y-4">
-      <div className="min-w-0 max-w-[62ch]">
-        <p className="text-[12px] font-bold tracking-[0.14em] uppercase text-[#0066ff] mb-2">
-          JOB SEEKER
-        </p>
-        <h1 className="text-[32px] sm:text-[38px] lg:text-[42px] font-bold tracking-tight text-[#0a2a3a] leading-[1.12]">
-          Lowongan ditemukan
-        </h1>
-        <p className="mt-2.5 max-w-[54ch] text-[14.5px] leading-relaxed text-[#48606e]">
-          Temukan pekerjaan impianmu dari ribuan lowongan terbaru yang sesuai dengan skill, minat,
-          dan kariermu.
-        </p>
-      </div>
-
-      <div className="flex items-center gap-3">
-        {aksi ? <div className="shrink-0">{aksi}</div> : null}
-        <CatatanTanganDekoratif />
-      </div>
-    </header>
+      {pending ? (
+        <RefreshCw aria-hidden className="size-4 animate-spin" />
+      ) : (
+        <ScanSearch aria-hidden className="size-[18px]" strokeWidth={2.2} />
+      )}
+    </Button>
   );
 }
 
@@ -209,6 +207,8 @@ export function PanelCariLoker({
   total,
   onBukaDaftar,
   refKueri,
+  pending,
+  onPindai,
 }: {
   draft: string;
   onDraft: (next: string) => void;
@@ -230,50 +230,62 @@ export function PanelCariLoker({
   total: number;
   onBukaDaftar: () => void;
   refKueri: React.RefObject<HTMLInputElement | null>;
+  /** Keadaan scan yang sedang berjalan, untuk `TombolPindai`. */
+  pending: boolean;
+  onPindai: () => void;
 }) {
   return (
     <section
       aria-label="Cari lowongan"
       className="overflow-hidden rounded-[var(--radius-dock)] border border-slate-200/90 bg-white shadow-sm"
     >
+      {/* Baris 1: kotak teks + pemicu scan. Pemicunya berdampingan dengan
+          input, bukan menggantung di header halaman, karena ia bekerja pada
+          daftar yang sedang disaring di bawahnya. `flex-row` sejak lebar
+          terkecil — di mobile pun keduanya muat: input `flex-1` dan tombol
+          44px. */}
       <form
         onSubmit={(e) => {
           e.preventDefault();
           onCari();
         }}
-        className="flex flex-col gap-2.5 p-3 sm:flex-row sm:items-center"
+        className="flex flex-col gap-2.5 p-3 sm:flex-row sm:flex-wrap sm:items-center"
       >
-        <div className="relative min-w-0 flex-1">
-          <label htmlFor="cari-lowongan-teks" className="sr-only">
-            Cari lowongan, posisi, perusahaan, atau lokasi
-          </label>
-          <Search
-            aria-hidden
-            strokeWidth={1.8}
-            className="pointer-events-none absolute top-1/2 left-3.5 size-[18px] -translate-y-1/2 text-[#0066ff]"
-          />
-          <input
-            ref={refKueri}
-            id="cari-lowongan-teks"
-            type="search"
-            value={draft}
-            onChange={(e) => onDraft(e.target.value)}
-            placeholder="Cari lowongan, posisi, perusahaan, atau lokasi…"
-            className={cn(
-              "h-11 w-full rounded-xl border border-slate-200 bg-white pl-11 text-[13.5px] text-slate-800 placeholder:text-slate-400 transition-colors outline-none hover:border-slate-300 focus:border-[#0066ff] focus:ring-2 focus:ring-[#0066ff]/20",
-              draft.trim() ? "pr-11" : "pr-3.5"
-            )}
-          />
-          {draft.trim() ? (
-            <button
-              type="submit"
-              aria-label="Cari"
-              title="Cari"
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 flex size-8 items-center justify-center rounded-lg bg-[#0066ff] hover:bg-[#0052cc] text-white shadow-xs transition-all cursor-pointer active:scale-90 animate-in fade-in zoom-in-95 duration-150"
-            >
-              <ArrowRight aria-hidden className="size-4" strokeWidth={2.4} />
-            </button>
-          ) : null}
+        <div className="flex min-w-0 flex-1 gap-2 sm:basis-full xl:basis-0 xl:min-w-[13rem]">
+          <div className="relative min-w-0 flex-1">
+            <label htmlFor="cari-lowongan-teks" className="sr-only">
+              Cari lowongan, posisi, perusahaan, atau lokasi
+            </label>
+            <Search
+              aria-hidden
+              strokeWidth={1.8}
+              className="pointer-events-none absolute top-1/2 left-3.5 size-[18px] -translate-y-1/2 text-[#0066ff]"
+            />
+            <input
+              ref={refKueri}
+              id="cari-lowongan-teks"
+              type="search"
+              value={draft}
+              onChange={(e) => onDraft(e.target.value)}
+              placeholder="Cari lowongan, posisi, perusahaan, atau lokasi…"
+              className={cn(
+                "h-11 w-full rounded-xl border border-slate-200 bg-white pl-11 text-[13.5px] text-slate-800 placeholder:text-slate-400 transition-colors outline-none hover:border-slate-300 focus:border-[#0066ff] focus:ring-2 focus:ring-[#0066ff]/20",
+                draft.trim() ? "pr-11" : "pr-3.5"
+              )}
+            />
+            {draft.trim() ? (
+              <button
+                type="submit"
+                aria-label="Cari"
+                title="Cari"
+                className="absolute right-1.5 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center rounded-lg bg-[#0066ff] text-white shadow-xs transition-all cursor-pointer hover:bg-[#0052cc] active:scale-90 pointer-fine:size-8 animate-in fade-in zoom-in-95 duration-150"
+              >
+                <ArrowRight aria-hidden className="size-4" strokeWidth={2.4} />
+              </button>
+            ) : null}
+          </div>
+
+          <TombolPindai pending={pending} onPindai={onPindai} />
         </div>
 
         <KotakPilih
@@ -284,7 +296,7 @@ export function PanelCariLoker({
           onChange={onKota}
           pilihan={pilihanKota}
           semuaLabel="Semua Lokasi"
-          className="sm:w-[190px]"
+          className="sm:flex-1 sm:min-w-[10.5rem] xl:flex-none xl:w-[190px]"
         />
         <KotakPilih
           id="cari-lowongan-kategori"
@@ -294,7 +306,7 @@ export function PanelCariLoker({
           onChange={onKategori}
           pilihan={pilihanKategori}
           semuaLabel="Semua Kategori"
-          className="sm:w-[200px]"
+          className="sm:flex-1 sm:min-w-[10.5rem] xl:flex-none xl:w-[200px]"
         />
         <KotakPilih
           id="cari-lowongan-perusahaan"
@@ -304,14 +316,20 @@ export function PanelCariLoker({
           onChange={onPerusahaan}
           pilihan={pilihanPerusahaan}
           semuaLabel="Semua Perusahaan"
-          className="sm:w-[200px]"
+          className="sm:flex-1 sm:min-w-[10.5rem] xl:flex-none xl:w-[200px]"
         />
       </form>
 
-      {/* Row 2: Filter, Terbaru, dan Lihat Semua */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-100 px-4 py-2 text-xs">
-        <div className="flex items-center gap-1.5 text-slate-600">
-          <SlidersHorizontal aria-hidden strokeWidth={1.8} className="size-3.5 text-slate-500" />
+      {/* Row 2: Filter, Terbaru, dan Lihat Semua.
+
+          Di mobile baris ini tumbuh dua tinggi: pilihan-pilihan mengisi baris
+          pertama (masing-masing `flex-1`, jadi keduanya berbagi lebar secara
+          merata) dan tombol "Semua" turun ke baris kedua selebar kartu — bukan
+          dipaksa sebaris dengan dua select 44px yang sudah menghabiskan ruang.
+          Dari `sm` ke atas semuanya kembali sebaris seperti semula. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-slate-100 px-4 py-2 text-xs">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 text-slate-600 sm:flex-none">
+          <SlidersHorizontal aria-hidden strokeWidth={1.8} className="size-3.5 shrink-0 text-slate-500" />
           <SelectPolos
             id="cari-lowongan-status"
             label="Filter hasil menurut status audit Sentinel"
@@ -319,13 +337,14 @@ export function PanelCariLoker({
             onChange={onStatus}
             pilihan={pilihanStatus.map((lbl) => ({ nilai: lbl, label: lbl }))}
             semuaLabel="Filter"
+            className="min-w-0 flex-1 sm:flex-none"
           />
         </div>
 
-        <span aria-hidden className="h-4 w-px bg-slate-200" />
+        <span aria-hidden className="hidden h-4 w-px bg-slate-200 sm:block" />
 
-        <div className="flex items-center gap-1.5 text-slate-600">
-          <ArrowUpDown aria-hidden strokeWidth={1.8} className="size-3.5 text-slate-500" />
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 text-slate-600 sm:flex-none">
+          <ArrowUpDown aria-hidden strokeWidth={1.8} className="size-3.5 shrink-0 text-slate-500" />
           <SelectPolos
             id="cari-lowongan-urutan"
             label="Urutkan hasil"
@@ -333,17 +352,18 @@ export function PanelCariLoker({
             onChange={(next) => onUrutan(next as NilaiUrutan)}
             pilihan={URUTAN.map((item) => ({ nilai: item.nilai, label: item.label }))}
             semuaLabel="Terbaru"
+            className="min-w-0 flex-1 sm:flex-none"
           />
         </div>
 
-        <div className="ml-auto pr-0.5">
+        <div className="w-full sm:ml-auto sm:w-auto sm:pr-0.5">
           <Button
             type="button"
             variant="ghost"
             size="xs"
             onClick={onBukaDaftar}
             aria-label={`Tampilkan daftar lengkap, ${total} lowongan`}
-            className="h-7 gap-1 rounded-full text-[11px] text-slate-500 hover:text-slate-800"
+            className="h-11 w-full justify-center gap-1 rounded-full text-[11px] text-slate-500 hover:text-slate-800 pointer-fine:h-7 sm:w-auto pointer-fine:px-2"
           >
             <LayoutGrid aria-hidden className="size-3" />
             Semua
@@ -378,20 +398,25 @@ export function RingkasanLoker({
   return (
     <section
       aria-label="Ringkasan lowongan"
+      /* Di mobile ketiga angka tampil sebagai satu baris padat, bukan tiga
+         blok bertumpuk: sebelumnya tiap blok memakai `px-6 py-4` dengan ikon
+         56px dan angka 28px, jadi totalnya ~700px tinggi — satu layar penuh
+         hanya untuk tiga angka, tepat di antara kotak cari dan daftar hasil.
+         Di `sm` ke atas resep aslinya kembali utuh. */
       className={cn(
-        "grid grid-cols-1 divide-y divide-slate-100 rounded-[var(--radius-dock)] border border-slate-200/90 bg-white shadow-sm sm:grid-cols-3 sm:divide-x sm:divide-y-0",
+        "grid grid-cols-1 divide-y divide-slate-100 rounded-[var(--radius-dock)] border border-slate-200/90 bg-white shadow-sm xl:grid-cols-3 xl:divide-x xl:divide-y-0",
         className
       )}
     >
-      <div className="flex items-center gap-4.5 px-6 py-4">
-        <span className="flex size-14 sm:size-16 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-[#0066ff]">
-          <Briefcase aria-hidden strokeWidth={1.9} className="size-7 sm:size-8" />
+      <div className="flex items-center gap-3 px-4 py-3 sm:gap-4.5 sm:px-6 sm:py-4">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#0066ff] sm:size-16 sm:rounded-2xl">
+          <Briefcase aria-hidden strokeWidth={1.9} className="size-5 sm:size-8" />
         </span>
         <div className="min-w-0 flex flex-col justify-center">
-          <div className="text-[28px] sm:text-[32px] leading-none font-bold tracking-tight text-[#0066ff] tabular-nums m-0 p-0">
+          <div className="text-[22px] sm:text-[32px] leading-none font-bold tracking-tight text-[#0066ff] tabular-nums m-0 p-0">
             {displayTotal}
           </div>
-          <div className="mt-1 text-[14px] sm:text-[15px] font-bold text-slate-900 leading-tight m-0 p-0">
+          <div className="mt-1 text-[13px] sm:text-[15px] font-bold text-slate-900 leading-tight m-0 p-0">
             Lowongan tersedia
           </div>
           <div className="mt-0.5 text-[12px] sm:text-[12.5px] text-slate-500 leading-tight m-0 p-0">
@@ -400,15 +425,15 @@ export function RingkasanLoker({
         </div>
       </div>
 
-      <div className="flex items-center gap-4.5 px-6 py-4">
-        <span className="flex size-14 sm:size-16 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-[#0066ff]">
-          <Zap aria-hidden strokeWidth={1.9} className="size-7 sm:size-8 fill-[#0066ff]/20" />
+      <div className="flex items-center gap-3 px-4 py-3 sm:gap-4.5 sm:px-6 sm:py-4">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#0066ff] sm:size-16 sm:rounded-2xl">
+          <Zap aria-hidden strokeWidth={1.9} className="size-5 sm:size-8 fill-[#0066ff]/20" />
         </span>
         <div className="min-w-0 flex flex-col justify-center">
-          <div className="text-[28px] sm:text-[32px] leading-none font-bold tracking-tight text-[#0066ff] tabular-nums m-0 p-0">
+          <div className="text-[22px] sm:text-[32px] leading-none font-bold tracking-tight text-[#0066ff] tabular-nums m-0 p-0">
             {displayBaru}
           </div>
-          <div className="mt-1 text-[14px] sm:text-[15px] font-bold text-slate-900 leading-tight m-0 p-0">
+          <div className="mt-1 text-[13px] sm:text-[15px] font-bold text-slate-900 leading-tight m-0 p-0">
             Lowongan baru hari ini
           </div>
           <div className="mt-0.5 text-[12px] sm:text-[12.5px] text-slate-500 leading-tight m-0 p-0">
@@ -417,15 +442,15 @@ export function RingkasanLoker({
         </div>
       </div>
 
-      <div className="flex items-center gap-4.5 px-6 py-4">
-        <span className="flex size-14 sm:size-16 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-[#0066ff]">
-          <Building2 aria-hidden strokeWidth={1.9} className="size-7 sm:size-8" />
+      <div className="flex items-center gap-3 px-4 py-3 sm:gap-4.5 sm:px-6 sm:py-4">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#0066ff] sm:size-16 sm:rounded-2xl">
+          <Building2 aria-hidden strokeWidth={1.9} className="size-5 sm:size-8" />
         </span>
         <div className="min-w-0 flex flex-col justify-center">
-          <div className="text-[28px] sm:text-[32px] leading-none font-bold tracking-tight text-[#0066ff] tabular-nums m-0 p-0">
+          <div className="text-[22px] sm:text-[32px] leading-none font-bold tracking-tight text-[#0066ff] tabular-nums m-0 p-0">
             {displayPerusahaan}
           </div>
-          <div className="mt-1 text-[14px] sm:text-[15px] font-bold text-slate-900 leading-tight m-0 p-0">
+          <div className="mt-1 text-[13px] sm:text-[15px] font-bold text-slate-900 leading-tight m-0 p-0">
             Perusahaan
           </div>
           <div className="mt-0.5 text-[12px] sm:text-[12.5px] text-slate-500 leading-tight m-0 p-0">

@@ -726,8 +726,9 @@ function TraceStep({
  * of. Three stages that a learner actually triggers:
  *
  *   1. Pindai — a MANUAL button press, not a background job. The inbox copy
- *      at `inbox-list.tsx:108` names the boards (KarirHub, Glints,
- *      Jobstreet, public ATS). Marketing must not call this real-time.
+ *      (`KOSONG_BELUM_PINDAI` in `inbox-list.tsx`) names the boards (KarirHub,
+ *      Glints, Jobstreet, public ATS), and the trigger is the icon-only button
+ *      in the search card. Marketing must not call this real-time.
  *   2. Audit — Sentinel decides `clean` / `quarantined` / `rejected` from
  *      `fee_flags` + `trust_flags`. The verdict is derived, never stored.
  *   3. Cocok — `hitungJumlahKursus` ranks the catalog against each posting.
@@ -759,7 +760,7 @@ function LokerPipelineVisual() {
       <div className="flex flex-col gap-2 border-b border-[#cbe6ef] bg-[#f1f7fa] px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
         <span className="text-[10px] leading-relaxed text-[#48606e]">
           Tekan{" "}
-          <span className="font-medium text-[#0a3d62]">Pindai lowongan baru</span>{" "}
+          <span className="font-medium text-[#0a3d62]">ikon pindai</span>{" "}
           untuk mengambil lowongan dari KarirHub, Glints, Jobstreet, dan ATS publik.
         </span>
         <span className="shrink-0 font-mono text-[10px] text-[#8aa0ac]">

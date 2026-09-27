@@ -141,11 +141,17 @@ export function KartuDetailLoker({
             </p>
           </div>
 
+          {/* Dua tombol aksi kartu ini aslinya 32px (`!h-8`).
+              `pointer-coarse:!h-11` menaikkannya ke target sentuh 44px di
+              perangkat sentuh mana pun, sementara `!h-8` tetap berlaku di
+              desktop. Varian pointer, bukan `sm:` — tablet 768px yang dipegang
+              tangan adalah `pointer: coarse` dan tetap butuh 44px, padahal
+              `sm:` hanya melihat lebar layarnya. */}
           <div className="mt-4 flex flex-wrap gap-2">
             {data.applyHref ? (
               <Link
                 href={data.applyHref}
-                className="chrome-btn chrome-btn-brand !h-8 !px-3.5 !text-xs gap-1.5"
+                className="chrome-btn chrome-btn-brand pointer-coarse:!h-11 !h-8 pointer-coarse:!px-4 !px-3.5 !text-xs gap-1.5"
               >
                 <Briefcase className="size-3.5" />
                 <span>Lamar Loker</span>
@@ -155,7 +161,7 @@ export function KartuDetailLoker({
               href={data.externalApplyUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="chrome-btn chrome-btn-white !h-8 !px-3.5 !text-xs gap-1.5"
+              className="chrome-btn chrome-btn-white pointer-coarse:!h-11 !h-8 pointer-coarse:!px-4 !px-3.5 !text-xs gap-1.5"
             >
               <ExternalLink className="size-3.5 text-neutral-500" />
               <span>{data.externalLabel ?? "Buka lowongan"}</span>
