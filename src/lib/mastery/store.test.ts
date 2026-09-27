@@ -131,6 +131,33 @@ describe("mastery store", () => {
     expect(afterRight?.progress.errorPointIds).not.toContain("kp1");
   });
 
+  it("keeps the optional provenance field, and still reads attempts written without it", async () => {
+    const bundle = await createMasteryTopic({ owner: OWNER, title: "T", points: [point("kp1")] });
+    // `provenance` has no producer yet (the AI Mastery bridge owns it), so the
+    // envelope on disk is written *without* it today. The validator must accept
+    // both shapes: rejecting the field would silently drop every graded attempt
+    // the day the bridge lands, and accepting an unknown value would let a
+    // hand-edited file claim provenance it never had.
+    const withProvenance = await recordAttempt(OWNER, bundle.topic.id, {
+      knowledgePointId: "kp1", correct: true, at: new Date().toISOString(),
+      source: "review", provenance: "dinilai",
+    });
+    expect(withProvenance?.progress.attempts[0]?.provenance).toBe("dinilai");
+    expect(withProvenance).not.toBeNull();
+
+    const without = await recordAttempt(OWNER, bundle.topic.id, {
+      knowledgePointId: "kp1", correct: true, at: new Date().toISOString(), source: "session",
+    });
+    expect(without?.progress.attempts.at(-1)?.provenance).toBeUndefined();
+    expect((await getMasteryTopic(OWNER, bundle.topic.id))?.progress.attempts).toHaveLength(2);
+
+    // An unrecognised value is not provenance — it is a corrupted file.
+    expect(await recordAttempt(OWNER, bundle.topic.id, {
+      knowledgePointId: "kp1", correct: true, at: new Date().toISOString(),
+      source: "session", provenance: "dibuat-model" as never,
+    })).toBeNull();
+  });
+
   it("rejects an attempt against a point the topic does not teach", async () => {
     const bundle = await createMasteryTopic({ owner: OWNER, title: "T", points: [point("kp1")] });
     // A knowledgePointId is attacker-supplied: it comes from a form. An id the
