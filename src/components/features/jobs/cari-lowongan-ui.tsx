@@ -1,12 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUp, ExternalLink, LayoutGrid, MapPin, Search, X } from "lucide-react";
+import {
+  ArrowUp,
+  ExternalLink,
+  GraduationCap,
+  LayoutGrid,
+  MapPin,
+  Search,
+  X,
+} from "lucide-react";
 import type { InboxJob } from "@/lib/career-ops";
 import { filterInbox } from "@/lib/jobs/kueri-inbox";
 import { monogram } from "@/lib/jobs/monogram";
 import { Button } from "@/components/ui/button";
-import { PersiapanLoker } from "@/components/features/jobs/persiapan-loker";
 
 /**
  * Komponen bersama untuk pencarian lowongan dengan gaya kartu chat AI Mastery.
@@ -118,12 +125,15 @@ export function KartuLokerInbox({
   job,
   verdict,
   onBukaDetail,
+  jumlahKursus,
 }: {
   job: InboxJob;
   verdict?:
     | { label: string; cls: string; title: string; status?: "clean" | "quarantined" | "rejected" }
     | null;
   onBukaDetail?: (url: string, status?: "clean" | "quarantined" | "rejected") => void;
+  /** Berapa kursus yang cocok, dihitung server. 0 = tidak ada. */
+  jumlahKursus?: number;
 }) {
   return (
     <article className="group flex flex-col overflow-hidden rounded-xl border border-[var(--border)]/55 bg-[var(--card)] shadow-[0_1px_2px_color-mix(in_srgb,var(--foreground)_5%,transparent),0_4px_14px_color-mix(in_srgb,var(--foreground)_5%,transparent)] transition-colors hover:border-[var(--primary)]/40">
@@ -195,9 +205,16 @@ export function KartuLokerInbox({
             Detail
           </button>
         ) : null}
+        {jumlahKursus && jumlahKursus > 0 ? (
+          <span
+            title={`${jumlahKursus} kursus di katalog yang cocok`}
+            className="inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] px-2 py-[2px] text-[10px] font-semibold text-[var(--primary)]"
+          >
+            <GraduationCap className="size-3" aria-hidden />
+            {jumlahKursus} kursus
+          </span>
+        ) : null}
       </div>
-
-      <PersiapanLoker url={job.url} role={job.role} company={job.company} />
     </article>
   );
 }
@@ -228,6 +245,7 @@ export function DaftarLokerLayarPenuh({
   renderVerdict,
   kueriAwal = "",
   onBukaDetail,
+  jumlahKursusPerUrl,
 }: {
   baris: InboxJob[];
   onTutup: () => void;
@@ -236,6 +254,8 @@ export function DaftarLokerLayarPenuh({
   ) => { label: string; cls: string; title: string; status?: "clean" | "quarantined" | "rejected" } | null;
   /** Kueri dari composer halaman, jadi panel dibuka dalam konteks yang sama. */
   kueriAwal?: string;
+  /** Jumlah kursus per posting, dihitung server. */
+  jumlahKursusPerUrl?: Map<string, number>;
   onBukaDetail?: (url: string, status?: "clean" | "quarantined" | "rejected") => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -335,6 +355,7 @@ export function DaftarLokerLayarPenuh({
                   job={job}
                   verdict={renderVerdict?.(job)}
                   onBukaDetail={onBukaDetail}
+                  jumlahKursus={jumlahKursusPerUrl?.get(job.url)}
                 />
               ))}
             </div>

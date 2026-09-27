@@ -28,6 +28,7 @@
 
 import type { InboxJob } from "@/lib/career-ops";
 import type { ListingJobstreet } from "@/lib/career-ops";
+import { normalisasiKunciUrl } from "@/lib/career-ops";
 import type { Level } from "@/types/domain";
 import type { EntriKatalog } from "@/lib/courses/katalog";
 import type { JobFixture } from "@/lib/fixtures";
@@ -186,4 +187,56 @@ export function rekomendasiKursusUntukInbox(
     kebutuhan as unknown as JobFixture,
     limit,
   );
+}
+
+/**
+ * A stable id for one scanned posting.
+ *
+ * `mastery_topics.jobId` is what makes "one active path per posting" work
+ * (`buatJalurLokerAction` looks up an existing topic by it before creating). A
+ * scanned row has no fixture id, and using the raw URL would put a 200-character
+ * string in an id column and in every `pointIdLoker` string. This is the
+ * normalized URL reduced to a short deterministic hash: same posting, same id,
+ * on every machine, with no database round-trip to find out.
+ *
+ * Not a security token — it identifies a posting, it does not authenticate one.
+ */
+export function idLokerDariUrl(url: string): string {
+  const kunci = normalisasiKunciUrl(url) || url.trim();
+  // FNV-1a 32-bit. Short, stable, and dependency-free; a collision would merge
+  // two postings' paths, which is why the full normalized URL is the seed
+  // rather than a truncated one.
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < kunci.length; i += 1) {
+    hash ^= kunci.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return `inbox-${hash.toString(16).padStart(8, "0")}`;
+}
+
+/**
+ * The `JobFixture` the shared agents already expect.
+ *
+ * `jelaskanKursus` and `susunJalurLoker` both read `title`, `company`, `tags`
+ * and `description`. Supplying them from a scanned row is what lets the inbox
+ * reuse the existing explanation and path builders verbatim instead of forking
+ * a second prompt for the same job.
+ *
+ * `sentinel_status` comes from the server-side audit, never from the client —
+ * `buatJalurLokerAction` refuses a `rejected` posting, and that guard has to be
+ * re-derivable here rather than believed.
+ */
+export function sebagaiJobFixture(
+  baris: InboxJob,
+  kebutuhan: KebutuhanLoker,
+  status: "clean" | "quarantined" | "rejected",
+): JobFixture {
+  return {
+    title: kebutuhan.title || baris.role,
+    company: baris.company,
+    description: kebutuhan.description,
+    tags: kebutuhan.tags,
+    location: baris.location ?? "",
+    sentinel_status: status,
+  } as unknown as JobFixture;
 }

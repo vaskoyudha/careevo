@@ -111,7 +111,16 @@ const KOSONG_TANPA_KUERI =
 const KOSONG_TIDAK_COCOK =
   "Tidak ada lowongan untuk kueri itu. Coba kata lain, atau buka daftar lengkap lewat ikon kisi.";
 
-export function InboxList({ awal, adaRiwayat }: { awal: Baris[]; adaRiwayat: boolean }) {
+export function InboxList({
+  awal,
+  adaRiwayat,
+  jumlahKursusPerUrl,
+}: {
+  awal: Baris[];
+  adaRiwayat: boolean;
+  /** Jumlah kursus per posting, dihitung server. Kartu hanya menampilkan lencana. */
+  jumlahKursusPerUrl?: Map<string, number>;
+}) {
   const [kueri, setKueri] = useState("");
   const [daftarTerbuka, setDaftarTerbuka] = useState(false);
   const [detail, setDetail] = useState<{
@@ -237,6 +246,7 @@ export function InboxList({ awal, adaRiwayat }: { awal: Baris[]; adaRiwayat: boo
                 job={r}
                 verdict={verdictBadge(r)}
                 onBukaDetail={setDetailUrl}
+                jumlahKursus={jumlahKursusPerUrl?.get(r.url)}
               />
             ))}
           </div>
@@ -250,6 +260,7 @@ export function InboxList({ awal, adaRiwayat }: { awal: Baris[]; adaRiwayat: boo
           renderVerdict={(job) => verdictBadge(job as Baris)}
           kueriAwal={kueri}
           onBukaDetail={setDetailUrl}
+          jumlahKursusPerUrl={jumlahKursusPerUrl}
         />
       ) : null}
 

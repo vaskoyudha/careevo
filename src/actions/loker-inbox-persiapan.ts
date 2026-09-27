@@ -2,87 +2,68 @@
 
 import { getSession } from "@/lib/auth/session";
 import { katalogBelajar, type EntriKatalog } from "@/lib/courses/katalog";
-import { bacaInboxDenganTanggal } from "@/lib/career-ops";
+import { auditBaris, bacaInboxDenganTanggal } from "@/lib/career-ops";
 import { jobIdFromUrl } from "@/lib/career-ops/jobstreet-audit";
 import { bacaCache } from "@/lib/career-ops/jobstreet-enrich";
 import {
+  idLokerDariUrl,
   kebutuhanDariInbox,
   labelSumber,
   rekomendasiKursusUntukInbox,
+  sebagaiJobFixture,
   type SumberKebutuhan,
 } from "@/lib/jobs/persiapan-inbox";
+import { jelaskanKursus } from "@/lib/agents/kursus-loker/alasan";
+import { MODULE_LOKER, pointIdLoker, susunJalurLoker } from "@/lib/agents/jalur-loker/jalur";
+import { createMasteryTopic, listMasteryTopics } from "@/lib/mastery/store";
 
 /**
- * Kursus yang menyiapkan untuk SATU lowongan hasil pindai.
+ * Persiapan untuk satu lowongan hasil pindai: kursus, alasan, dan jalur penguasaan.
  *
- * Tumpukan ini_read-only_ dan tidak menulis apa pun. Yang membedakannya dari
- * `rekomendasiKursusLokerAction` adalah bentuk lowongannya: yang itu memakai
- * `JobFixture` dari katalog fixture, yang ini memakai baris scanner yang tidak
- * punya `id` maupun `description`. Lihat `lib/jobs/persiapan-inbox.ts` untuk
- * adapter-nya.
+ * Ini satu-satunya tempat rekomendasi kursus untuk inbox dibaca. Versi sebelumnya
+ * menaruh-nya di dua tempat: expandable kecil di setiap kartu, dan section di
+ * popup. Isinya sama, jadi harus diingat untuk diperbarui dua kali. Sekarang
+ * jumlahnya hanya di kartu (tip, tanpa jaringan) dan isi lengkapnya di popup.
  *
- * Tiga aturan, semuanya soal jujur:
+ * Tiga aturan yang menentukan bentuknya:
  *
- *  1. **Sesi diperiksa di sini.** `InboxList` memang berada di dalam `(app)`,
- *     tapi server action adalah endpoint publik — layout yang mengunci halaman
- *     bukan penjaga.
- *  2. **Hanya baris milik akun.** Baris dibaca dari `pipeline.md` milik data
- *     root akun ini, dan `url` harus benar-benar ada di sana. Menerima `url`
- *     dari klien tanpa memeriksanya akan membuat endpoint ini membaca lowongan
- *     milik siapa pun yang menebak URL.
- *  3. **Deskripsi yang tidak bisa diambil tetap menghasilkan rekomendasi, tapi
- *     dari judul saja — dan panel mengatakannya.** Kursus ditentukan
- *     deterministik, jadi tidak adanya alasan bukan alasan untuk menyembunyikan
- *     daftar; yang hilang hanya beberapa bukti pendukungnya.
+ *  1. **Verdict dihitung ulang di server.** Kartu sudah membawa verdict-nya untuk
+ *     UI, tapi penjaga jalur tidak boleh bergantung pada apa yangSaid browser.
+ *     `auditBaris` menurunkan ulang dari cache, jadi klien yang mengaku "clean"
+ *     untuk lowongan yang ditolak tidak bisa membuka jalur.
+ *  2. **Kursus deterministik, alasan didekorasi model.** Sama seperti
+ *     `rekomendasiKursusLokerAction`: tanpa model, daftar kursus tetap tampil dan
+ *     yang hilang hanya kalimat alasannya. Tanpa model, jalur tidak ada sama
+ *     sekali, karena poinnya harus dibaca dari deskripsi lowongan.
+ *  3. **Satu jalur aktif per lowongan.** Klik kedua membuka jalur yang sudah ada,
+ *     bukan membuat duplikat yang harus dibersihkan sendiri.
  */
 
-export type RekomendasiInboxItem = { entry: EntriKatalog };
+export type RekomendasiInboxItem = { entry: EntriKatalog; alasan?: string };
 
-export type RekomendasiInboxState =
-  | { ok: true; sumber: SumberKebutuhan; catatan: string; kursus: RekomendasiInboxItem[] }
+export type DetailInboxState =
+  | {
+      ok: true;
+      jobId: string;
+      role: string;
+      company: string;
+      location?: string;
+      compensation?: string;
+      source?: string;
+      status?: "clean" | "quarantined" | "rejected";
+      description?: string;
+      tags: string[];
+      url: string;
+      sumber: SumberKebutuhan;
+      catatan: string;
+      ringkasan?: string;
+      kursus: RekomendasiInboxItem[];
+      bisaJalur: boolean;
+      alasanJalur?: string;
+    }
   | { ok: false; pesan: string };
 
-export async function rekomendasiKursusInboxAction(
-  url: string,
-): Promise<RekomendasiInboxState> {
-  const session = await getSession();
-  if (!session) return { ok: false, pesan: "Masuk dulu untuk melihat rekomendasi." };
-
-  // Normalisasi dulu supaya `pipeline.md` dibandingkan dengan bentuk yang sama.
-  const target = url.trim();
-  if (!target) return { ok: false, pesan: "Lowongan tidak dikenal." };
-
-  const baris = bacaInboxDenganTanggal().find((r) => r.url === target);
-  if (!baris) return { ok: false, pesan: "Lowongan tidak ada di inboxmu." };
-
-  // Daftar yang terambil sudah di-cache oleh `bacaInboxDiaudit`; di sini hanya
-  // dibaca. Cache yang rusak adalah cache kosong, bukan error — `bacaCache`
-  // sudah begitu, tapi `.catch` menjaga jalur ini bebas dari kegagalan I/O.
-  const jobId = jobIdFromUrl(baris.url);
-  const cache = await bacaCache().catch(() => ({}) as Record<string, never>);
-  const listing = jobId ? cache[jobId] : undefined;
-
-  const { kebutuhan, sumber } = kebutuhanDariInbox(baris, listing ?? null);
-
-  const katalog = await katalogBelajar();
-  const shortlist = rekomendasiKursusUntukInbox(katalog, kebutuhan, 3);
-
-  return {
-    ok: true,
-    sumber,
-    catatan: labelSumber(sumber),
-    kursus: shortlist.map((entry) => ({ entry })),
-  };
-}
-
-/**
- * Nama papan dibaca dari host URL-nya.
- *
- * Dipetakan ke label yang bisa dibaca orang, bukan hostname mentah:
- * `id.jobstreet.com` → "Jobstreet", `apply.workable.com` → "Workable".
- * Host yang tidak dikenal jatuh ke hostname-nya sendiri — lebih baik teknis
- * daripada menebak nama papan yang salah.
- */
+/** Nama papan dibaca dari host URL, dipetakan ke nama yang bisa dibaca orang. */
 const PAPAN_DARI_HOST: ReadonlyArray<readonly [RegExp, string]> = [
   [/(^|\.)jobstreet\./i, "Jobstreet"],
   [/(^|\.)seek\./i, "SEEK"],
@@ -109,59 +90,129 @@ function namaPapan(url: string): string | undefined {
   return host;
 }
 
-export type DetailInboxState =
-  | {
-      ok: true;
-      role: string;
-      company: string;
-      location?: string;
-      compensation?: string;
-      source?: string;
-      status?: "clean" | "quarantined" | "rejected";
-      description?: string;
-      tags: string[];
-      url: string;
-      catatan: string;
-      kursus: RekomendasiInboxItem[];
-    }
-  | { ok: false; pesan: string };
-
-/**
- * Detail satu lowongan hasil pindai, untuk popup.
- *
- * **Yang TIDAK di sini, dan itu disengaja:** `fitScore`, `domainAge`,
- * `pipeline`, `activities`. Semuanya milik fixture `FEATURED_ROLES`, dan tidak
- * ada satu pun yang bisa dihitung untuk baris pindai tanpa model atau tanpa
- * verifikasi domain. Mengisi placeholder-nya berarti keputusan yang
- * dipinjam dari lowongan lain.
- */
 export async function detailLokerInboxAction(url: string): Promise<DetailInboxState> {
   const session = await getSession();
   if (!session) return { ok: false, pesan: "Masuk dulu." };
 
-  const target = url.trim();
-  const baris = bacaInboxDenganTanggal().find((r) => r.url === target);
+  const baris = bacaInboxDenganTanggal().find((r) => r.url === url.trim());
   if (!baris) return { ok: false, pesan: "Lowongan tidak ada di inboxmu." };
 
-  const jobId = jobIdFromUrl(baris.url);
+  // Cache yang rusak adalah cache kosong, bukan error.
   const cache = await bacaCache().catch(() => ({}) as Record<string, never>);
-  const listing = jobId ? cache[jobId] : undefined;
 
-  const { kebutuhan, sumber } = kebutuhanDariInbox(baris, listing ?? null);
+  const status = auditBaris([baris], cache)[0].audit.status;
+  const jobId = idLokerDariUrl(baris.url);
+  const jobstreetId = jobIdFromUrl(baris.url);
+  const { kebutuhan, sumber } = kebutuhanDariInbox(
+    baris,
+    (jobstreetId ? cache[jobstreetId] : undefined) ?? null,
+  );
+
   const katalog = await katalogBelajar();
   const shortlist = rekomendasiKursusUntukInbox(katalog, kebutuhan, 3);
 
+  let ringkasan: string | undefined;
+  let kursus: RekomendasiInboxItem[] = shortlist.map((entry) => ({ entry }));
+
+  if (shortlist.length > 0) {
+    const alasan = await jelaskanKursus(sebagaiJobFixture(baris, kebutuhan, status), shortlist);
+    if (alasan.ok) {
+      const peta = new Map(alasan.hasil.kursus.map((item) => [item.id, item.alasan]));
+      ringkasan = alasan.hasil.ringkasan || undefined;
+      kursus = shortlist.map((entry) => ({ entry, alasan: peta.get(entry.id) }));
+    }
+  }
+
+  let bisaJalur = true;
+  let alasanJalur: string | undefined;
+  if (status === "rejected") {
+    bisaJalur = false;
+    alasanJalur = "Lowongan ini ditolak Sentinel, jadi jalur tidak disusun.";
+  } else {
+    const ada = (await listMasteryTopics(session.email)).find(
+      (topic) => topic.status === "active" && topic.jobId === jobId,
+    );
+    if (ada) {
+      bisaJalur = false;
+      alasanJalur = "Jalur penguasaan untuk lowongan ini sudah ada.";
+    }
+  }
+
   return {
     ok: true,
+    jobId,
     role: baris.role,
     company: baris.company,
     location: baris.location,
     compensation: baris.compensation,
     source: namaPapan(baris.url),
+    status,
     description: kebutuhan.description || undefined,
     tags: kebutuhan.tags,
     url: baris.url,
+    sumber,
     catatan: labelSumber(sumber),
-    kursus: shortlist.map((entry) => ({ entry })),
+    ringkasan,
+    kursus,
+    bisaJalur,
+    alasanJalur,
   };
+}
+
+export type JalurInboxState =
+  | { status: "idle" }
+  | { status: "error"; message: string; detail?: string }
+  | { status: "success"; topicId: string; moduleId: string };
+
+/**
+ * Susun jalur penguasaan untuk satu lowongan hasil pindai.
+ *
+ * Cermin `buatJalurLokerAction`. Dua perbedaan yang tidak bisa dihindari: lowongan
+ * pindai tidak punya `JobFixture`, jadi jobId-nya adalah hash URL yang stabil; dan
+ * barisnya diambil ulang dari disk, bukan dipercaya dari klien.
+ */
+export async function buatJalurLokerInboxAction(url: string): Promise<JalurInboxState> {
+  const session = await getSession();
+  if (!session) return { status: "error", message: "Masuk dulu untuk membuat jalur." };
+
+  const baris = bacaInboxDenganTanggal().find((r) => r.url === url.trim());
+  if (!baris) return { status: "error", message: "Lowongan tidak ada di inboxmu." };
+
+  const cache = await bacaCache().catch(() => ({}) as Record<string, never>);
+  const status = auditBaris([baris], cache)[0].audit.status;
+  if (status === "rejected") {
+    return { status: "error", message: "Lowongan ini ditolak Sentinel." };
+  }
+
+  const jobId = idLokerDariUrl(baris.url);
+  const jobstreetId = jobIdFromUrl(baris.url);
+  const { kebutuhan } = kebutuhanDariInbox(baris, (jobstreetId ? cache[jobstreetId] : undefined) ?? null);
+
+  const ada = (await listMasteryTopics(session.email)).find(
+    (topic) => topic.status === "active" && topic.jobId === jobId,
+  );
+  if (ada) return { status: "success", topicId: ada.id, moduleId: MODULE_LOKER(jobId) };
+
+  const hasil = await susunJalurLoker(sebagaiJobFixture(baris, kebutuhan, status));
+  if (!hasil.ok) {
+    return { status: "error", message: hasil.pesan, detail: hasil.detail };
+  }
+
+  // `type` dan `moduleId` wajib di `KnowledgePoint`: `type` datang dari skema
+  // jalur (sudah divalidasi model), `moduleId` mengelompokkan poin di bawah satu
+  // modul sintetis supaya id-nya tidak bertabrakan dengan kursus lain.
+  const points = hasil.hasil.points.map((poin, index) => ({
+    id: pointIdLoker(jobId, index),
+    name: poin.name,
+    type: poin.type,
+    moduleId: MODULE_LOKER(jobId),
+  }));
+  const bundle = await createMasteryTopic({
+    owner: session.email,
+    title: hasil.hasil.title,
+    description: hasil.hasil.description,
+    jobId,
+    points,
+  });
+  return { status: "success", topicId: bundle.topic.id, moduleId: MODULE_LOKER(jobId) };
 }

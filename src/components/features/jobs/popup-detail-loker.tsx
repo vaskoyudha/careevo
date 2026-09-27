@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { BookOpen, Loader2, X } from "lucide-react";
+import { BookOpen, Loader2, Route, X } from "lucide-react";
 import {
+  buatJalurLokerInboxAction,
   detailLokerInboxAction,
   type DetailInboxState,
+  type JalurInboxState,
 } from "@/actions/loker-inbox-persiapan";
 import { KartuDetailLoker } from "@/components/features/jobs/kartu-detail-loker";
 
@@ -36,7 +39,18 @@ export function PopupDetailLoker({
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [state, setState] = useState<DetailInboxState | null>(null);
+  const [jalur, setJalur] = useState<JalurInboxState>({ status: "idle" });
   const [pending, mulai] = useTransition();
+  const [pendingJalur, mulaiJalur] = useTransition();
+  const router = useRouter();
+
+  async function buatJalur() {
+    mulaiJalur(async () => {
+      const hasil = await buatJalurLokerInboxAction(url);
+      setJalur(hasil);
+      if (hasil.status === "success") router.refresh();
+    });
+  }
 
   useEffect(() => {
     const el = dialogRef.current;
@@ -96,11 +110,20 @@ export function PopupDetailLoker({
               }}
             />
 
-            {/* Persiapan — kursus yang cocok, di bawah kartu. */}
+            {/* Persiapan: kursus, alasan dari model, dan jalur penguasaan.
+                Sumber tunggal untuk rekomendasi di inbox; per-kartu hanya
+                menampilkan lencana jumlahnya. */}
             <div className="border-t border-neutral-200 bg-neutral-50/60 px-6 py-5 sm:px-7">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
                 Persiapan
               </h3>
+
+              {state.ringkasan ? (
+                <p className="mt-2 text-sm leading-relaxed text-neutral-700">
+                  {state.ringkasan}
+                </p>
+              ) : null}
+
               {state.kursus.length === 0 ? (
                 <p className="mt-2 text-sm text-neutral-500">
                   Belum ada kursus di katalog yang cocok untuk lowongan ini. Katalog
@@ -109,7 +132,7 @@ export function PopupDetailLoker({
                 </p>
               ) : (
                 <ul className="mt-3 grid gap-2 sm:grid-cols-3">
-                  {state.kursus.map(({ entry }) => (
+                  {state.kursus.map(({ entry, alasan }) => (
                     <li key={entry.id}>
                       <Link
                         href={`/belajar/${entry.slug}`}
@@ -123,7 +146,11 @@ export function PopupDetailLoker({
                           <span className="block text-sm font-semibold text-neutral-900 group-hover:text-[#0056D2]">
                             {entry.title}
                           </span>
-                          {entry.tags.length > 0 ? (
+                          {alasan ? (
+                            <span className="mt-1 block text-[11px] leading-relaxed text-neutral-600">
+                              {alasan}
+                            </span>
+                          ) : entry.tags.length > 0 ? (
                             <span className="mt-0.5 block text-[11px] text-neutral-500">
                               {entry.tags.join(" · ")}
                             </span>
@@ -134,7 +161,36 @@ export function PopupDetailLoker({
                   ))}
                 </ul>
               )}
+
               <p className="mt-3 text-[11px] text-neutral-500">{state.catatan}</p>
+
+              {/* Jalur penguasaan. Menjaga `rejected` dihitung ulang di server,
+                  jadi tombol ini tidak muncul untuk lowongan yang ditolak dan
+                  aksi-nya menolak apa pun yang dikirim klien. */}
+              <div className="mt-4 border-t border-neutral-200 pt-4">
+                {jalur.status === "error" ? (
+                  <p className="text-sm text-[var(--destructive)]">{jalur.message}</p>
+                ) : state.bisaJalur ? (
+                  <button
+                    type="button"
+                    onClick={buatJalur}
+                    disabled={pendingJalur}
+                    className="chrome-btn chrome-btn-brand !h-9 !px-4 !text-xs gap-1.5 disabled:opacity-60"
+                  >
+                    {pendingJalur ? (
+                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                    ) : (
+                      <Route className="size-3.5" aria-hidden />
+                    )}
+                    <span>{pendingJalur ? "Menyusun jalur..." : "Susun jalur penguasaan"}</span>
+                  </button>
+                ) : (
+                  <p className="text-[11px] text-neutral-500">
+                    {state.alasanJalur ??
+                      "Jalur penguasaan untuk lowongan ini sudah ada."}
+                  </p>
+                )}
+              </div>
             </div>
           </>
         )}
