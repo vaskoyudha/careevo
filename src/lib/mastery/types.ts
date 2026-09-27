@@ -52,6 +52,8 @@ export interface KnowledgePoint {
  */
 export type Provenance = "dinilai" | "dideklarasikan";
 
+export const PROVENANCES: readonly Provenance[] = ["dinilai", "dideklarasikan"];
+
 /** One graded attempt at a knowledge point. */
 export interface Attempt {
   knowledgePointId: string;
@@ -122,6 +124,10 @@ export interface MasteryTopicEnvelope {
 
 export function isKnowledgeType(value: unknown): value is KnowledgeType {
   return typeof value === "string" && (KNOWLEDGE_TYPES as readonly string[]).includes(value);
+}
+
+export function isProvenance(value: unknown): value is Provenance {
+  return typeof value === "string" && (PROVENANCES as readonly string[]).includes(value);
 }
 
 export function isIsoTimestamp(value: unknown): value is string {

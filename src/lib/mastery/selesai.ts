@@ -51,7 +51,12 @@ export const AMBANG_JALUR_V1: AmbangJalur = { provenanceMinimum: 0, policyVersio
 export function ambangHari(type: KnowledgeType): number {
   const tabel = INTERVAL_SEQUENCES[type];
   const indeks = Math.floor((tabel.length - 1) / 2);
-  return tabel[indeks] ?? 0;
+  // Tanpa `?? 0` dengan sengaja: nilai default untuk ambang di modul ini harus
+  // gagal *tertutup*. Kalau indeksnya suatu saat jatuh di luar tabel, `undefined`
+  // membuat `gapHariTerpanjang >= ambang` bernilai `false` — poin belum terpenuhi
+  // dan alasan ditampilkan. `?? 0` justru kebalikannya: ambang runtuh jadi nol
+  // hari, `kedalaman` jadi benar tanpa bukti apa pun.
+  return tabel[indeks];
 }
 
 export interface PenilaianPoin {
