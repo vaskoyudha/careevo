@@ -3,11 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { Building2, Briefcase, GraduationCap, MessageSquare, Sparkle } from "./icons";
+import { MoreVertical } from "lucide-react";
+import { Building2, Briefcase, Compass, GraduationCap, MessageSquare, Sparkle } from "./icons";
 import { ExploreMenu } from "./explore-menu";
 import { AccountMenu, DashboardButton } from "./chrome-parts";
+import { MobileNavDrawer, type MobileNavItem } from "./mobile-nav-drawer";
 import type { SessionPayload } from "@/lib/auth/types";
 
 type NavItem = {
@@ -68,6 +70,12 @@ export function Chrome({ session = null }: { session?: SessionPayload | null }) 
   const pathname = usePathname();
   const onHome = pathname === "/";
   const [scrolled, setScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileMenuTriggerRef = useRef<HTMLButtonElement>(null);
+  const mobileItems: MobileNavItem[] = [
+    { href: "/courses", label: "Explore", icon: <Compass size={18} aria-hidden="true" /> },
+    ...navItems.map(({ href, label, icon }) => ({ href, label, icon })),
+  ];
   /**
    * Halaman yang hero-nya gelap, jadi navbar transparan di atasnya harus
    * membalik ink-nya jadi putih.
@@ -117,6 +125,17 @@ export function Chrome({ session = null }: { session?: SessionPayload | null }) 
           isDarkHero ? "is-dark-hero" : ""
         }`}
       >
+        <button
+          ref={mobileMenuTriggerRef}
+          type="button"
+          className="mobile-nav-trigger"
+          aria-label="Buka menu navigasi"
+          aria-expanded={mobileMenuOpen}
+          aria-controls="public-mobile-navigation"
+          onClick={() => setMobileMenuOpen((value) => !value)}
+        >
+          <MoreVertical size={20} strokeWidth={2} aria-hidden="true" />
+        </button>
         <Link className="chrome-brand" href={onHome ? "#main" : "/"} aria-label="Careevo">
           <Image
             src="/careevo-logo.png"
@@ -174,6 +193,15 @@ export function Chrome({ session = null }: { session?: SessionPayload | null }) 
           )}
         </div>
       </div>
+      <MobileNavDrawer
+        id="public-mobile-navigation"
+        open={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+        triggerRef={mobileMenuTriggerRef}
+        items={mobileItems}
+        session={session}
+        title="Navigasi Careevo"
+      />
     </>
   );
 }
