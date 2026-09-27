@@ -485,6 +485,81 @@ h6 {
   display: none;
 }
 
+/* ===== Scroll sub-header (ScrollSubNav) ===== */
+/* The bar `/careevo-plus` and `/belajar/[slug]` drop in once the page header
+   has scrolled away. `top` is NOT declared here: the component measures the
+   floated navbar's bottom edge and writes it to `style`, because `.chrome` is
+   `z-index: 60` and a bar pinned at the viewport top would be painted under it
+   (the pill is opaque enough to cover the whole measure). Below `z-index: 60`
+   deliberately, so the navbar always wins the overlap. */
+.subnav {
+  position: fixed;
+  right: 0;
+  left: 0;
+  z-index: 55;
+  /* Neutral, not `--border` (light cyan): the bar sits on the white/gray
+     course surface and on the Plus page, and both read as a hairline. */
+  border-bottom: 1px solid rgb(0 0 0 / 0.08);
+  /* Near-opaque, unlike the navbar pill's 0.86. The pill floats over page
+     chrome; this bar floats over arbitrary content — a saturated warning box
+     three lines under it was still readable through 0.92 + blur(16px). */
+  background: rgb(255 255 255 / 0.96);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: 0 2px 10px -4px rgb(10 61 98 / 0.14);
+  transform: translateY(-100%);
+  opacity: 0;
+  /* Matches the navbar's own 320ms morph, so the two bars move as one. */
+  transition:
+    transform 300ms ease,
+    opacity 300ms ease,
+    box-shadow 300ms ease;
+}
+
+.subnav.is-visible {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* Same measure as the floated pill (`.chrome.is-scrolled`), so the bar's logo
+   and CTA line up with the navbar's rather than hugging the viewport edge.
+   `--page-pad` carries the mobile inset. */
+.subnav-inner {
+  display: flex;
+  width: min(var(--max), calc(100% - 2 * var(--page-pad)));
+  min-height: 3.25rem;
+  margin-inline: auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .subnav {
+    background: rgb(255 255 255 / 0.98);
+  }
+}
+
+/* Clearance for anything that has to sit *underneath* the navbar and this bar —
+   both an anchored target (`scroll-margin-top`) and a sticky rail parked below
+   it. The two offsets are published by `ScrollSubNav` (`--chrome-float-bottom`,
+   measured) and by itself (`--subnav-h`, `0` while hidden); the fallbacks are
+   the unmeasured navbar and a collapsed bar, so the pre-hydration value is the
+   same 78px the navbar has always needed. With the bar hidden the two classes
+   agree with the old `scroll-mt-24` / `lg:top-24` they replace. */
+.subnav-scroll-mt,
+.subnav-sticky-top {
+  --subnav-inset: calc(var(--chrome-float-bottom, 78px) + var(--subnav-h, 0px) + 1rem);
+}
+
+.subnav-scroll-mt {
+  scroll-margin-top: var(--subnav-inset);
+}
+
+.subnav-sticky-top {
+  top: var(--subnav-inset);
+}
+
 /* ===== AI Mastery navbar (winged bar, /ai-mastery) ===== */
 /* The third bar, and the only one that is not a morph. See
    `src/components/ui/ai-mastery-navbar.tsx` for why the page forces it: the
