@@ -72,7 +72,7 @@ export function CareevoPlusSubNav() {
     <ScrollSubNav ambang={360}>
       <Link
         href="#main"
-        className="flex min-w-0 shrink-0 items-center gap-1.5 text-lg font-bold tracking-tight text-gray-900"
+        className="flex min-w-0 shrink items-center gap-1.5 text-lg font-bold tracking-tight text-gray-900"
       >
         <span>Care<span className="text-[#0056D2]">evo</span></span>
         <span className="shrink-0 rounded-[3px] border border-[#0056D2] px-1 text-[10px] font-bold text-[#0056D2]">
