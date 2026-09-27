@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { RiLoader4Line, RiShieldCrossLine } from "@remixicon/react";
 import { mulaiSesiAction, catatKejadianAction, akhiriSesiAction } from "@/actions/learning";
 import {
+  butuhKamera,
   klasifikasiKejadian,
   putuskanAkses,
   wajibSesiTerverifikasi,
@@ -502,7 +503,7 @@ export function CourseSessionProvider({
  * menyimpang dari mesin akses.
  */
 export function CourseSessionGate({ pesan }: { pesan: string }) {
-  const { mulai, status, error } = useCourseSession();
+  const { mulai, status, error, kebijakan } = useCourseSession();
   return (
     <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
       <div className="flex items-start gap-2.5">
@@ -521,8 +522,11 @@ export function CourseSessionGate({ pesan }: { pesan: string }) {
         </div>
       </div>
       <p className="mt-2.5 text-[11.5px] leading-relaxed text-amber-800">
-        Sesi mencatat pindah tab dan fokus yang hilang selama berjalan. Permintaan akses kamera
-        belum aktif. Tanpa sesi, lampiran ini tidak dihitung sebagai bukti kompetensi terverifikasi.
+        Sesi mencatat pindah tab dan fokus yang hilang selama berjalan.{" "}
+        {butuhKamera(kebijakan)
+          ? "Course ini menuntut kamera menyala; kamera baru diakses setelah kamu menyetujuinya, dan videonya tidak pernah meninggalkan perangkatmu."
+          : "Kamera tidak diminta di course ini."}{" "}
+        Tanpa sesi, lampiran ini tidak dihitung sebagai bukti kompetensi terverifikasi.
       </p>
       <button
         type="button"
@@ -547,10 +551,11 @@ export function CourseSessionGate({ pesan }: { pesan: string }) {
 /**
  * Indikator sesi aktif.
  *
- * Copy sengaja hanya menyebut apa yang benar-benar berjalan hari ini —
- * pencatatan kejadian. Jangan menulis "kamera aktif" sebelum kamera benar-benar
- * diminta (itu di Task 8): indikator yang mengklaim lebih dari yang dilakukan
- * kode adalah bohong, dan peserta berhak tahu persis apa yang dipantau.
+ * Copy-nya menyebut apa yang benar-benar berjalan: pencatatan kejadian, dan —
+ * hanya pada course `wajib_kamera` — kamera yang diminta lewat dialog izin
+ * terpisah. Pada course `wajib` biasa, kamera **tidak** diminta, dan copy di
+ * sini mengatakannya lewat `butuhKamera`, bukan lewat teks tetap: teks tetap
+ * akan berbohong pada salah satu dari dua kebijakan itu.
  *
  * Catatan rumahnya: di **reader** komponen ini tidak dipakai lagi —
  * `KejadianPanel` sudah menggabungkan status, aturan bantuan, tombol akhiri, dan
@@ -569,8 +574,9 @@ export function CourseSessionIndicator() {
         Sesi terverifikasi aktif
       </span>
       <span className="min-w-0 flex-1 text-[11.5px] leading-snug text-emerald-700">
-        Pencatatan kejadian aktif (pindah tab dan fokus yang hilang). Aturan bantuan:{" "}
-        {LABEL_ATURAN_BANTUAN[kebijakan.aturan_bantuan]}.
+        Pencatatan kejadian aktif (pindah tab dan fokus yang hilang).{" "}
+        {butuhKamera(kebijakan) ? "Kamera: sesuai dialog izinmu. " : "Kamera tidak diminta. "}
+        Aturan bantuan: {LABEL_ATURAN_BANTUAN[kebijakan.aturan_bantuan]}.
       </span>
       <a
         href="/pengaturan"
@@ -604,9 +610,10 @@ export function CourseSessionIndicator() {
  * modul, jadi ajakan ini memang letaknya di tingkat course — supaya selalu
  * terjangkau, bukan hanya ketika satu modul kebetulan punya lampiran.
  *
- * Copy hanya menyebut pencatatan kejadian: kamera memang belum diminta di sini.
- * Menulis "kamera aktif" sebelum `getUserMedia` benar-benar dipanggil adalah
- * indikator yang berbohong tentang apa yang dipantau.
+ * Copy menyebut pencatatan kejadian, dan kamera hanya lewat `butuhKamera`.
+ * Menulis "kamera aktif" pada course yang tidak menuntutnya adalah indikator
+ * yang berbohong tentang apa yang dipantau — seperti juga menulis "kamera belum
+ * diminta" setelah `getUserMedia` benar-benar ada.
  *
  * Bentuknya **strip mendatar**, bukan kartu bertumpuk: di reader ia tinggal di
  * dalam bar fokus yang lengket, dan kartu amber setinggi empat baris di sana
@@ -635,8 +642,10 @@ export function CourseSessionPrompt() {
           <strong className="font-semibold text-amber-900">
             Course ini mewajibkan sesi terverifikasi
           </strong>{" "}
-          untuk menyelesaikan materi. Sesi mencatat pindah tab dan fokus yang hilang; kamera belum
-          diminta di sini.
+          untuk menyelesaikan materi. Sesi mencatat pindah tab dan fokus yang hilang.{" "}
+          {butuhKamera(kebijakan)
+            ? "Kamera juga diwajibkan — ia baru diakses setelah kamu menyetujuinya, dan videonya tidak pernah meninggalkan perangkatmu."
+            : "Kamera tidak diminta di course ini."}
         </p>
         <button
           type="button"
@@ -650,6 +659,15 @@ export function CourseSessionPrompt() {
           {status === "menyiapkan" ? "Menyiapkan sesi…" : "Mulai sesi terverifikasi"}
         </button>
       </div>
+      {/* Satu baris yang menjawab "untuk apa ini?" — pertanyaan pertama tiap
+          peserta. Ia menyebut akibatnya (jalur penyelesaian jadi terverifikasi,
+          bukan informal) dan bahwa sesinya bisa diakhiri sendiri. Angkanya tidak
+          ditulis: batas waktunya per-course (maksimum `batas_waktu_menit` modul),
+          jadi satu angka di sini akan salah untuk sebagian course. */}
+      <p className="mt-2 text-[11.5px] leading-relaxed text-amber-800">
+        Sesi berlaku untuk seluruh course dan bisa kamu akhiri sendiri. Hanya penyelesaian di dalam
+        sesi ini yang dihitung sebagai bukti kompetensi terverifikasi.
+      </p>
       {error ? (
         <p role="alert" className="mt-2 text-[11.5px] text-red-700">
           {error}

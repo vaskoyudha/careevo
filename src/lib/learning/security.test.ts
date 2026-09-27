@@ -329,6 +329,38 @@ describe("pengawasan kamera tidak pernah mengklaim lebih dari yang dilakukan", (
     expect(readFileSync(BERKAS_SETELAN, "utf8")).not.toContain("belum berjalan");
   });
 
+  it("tidak ada permukaan publik yang mengklaim kamera belum berjalan", () => {
+    // Kelas bug yang sama dengan test di atas, tetapi di **semua** permukaan
+    // yang dilihat peserta — bukan hanya `settings-form.tsx`. Ketika lapisan
+    // kamera mendarat, lima berkas ikut berbohong (gate, prompt, pesan
+    // kebijakan, halaman privasi, dan metadata/landing) dan hanya satu yang
+    // dijaga. Daftar berkas ini sengaja eksplisit: menambah permukaan baru yang
+    // menyebut kamera berarti menambahkannya di sini, dan itu sudah cukup
+    // menjadi paksaan untuk memeriksanya.
+    const permukaan = [
+      BERKAS_SESI,
+      path.join(ROOT, "src/lib/courses/kebijakan.ts"),
+      path.join(ROOT, "src/app/(public)/privasi/page.tsx"),
+      path.join(ROOT, "src/app/layout.tsx"),
+      path.join(ROOT, "src/components/features/landing/problem.tsx"),
+      path.join(ROOT, "src/components/features/landing/theme-sdg.tsx"),
+    ];
+    for (const berkas of permukaan) {
+      const isi = readFileSync(berkas, "utf8");
+      expect(isi, `${berkas} masih mengklaim kamera belum berjalan`).not.toMatch(
+        /belum berjalan|belum aktif|belum diminta di sini|Tidak ada modul fingerprint\/face/,
+      );
+    }
+  });
+
+  it("gate dan prompt menyebut kamera menurut kebijakan, bukan teks tetap", () => {
+    // Teks tetap mustahil benar untuk dua kebijakan sekaligus: apa pun yang
+    // ditulis, ia berbohong pada `wajib` atau pada `wajib_kamera`. Keduanya
+    // harus bercabang lewat `butuhKamera`.
+    const sesi = readFileSync(BERKAS_SESI, "utf8");
+    expect(sesi).toContain("butuhKamera(kebijakan)");
+  });
+
   it("menyatakan kamera tidak merekam atau mengenali wajah", () => {
     const isi = readFileSync(BERKAS_SETELAN, "utf8");
     expect(isi).toContain("tidak dipakai untuk mengenali wajah");

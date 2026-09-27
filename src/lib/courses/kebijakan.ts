@@ -22,9 +22,9 @@ export const LABEL_ATURAN_PENGAWASAN: Record<AturanPengawasan, string> = {
 
 export const PESAN_POLICY: Record<AturanPengawasan, string> = {
   wajib:
-    "Pengerjaan kegiatan ini hanya bisa diselesaikan di dalam sesi terverifikasi. Pencatatan kejadian (pindah tab dan fokus yang hilang) aktif selama sesi; kamera dirancang aktif di dalam sesi terverifikasi yang kamu setujui, tetapi belum berjalan di aplikasi ini.",
+    "Pengerjaan kegiatan ini hanya bisa diselesaikan di dalam sesi terverifikasi. Pencatatan kejadian (pindah tab dan fokus yang hilang) aktif selama sesi. Kamera tidak diminta pada course ini.",
   wajib_kamera:
-    "Course ini menuntut sesi terverifikasi dengan kamera menyala. Kamera dipakai untuk menghitung apakah wajahmu ada di depan layar — bukan merekam atau mengenali wajahmu, dan videonya tidak pernah meninggalkan perangkatmu.",
+    "Course ini menuntut sesi terverifikasi dengan kamera menyala. Kamera dipakai untuk menghitung apakah wajahmu ada di depan layar — bukan merekam atau mengenali wajahmu, dan videonya tidak pernah meninggalkan perangkatmu. Kamera baru diakses setelah kamu menyetujuinya lewat dialog terpisah.",
   opsional:
     "Kamu boleh mengerjakan tanpa sesi terverifikasi, tetapi hasilnya tidak dihitung sebagai bukti kompetensi terverifikasi.",
 };

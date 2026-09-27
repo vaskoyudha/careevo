@@ -13,8 +13,8 @@ const MAPPING = [
   },
   {
     theme: "Privacy-by-design",
-    impl: "Zero-PII; sesi terverifikasi, kamera dirancang terbatas dan belum aktif, tanpa deteksi identitas",
-    proof: "Tidak ada modul fingerprint/face",
+    impl: "Zero-PII; deteksi wajah on-device (hitung ada/tidaknya wajah, bukan identitas)",
+    proof: "Tidak ada modul fingerprint; frame tidak pernah diunggah",
   },
   {
     theme: "Resilient infra",

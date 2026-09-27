@@ -53,11 +53,15 @@ export default function HalamanPrivasi() {
           <div className="legal-callout">
             <p>
               <strong>
-                Kami tidak memakai kamera, tidak merekam layar, dan tidak
-                mengambil sidik jari atau data biometrik apa pun.
+                Kami hanya memakai kamera di course yang benar-benar
+                menuntutnya, setelah kamu menyetujuinya lewat dialog terpisah.
               </strong>{" "}
-              Yang kami simpan hanya pekerjaanmu di platform: tugas yang kamu
-              kerjakan, revisi yang kamu buat, dan jawaban tesmu.
+              Deteksi wajah berjalan di perangkatmu: yang dikirim ke server
+              hanya jumlah wajah (ada atau tidak) — videonya tidak pernah
+              meninggalkan perangkat. Kami tidak merekam layar, dan tidak
+              mengambil sidik jari. Yang kami simpan hanya pekerjaanmu di
+              platform: tugas yang kamu kerjakan, revisi yang kamu buat, dan
+              jawaban tesmu.
             </p>
           </div>
           <p>
@@ -105,14 +109,18 @@ export default function HalamanPrivasi() {
                 <tr>
                   <th scope="row">Foto/video kamera</th>
                   <td>
-                    Tidak dikumpulkan. Kamera tidak menyala di sesi yang kamu
-                    mulai dari Careevo.
+                    Tidak dikumpulkan. Kamera hanya menyala di course yang
+                    menuntutnya dan setelah kamu menyetujuinya; videonya diproses
+                    di perangkatmu dan tidak pernah dikirim ke server.
                   </td>
                 </tr>
                 <tr>
                   <th scope="row">Sidik jari, wajah, sidik suara</th>
                   <td>
-                    Tidak dikumpulkan, dan tidak ada kode yang memprosesnya.
+                    Tidak dikumpulkan. Deteksi wajah hanya menghitung ada atau
+                    tidaknya wajah di depan layar (dan berapa jumlahnya) — ia
+                    tidak mengenali <em>siapa</em> wajahnya, dan hanya angkanya
+                    yang dikirim ke server, bukan gambarnya.
                   </td>
                 </tr>
                 <tr>
@@ -258,12 +266,17 @@ export default function HalamanPrivasi() {
             sendiri.
           </p>
           <p>
-            Ada fitur kamera yang dirancang hanya menyala di dalam sesi
-            verifikasi yang kamu setujui sendiri.{" "}
-            <strong>Fitur itu belum berjalan di aplikasi ini</strong> — tidak
-            ada kamera yang menyala hari ini. Jika suatu saat kami
-            mengaktifkannya, halaman ini akan diperbarui lebih dulu, dan kami
-            tidak akan menyalakannya tanpa persetujuanmu lebih dulu.
+            Ada fitur kamera yang hanya menyala di dalam sesi verifikasi, pada
+            course yang benar-benar menuntutnya, dan setelah kamu menyetujuinya
+            sendiri lewat dialog terpisah dari tombol mulai sesi. Kamera{" "}
+            <strong>tidak</strong> menyala di course biasa, dan tidak pernah
+            tanpa persetujuanmu.
+          </p>
+          <p>
+            Saat menyala, deteksinya berjalan di perangkatmu: yang dihitung
+            hanya ada atau tidaknya wajah di depan layar. Yang dikirim ke server
+            hanya angka itu — videonya tidak pernah meninggalkan perangkatmu,
+            dan kami tidak menggunakannya untuk mengenali siapa wajahnya.
           </p>
           <p>
             Yang kami catat di sesi belajar adalah kapan kamu mulai, kapan
