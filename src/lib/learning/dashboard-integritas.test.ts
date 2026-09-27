@@ -22,11 +22,23 @@ const ROOT = path.resolve(__dirname, "../../..");
 const BERKAS_DASHBOARD = path.join(ROOT, "src/app/(app)/dashboard/page.tsx");
 const DIR_DASHBOARD = path.join(ROOT, "src/components/features/dashboard");
 
-/** Sumber seluruh komponen dashboard peserta. */
+/**
+ * Sumber seluruh komponen dashboard peserta, **termasuk subfoldernya**
+ * (`jelajah/`). Pindaiannya rekursif karena komentar di atas menjanjikan
+ * "seluruh folder", dan_folder_ itu sendiri yang memegang prototipe — sebuah
+ * kartu yang ditambahkan di dalam `jelajah/` akan lolos begitu saja pada
+ * pemindaian datar. `isFile()` menahan entri direktori agar tidak pernah
+ * diteruskan ke `readFileSync` (dan tidak pernah melempar `EISDIR`), dan `nama`
+ * disimpan relatif terhadap akar folder supaya pesan kegagalan menunjuk satu
+ * berkas secara spesifik: `jelajah/program-card.tsx`.
+ */
 function sumberKomponenDashboard(): Array<{ nama: string; isi: string }> {
-  return readdirSync(DIR_DASHBOARD)
-    .filter((f) => f.endsWith(".tsx"))
-    .map((f) => ({ nama: f, isi: readFileSync(path.join(DIR_DASHBOARD, f), "utf8") }));
+  return readdirSync(DIR_DASHBOARD, { recursive: true, withFileTypes: true })
+    .filter((d) => d.isFile() && d.name.endsWith(".tsx"))
+    .map((d) => {
+      const berkas = path.join(d.parentPath, d.name);
+      return { nama: path.relative(DIR_DASHBOARD, berkas), isi: readFileSync(berkas, "utf8") };
+    });
 }
 
 describe("dashboard peserta tidak mengklaim angka yang tidak bisa ditelusuri", () => {
@@ -38,7 +50,13 @@ describe("dashboard peserta tidak mengklaim angka yang tidak bisa ditelusuri", (
   });
 
   it("tidak ada komponen dashboard yang membaca profil fixture", () => {
-    for (const { nama, isi } of sumberKomponenDashboard()) {
+    const komponen = sumberKomponenDashboard();
+    // Penjaga untuk dua perulangan di berkas ini: kalau folder ini suatu saat
+    // tidak memuat satu pun `.tsx`, keduanya jadi nol iterasi dan akan
+    // melaporkan hijau tanpa menguji apa pun. Satu pemeriksaan sudah cukup
+    // karena keduanya membaca sumber yang sama.
+    expect(komponen.length).toBeGreaterThan(0);
+    for (const { nama, isi } of komponen) {
       expect(`${nama}: ${isi}`, `${nama} mengimpor @/lib/fixtures`).not.toContain(
         "@/lib/fixtures",
       );
