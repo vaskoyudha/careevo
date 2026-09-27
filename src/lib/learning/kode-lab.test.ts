@@ -94,29 +94,37 @@ describe("KodeLab sebagai berkas sumber", () => {
     expect(css).toMatch(/minmax\(0, 1fr\) 6px minmax\(0, 1fr\)/);
   });
 
-  it("mengisi tinggi area baca, bukan memakai kartu putih bertumpuk", () => {
-    // Editor di lab adalah **alat kerja**, bukan contoh di tengah prosa. Kolom
-    // kanannya mengambil `flex-1` dari rantai flex shell → pane, dan `KodeView`
-    // diberi `flex-1` supaya editor mengisi ruang yang tersisa. Kalau rantainya
-    // putus, editor tumbuh mengikuti isinya dan pane hasilnya keluar layar.
-    //
-    // Tingginya sengaja **tidak** dihitung dari `100dvh`: itu salah begitu
-    // `CourseSessionPrompt` ikut memakan tinggi di atasnya (kolomnya meleset
-    // turun dan dasarnya terselip di balik bar kaki). `min-h-0` di sepanjang
-    // rantai adalah yang membuat kolom flex boleh menyusut di bawah tinggi
-    // isinya — tanpa itu `flex-1` tidak berarti apa-apa.
-    expect(sumber).toContain("lg:flex-1");
-    // Lantai supaya editor tetap punya ruang kerja saat halaman juga memuat
-    // kuis; tinggi sebenarnya dibagi lewat rantai flex di atasnya.
-    expect(sumber).toContain("lg:min-h-[20rem]");
+  it("memakai permukaan IDE, bukan kartu putih bertumpuk", () => {
+    // Editor di lab adalah **alat kerja**, bukan contoh di tengah prosa: kartu
+    // gelap dengan baris tab `main.cpp`, permukaan editor, dan bilah jalankan.
+    // Kalau kelasnya hilang, bloknya kembali jadi panel baca biasa.
     expect(sumber).toContain("lg:sticky");
     expect(sumber).toContain("lg:h-full");
-    // Tidak ada tinggi viewport yang dipatok dengan angka ajaib. Yang benar
-    // adalah rantai flex di atas; `h-[calc(...)]`/`h-[min(...)]` adalah
-    // persis pola yang gagal begitu isi di atas kolom ikut berubah tinggi.
-    expect(sumber).not.toMatch(/h-\[(calc|min)\(/);
-    // `min-h-0 flex-1` pada `KodeView` adalah pasangan `flex-1` yang membuat
-    // kotaknya boleh lebih pendek dari isinya.
-    expect(sumber).toMatch(/className="min-h-0 flex-1"/);
+    expect(sumber).toContain("lg:overflow-y-auto");
+  });
+
+  it("tidak meregangkan editor mengisi sisa viewport", () => {
+    // Koreksi dari versi pertama: `flex-1` + `height: 100%` membuat program 12
+    // baris mendapat kotak gelap 548px — ~300px ruang kosong di dalam editor,
+    // dan tombol Jalankan melayang jauh di bawah kode terakhir. Tinggi editor
+    // harus mengikuti isinya, dibatasi lantai dan batas atas di `globals.css`.
+    //
+    // Dijaga dari sumber: ini properti CSS yang tidak akan gagal di
+    // `typecheck`, `lint`, maupun render mana pun — hanya terlihat di layar.
+    expect(sumber).not.toMatch(/className="min-h-0 flex-1"/);
+    // Kolom **kanan** tidak lagi memakai `h-full`: hanya kolom kiri (bahan
+    // bacaan) yang menggulir di dalam kolomnya sendiri.
+    const kolomKanan = sumber.match(/className="(lab-kolom-kanan[^"]*)"/)?.[1] ?? "";
+    expect(kolomKanan, "kolom kanan tidak ditemukan").not.toBe("");
+    expect(kolomKanan).not.toContain("h-full");
+    const css = readFileSync(
+      fileURLToPath(new URL("../../app/globals.css", import.meta.url)),
+      "utf8",
+    );
+    // `.kode-view-lab` tidak boleh lagi `height: 100%`, dan scroller-nya harus
+    // punya batas atas yang jelas.
+    const blokLab = css.match(/\.kode-view-lab \{([\s\S]*?)\n\}/)?.[1] ?? "";
+    expect(blokLab).not.toContain("height: 100%");
+    expect(css).toMatch(/\.kode-view-lab \.cm-scroller \{[\s\S]*?max-height: min\(62vh, 640px\)/);
   });
 });

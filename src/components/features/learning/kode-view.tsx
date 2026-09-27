@@ -613,9 +613,17 @@ export function KodeView({
   if (susunan === "lab") {
     return (
       <div className={cn("flex min-h-0 flex-col gap-3", className)}>
+        {/*
+          Kartunya **tidak** `flex-1`: tingginya mengikuti isi editor (yang
+          sendiri dibatasi `.kode-view-lab .cm-scroller`), bukan diregangkan
+          mengisi kolom. Versi pertama memakai `flex-1` di sini + `height: 100%`
+          di `.kode-view`, dan itu yang menghasilkan kotak gelap 548px untuk
+          program 12 baris — ruang kosong besar di dalam editor, dengan tombol
+          Jalankan melayang jauh di bawah kode terakhir.
+        */}
         <section
           aria-label={label}
-          className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-[#06202f] shadow-[0_20px_44px_-32px_rgba(10,61,98,0.9)]"
+          className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-[#06202f] shadow-[0_20px_44px_-32px_rgba(10,61,98,0.9)]"
         >
           {/* Baris tab. Berkasnya `main.cpp` karena itulah yang dikompilasi
               runner; menulis nama lain berarti menyebut berkas yang tidak

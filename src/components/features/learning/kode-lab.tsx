@@ -87,29 +87,14 @@ export function KodeLab({
 
   return (
     /**
-     * Tinggi kolom diambil dari **ruang baca yang tersisa**, bukan dari rumus
-     * `100dvh`.
-     *
-     * `lg:h-full` hanya bekerja karena rantai induknya benar-benar membagi
-     * tinggi: shell reader (`h-dvh flex flex-col`) → baris baca (`flex-1
-     * min-h-0`) → `main` (`h-full`) → pembungkus `MateriPane` (`flex-1
-     * min-h-0`) → `<div>` ini. Setiap mata rantai memakai `min-h-0`, karena
-     * tanpa itu kolom flex menolak menyusut di bawah tinggi isinya dan
-     * `h-full` tidak berarti apa-apa.
-     *
-     * Di bawah `lg` `h-full` mati sendiri (kolomnya menumpuk, tingginya isi),
-     * jadi rantai ini tidak pernah memaksa tinggi di layar sempit.
-     */
-    /**
-     * Lab berbagi tinggi kolom dengan saudaranya (kuis, lampiran) saat halaman
-     * memuat keduanya. `lg:min-h-[20rem]` menjaga editor tetap punya ruang
-     * kerja yang layak dalam pembagian itu tanpa memaksa pane meluber keluar
-     * kotaknya — di bawah itu, editor yang menyusut sampai satu baris lebih
-     * buruk daripada kuismu terdorong sedikit ke bawah.
-     *
-     * Lebar kolomnya ditulis inline karena nilainya ditentukan peserta saat
+     * Lebar kolom ditulis inline karena nilainya ditentukan peserta saat
      * berjalan; `data-pembagi-lab` adalah pegangan pembaginya untuk mengukur
      * wadah ini, dan `--lab-bagi` yang dibaca `.lab-lab` di `globals.css`.
+     *
+     * `lg:min-h-[20rem]` menjaga editor tetap punya ruang kerja yang layak saat
+     * halaman juga memuat kuis atau lampiran — lab berbagi tinggi kolom dengan
+     * saudara-saudaranya, dan di bawah lantai itu editor yang menyusut sampai
+     * satu baris lebih buruk daripada kuismu terdorong sedikit ke bawah.
      */
     <div
       data-pembagi-lab
@@ -127,11 +112,19 @@ export function KodeLab({
 
       <PembagiLab kunci={kunciBagi} bagi={bagi} onBagi={setBagi} />
 
-      {/* Kolom editor: editor di atas, hasil di bawah. `lg:sticky` menahannya di
-          dalam viewport saat bahan di kiri digulir, dengan `top-4` sebagai
-          napas kecil dari tepi atas area baca (bar fokus sudah baris terpisah
-          di atasnya, jadi tidak ada yang perlu dihindari). */}
-      <div className="lab-kolom-kanan flex min-w-0 flex-col lg:sticky lg:top-4 lg:h-full lg:overflow-y-auto">
+      {/* Kolom editor: editor di atas, hasil di bawah.
+
+          **Tingginya mengikuti isi**, bukan `lg:h-full`. Versi pertama memakai
+          `h-full` + `flex-1` supaya editor terlihat "penuh", dan hasilnya justru
+          yang dikeluhkan: program 12 baris mendapat kotak gelap 548px — ~300px
+          ruang kosong di dalam editor, dan tombol Jalankan melayang jauh dari
+          kode terakhir. Tinggi editornya sekarang dibatasi lantai dan batas
+          atasnya sendiri (`.kode-view-lab .cm-scroller`), jadi sisa ruangnya
+          tinggal di dasar kolom, bukan di dalam kotak editor.
+
+          `lg:sticky lg:top-4` tetap: kolom ini menempel di viewport saat bahan
+          di kiri digulir, jadi editor dan hasilnya tidak ikut hilang ke atas. */}
+      <div className="lab-kolom-kanan flex min-w-0 flex-col lg:sticky lg:top-4">
         <KodeView
           susunan="lab"
           kunci={blok.id}
@@ -142,7 +135,7 @@ export function KodeLab({
           editable
           bahasa={blok.bahasa ?? "cpp"}
           label={`Editor latihan ${blok.id}`}
-          className="min-h-0 flex-1"
+          className="min-h-0"
         />
 
         {/*

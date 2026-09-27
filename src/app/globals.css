@@ -4702,42 +4702,29 @@ button.tag:hover {
   max-height: 60vh;
 }
 
-/* Permukaan kode di dalam lab (`.kode-lab.tsx`): editor dan hasilnya berbagi
-   kolom kanan, dan kolom itu menerima tingginya dari rantai flex shell → pane
-   (lihat `kode-lab.tsx`). Editor di sini **mengisi** ruang yang tersisa dan
-   menggulir di dalam kotaknya sendiri — bukan tumbuh setinggi isinya seperti
-   `.kode-view` di jalur baca.
+/* Permukaan kode di dalam lab (`.kode-lab.tsx`).
 
-   `height: 100%` + `min-height: 0` adalah pasangan yang membuat itu bekerja:
-   `flex-1` pada induknya memberi tinggi, dan `min-height: 0` mencabut lantai
-   bawaan kolom flex (isi) sehingga kotaknya boleh lebih pendek dari kodenya.
-   Tanpa `min-height: 0`, satu program 200 baris mendorong bilah jalankan dan
-   pane hasil keluar layar — persis yang tata letak ini ada untuk mencegah. */
+   **Tingginya mengikuti isi kode**, dengan lantai kerja dan batas atas — bukan
+   `height: 100%` yang mengisi seluruh kolom. Versi pertama memakai `height:
+   100%` dengan alasan "editor penuh", dan hasilnya justru yang dikeluhkan:
+   program 12 baris mendapat kotak gelap 548px, sehingga ada ~300px ruang kosong
+   di dalam editor dan tombol Jalankan melayang jauh di bawah kode terakhir.
+   Ruang yang tidak terpakai itu lebih baik tinggal di dasar kolom daripada
+   masuk ke dalam kotak editor — di sana ia terbaca sebagai "halaman masih
+   pendek", bukan sebagai "editor rusak".
+
+   Batas atasnya `min(62vh, 640px)`: cukup tinggi untuk program panjang, tetapi
+   tetap menyisakan ruang untuk bilah jalankan, pane hasil, dan acuan keluaran
+   yang duduk di bawahnya. `min-height` adalah lantai kerjanya supaya snippet
+   pendek tidak menyusut jadi dua baris. */
 .kode-view-lab {
   border-radius: var(--radius-md);
   border: 1px solid rgba(215, 238, 247, 0.14);
-  height: 100%;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
 }
 
-.kode-view-lab .cm-editor {
-  height: 100%;
-  min-height: 0;
-}
-
-/* Lantai kerja editor. Sengaja **kecil**: kolom kanan lab bisa jadi pendek saat
-   halamannya juga memuat kuis atau lampiran, dan lantai yang tinggi di sini akan
-   memaksa kolomnya meluber ke luar `main` — menimpa kartu di bawahnya. Yang
-   memutuskan tinggi sebenarnya adalah rantai `min-h-0` → `flex-1` di atasnya;
-   ini hanya jaring pengaman supaya viewport yang sangat pendek tidak
-   menyusutkan editor jadi satu baris. `max-height: none` mencabut batas `60vh`
-   milik `.kode-view` — di sini kolomnya yang menentukan, bukan viewport. */
 .kode-view-lab .cm-scroller {
-  min-height: 96px;
-  max-height: none;
+  min-height: 260px;
+  max-height: min(62vh, 640px);
   overflow-y: auto;
 }
 
