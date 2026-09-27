@@ -2,37 +2,114 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import {
-  Banknote,
-  Building2,
-  MapPin,
-  SlidersHorizontal,
-  ShieldCheck,
-} from "lucide-react";
+import { AlertTriangle, ArrowRight, MapPin } from "lucide-react";
 import type { JobFixture } from "@/lib/fixtures";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
-import { buatFilterGaji, buatFilterKonten, buatFilterLokasi, parseRentangGaji } from "@/lib/jobs/filters";
+import { buatFilterKonten } from "@/lib/jobs/filters";
 import { teksLoker, uraiKueri } from "@/lib/jobs/kueri-chat";
+import { monogram } from "@/lib/jobs/monogram";
+import { labelSinyal } from "@/lib/agents/sentinel";
 import { ChatCariLowongan } from "@/components/features/jobs/chat-cari-lowongan";
 
-const LOCATIONS = ["semua", "Jakarta", "Bandung", "Remote", "Yogyakarta", "Surabaya", "Semarang"] as const;
-
 /**
- * Salary bands, in IDR. Chips rather than a slider: the fixture salary strings
- * ("Rp6-8 jt") are coarse, so a numeric slider would imply precision the data
- * does not have.
+ * One posting.
+ *
+ * Built on the house card recipe (`CourseCardShell` in
+ * `src/components/ui/catalog-course-card.tsx`), which DESIGN.md names as the
+ * single card language: a 4:3 media block, a white sheet overlapping it
+ * (`-mt-8 rounded-t-2xl`), a `mb-*` vertical rhythm rather than stacked `mt-*`,
+ * and a footer closed by a `border-t` with a blue pill on the left. The grid is
+ * the reason it works — a full-width row cannot carry a 4:3 media block, and
+ * dropping the media is what made the earlier version read as a plain list.
+ *
+ * The media is the `ThumbMedia` fallback path, not invented artwork: jobs have no
+ * photograph, so the tile carries the company monogram over the same gradient the
+ * course card uses when a thumbnail is missing.
+ *
+ * Flags are labelled through `labelSinyal` — never index a label map here, or a
+ * signal with no entry reaches the learner as raw snake_case. The verdict strip
+ * appears only when there is something to say, and it takes the slot the course
+ * card gives its rating row.
  */
-const GAJI = [
-  { id: "semua", label: "Semua gaji", min: 0, max: 0 },
-  { id: "lt7", label: "< Rp7 jt", min: 0, max: 7_000_000 },
-  { id: "7-10", label: "Rp7–10 jt", min: 7_000_000, max: 10_000_000 },
-  { id: "gt10", label: "> Rp10 jt", min: 10_000_000, max: 0 },
-] as const;
+function KartuLoker({ job }: { job: JobFixture }) {
+  const meta = job.salary_range
+    ? `${job.location} · ${job.salary_range}`
+    : job.location;
 
-type GajiId = (typeof GAJI)[number]["id"];
+  return (
+    <article
+      className={cn(
+        "group flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xs transition-shadow duration-200 hover:shadow-md",
+        // A flagged posting is tinted, not relabelled: the verdict is already
+        // carried by the badge and the strip, and a third signal would be noise.
+        job.sentinel_status !== "clean" && "border-amber-200",
+      )}
+    >
+      {/* Media — the monogram tile, with the verdict as the corner pill.
+
+          Deliberately NOT the course card's `aspect-[4/3]`. That ratio exists so a
+          photograph is tall enough to read at card size, and a job posting has no
+          photograph — at 4:3 this block was 263px of gradient holding two short
+          strings, which made every card 435px tall. A fixed height keeps the tile
+          legible without the dead space. Same tokens, same gradient, same
+          overlap; only the box is shorter. */}
+      <div className="relative block h-28 w-full overflow-hidden bg-gray-100 sm:h-32">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-linear-to-br from-[#e2eef4] via-[#ecf3f7] to-[#cbe6ef] px-5">
+          <span className="text-2xl font-bold tracking-tight text-[#0a3d62]">
+            {monogram(job.company)}
+          </span>
+          <span className="line-clamp-1 text-center text-[11px] font-medium text-[#0a3d62]/70">
+            {job.company}
+          </span>
+        </div>
+        <span className="absolute top-2.5 left-2.5">
+          <StatusBadge status={job.sentinel_status} />
+        </span>
+      </div>
+
+      {/* Sheet — overlaps the media, so its top corners read as rounded. */}
+      <div className="relative z-10 -mt-8 flex flex-1 flex-col rounded-t-2xl bg-white p-4">
+        <h3 className="mb-1.5 line-clamp-2 min-h-[2.6rem] text-sm font-bold text-gray-900 transition-colors group-hover:text-[#0056D2]">
+          {/* `text-inherit` is load-bearing: globals.css sets `a { color:
+              var(--info) }`, which beats inheritance, so without it the title
+              renders blue at rest and the h3's gray-900 / hover-blue pair above
+              never applies. */}
+          <Link href={`/loker/${job.id}`} className="text-inherit hover:no-underline">
+            {job.title}
+          </Link>
+        </h3>
+
+        <p className="mb-3 flex items-center gap-1.5 text-[11px] text-gray-500">
+          <MapPin className="size-3 shrink-0 text-gray-400" aria-hidden />
+          <span className="truncate">{meta}</span>
+        </p>
+
+        {/* Why it was flagged, in the slot the course card gives its rating row. */}
+        {job.flags.length > 0 ? (
+          <p className="mb-3 flex items-start gap-1.5 rounded-md bg-amber-50 px-2 py-1.5 text-[11px] leading-relaxed text-amber-900">
+            <AlertTriangle className="mt-px size-3 shrink-0 text-amber-600" aria-hidden />
+            <span>{job.flags.map(labelSinyal).join(" · ")}</span>
+          </p>
+        ) : null}
+
+        <div className="mt-auto flex items-center justify-between gap-2 border-t border-gray-100 pt-3">
+          {job.tags[0] ? (
+            <span className="inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-[#0056D2]">
+              {job.tags[0]}
+            </span>
+          ) : (
+            <span aria-hidden="true" />
+          )}
+          {/* Provenance is identical on every row, so it yields the bold slot to
+              the one number that differs between postings. */}
+          <span className="truncate text-xs font-semibold text-gray-700">via {job.source}</span>
+        </div>
+      </div>
+    </article>
+  );
+}
 
 export function JobsBoard({
   jobs,
@@ -43,27 +120,9 @@ export function JobsBoard({
   searchQuery?: string;
   onSearchQueryChange?: (q: string) => void;
 }) {
-  const [location, setLocation] = useState<(typeof LOCATIONS)[number]>("semua");
-  const [gaji, setGaji] = useState<GajiId>("semua");
   const [internalKueri, setInternalKueri] = useState("");
   const kueri = searchQuery !== undefined ? searchQuery : internalKueri;
   const setKueri = onSearchQueryChange ?? setInternalKueri;
-  const [onlyClean, setOnlyClean] = useState(false);
-  const [noFee, setNoFee] = useState(false);
-
-  const filterLokasi = useMemo(
-    () => buatFilterLokasi(location === "semua" ? null : { allow: [location] }),
-    [location],
-  );
-
-  const band = GAJI.find((g) => g.id === gaji) ?? GAJI[0];
-  const filterGaji = useMemo(
-    () =>
-      buatFilterGaji(
-        band.min === 0 && band.max === 0 ? null : { min: band.min, max: band.max, currency: "IDR" },
-      ),
-    [band.min, band.max],
-  );
 
   // Free-text search via the ported content filter, one filter per term and
   // requiring ALL of them. `buatFilterKonten` OR-s its own keyword list, which is
@@ -80,20 +139,8 @@ export function JobsBoard({
   }, [kueri]);
 
   const filtered = useMemo(
-    () =>
-      jobs.filter((job) => {
-        if (!filterLokasi(job.location)) return false;
-        if (!filterGaji(parseRentangGaji(job.salary_range))) return false;
-        // `noFee` reads the AUDIT VERDICT, not the description text. The verdict
-        // already encodes every fee rule plus the email/domain/trust signals, so
-        // re-scanning the text here would be a second, drift-prone definition of
-        // "fee" living in the UI.
-        if (noFee && job.fee_flags.length > 0) return false;
-        if (onlyClean && job.sentinel_status !== "clean") return false;
-        if (filterKonten && !filterKonten(job)) return false;
-        return true;
-      }),
-    [jobs, filterLokasi, filterGaji, filterKonten, noFee, onlyClean],
+    () => (filterKonten ? jobs.filter((job) => filterKonten(job)) : jobs),
+    [jobs, filterKonten],
   );
 
   const adaChat = kueri.trim().length > 0;
@@ -120,47 +167,13 @@ export function JobsBoard({
           ) : null}
         </div>
 
-        <ul className="list-app space-y-3" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+        {/* A grid, not a full-width list: the card's media block is what carries
+            the design, and a 4:3 tile has no room in a 1190px row. */}
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((job) => (
-            <li
-              key={job.id}
-              className="list-app-row group rounded-xl border border-gray-200/80 bg-white p-4 sm:p-5 transition-all hover:border-[#388AF3]/60 hover:shadow-xs"
-            >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="space-y-1.5">
-                  <Link
-                    href={`/loker/${job.id}`}
-                    className="row-title block text-base sm:text-lg font-semibold text-gray-900 transition-colors group-hover:text-[#388AF3]"
-                  >
-                    {job.title}
-                  </Link>
-
-                  <div className="row-meta flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
-                    <span className="inline-flex items-center gap-1.5 font-medium text-gray-700">
-                      <Building2 className="size-3.5 text-gray-400" />
-                      {job.company}
-                    </span>
-                    <span className="inline-flex items-center gap-1.5">
-                      <MapPin className="size-3.5 text-gray-400" />
-                      {job.location}
-                    </span>
-                    {job.salary_range ? (
-                      <span className="inline-flex items-center gap-1.5 font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
-                        <Banknote className="size-3.5 text-emerald-600" />
-                        {job.salary_range}
-                      </span>
-                    ) : null}
-                    <span className="text-gray-400">· Sumber: {job.source}</span>
-                  </div>
-                </div>
-
-                <div className="row-aside flex items-center justify-end">
-                  <StatusBadge status={job.sentinel_status} />
-                </div>
-              </div>
-            </li>
+            <KartuLoker key={job.id} job={job} />
           ))}
-        </ul>
+        </div>
 
         {filtered.length === 0 ? (
           <div className="empty rounded-xl border border-dashed border-gray-200 py-12 text-center text-sm text-gray-400">
@@ -176,121 +189,29 @@ export function JobsBoard({
                 </button>
               </>
             ) : (
-              "Tidak ada loker untuk filter ini."
+              "Belum ada lowongan yang bisa ditampilkan."
             )}
           </div>
         ) : null}
       </div>
 
-      {/* Structured filters — kept, but demoted below the results. The chat is
-          the primary control now; these are the precise second pass. */}
-      <div className="space-y-5 border-t border-gray-100 pt-6">
-        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-gray-400">
-          <SlidersHorizontal className="size-3.5" aria-hidden />
-          Saring lebih lanjut
-        </div>
-
-        {/* Filter Row 1: Locations */}
-        <div className="space-y-2">
-          <span className="block text-xs font-medium text-gray-500">
-            Lokasi Kerja
-          </span>
-          <div
-            className="editor-toolbar flex flex-wrap gap-2"
-            role="group"
-            aria-label="Filter lokasi"
-          >
-            {LOCATIONS.map((item) => {
-              const isActive = location === item;
-              return (
-                <Button
-                  key={item}
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className={cn(
-                    "tab-btn h-8 rounded-full px-3.5 text-xs font-medium transition-all capitalize",
-                    isActive
-                      ? "is-active bg-gray-900 text-white hover:bg-gray-800"
-                      : "bg-gray-100/80 text-gray-600 hover:bg-gray-200/80",
-                  )}
-                  aria-pressed={isActive}
-                  onClick={() => setLocation(item)}
-                >
-                  {item}
-                </Button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Filter Row 2: Salary Range */}
-        <div className="space-y-2">
-          <span className="block text-xs font-medium text-gray-500">
-            Rentang Gaji
-          </span>
-          <div
-            className="editor-toolbar flex flex-wrap gap-2"
-            role="group"
-            aria-label="Filter gaji"
-          >
-            {GAJI.map((item) => {
-              const isActive = gaji === item.id;
-              return (
-                <Button
-                  key={item.id}
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className={cn(
-                    "tab-btn h-8 rounded-full px-3.5 text-xs font-medium transition-all",
-                    isActive
-                      ? "is-active bg-gray-900 text-white hover:bg-gray-800"
-                      : "bg-gray-100/80 text-gray-600 hover:bg-gray-200/80",
-                  )}
-                  aria-pressed={isActive}
-                  onClick={() => setGaji(item.id)}
-                >
-                  {item.label}
-                </Button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Filter Row 3: Security & Quality Badges */}
-        <div
-          className="editor-toolbar flex flex-wrap items-center gap-3 pt-2"
-          role="group"
-          aria-label="Filter kualitas"
-        >
-          <label
-            className={cn(
-              "tab-btn inline-flex cursor-pointer items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-medium transition-colors",
-              noFee
-                ? "border-[#388AF3] bg-blue-50/70 text-[#388AF3]"
-                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50",
-            )}
-          >
-            <Checkbox checked={noFee} onCheckedChange={(value) => setNoFee(value === true)} />
-            <span>Tanpa sinyal fee</span>
-          </label>
-
-          <label
-            className={cn(
-              "tab-btn inline-flex cursor-pointer items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-medium transition-colors",
-              onlyClean
-                ? "border-emerald-500 bg-emerald-50/70 text-emerald-700"
-                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50",
-            )}
-          >
-            <Checkbox checked={onlyClean} onCheckedChange={(value) => setOnlyClean(value === true)} />
-            <span className="flex items-center gap-1.5">
-              <ShieldCheck className="size-3.5 text-emerald-600" />
-              <span>Loker AMAN saja</span>
-            </span>
-          </label>
-        </div>
+      {/* The way to the full, scanned board.
+          These cards are the small audited KarirHub set; the web-wide scan lives
+          at `/loker/inbox` and is hundreds of postings, so the chat here can
+          never be the whole product. `variant="brand"` is the hero's own button —
+          DESIGN.md makes `--brand-grad` the single source for it, and the
+          `ocean` variant is the flat product control for learner surfaces. */}
+      <div className="flex flex-col items-center gap-3 border-t border-gray-100 pt-8 text-center">
+        <Button asChild variant="brand" size="pill" className="gap-2">
+          <Link href="/loker/inbox">
+            <span>Lihat semua lowongan hasil pindai</span>
+            <ArrowRight className="size-4" aria-hidden />
+          </Link>
+        </Button>
+        <p className="max-w-md text-xs text-gray-500">
+          Lowongan di atas adalah hasil audit Sentinel dari KarirHub. Halaman lowongan
+          ditemukan memindai papan publik lain — Glints, Jobstreet, dan ATS perusahaan.
+        </p>
       </div>
     </div>
   );
