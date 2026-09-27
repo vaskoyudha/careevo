@@ -42,6 +42,13 @@ const eslintConfig = defineConfig([
     // scratch plugin Remember, sehingga gerbang lint menjadi tidak terbaca.
     ".claude/**",
     ".remember/**",
+    // Git worktree `git worktree add`: checkout penuh dengan `node_modules` dan
+    // `.next`-nya sendiri di dalam repo. `.gitignore` (baris 88) sudah menutupnya
+    // untuk git, tapi `eslint` hanya membaca `globalIgnores` di sini — tanpa
+    // baris ini `npm run lint` ikut mengurai hasil build worktree dan melaporkan
+    // ribuan galat dari `.next/**` yang bukan kode Careevo. Pola yang sama seperti
+    // `engine/**` dan `backend/**` di atas.
+    ".worktrees/**",
   ]),
 ]);
 
