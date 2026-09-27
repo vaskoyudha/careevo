@@ -48,7 +48,7 @@ Measured on this repo. Four processes, and the two backends are the trap.
 | `:3790` | AI Mastery `next-server`, serving `.next/standalone` | the framed frontend |
 | `:3782` | `deeptutor start` frontend | DeepTutor's own UI (not AI Mastery) |
 | `:8001` | `deeptutor start` backend, `deeptutor.service` | installed deeptutor 1.6.9, workspace `/home/vyns` |
-| `:8011` | bare `python3 -m uvicorn deeptutor.api.main:app --port 8011`, cwd `/home/vyns/Documents/github/DeepTutor-main` | the checkout, "current protocol" — **this is the one AI Mastery uses** |
+| `:8011` | in-repo DeepTutor FastAPI, `sijago-backend.service` | the checkout, "current protocol" — **this is the one AI Mastery uses** |
 
 **AI Mastery (`:3790`) talks to `:8011`, not `:8001`.** The deciding fact is the
 framed app *server's* env, not the backend's:
@@ -59,11 +59,25 @@ tr '\0' '\n' < /proc/$P/environ | grep DEEPTUTOR_API_BASE_URL
 # → http://127.0.0.1:8011
 ```
 
-`:8011` has **no supervisor** — it was started detached (parent is PID 1). Killing
-it leaves it down; there is no systemd unit to bring it back. `deeptutor.service`
-(`systemctl --user`) only runs `:8001`/`:3782`. Confirm supervision before any
-restart: `systemctl --user list-units | grep deeptutor` shows one unit, which
-is *not* :8011.
+`:8011` **is** supervised, by an enabled systemd *user* unit — this section
+previously said it was a detached process with no supervisor, which stopped being
+true. There are two units, and they are not interchangeable:
+
+| Unit | Ports |
+|---|---|
+| `deeptutor.service` | `:8001` / `:3782` (installed `deeptutor start`, workspace `/home/vyns`) |
+| `sijago-backend.service` | `:8011` (in-repo `backend/`, `Restart=always`) |
+
+```bash
+systemctl --user status sijago-backend.service   # :8011
+systemctl --user restart sijago-backend.service  # prefer this over launching uvicorn by hand
+journalctl --user -u sijago-backend.service      # its logs; deeptutor.service covers only :8001
+```
+
+`ExecStart` runs `backend/venv/bin/python -m uvicorn deeptutor.api.main:app
+--host 127.0.0.1 --port 8011` with `WorkingDirectory` and `DEEPTUTOR_HOME` both
+set to this repo's `backend/`. Starting a second uvicorn by hand will just hit
+`address already in use` — restart the unit instead.
 
 ## Model catalog — the "No active LLM model is configured" runbook
 
@@ -71,7 +85,9 @@ AI Mastery's model list is **not** Careevo's `CAREERVO_LLM_*` env. It lives in a
 `model_catalog.json` under the backend's runtime home (cwd, or `DEEPTUTOR_HOME`):
 
 - `:8001` → `/home/vyns/data/user/settings/model_catalog.json`
-- `:8011` → `/home/vyns/Documents/github/DeepTutor-main/data/user/settings/model_catalog.json`
+- `:8011` → `backend/data/user/settings/model_catalog.json` in this repo (the
+  unit sets `DEEPTUTOR_HOME` to `backend/`; it used to point at a separate
+  `DeepTutor-main` checkout that this unit no longer uses)
 
 API (v1.6.3+; the old `/api/v1/settings/...` is 404):
 
@@ -106,8 +122,8 @@ Debug chain, in order, when a turn says "No active LLM model is configured":
 2. Read that backend's catalog. `profiles: []` / `active_*_id: null` is the
    root cause — add a profile.
 3. Check the backend process env for a stale `OPENAI_BASE_URL` pin.
-4. `journalctl --user -u deeptutor.service` covers only `:8001`; `:8011` has no
-   journal, so probe the process and the file directly.
+4. `journalctl --user -u sijago-backend.service` covers `:8011`;
+   `journalctl --user -u deeptutor.service` covers only `:8001`.
 
 ## Model choice — non-agentic or it fails
 
