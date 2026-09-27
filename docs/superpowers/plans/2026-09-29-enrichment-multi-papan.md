@@ -899,7 +899,7 @@ describe("tagKlasifikasi", () => {
 
 import { htmlKeTeks, ambilNextData } from "./html";
 import { applyUrlOffPlatform, hostDari } from "./url";
-import { perusahaanTerkenal, type HasilPapan, type Io, type PapanAdapter } from "./types";
+import { perusahaanTerkenal, type HasilPapan, type PapanAdapter } from "./types";
 
 /** `/c/<company-code>/jobs/<id>/<slug>` — the shape the scan records. */
 const BAGIAN_URL = /^https?:\/\/(?:www\.)?kalibrr\.com\/c\/([^/]+)\/jobs\/(\d+)(?:\/([^/?#]+))?/i;
@@ -1177,7 +1177,7 @@ Expected: FAIL — `Cannot find module './workable'`.
 
 import { htmlKeTeks } from "./html";
 import { applyUrlOffPlatform, hostDari } from "./url";
-import { perusahaanTerkenal, type HasilPapan, type Io, type PapanAdapter } from "./types";
+import { perusahaanTerkenal, type HasilPapan, type PapanAdapter } from "./types";
 
 const HOST = "apply.workable.com";
 
@@ -1274,7 +1274,7 @@ git commit -m "feat(career-ops): workable board adapter"
 
 import { htmlKeTeks } from "./html";
 import { applyUrlOffPlatform, hostDari } from "./url";
-import { perusahaanTerkenal, type HasilPapan, type Io, type PapanAdapter } from "./types";
+import { perusahaanTerkenal, type HasilPapan, type PapanAdapter } from "./types";
 
 const HOST = "jobs.smartrecruiters.com";
 const BAGIAN_URL = /^https?:\/\/jobs\.smartrecruiters\.com\/([^/]+)\/(\d+)/i;
@@ -1343,7 +1343,7 @@ export const smartrecruiters: PapanAdapter = {
 
 import { ambilNextData, htmlKeTeks } from "./html";
 import { applyUrlOffPlatform, hostDari } from "./url";
-import { perusahaanTerkenal, type HasilPapan, type Io, type PapanAdapter } from "./types";
+import { perusahaanTerkenal, type HasilPapan, type PapanAdapter } from "./types";
 
 const BAGIAN_URL = /^https?:\/\/dealls\.com\/loker\/([^~?#]+)(?:~([^?#]+))?/i;
 
@@ -1429,7 +1429,7 @@ export const dealls: PapanAdapter = {
 
 import { bersihkanPlaceholder, htmlKeTeks, metaOgDescription, potongDivId } from "./html";
 import { applyUrlOffPlatform, hostDari } from "./url";
-import { perusahaanTerkenal, type HasilPapan, type Io, type PapanAdapter } from "./types";
+import { perusahaanTerkenal, type HasilPapan, type PapanAdapter } from "./types";
 
 const HOST = /^[a-z0-9][a-z0-9-]*\.breezy\.hr$/i;
 const BAGIAN_URL = /^https?:\/\/[a-z0-9][a-z0-9-]*\.breezy\.hr\/p\//i;
