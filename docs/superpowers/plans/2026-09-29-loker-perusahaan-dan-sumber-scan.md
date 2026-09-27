@@ -934,12 +934,14 @@ All five tasks ran. Commits, in order:
 | Commit | Task | What |
 |---|---|---|
 | `5d6d257` | 1 (pre-existing) | Part A: facet + filter, verified not re-committed |
-| `5d3bd7b` | 2 | 12 → 27 `job_boards` across 8 role families |
-| `20b33c1` | 3 | `maxPages` 3 → 12 on the 16 Jobstreet/Kalibrr entries; two depth guards |
+| `39a8446` | 2 | 12 → 27 `job_boards` across 8 role families |
+| `8bfeaf7` | 3 | `maxPages` 3 → 12 on the 16 Jobstreet/Kalibrr entries; two depth guards |
 | — | 4 | Measurement only (all paths gitignored; no commit) |
-| `6ce8a4b` | 5 | `docs/local-db.md` §8: 27 boards, page budget 225, measured numbers |
+| `aeffb3c` | 5 | `docs/local-db.md` §8: 27 boards, page budget 225, measured numbers |
 
-Plan-only commits alongside: `7115fdd` (Task 3 rewritten to the depth lever), `42430b0` (Task 3 Step 5 `sed` typo), `3cf0c9d` (Task 5 Steps 1/1b).
+Plan-only commits alongside: `5ba1a19` (Task 3 rewritten to the depth lever), `60ef144` (Task 3 Step 5 `sed` typo), `d397757` (Task 5 Steps 1/1b), `2f9799d` (date alignment: the four measurement strings moved 2026-09-29 → 2026-09-27).
+
+Hashes are post-redate: the whole `origin/main..main` range was re-dated to 2026-09-27 (see the date-alignment commit), which rewrote every commit above `c47a8f2`. The two commits below it — `c0e4f2c` and `de10e16` — were already on the 27th and kept their hashes, as did `5d6d257`.
 
 **Task 4 evidence.** The scan ran through the engine's own spawn (`CAREER_OPS_ROOT=… node engine/scan.mjs --json --quiet --since 30` — the equivalent of `jalankanScanAction()`, since the on-screen button only renders in the "Belum pernah dipindai" empty state and the root already held 257 rows). Receipt on `scan-runs.tsv`: `boards=27`, `found=4,483`, `new_added=620`, `errors=8` (3 Glints `auth` + 5 Workable `unknown` rate-limit), wall time **112s** against the 5-minute ceiling. Corpus went **257 → 877 rows / 181 → 523 employers**, all Indonesian-located.
 
