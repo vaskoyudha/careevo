@@ -4830,7 +4830,13 @@ button.tag:hover {
    (bukan hanya grip-nya) supaya sasarannya cukup besar untuk ditangkap mouse —
    garis setipis 2px sulit dikenai. `touch-action: none` wajib: tanpa itu
    peramban menyerahkan gestur horizontal ke gulir halaman, dan seretnya tidak
-   pernah dimulai. */
+   pernah dimulai.
+
+   Lebar track-nya 6px — itulah satu-satunya pemisah antar kolom. Grid-nya
+   sengaja **tanpa `gap-x`**: celah antar kolom dan permukaan tangkap pembagi
+   adalah ruang yang sama. Sebelumnya keduanya ditumpuk (20px × 2 dari `gap-x-5`
+   plus 6px track), jadi 46px ruang mati membentang di antara panel materi dan
+   panel editor. */
 .lab-pembagi {
   display: none;
   cursor: col-resize;
@@ -4844,15 +4850,21 @@ button.tag:hover {
   }
 }
 
-/* Garis yang terlihat. Sengaja elemen terpisah: permukaan tangkapnya selebar
-   seluruh track, sedangkan garisnya tetap tipis di tengahnya. */
+/* Garis pembagi. **Tidak terlihat sampai disentuh** — ia muncul saat hover,
+   fokus papan ketik, atau sedang diseret.
+
+   Versi sebelumnya selalu menampilkan garis 2px di tengah celah, dan itu yang
+   dikeluhkan: bersama `gap-x-5` ia menghasilkan dinding vertikal 46px di antara
+   dua panel, padahal ruang itu tidak memuat apa pun. Sekarang kolomnya
+   bersebelahan dengan pemisah 6px saja, dan garisnya baru muncul saat memang
+   dipakai (jadi permukaan tangkapnya tetap punya penanda). */
 .lab-pembagi-grip {
   display: block;
   width: 2px;
   height: 100%;
   margin: 0 auto;
   border-radius: 999px;
-  background: rgba(10, 61, 98, 0.14);
+  background: transparent;
   transition: background-color 150ms ease;
 }
 

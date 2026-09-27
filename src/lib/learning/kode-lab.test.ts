@@ -94,6 +94,33 @@ describe("KodeLab sebagai berkas sumber", () => {
     expect(css).toMatch(/minmax\(0, 1fr\) 6px minmax\(0, 1fr\)/);
   });
 
+  it("tidak menyisakan celah mati antar kolom", () => {
+    // Keluhan pemilik produk: jarak antara panel materi dan panel editor terlalu
+    // lebar, dengan garis vertikal di tengahnya. Penyebabnya dua ruang yang
+    // ditumpuk — `gap-x-5` (20px × 2) **plus** track pembagi 6px — jadi 46px
+    // ruang kosong yang tidak memuat apa pun.
+    //
+    // Sekarang grid-nya tanpa `gap-x`: celah antar kolom dan permukaan tangkap
+    // pembagi adalah ruang yang sama (6px). Yang dijaga: `gap-x` tidak kembali ke
+    // tata letaknya, dan garis pembaginya tidak terlihat sampai dipakai.
+    expect(sumber).not.toMatch(/gap-x-/);
+    const css = readFileSync(
+      fileURLToPath(new URL("../../app/globals.css", import.meta.url)),
+      "utf8",
+    );
+    const grip = css.match(/\.lab-pembagi-grip \{([\s\S]*?)\n\}/)?.[1] ?? "";
+    // Garisnya mulai transparan; warna brand baru muncul lewat aturan hover/
+    // fokus/serat di bawahnya.
+    expect(grip).toMatch(/background: transparent/);
+    expect(grip).not.toMatch(/background: rgba\(10, 61, 98, 0\.14\)/);
+    // Permukaan tangkapnya selebar track (6px), bukan selebar `gap-5` yang lama.
+    const bagi = readFileSync(
+      fileURLToPath(new URL("./bagi-lab.ts", import.meta.url)),
+      "utf8",
+    );
+    expect(bagi).toMatch(/export const GAP = 6;/);
+  });
+
   it("merentangkan kartu materi dan memakai lebar penuh sampai tepi", () => {
     // Permintaan pemilik produk, dengan CodeChef sebagai acuan: panel materi dan
     // panel editor membentang sampai tepi kiri-kanan, dan kolomnya berhenti

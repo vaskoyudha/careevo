@@ -27,8 +27,16 @@ export const BAGI_AWAL = 0.5;
 export const MIN_KIRI = 280;
 export const MIN_KANAN = 340;
 
-/** Jarak antar kolom, harus sama dengan `gap-5` (1.25rem) di tata letaknya. */
-export const GAP = 20;
+/**
+ * Lebar track pembagi, dalam piksel — jarak antar kolom di grid.
+ *
+ * Track inilah satu-satunya pemisah antar kolom (grid-nya sengaja **tanpa**
+ * `gap-x`), dan permukaan tangkap pembagi selebar ini juga. Harganya harus sama
+ * dengan `6px` di `--lab-bagi` (`kode-lab.tsx`) dan `grid-template-columns`
+ * (`globals.css`); kalau berbeda, koreksi setengah `gap` di `bagiDariGeser`
+ * meleset dan kolomnya melompat saat mulai diseret.
+ */
+export const GAP = 6;
 
 /** Langkah satu ketukan panah pada pembagi, dalam fraksi. */
 export const LANGKAH_PAPAN_KETIK = 0.02;

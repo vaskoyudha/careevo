@@ -99,7 +99,7 @@ export function KodeLab({
     <div
       data-pembagi-lab
       style={{ ["--lab-bagi" as string]: `${bagi}fr 6px ${1 - bagi}fr` }}
-      className="lab-lab grid grid-cols-1 items-stretch gap-x-5 gap-y-5 lg:min-h-[20rem] lg:flex-1"
+      className="lab-lab grid grid-cols-1 items-stretch gap-y-5 lg:min-h-[20rem] lg:flex-1"
     >
       {/* Kolom bahan belajar — menggulir di dalam kolomnya sendiri supaya kolom
           kanan yang menempel tidak pernah ikut tergulir. Blok latihannya
