@@ -1191,18 +1191,35 @@ h6 {
   padding-bottom: calc(var(--reader-foot-h) + 1.25rem);
 }
 
-/* Lebar baca untuk halaman ber-lab kode.
+/* Halaman ber-lab kode: menyentuh tepi kiri-kanan, dan berhenti tepat di atas
+   bar kaki.
 
-   `--max` (1280px) adalah lebar maksimum bersama situs ini — dipakai `.chrome`,
-   bar fokus reader, dan halaman marketing — jadi tepi kolom lab sejajar dengan
-   chrome tepat di atasnya. Sebelumnya halaman lab memakai `max-w-6xl` (1152px),
-   dan selisih 128px itu menyisakan margin mati yang lebih lebar daripada chrome
-   di atasnya; itulah yang terbaca sebagai "kartunya belum sampai tepi".
+   Aturan ini **menggantikan** aturan `.reader-shell main` di atas, bukan
+   menambahinya, karena keduanya berada di lapisan yang sama dan yang belakangan
+   menang. Bedanya dua:
 
-   Halaman prosa **tidak** memakai ini: 1280px terlalu panjang untuk dibaca,
-   jadi ia tetap `max-w-3xl` (`materi-shell.tsx`). */
-.reader-shell .lab-baca {
-  max-width: min(var(--max), calc(100% - 2 * var(--page-pad)));
+   - padding samping dibatalkan, supaya panel materi dan panel editor membentang
+     seperti CodeChef/Judge0 — margin samping itulah yang terbaca sebagai
+     "kartunya belum sampai tepi";
+   - padding bawahnya `--reader-foot-h` saja, tanpa tambahan `1.25rem`. Kolom lab
+     sudah berhenti tepat di `--reader-foot-h` (lihat `kode-lab.tsx`), jadi
+     menambahkan 1.25rem lagi menyisakan celah 59px antara dasar kolom dan bar
+     kaki yang mengapung di atasnya.
+
+   Halaman prosa sengaja tidak memakai ini: lebar bacanya tetap `max-w-3xl`, dan
+   jarak napasnya dari bar kaki tetap ada. */
+.reader-shell .lab-isi-penuh {
+  /* Padding samping **kembali ada**, tapi kecil: panel materi dan panel editor
+     tetap hampir menyentuh tepi (seperti CodeChef), tanpa benar-benar menempel —
+     sudut membulat kartu yang menyentuh tepi viewport terpotong dan terbaca
+     sebagai cacat render, bukan sebagai tata letak yang disengaja. */
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  /* Padding bawahnya `--reader-foot-h` saja, tanpa tambahan `1.25rem`. Kolom lab
+     sudah berhenti tepat di `--reader-foot-h` (lihat `kode-lab.tsx`), jadi
+     menambahkan 1.25rem lagi menyisakan celah 59px antara dasar kolom dan bar
+     kaki yang mengapung di atasnya. */
+  padding-bottom: var(--reader-foot-h);
 }
 
 /* One row: navigation at the two ends and the AI Mastery door in the middle.
@@ -4759,6 +4776,44 @@ button.tag:hover {
   }
 }
 
+/* Kartu materi lab direntangkan sampai dasar kolom.
+
+   Yang direntangkan hanya `<div>` pembungkus `HalamanView`, dan hanya di `lg`:
+   di bawah itu kolomnya menumpuk, jadi tidak ada dasar kolom yang perlu
+   disentuh. `space-y-5` bawaan `HalamanView` tetap berlaku, jadi jarak antar
+   blok tidak berubah — yang bertambah hanya tinggi kartunya. */
+@media (min-width: 1024px) {
+  .lab-kartu-penuh {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+  }
+
+  .lab-kartu-penuh > article {
+    /* `flex-1` supaya kartu putihnya yang mengisi sisa tinggi, bukan
+       paragrafnya yang direntangkan (teks yang direntangkan akan menyebar
+       barisnya). */
+    flex: 1 1 auto;
+  }
+}
+
+/* Padding dalam kartu materi lab dikurangi.
+
+   Bawaannya `p-5 sm:p-7` — 20px di ponsel, **28px** dari `sm` ke atas. Di kolom
+   lab yang lebarnya cuma sekitar setengah layar, 28px tiap sisi memakan ~56px
+   dari lebar baca, dan itu yang membuat panelnya terasa longgar.
+
+   Yang diubah hanya padding **kotak luarnya**. Jarak antar blok di dalamnya
+   (`space-y-4` pada daftar blok, `space-y-5` antar bagian) sengaja dibiarkan:
+   itu yang memisahkan paragraf, dan merapatkannya membuat prosa terbaca
+   berdempetan.
+
+   Angkanya di satu custom property supaya cuma ada satu tempat untuk disetel. */
+.lab-kolom-kiri article {
+  --lab-pad-kartu: 1.25rem;
+  padding: var(--lab-pad-kartu);
+}
+
 /* Lantai lebar kedua kolom. Tanpa ini, menyeret sampai ujung membuat salah satu
    kolom selebar nol — dan yang hilang bukan sekadar tampilan: editor nol lebar
    berarti peserta tidak bisa lagi menyunting programnya. Angka minimumnya
@@ -5574,6 +5629,76 @@ body.lab-menyeret {
   box-shadow:
     0 2px 35.8px 0 #f4f4f4,
     0 4px 15px 0 rgba(190, 190, 190, 0);
+}
+
+/* ===== Proof section: the signature check =====
+   The section's whole claim is "the signature is checked and matches", so the
+   signature row performs it once: a soft leaf-green scan sweeps across the
+   hash, then the `cocok` check settles in. One authored moment, not a loop, and
+   the only motion in a section that was otherwise a static table.
+
+   The scan is a decorative `::after` overlay, never a clip on the text itself:
+   clipping the hash would hide real content from a no-JS visitor whose Reveal
+   never resolves. The hash stays readable throughout — the sweep only passes
+   over it — and `overflow: hidden` already comes from `truncate` on the same
+   element. Both animations are one-shot; the reduced-motion block at the end
+   turns them off, so that row simply appears already checked. */
+.proof-sig-hash {
+  position: relative;
+}
+
+.proof-sig-hash::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(46, 139, 87, 0.28),
+    transparent
+  );
+  transform: translateX(-100%);
+}
+
+.reveal.is-visible .proof-sig-hash::after {
+  animation: proof-scan 800ms var(--ease-out-strong) 450ms 1 both;
+}
+
+.reveal.is-visible .proof-sig-check {
+  animation: proof-check 320ms var(--ease-out-strong) 1150ms 1 both;
+}
+
+@keyframes proof-scan {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* The check animates from a hidden `from` frame, not from a hidden base style.
+   The base state stays visible, so a visitor without JS (Reveal never adds
+   `is-visible`) still reads "cocok" instead of an empty gap; `fill-mode: both`
+   holds that `from` frame through the 1150ms delay once the animation does run. */
+@keyframes proof-check {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The global reduced-motion rule collapses `animation-duration` but leaves
+   `animation-delay` intact, so without this the check would hold its hidden
+   `from` frame for the full 1150ms delay — content blanked, which is exactly
+   what reduced motion must not do. Killing both animations falls back to the
+   base styles, which are already visible. */
+@media (prefers-reduced-motion: reduce) {
+  .reveal.is-visible .proof-sig-hash::after,
+  .reveal.is-visible .proof-sig-check {
+    animation: none;
+  }
 }
 
 @keyframes infinite-scroll {

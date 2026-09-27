@@ -105,9 +105,20 @@ export function KodeLab({
           kanan yang menempel tidak pernah ikut tergulir. Blok latihannya
           disembunyikan, dan pagernya dimatikan: bar kaki reader sudah punya
           tombol maju, dan dua tombol "berikutnya" di satu layar dengan tujuan
-          berbeda (halaman vs modul) terbaca sebagai duplikat. */}
+          berbeda (halaman vs modul) terbaca sebagai duplikat.
+
+          Kartunya direntangkan (`lab-kartu-penuh`) supaya dasarnya berhenti
+          tepat di bar kaki, bukan menggantung dengan celah kosong di bawahnya
+          saat prosanya pendek. Yang direntangkan **kartunya**, bukan paragrafnya:
+          tinggi baris teks tetap ditentukan isinya. */}
       <div className="lab-kolom-kiri min-w-0 lg:h-full lg:overflow-y-auto lg:pr-1">
-        <HalamanView modul={modul} halaman={halaman} sembunyikanKodeDijalankan sembunyikanPager />
+        <HalamanView
+          modul={modul}
+          halaman={halaman}
+          sembunyikanKodeDijalankan
+          sembunyikanPager
+          className="lab-kartu-penuh"
+        />
       </div>
 
       <PembagiLab kunci={kunciBagi} bagi={bagi} onBagi={setBagi} />

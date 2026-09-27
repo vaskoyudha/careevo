@@ -357,28 +357,40 @@ export function MateriShell({
             untuk accommodate drawer: di `xl` ia naik ke `z-index: 45` di atas
             drawer, bukan menyingkir ke samping. */}
         <div className="relative min-w-0 flex-1">
-          <main className="h-full min-w-0 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
-            {/* Lebar bacanya dipisah per jenis halaman, dan angka untuk lab
-                **tidak lagi angka karangan**: `max-w-6xl` (1152px) menyisakan
-                144px mati di kiri-kanan pada viewport 1440px, padahal bar fokus
-                tepat di atasnya membentang 1304px. Dua tepi yang berbeda 144px di
-                satu layar itulah yang terbaca sebagai "kartunya belum sampai
-                tepi". Sekarang halaman lab memakai `--max` milik situs (1280px,
-                DESIGN.md line 49) — lebar maksimum yang sama dengan bar fokus,
-                `.chrome`, dan halaman marketing — jadi tepinya sejajar dengan
-                chrome di atasnya alih-alih dengan angka ketiga yang hanya dipakai
-                di sini.
+          <main
+            className={cn(
+              // `pb-0` hanya untuk halaman lab: `padding-bottom` bawaan
+              // (`--reader-foot-h` + 1.25rem) menyisakan celah 59px antara dasar
+              // kolom dan bar kaki yang mengapung di atasnya. Kolom lab sendiri
+              // sudah berhenti tepat di `--reader-foot-h` (lihat `kode-lab.tsx`),
+              // jadi menambahkan 1.25rem lagi di sini justru menggandakan
+              // jaraknya. Aturan `padding-bottom`-nya ada di `globals.css` dan
+              // lebih spesifik daripada utility Tailwind — karena itu yang
+              // dipakai adalah `.lab-isi-penuh`, bukan `pb-0`.
+              "h-full min-w-0 overflow-y-auto py-6",
+              lebarLab ? "lab-isi-penuh" : "px-4 sm:px-6 lg:px-8",
+            )}
+          >
+            {/* Lebar baca untuk halaman ber-lab kode: **hampir penuh sampai tepi**.
 
-                Halaman prosa tetap `max-w-3xl`: lebar baca yang nyaman, dan
-                melebarkannya ke 1280px akan membuat barisnya terlalu panjang untuk
-                dibaca. */}
+                Referensinya CodeChef/Judge0: panel soal dan panel editor
+                memanjang dari tepi kiri ke tepi kanan layar, tanpa margin samping
+                yang berarti. Itu yang diminta, dan bukan sekadar lebar yang lebih
+                besar — `--max` (1280px) masih menyisakan 80px mati di tiap sisi
+                pada viewport 1440px, dan margin itulah yang terbaca sebagai
+                "kartunya belum sampai tepi".
+
+                Karena itu halaman lab melepas centring `mx-auto` **dan** batas
+                `max-width`-nya, sementara `main` di atasnya membatalkan padding
+                samping dan bawahnya (`lab-isi-penuh`). Halaman prosa **tidak**
+                ikut: ia tetap `max-w-3xl` (768px), karena 1280px terlalu panjang
+                untuk dibaca. */}
             <div
               className={cn(
-                "mx-auto w-full space-y-6",
-                // `<div>`: `max-w-[var(--max)]` gaya Tailwind tidak dipakai karena
-                // `--max` adalah custom property situs, dan menulis 1280px di sini
-                // berarti angka kedua yang bisa menyimpang dari DESIGN.md.
-                lebarLab ? "lab-baca" : "max-w-3xl",
+                "space-y-6",
+                // Halaman lab: `w-full` saja. Yang membuatnya sampai tepi adalah
+                // padding `main` yang dibatalkan di atas, bukan kelas di sini.
+                lebarLab ? "w-full" : "mx-auto w-full max-w-3xl",
                 // Halaman ber-lab juga **membagi tinggi** area baca, bukan
                 // menggulir seperti prosa. Editor butuh tinggi yang pasti untuk
                 // bisa mengisi kolomnya; tanpa rantai ini `flex-1` di bawah

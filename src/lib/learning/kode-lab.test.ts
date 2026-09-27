@@ -94,6 +94,41 @@ describe("KodeLab sebagai berkas sumber", () => {
     expect(css).toMatch(/minmax\(0, 1fr\) 6px minmax\(0, 1fr\)/);
   });
 
+  it("merentangkan kartu materi dan memakai lebar penuh sampai tepi", () => {
+    // Permintaan pemilik produk, dengan CodeChef sebagai acuan: panel materi dan
+    // panel editor membentang sampai tepi kiri-kanan, dan kolomnya berhenti
+    // tepat di atas bar kaki — bukan menggantung dengan celah kosong di bawah.
+    //
+    // Tiga hal yang dijaga, semuanya properti CSS yang tidak akan gagal di
+    // `typecheck`/`lint`/render mana pun:
+    //
+    //  1. Kartu materi menerima `lab-kartu-penuh`, yang membuatnya
+    //     `min-height: 100%` di dalam kolom yang menggulir.
+    //  2. Halaman lab melepas `max-w-3xl`; tanpa itu lebarnya kembali 768px.
+    //  3. Padding samping `main` dikecilkan (bukan dihapus) lewat
+    //     `lab-isi-penuh`, supaya kartunya hampir menyentuh tepi tanpa benar-
+    //     benar menempel — sudut membulat yang menyentuh tepi viewport
+    //     terpotong.
+    expect(sumber).toContain("lab-kartu-penuh");
+    const css = readFileSync(
+      fileURLToPath(new URL("../../app/globals.css", import.meta.url)),
+      "utf8",
+    );
+    expect(css).toMatch(/\.reader-shell \.lab-isi-penuh \{[\s\S]*?padding-left: 0\.75rem/);
+    expect(css).toMatch(/\.lab-kartu-penuh \{[\s\S]*?min-height: 100%/);
+    // Padding dalam kartu materi ikut dirapatkan, dari `p-5 sm:p-7` (28px).
+    expect(css).toMatch(/\.lab-kolom-kiri article \{[\s\S]*?--lab-pad-kartu: 1\.25rem/);
+    // Halaman lab melepas `max-w-3xl` dan melepas padding `main`-nya; halaman
+    // prosa tidak boleh ikut dilebarkan (1280px terlalu panjang untuk dibaca).
+    const shell = readFileSync(
+      fileURLToPath(new URL("../../components/features/learning/materi-shell.tsx", import.meta.url)),
+      "utf8",
+    );
+    expect(shell).toContain("lab-isi-penuh");
+    expect(shell).toContain("mx-auto w-full max-w-3xl");
+    expect(shell).not.toMatch(/lebarLab \? "max-w-6xl"/);
+  });
+
   it("memakai permukaan IDE, bukan kartu putih bertumpuk", () => {
     // Editor di lab adalah **alat kerja**, bukan contoh di tengah prosa: kartu
     // gelap dengan baris tab `main.cpp`, permukaan editor, dan bilah jalankan.
