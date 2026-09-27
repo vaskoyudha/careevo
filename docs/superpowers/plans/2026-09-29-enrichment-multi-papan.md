@@ -2478,9 +2478,13 @@ describe("auditBaris", () => {
     expect(out.audit.status).toBe("rejected");
   });
 
-  it("keys the cache by URL, so a query string on the row still finds its entry", () => {
+  it("keys the cache by URL, so a normalized query string on the row still finds its entry", () => {
+    // `utm_source` is in `url-key.ts`'s TRACKING_PARAMS denylist, so it normalizes
+    // away and the lookup hits the base key. A param that is NOT denylisted (e.g.
+    // `?src=x`) would keep its own key and this row would be unenriched — which is
+    // the correct behaviour, not a bug, so the fixture must use a stripped param.
     const [out] = auditBaris(
-      [row({ url: `${URL_JOBSTREET}?src=x` })],
+      [row({ url: `${URL_JOBSTREET}?utm_source=x` })],
       cache(),
     );
     expect(out.enriched).toBe(true);
