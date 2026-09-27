@@ -195,18 +195,33 @@ dan di UI — bukan di payload yang ditandatangani.
 
 ## 6. Hasil Task 0 (spike)
 
-LAYANAN_BISA_PER_PESERTA: true — store mastery diisolasi per-akun, bukan per-workspace
-tunggal: `LearningStore()` tanpa argumen (`mastery_path.py:439-448`,
-`storage.py:353-361`) mewarisi ContextVar pengguna yang dipasang `require_auth`
-(`auth.py:416`), dan `get_account_path_service()` (`paths.py:153-161`) mengembalikan root
-`data/users/<uid>` yang berbeda per akun non-admin. Detail dan bukti mentah:
-`docs/ai-mastery-scope-finding.md`.
+**`LAYANAN_BISA_PER_PESERTA: true` — bersyarat: hanya berlaku bila
+`AUTH_ENABLED=true` *dan* tiap peserta Careevo punya satu akun non-admin AI Mastery.
+Syarat itu BELUM terpenuhi, jadi isolasi per-peserta tidak aktif hari ini dan
+seluruh peserta yang memakai `/ai-mastery` berbagi satu store yang sama.**
 
-Konsekuensi: `provenanceMinimum` tetap `0` pada plan ini. Bridge AI Mastery tetap
-plan terpisah, karena temuannya memunculkan prasyarat operasional, bukan perubahan di
-sini: `AUTH_ENABLED` sekarang `false` (`backend/data/user/settings/auth.json`), jadi
-seluruh request adalah local-admin dan semua peserta berbagi satu store. Isolasi
-per-peserta baru berlaku setelah Careevo mengaktifkan auth dan memprovisioning satu akun
-non-admin per peserta. `path_id` sendiri tidak membawa identitas peserta, jadi bridge
-harus memetakan peserta Careevo → akun AI Mastery secara eksplisit, bukan lewat
-`path_id`.
+Yang terbukti adalah *kemampuan* mengisolasi per akun, bukan isolasi yang sedang
+berjalan. Tiga butir berikut; butir 2 dan 3 yang menentukan apakah bridge boleh
+dibangun sekarang.
+
+1. **Mekanismenya ada, tapi hanya lewat akun non-admin.** `LearningStore()` tanpa
+   argumen (`mastery_path.py:439-448`, `storage.py:353-361`) mewarisi ContextVar
+   pengguna yang dipasang `require_auth` (`auth.py:416`), dan
+   `get_account_path_service()` (`paths.py:153-161`) mengembalikan root
+   `data/users/<uid>` yang berbeda per akun non-admin. Router memang memasang
+   `dependencies=_auth` (`main.py:614-619`; `_auth` di `main.py:590`).
+2. **Hari ini tidak terisolasi sama sekali.**
+   `backend/data/user/settings/auth.json` berisi `"enabled": false` dan
+   `backend/data/users/` tidak ada — nol akun non-admin. Setiap request diperlakukan
+   sebagai local-admin. Akun admin juga berbagi satu root, jadi `true` hanya berlaku
+   setelah `AUTH_ENABLED=true` *dan* satu akun non-admin diprovisioning per peserta.
+3. **Respons terisolasi tidak pernah diamati.** Store `:8011` berbaris 0 di seluruh
+   tabel data, jadi tidak ada `path_id` dan `GET /topics/{path_id}` hanya menjawab
+   `404`. Kesimpulan bertumpu pada resolusi path dan config auth di atas, bukan pada
+   pengamatan respons yang benar-benar terisolasi.
+
+Bridge karena itu harus memetakan peserta Careevo → akun AI Mastery secara eksplisit:
+`path_id` sendiri tidak membawa identitas peserta. **Konsekuensi:** `provenanceMinimum`
+tetap `0` pada plan ini dan bridge tetap plan terpisah — ketiga syarat di atas adalah
+prasyarat operasional, bukan perubahan pada spec ini. Bukti mentah dan langkah
+verifikasinya: `docs/ai-mastery-scope-finding.md`.
