@@ -19,7 +19,7 @@
 # engine/** stays byte-identical; bootstrap.ts only changes WHICH file is copied.
 # Write-once: an existing .data/career-ops/portals.yml is never replaced.
 #
-# Field names verified against the engine: buildLocationFilter (scan.mjs:511-527)
+# Field names verified against the engine: buildLocationFilter (scan.mjs:510-527)
 # reads exactly allow / always_allow / block / block_hard / strict. Anything else
 # is silently ignored.
 
@@ -106,15 +106,17 @@ location_filter:
   # 14 real Indonesian metros. Matching is case-insensitive and word-boundary
   # anchored (scan.mjs:341 compileLocationKeyword), so "Jakarta" covers "Jakarta
   # Selatan" and "Jakarta Pusat" — the space is the boundary — without matching
-  # inside a longer word. 14 clears the >=10 guard at portals.test.ts:47
-  # honestly, not as padding.
+  # inside a longer word. 14 clears the ">= 10" floor in portals.test.ts's
+  # "does not lock the location filter to a short list of cities" test honestly,
+  # not as padding. (Named, not line-numbered: a line reference there goes stale
+  # the next time that file's comments are edited, which is how this one did.)
   #
   # MEASURED AGAINST THE ENGINE, not assumed. `allow` is the LAST tier before a
-  # final fallback: titleSignalsRemote (scan.mjs:560-566) admits any posting
-  # whose TITLE marks it remote, and that check is placed after `block`
-  # precisely so a remote title cannot rescue a BLOCKED location. There is no
-  # `block` tier here, so today a European posting titled "Program Manager -
-  # Remote" PASSES this filter. Verified:
+  # final fallback: titleSignalsRemote (scan.mjs:561-564, the return itself at
+  # :564) admits any posting whose TITLE marks it remote, and that check is
+  # placed after `block` precisely so a remote title cannot rescue a BLOCKED
+  # location. There is no `block` tier here, so today a European posting titled
+  # "Program Manager - Remote" PASSES this filter. Verified:
   #
   #   buildLocationFilter({allow, always_allow})('Berlin, Germany', '',
   #     'Program Manager - Remote')          -> true
@@ -127,6 +129,18 @@ location_filter:
   # location is only "Remote" — and that belongs with the scan, not with the
   # seed. Task 5 reads filtered_location from the receipt to price it.
   #
+  # WHY A DENY-LIST IS NOT THE ANSWER, for whoever considers `block: [Germany,
+  # India, Singapore, ...]` next: a country deny-list is unmaintainable. It has
+  # to be right about every country on earth, it silently admits any country
+  # added to the world after it was written, and matching is substring-based on
+  # a location string the employer typed — so "Polish" also catches "Polish
+  # speaking required" and misses "Kraków". An allow-list of places we mean is
+  # wrong only by omission, which the 14-metro guard below catches; a
+  # deny-list is wrong by commission, which nothing catches. Prefer scoping the
+  # SOURCES (see the tracked_companies section) to letting a deny-list absorb
+  # the risk — which is why the mixed-market boards were removed rather than
+  # filtered.
+  #
   # Two cases that need no decision: an EMPTY location passes (non-strict, and
   # that is the Glints-row case `strict` would have destroyed), and a bare
   # "Remote" location with a non-remote title is rejected by `allow`.
@@ -134,14 +148,15 @@ location_filter:
   # STILL LOAD-BEARING after the mixed-market boards were dropped below. It is
   # the ONLY location gate in the pipeline, and it is not belt-and-braces:
   #   - `locationHintFromUrl` returns '' for every provider in this file — it
-  #     only produces a hint for *.myworkdayjobs.com URLs (scan.mjs:352-369) —
-  #     so the decision rests entirely on the provider's location string.
+  #     only produces a hint for *.myworkdayjobs.com URLs (scan.mjs:439, the
+  #     hostname guard at :447) — so the decision rests entirely on the
+  #     provider's location string.
   #   - NO provider filters by country, and there is no country gate in the scan
   #     path. `country_eligibility_filter` matches the CANDIDATE's country
   #     against the job DESCRIPTION (eligibility phrasing), not the location.
   #   - The providers DISCARD the country signal they are given: jobstreet keeps
   #     `locations[0].label` and drops the `countryCode` in the same object
-  #     (jobstreet.mjs:151); glints keeps `item.city?.name` and drops the country
+  #     (jobstreet.mjs:170); glints keeps `item.city?.name` and drops the country
   #     (glints.mjs:136).
   #   - The ATS providers emit employer-entered free text, and two of them
   #     APPEND "Remote" to the location when the req is remote (smartrecruiters
@@ -237,6 +252,11 @@ job_boards:
 # (resolved: 11 | unresolved: 0), then independently re-checked with curl -L:
 # HTTP 200, no redirect away from the board, and a careers-page <title>.
 #
+# Those 11 are the resolved-company count of the INPUT file, not the length of
+# the list below: 11 companies were resolved and verified, and 9 ship here,
+# because Grab and Bjak were later dropped for being mixed-market (see the
+# section comment on the list). Do not read "resolved: 11" as "11 entries".
+#
 # Each board was also read back through the engine's own provider to confirm it
 # lists INDONESIAN postings (jobs / indonesia-located), not just a live board.
 # That second check is what separates this list from a list of 200s.
@@ -260,7 +280,11 @@ tracked_companies:
   # Indonesian of 444, Bjak 171 of 3,067, together 3,255 non-Indonesian
   # postings for 256 Indonesian ones. Including them would trade 256 real
   # postings for 3,255 that `location_filter` cannot reliably stop, for the
-  # reason the next comment records.
+  # reason recorded in the `allow` block of the `location_filter` section above:
+  # the titleSignalsRemote fallback is placed AFTER the `block` tier, and this
+  # config has no `block` tier, so a remote-titled posting passes regardless of
+  # its location. (The alternative — deny-listing the offending countries — is
+  # rejected there as unmaintainable.)
   #
   # Two DIFFERENT reasons exclude an entry, and they must not be confused:
   #   - no engine provider claims the board  -> the famous bespoke employers
