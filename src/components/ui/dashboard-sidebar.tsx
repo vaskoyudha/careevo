@@ -23,6 +23,8 @@ import {
   ShieldAlert,
   PanelLeftClose,
   PanelLeftOpen,
+  Route,
+  FolderKanban,
 } from "lucide-react";
 
 export type SidebarNavItem = {
@@ -37,12 +39,27 @@ export type SidebarNavGroup = {
   items: SidebarNavItem[];
 };
 
+/**
+ * Navigasi learner.
+ *
+ * Dua entri terakhir pindah dari navbar (`learnerNavItems` di `chrome-parts`)
+ * ke sini: `Jalur Belajar` dan `Project` (dulu berlabel `Karya` di navbar).
+ * Posisinya dipertahankan seperti urutan relatif di navbar — `Jalur Belajar`
+ * langsung setelah `Belajar`, `Project` langsung sebelum `Loker`.
+ *
+ * Hanya tampil di `AppShell` (dashboard). Halaman `LearnerShell` (`/belajar`,
+ * `/belajar/jalur`, `/profil`) punya navbar sendiri tanpa sidebar, jadi keduanya
+ * sekarang tidak punya pintu masuk dari sana — pintu masuknya dari sidebar
+ * dashboard, `belajar-home`, dan link in-page.
+ */
 const USER_GROUPS: SidebarNavGroup[] = [
   {
     items: [
       { href: "/dashboard", title: "Dashboard", icon: LayoutDashboard },
       { href: "/belajar", title: "Belajar", icon: GraduationCap },
+      { href: "/belajar/jalur", title: "Jalur Belajar", icon: Route },
       { href: "/jelajah", title: "Jelajah", icon: Compass },
+      { href: "/submission", title: "Project", icon: FolderKanban },
       { href: "/loker", title: "Loker", icon: Briefcase },
     ],
   },
