@@ -548,8 +548,16 @@ h6 {
    same 78px the navbar has always needed. With the bar hidden the two classes
    agree with the old `scroll-mt-24` / `lg:top-24` they replace. */
 .subnav-scroll-mt,
-.subnav-sticky-top {
-  --subnav-inset: calc(var(--chrome-float-bottom, 78px) + var(--subnav-h, 0px) + 1rem);
+.subnav-sticky-top,
+.subnav-sticky-flush,
+.subnav-sticky-deep,
+.subnav-scroll-mt-deep {
+  --subnav-inset-flush: calc(var(--chrome-float-bottom, 78px) + var(--subnav-h, 0px));
+  --subnav-inset: calc(var(--subnav-inset-flush) + 1rem);
+  /* One more band deep: below a sticky strip that itself hangs under the
+     sub-header. The strip measures 57px (`py-3` around a `py-1.5` pill, plus
+     its 1px border), so 3.5rem is the honest rounding, not a guess. */
+  --subnav-inset-deep: calc(var(--subnav-inset-flush) + 3.5rem + 1rem);
 }
 
 .subnav-scroll-mt {
@@ -559,6 +567,52 @@ h6 {
 .subnav-sticky-top {
   top: var(--subnav-inset);
 }
+
+/* No breathing room. For a bar that butts directly against the sub-header —
+   `/professional-certificates/[slug]`'s tab strip, which is a continuation of
+   the same stack rather than a separate band, so a gap would split one header
+   into three. */
+.subnav-sticky-flush {
+  top: var(--subnav-inset-flush);
+}
+
+/* Below that strip. Needed by the same page's sidebar: it is sticky *under* the
+   tab strip, so `subnav-sticky-top` alone parks it inside the strip. */
+.subnav-sticky-deep {
+  top: var(--subnav-inset-deep);
+}
+
+.subnav-scroll-mt-deep {
+  scroll-margin-top: var(--subnav-inset-deep);
+}
+
+/* ===== Blue → white surface wash (catalog heroes) ===== */
+/* Replaces the near-white `from-[#F0F5FA] via-[#F4F8FC] to-[#EBF3FA]` hero on
+   `/professional-certificates/[slug]`, whose three stops sat inside a ~3%
+   luminance band and so read as flat white.
+
+   Stops are `color-mix`ed from the oceanic tokens rather than re-spelled, per
+   DESIGN.md ("never re-spell the hexes, resolve the token"). It deliberately
+   does NOT use `--brand-grad`: that ramp is documented as the filled-button
+   treatment only, and its `#bfdbfe` tail is not AA-safe for white text. Here
+   the ink on top is dark, so the top stop has to stay light — AGENTS.md also
+   requires a light page top under the transparent navbar, and the navbar sits
+   over this band until it floats. */
+.surface-blue-fade {
+  background:
+    radial-gradient(
+      85% 70% at 6% 0%,
+      color-mix(in srgb, var(--ocean-mid) 22%, transparent),
+      transparent 62%
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--ocean-mid) 20%, var(--bg-soft)) 0%,
+      color-mix(in srgb, var(--ocean-mid) 7%, var(--bg-base)) 46%,
+      var(--bg-base) 100%
+    );
+}
+
 
 /* ===== AI Mastery navbar (winged bar, /ai-mastery) ===== */
 /* The third bar, and the only one that is not a morph. See
