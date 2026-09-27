@@ -583,6 +583,15 @@ function RuangBelajar({
                 Buka materi eksternal ↗
               </a>
             </div>
+
+            {sudahDaftar ? (
+              <KursusAiPanel
+                courseId={kursus.id}
+                judul={kursus.title}
+                penyedia={kursus.provider}
+                jumlahModul={modul.length}
+              />
+            ) : null}
           </aside>
         </div>
 
