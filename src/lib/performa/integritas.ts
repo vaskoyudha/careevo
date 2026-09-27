@@ -98,6 +98,13 @@ export const LABEL_KEJADIAN: Record<KejadianIntegritas["jenis"], string> = {
   kamera_gagal: "Kamera gagal",
   sesi_dimulai: "Sesi dimulai",
   sesi_diakhiri: "Sesi diakhiri",
+  keluar_fullscreen: "Keluar layar penuh",
+  paste_massal: "Paste panjang",
+  pintasan_terlarang: "Pintasan terlarang",
+  salin_terlarang: "Salin bahan",
+  wajah_tidak_terdeteksi: "Wajah tidak terlihat",
+  wajah_kedua: "Wajah kedua terdeteksi",
+  seb_aktif: "Berjalan di lockdown browser",
 };
 
 export type KodeTemuan =

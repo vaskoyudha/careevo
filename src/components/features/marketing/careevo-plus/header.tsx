@@ -1,13 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
+import { ScrollSubNav } from "@/components/ui/scroll-subnav";
 
 /**
  * Careevo Plus promo banner — sleek deep-navy ribbon matching the original
  * "Ends today! Grow on your schedule with big savings..." banner in Coursera Plus.
  */
-export function CareevoPlusPromoBanner() {
+export function CareevoPlusPromoBanner({
+  href = "#paket",
+}: {
+  href?: string;
+}) {
   const [visible, setVisible] = useState(true);
 
   if (!visible) return null;
@@ -20,7 +25,7 @@ export function CareevoPlusPromoBanner() {
           Berkembang sesuai jadwalmu dengan diskon besar untuk Careevo Plus.{" "}
         </span>
         <Link
-          href="#paket"
+          href={href}
           className="font-semibold text-white underline underline-offset-2 transition-opacity hover:opacity-85"
         >
           Hemat 40% selama 3 bulan
@@ -50,44 +55,36 @@ export function CareevoPlusPromoBanner() {
 }
 
 /**
- * Careevo Plus sub-navigation — sticky on scroll only.
+ * Careevo Plus sub-navigation — appears as a sticky header once the hero has
+ * scrolled past.
+ *
  * In the Coursera Plus reference, the top view transitions straight from
  * the promo banner to the vibrant royal blue hero. The subnav bar slides
  * in as a sticky header when scrolling down past the hero.
+ *
+ * The reveal itself belongs to `ScrollSubNav` (shared with `/belajar/[slug]`);
+ * this file only supplies the contents. The threshold stays the one this page
+ * was built around (the hero is ~360px tall) — the course page, whose header
+ * height varies with the course title, measures its own instead.
  */
 export function CareevoPlusSubNav() {
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 360);
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll();
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  if (!scrolled) return null;
-
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 border-b border-gray-200 bg-white/95 shadow-sm backdrop-blur-md transition-all duration-300">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 lg:px-6">
-        <Link
-          href="#main"
-          className="flex items-center gap-1.5 text-lg font-bold tracking-tight text-gray-900"
-        >
-          <span>Care<span className="text-[#0056D2]">evo</span></span>
-          <span className="rounded-[3px] border border-[#0056D2] px-1 text-[10px] font-bold text-[#0056D2]">
-            PLUS
-          </span>
-        </Link>
-        <Link
-          href="#paket"
-          className="inline-flex h-9 items-center justify-center rounded-lg bg-[#0056D2] px-5 text-sm font-semibold text-white shadow-xs transition-colors duration-200 hover:bg-[#0046ab]"
-        >
-          Hemat 40% sekarang
-        </Link>
-      </div>
-    </div>
+    <ScrollSubNav ambang={360}>
+      <Link
+        href="#main"
+        className="flex shrink-0 items-center gap-1.5 text-lg font-bold tracking-tight text-gray-900"
+      >
+        <span>Care<span className="text-[#0056D2]">evo</span></span>
+        <span className="rounded-[3px] border border-[#0056D2] px-1 text-[10px] font-bold text-[#0056D2]">
+          PLUS
+        </span>
+      </Link>
+      <Link
+        href="#paket"
+        className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg bg-[#0056D2] px-5 text-sm font-semibold text-white shadow-xs transition-colors duration-200 hover:bg-[#0046ab]"
+      >
+        Hemat 40% sekarang
+      </Link>
+    </ScrollSubNav>
   );
 }

@@ -92,7 +92,7 @@ export function BerkasUploader({
               href={`/p/${username}/berkas/${slot}`}
               target="_blank"
               rel="noreferrer"
-              className="text-xs font-medium text-blue-600 hover:underline"
+              className="text-xs font-medium text-blue-600"
             >
               Lihat
             </a>
@@ -100,7 +100,7 @@ export function BerkasUploader({
               <input type="hidden" name="slot" value={slot} />
               <button
                 type="submit"
-                className="inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:underline"
+                className="inline-flex items-center gap-1 text-xs font-medium text-red-600"
               >
                 <Trash2 className="size-3.5" aria-hidden="true" />
                 Hapus

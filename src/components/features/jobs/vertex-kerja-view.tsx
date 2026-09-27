@@ -397,6 +397,13 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                       <span>Jelajahi Papan Loker</span>
                       <ArrowRight className="size-4" />
                     </a>
+                    <Link
+                      href="/loker/inbox"
+                      className="chrome-btn chrome-btn-white !h-11 !px-6 !text-sm gap-2"
+                    >
+                      <span>Semua Lowongan</span>
+                      <ArrowRight className="size-4" />
+                    </Link>
                     <a
                       href="#features"
                       className="chrome-btn chrome-btn-white !h-11 !px-6 !text-sm"
@@ -1031,7 +1038,8 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                     Cari & Temukan Lowongan Kerja Valid
                   </h2>
                   <p className="mt-3 text-sm sm:text-base text-neutral-600">
-                    Gunakan filter lokasi, gaji, atau cari kata kunci untuk menemukan pekerjaan idamanmu tanpa cemas scam.
+                    Tulis lowongan yang kamu mau dalam bahasa sehari-hari. Semua lowongan
+                    sudah diaudit Sentinel, jadi yang tampil tidak meminta biaya.
                   </p>
                 </div>
 

@@ -1,5 +1,12 @@
 import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
+
+const interDisplay = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter-display",
+});
 
 export const metadata: Metadata = {
   title: {
@@ -9,6 +16,11 @@ export const metadata: Metadata = {
   description:
     "Jembatan dari course ke pekerjaan pertama: proses belajar terekam, badge HMAC, dan loker teraudit, tanpa biometrik. Kamera dirancang hanya aktif di dalam sesi terverifikasi yang kamu setujui, dan belum berjalan di aplikasi ini.",
   applicationName: "Careevo",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export const viewport: Viewport = {
@@ -23,7 +35,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="id">
+    <html lang="id" className={interDisplay.variable}>
       <body>{children}</body>
     </html>
   );

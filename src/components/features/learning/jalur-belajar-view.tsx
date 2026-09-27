@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import Link from "next/link";
 import { hitungProgres } from "@/lib/courses/kurikulum";
 import type { PathModule, PersonalizedPath } from "@/lib/learning/personalized-path";
@@ -19,11 +18,9 @@ const MODULE_STATUS_STYLE: Record<PathModule["status"], string> = {
 export function JalurBelajarView({
   path,
   profile,
-  chat,
 }: {
   readonly path: PersonalizedPath;
   readonly profile: OnboardingProfile;
-  readonly chat?: ReactNode;
 }) {
   const completedCount = path.modules.filter(
     (module) => module.status === "completed",
@@ -47,7 +44,7 @@ export function JalurBelajarView({
     >
       <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-14">
         <nav aria-label="Breadcrumb" className="text-sm text-gray-500">
-          <Link href="/belajar" className="hover:text-[#0056D2] hover:underline">
+          <Link href="/belajar" className="hover:text-[#0056D2]">
             Belajar
           </Link>
           <span aria-hidden="true"> / </span>
@@ -68,6 +65,41 @@ export function JalurBelajarView({
             <p className="mt-3 max-w-2xl text-base leading-relaxed text-gray-600">
               Jalur ini disusun dari minat {interests} dan tujuan belajarmu: {goal}.
             </p>
+
+            {/* AI Mastery is the study chat, at /ai-mastery; mastery lives at
+                /belajar/mastery, books at /belajar/buku and practice quizzes at
+                /belajar/latihan. Each is a separate workspace rather than
+                something embedded here. */}
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Link
+                href="/ai-mastery"
+                className="inline-flex items-center gap-2 rounded-lg bg-[#1f1f1f] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-black"
+              >
+                Buka AI Mastery
+                <span aria-hidden="true">→</span>
+              </Link>
+              <Link
+                href="/belajar/mastery"
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-50"
+              >
+                Jalur Penguasaan
+                <span aria-hidden="true">→</span>
+              </Link>
+              <Link
+                href="/belajar/buku"
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-50"
+              >
+                Buku
+                <span aria-hidden="true">→</span>
+              </Link>
+              <Link
+                href="/belajar/latihan"
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-50"
+              >
+                Latihan Soal
+                <span aria-hidden="true">→</span>
+              </Link>
+            </div>
 
             {path.course ? (
               <div className="mt-7 min-w-0 rounded-2xl border border-gray-200 bg-white p-5 shadow-xs sm:p-6">
@@ -157,14 +189,12 @@ export function JalurBelajarView({
             ) : null}
             <Link
               href="/belajar"
-              className="mt-4 block text-center text-sm font-semibold text-[#0056D2] hover:underline"
+              className="mt-4 block text-center text-sm font-semibold text-[#0056D2]"
             >
               Kembali ke katalog
             </Link>
           </aside>
         </div>
-
-        {chat ? <div className="mt-10 min-w-0">{chat}</div> : null}
 
         {path.course ? (
           <section aria-labelledby="judul-daftar-modul" className="mt-10 min-w-0">
@@ -192,7 +222,7 @@ export function JalurBelajarView({
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                         <Link
                           href={module.href}
-                          className="break-words text-sm font-bold text-gray-900 hover:text-[#0056D2] hover:underline"
+                          className="break-words text-sm font-bold text-gray-900 hover:text-[#0056D2]"
                         >
                           {module.title}
                         </Link>

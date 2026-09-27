@@ -95,7 +95,7 @@ export function ModulEditor({
                         type="button"
                         onClick={() => buka(m.id, "halaman")}
                         aria-expanded={halamanId === m.id}
-                        className="cursor-pointer font-medium text-[#0056D2] hover:underline"
+                        className="cursor-pointer font-medium text-[#0056D2]"
                       >
                         {halamanId === m.id ? "Tutup halaman" : `Halaman (${jumlahHalaman})`}
                       </button>
@@ -103,7 +103,7 @@ export function ModulEditor({
                         type="button"
                         onClick={() => buka(m.id, "materi")}
                         aria-expanded={materiId === m.id}
-                        className="cursor-pointer font-medium text-[#0056D2] hover:underline"
+                        className="cursor-pointer font-medium text-[#0056D2]"
                       >
                         {materiId === m.id ? "Tutup lampiran" : `Lampiran (${jumlahMateri})`}
                       </button>
@@ -111,7 +111,7 @@ export function ModulEditor({
                         type="button"
                         onClick={() => buka(m.id, "checkpoint")}
                         aria-expanded={checkpointId === m.id}
-                        className="cursor-pointer font-medium text-[#0056D2] hover:underline"
+                        className="cursor-pointer font-medium text-[#0056D2]"
                       >
                         {checkpointId === m.id ? "Tutup checkpoint" : "Checkpoint"}
                       </button>
@@ -119,7 +119,7 @@ export function ModulEditor({
                         type="button"
                         onClick={() => buka(m.id, "kuis")}
                         aria-expanded={kuisId === m.id}
-                        className="cursor-pointer font-medium text-[#0056D2] hover:underline"
+                        className="cursor-pointer font-medium text-[#0056D2]"
                       >
                         {kuisId === m.id ? "Tutup kuis" : `Kuis (${jumlahKuis})`}
                       </button>

@@ -287,7 +287,7 @@ function FormHalaman({
         type="button"
         onClick={() => setPratinjau((v) => !v)}
         aria-expanded={pratinjau}
-        className="cursor-pointer text-xs font-semibold text-[#0056D2] hover:underline"
+        className="cursor-pointer text-xs font-semibold text-[#0056D2]"
       >
         {pratinjau ? "Sembunyikan pratinjau" : "Pratinjau seperti peserta melihatnya"}
       </button>

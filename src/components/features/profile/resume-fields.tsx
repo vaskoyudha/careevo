@@ -170,7 +170,7 @@ export function HapusButton({
       <input type="hidden" name="id" value={id} />
       <button
         type="submit"
-        className="text-xs font-medium text-red-600 hover:underline"
+        className="text-xs font-medium text-red-600"
         aria-label={label}
       >
         {label}

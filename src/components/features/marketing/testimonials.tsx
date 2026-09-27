@@ -41,13 +41,13 @@ export function MarketingTestimonials() {
         <div className="mx-auto mb-16 max-w-2xl text-center">
           <Reveal>
             <h2 className="mb-4 text-5xl font-medium -tracking-[1.9px] text-gray-900 lg:text-6xl">
-              Dipercaya peserta dan verifikator
+              Cerita dari yang pakai
             </h2>
           </Reveal>
           <Reveal delay={80}>
             <p className="text-base text-gray-500">
-              Mereka memakai Careevo untuk merekam proses, menjaga mutu
-              verifikasi, dan mempercepat pertemuan dengan peluang kerja.
+              Ini contoh placeholder. Ganti sama cerita asli beserta angka
+              yang bisa kamu pertanggungjawabkan.
             </p>
           </Reveal>
         </div>

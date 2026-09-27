@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth/session";
 import { getCourseById } from "@/lib/courses/store";
 import { kebijakanDefault } from "@/lib/courses/kebijakan";
 import { modulUntuk } from "@/lib/courses/modul-resolver";
+import { butuhKamera } from "@/lib/learning/akses";
 import {
   GalatAsesmen,
   OPSI_TIDAK_DIJAWAB,
@@ -102,9 +103,13 @@ function pesanGalatAsesmen(err: unknown): string {
       attempt_tidak_ditemukan: "Attempt kuis tidak ditemukan.",
       bukan_pemilik: "Attempt ini bukan milik Anda.",
       jawaban_tidak_lengkap: "Jawaban belum lengkap.",
+      bentrok_attempt: "Gagal membuka kuis karena bentrok. Silakan coba lagi.",
       attempt_belum_dikirim: "Kuis belum dikirim, jadi belum bisa diselesaikan.",
       attempt_belum_lulus: "Kuis belum lulus; modul belum bisa diselesaikan.",
       kuis_tidak_cocok: "Attempt ini bukan untuk kuis yang terpasang di modul.",
+      modul_tidak_ditemukan: "Modul tidak ditemukan pada kursus ini.",
+      perlu_kamera:
+        "Course ini menuntut kamera menyala untuk menyelesaikan kuis. Mulai sesi baru dengan kamera menyala.",
     };
     return pesan[err.kode] ?? "Terjadi kesalahan saat memproses kuis.";
   }
@@ -270,6 +275,7 @@ export async function kirimDanSelesaikanKuisAction(input: {
 
   try {
     const kursus = await getCourseById(input.courseId);
+    const kebijakan = kursus?.kebijakan ?? kebijakanDefault();
     const selesai = await selesaikanModulKuisVerified({
       principal: auth.principal,
       courseId: input.courseId,
@@ -278,7 +284,9 @@ export async function kirimDanSelesaikanKuisAction(input: {
       attemptId: input.attemptId,
       // Fallback `kebijakanDefault()` sama dengan pemanggil lain: kursus tanpa
       // kebijakan tersimpan tetap memakai default aman, bukan "tanpa kebijakan".
-      policyVersion: kursus?.kebijakan?.versi ?? kebijakanDefault().versi,
+      policyVersion: kebijakan.versi,
+      // Diturunkan server-side dari kebijakan kursus — bukan dari input klien.
+      wajibKamera: butuhKamera(kebijakan),
     });
 
     safeRevalidate("/belajar", ...(kursus?.slug ? [`/belajar/${kursus.slug}`] : []));

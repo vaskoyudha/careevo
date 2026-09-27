@@ -28,15 +28,41 @@
   --spray: #8FD6E3;
   --foam-line: rgba(191, 230, 239, 0.7);
   --deep-gradient: linear-gradient(160deg, #0A3D62, #124E78 55%, #2A7FB8);
+  /* The single blue "primary action" ramp, taken verbatim from the navbar
+     `Daftar` button. The navbar `Daftar` button, `.grad-btn`, `.btn-primary`
+     and the shadcn `brand` variant all resolve their background, border and
+     shadow from these, so the blue can no longer drift per surface (it had
+     three hand-copied spellings: two in this file, one in Tailwind classes
+     in `hero-financial.tsx`).
+
+     These are the ORIGINAL `Daftar` values and they are kept on purpose: the
+     blue -> pale-blue -> near-white tail (#bfdbfe) IS the look. It is not
+     AA-safe for a white label (about 1.5:1 at the pale end), so this is a
+     known, accepted tradeoff — do not silently re-darken the ramp. If the
+     label ever has to pass contrast, darken the TEXT or add a text shadow;
+     the gradient is the brand. */
+  --brand-grad: linear-gradient(to bottom right, #3b82f6, #60a5fa, #bfdbfe);
+  --brand-grad-hover: linear-gradient(to bottom right, #2563eb, #3b82f6, #93c5fd);
+  --brand-border: #93c5fd;
+  --brand-border-hover: #60a5fa;
+  --brand-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --glass-subtle-bg: rgba(255, 255, 255, 0.40);
   --glass-regular-bg: rgba(255, 255, 255, 0.60);
   --glass-strong-bg: rgba(255, 255, 255, 0.80);
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", "Segoe UI", Roboto, Arial, sans-serif;
+  --font-display: var(--font-inter-display), var(--font);
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --radius-lg: 20px;
   --radius-md: 14px;
   --radius-sm: 10px;
   --radius-pill: 980px;
+  /* The floating dashboard sidebar panel. Carried over from AI Mastery so the two
+     shells agree; two layers (a contact shadow plus a soft lift) because a
+     panel that floats needs both to read as detached from the page. */
+  --radius-dock: 26px;
+  --shadow-dock:
+    0 1px 2px rgba(10, 61, 98, 0.05),
+    0 10px 28px -14px rgba(10, 61, 98, 0.18);
   --max: 1280px;
   --page-pad: 24px;
   --section-gap: clamp(48px, 8vw, 64px);
@@ -166,7 +192,9 @@ body {
   h1,
   h2,
   h3,
-  h4 {
+  h4,
+  h5,
+  h6 {
     color: var(--ocean-deep);
     margin: 0 0 0.6rem;
     letter-spacing: -0.02em;
@@ -182,18 +210,34 @@ body {
     text-decoration: none;
   }
 
+  /* Hover hanya lewat warna, tidak pernah garis bawah. Aturan ini dulu menaruh
+     `text-decoration: underline` di sini, dan karena kartu learning memakai satu
+     `<a>` besar untuk seluruh isi kartu, satu hover di mana saja pada kartu akan
+     menggaris bawah semua teks di dalamnya — dekorasi teks mewarisi ke seluruh
+     Keturunan dan tidak bisa dimatikan dari anak (`text-decoration: none` di
+     anak tidak membatalkan dekorasi leluhur). Sumbernya harus dihapus di sini. */
   a:hover {
     color: var(--ocean-mid);
-    text-decoration: underline;
-    text-underline-offset: 3px;
+    text-decoration: none;
   }
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-weight: 500;
 }
 
 .muted, p.muted { color: var(--text-secondary); }
 .caption { font-size: 12px; color: var(--text-tertiary); letter-spacing: 0.01em; }
 
 :focus-visible {
-  outline: 2px solid var(--aqua);
+  outline: 2px solid #0056D2;
   outline-offset: 2px;
 }
 
@@ -252,13 +296,17 @@ body {
   transform: translateY(-1px);
 }
 
-.btn-primary {
-  background: var(--leaf);
+/* Same ramp as the navbar `Daftar` button and the shadcn `brand` variant, so a
+   primary submit never reads green while the navbar CTA reads blue. */
+.btn-primary,
+.brand-fill {
+  background: var(--brand-grad);
   color: #fff;
-  box-shadow: 0 4px 14px rgba(46, 139, 87, 0.32);
+  box-shadow: var(--brand-shadow);
 }
-.btn-primary:hover {
-  background: var(--leaf-dark);
+.btn-primary:hover,
+.brand-fill:hover {
+  background: var(--brand-grad-hover);
   color: #fff;
 }
 
@@ -356,6 +404,23 @@ body {
   box-shadow: none;
 }
 
+/* `/belajar` opts into the same sticky chrome while letting its hero sit
+   behind the transparent full-width state. The wrapped mobile navbar is
+   taller, so the offset follows the exact breakpoint where `.chrome` wraps. */
+.learner-shell--overlay {
+  --learner-chrome-height: 104px;
+}
+
+.learner-shell--overlay > main {
+  margin-top: calc(-1 * var(--learner-chrome-height));
+}
+
+@media (min-width: 769px) {
+  .learner-shell--overlay {
+    --learner-chrome-height: 60px;
+  }
+}
+
 /* Once scrolled: floating pill */
 .chrome.is-scrolled {
   top: 12px;
@@ -377,6 +442,37 @@ body {
     inset 0 -1px 0 rgba(191, 230, 239, 0.4);
 }
 
+/* The Explore mega-menu card is drawn in the floating pill's box — inset,
+   centred, capped at `--max` — and it does so in *every* state of the bar,
+   including the full-width `.is-top` one. Measured from the bar instead, the
+   card inherited `left: 0; width: 100%` from the transparent state and read as
+   a second navbar rather than a menu hanging off one.
+
+   The card is portalled to <body> and `position: fixed`, so `100%` here is the
+   viewport — the same measure the pill's own rule resolves against. The pill
+   stays the source of truth: its inset (`min(var(--max),
+   calc(100% - 2 * var(--page-pad)))`) is copied, so change it there and this
+   follows. `left`/`right` + auto margins rather than `translateX(-50%)` keep
+   the box on whole pixels at odd widths. */
+.explore-mega-menu {
+  left: 0;
+  right: 0;
+  width: min(var(--max), calc(100% - 2 * var(--page-pad)));
+  margin-inline: auto;
+}
+
+/* Rule global di atas (h1..h6 { font-weight: 500 }) ikut kena ke heading
+   menu. Coursera pakai 400, jadi diturunkan khusus di dalam panel. */
+.explore-mega-menu h1,
+.explore-mega-menu h2,
+.explore-mega-menu h3,
+.explore-mega-menu h4,
+.explore-mega-menu h5,
+.explore-mega-menu h6 {
+  font-family: inherit;
+  font-weight: 400;
+}
+
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .chrome.is-scrolled {
     background: rgba(255, 255, 255, 0.97);
@@ -387,6 +483,243 @@ body {
    hidden once the bar morphs into the floating pill. */
 .chrome.is-scrolled .learner-search {
   display: none;
+}
+
+/* ===== Scroll sub-header (ScrollSubNav) ===== */
+/* The bar `/careevo-plus` and `/belajar/[slug]` drop in once the page header
+   has scrolled away. `top` is NOT declared here: the component measures the
+   floated navbar's bottom edge and writes it to `style`, because `.chrome` is
+   `z-index: 60` and a bar pinned at the viewport top would be painted under it
+   (the pill is opaque enough to cover the whole measure). Below `z-index: 60`
+   deliberately, so the navbar always wins the overlap. */
+.subnav {
+  position: fixed;
+  right: 0;
+  left: 0;
+  z-index: 55;
+  /* Neutral, not `--border` (light cyan): the bar sits on the white/gray
+     course surface and on the Plus page, and both read as a hairline. */
+  border-bottom: 1px solid rgb(0 0 0 / 0.08);
+  /* Near-opaque, unlike the navbar pill's 0.86. The pill floats over page
+     chrome; this bar floats over arbitrary content — a saturated warning box
+     three lines under it was still readable through 0.92 + blur(16px). */
+  background: rgb(255 255 255 / 0.96);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: 0 2px 10px -4px rgb(10 61 98 / 0.14);
+  transform: translateY(-100%);
+  opacity: 0;
+  /* Matches the navbar's own 320ms morph, so the two bars move as one. */
+  transition:
+    transform 300ms ease,
+    opacity 300ms ease,
+    box-shadow 300ms ease;
+}
+
+.subnav.is-visible {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* Same measure as the floated pill (`.chrome.is-scrolled`), so the bar's logo
+   and CTA line up with the navbar's rather than hugging the viewport edge.
+   `--page-pad` carries the mobile inset. */
+.subnav-inner {
+  display: flex;
+  width: min(var(--max), calc(100% - 2 * var(--page-pad)));
+  min-height: 3.25rem;
+  margin-inline: auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .subnav {
+    background: rgb(255 255 255 / 0.98);
+  }
+}
+
+/* Clearance for anything that has to sit *underneath* the navbar and this bar —
+   both an anchored target (`scroll-margin-top`) and a sticky rail parked below
+   it. The two offsets are published by `ScrollSubNav` (`--chrome-float-bottom`,
+   measured) and by itself (`--subnav-h`, `0` while hidden); the fallbacks are
+   the unmeasured navbar and a collapsed bar, so the pre-hydration value is the
+   same 78px the navbar has always needed. With the bar hidden the two classes
+   agree with the old `scroll-mt-24` / `lg:top-24` they replace. */
+.subnav-scroll-mt,
+.subnav-sticky-top,
+.subnav-sticky-flush,
+.subnav-sticky-deep,
+.subnav-scroll-mt-deep {
+  --subnav-inset-flush: calc(var(--chrome-float-bottom, 78px) + var(--subnav-h, 0px));
+  --subnav-inset: calc(var(--subnav-inset-flush) + 1rem);
+  /* One more band deep: below a sticky strip that itself hangs under the
+     sub-header. The strip measures 57px (`py-3` around a `py-1.5` pill, plus
+     its 1px border), so 3.5rem is the honest rounding, not a guess. */
+  --subnav-inset-deep: calc(var(--subnav-inset-flush) + 3.5rem + 1rem);
+}
+
+.subnav-scroll-mt {
+  scroll-margin-top: var(--subnav-inset);
+}
+
+.subnav-sticky-top {
+  top: var(--subnav-inset);
+}
+
+/* No breathing room. For a bar that butts directly against the sub-header —
+   `/professional-certificates/[slug]`'s tab strip, which is a continuation of
+   the same stack rather than a separate band, so a gap would split one header
+   into three. */
+.subnav-sticky-flush {
+  top: var(--subnav-inset-flush);
+}
+
+/* Below that strip. Needed by the same page's sidebar: it is sticky *under* the
+   tab strip, so `subnav-sticky-top` alone parks it inside the strip. */
+.subnav-sticky-deep {
+  top: var(--subnav-inset-deep);
+}
+
+.subnav-scroll-mt-deep {
+  scroll-margin-top: var(--subnav-inset-deep);
+}
+
+/* ===== Blue → white surface wash (catalog heroes) ===== */
+/* Replaces the near-white `from-[#F0F5FA] via-[#F4F8FC] to-[#EBF3FA]` hero on
+   `/professional-certificates/[slug]`, whose three stops sat inside a ~3%
+   luminance band and so read as flat white.
+
+   Stops are `color-mix`ed from the oceanic tokens rather than re-spelled, per
+   DESIGN.md ("never re-spell the hexes, resolve the token"). It deliberately
+   does NOT use `--brand-grad`: that ramp is documented as the filled-button
+   treatment only, and its `#bfdbfe` tail is not AA-safe for white text. Here
+   the ink on top is dark, so the top stop has to stay light — AGENTS.md also
+   requires a light page top under the transparent navbar, and the navbar sits
+   over this band until it floats. */
+.surface-blue-fade {
+  background:
+    radial-gradient(
+      85% 70% at 6% 0%,
+      color-mix(in srgb, var(--ocean-mid) 22%, transparent),
+      transparent 62%
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--ocean-mid) 20%, var(--bg-soft)) 0%,
+      color-mix(in srgb, var(--ocean-mid) 7%, var(--bg-base)) 46%,
+      var(--bg-base) 100%
+    );
+}
+
+
+/* ===== AI Mastery navbar (winged bar, /ai-mastery) ===== */
+/* The third bar, and the only one that is not a morph. See
+   `src/components/ui/ai-mastery-navbar.tsx` for why the page forces it: the
+   framed app owns its own scrolling, so `is-scrolled` would be unreachable. */
+
+/* Publishes the navbar's vertical footprint to the frame below it. 769px is the
+   breakpoint where `.chrome` stops wrapping — measured, not guessed, and the
+   same one `.learner-shell--overlay` uses. Below it the bar is two rows. The
+   bar is flush with the top edge (as it is in vyns.ko), so this is just its
+   height: 64px including the 1px border on desktop, 85px on mobile. */
+.ai-mastery-shell {
+  --app-chrome-h: 85px;
+}
+
+@media (min-width: 769px) {
+  .ai-mastery-shell {
+    --app-chrome-h: 64px;
+  }
+}
+
+.chrome.is-winged {
+  /* The wings are two bar-coloured "ears" that sit *outside* the bar's left and
+     right edges (see the `::before` / `::after` pair below), so the bar's width
+     has to leave room for them. Without the `- 2 * var(--wing)` term they would
+     hang off the viewport at narrow widths and the page would scroll sideways. */
+  --wing: 30px;
+  /* Measured off the framed app, not guessed: its `body` computes to
+     `rgb(248, 251, 253)`. The bar sits directly on top of that surface, so
+     any darker fill reads as a grey band against the chat behind it. Flat,
+     not a gradient — a gradient can only be darker at one end. Re-measure
+     with `getComputedStyle(document.body).backgroundColor` on `:3790` if the
+     framed app is restyled. */
+  --wing-fill: #f8fbfd;
+  --wing-edge: rgba(10, 42, 58, 0.16);
+  /* Flush to the top edge, like the vyns.ko original ("Attached Notch Bar
+     touching the top edge"). A `margin-top` here would leave a band of page
+     above the bar that reads as a mistake, and it would also be the shell's
+     first-child margin, which collapses through the parent. */
+  top: 0;
+  width: min(var(--max), calc(100% - 2 * var(--page-pad) - 2 * var(--wing)));
+  margin: 0 auto;
+  padding: 0 1.15rem;
+  min-height: 4rem;
+  border: 1px solid var(--wing-edge);
+  /* The wings own the top corners — a border there would cut across them. */
+  border-top: none;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+  background: var(--wing-fill);
+  box-shadow: 0 12px 28px -14px rgba(10, 42, 58, 0.4);
+}
+
+@media (min-width: 769px) {
+  .chrome.is-winged {
+    --wing: 44px;
+  }
+}
+
+/* The wings, ported from the notch bar in `vyns.ko/decks/01-hero-deck.html`
+   (`.projects-notch-bar::before` / `::after`, "Inverted Concave Corner Notch
+   Illusion Wings"). Each pseudo is a `--wing` square parked just outside one
+   top corner, with a transparent circle punched out of it: the square minus
+   the circle is the concave "ear", and its outer arc is the wing's edge.
+
+   This replaced an SVG path for the top edge, which could not work here. The
+   path had to span the full bar, and any dip deep enough to read as a wing
+   ate the surface the nav row sits on — a 38px dip on a 64px bar left 26px, so
+   the links spilled out above the fill and the shadow halo cut through them.
+   The notch keeps the bar a plain rounded rectangle: the wings are additive
+   and cost the bar's own height nothing.
+
+   `--wing` is used as the circle's radius *and* the square's side, so the
+   scoop is a clean quarter-round. The two intermediate stops are the wing's
+   outline: a `radial-gradient` cannot take a border, so the edge is painted
+   as a thin ring between the transparent core and the fill. That matters on a
+   light bar, where without the ring the wing is white-on-white. */
+.chrome.is-winged::before,
+.chrome.is-winged::after {
+  content: "";
+  position: absolute;
+  top: -1px;
+  width: var(--wing);
+  height: var(--wing);
+  pointer-events: none;
+}
+
+.chrome.is-winged::before {
+  left: calc(-1 * var(--wing));
+  background: radial-gradient(
+    circle at 0 100%,
+    transparent calc(var(--wing) - 1.5px),
+    var(--wing-edge) calc(var(--wing) - 1px),
+    var(--wing-edge) calc(var(--wing) - 0.5px),
+    var(--wing-fill) var(--wing)
+  );
+}
+
+.chrome.is-winged::after {
+  right: calc(-1 * var(--wing));
+  background: radial-gradient(
+    circle at 100% 100%,
+    transparent calc(var(--wing) - 1.5px),
+    var(--wing-edge) calc(var(--wing) - 1px),
+    var(--wing-edge) calc(var(--wing) - 0.5px),
+    var(--wing-fill) var(--wing)
+  );
 }
 
 .chrome-brand {
@@ -409,6 +742,29 @@ body {
 
 .chrome-brand span {
   color: var(--leaf-dark);
+}
+
+/* The dashboard shell's page label, carried inside the AI Mastery navbar where
+   the old topbar used to sit. Same vocabulary as the previous
+   `.dashboard-topbar-label` chip. */
+.chrome-page-sep {
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
+  user-select: none;
+}
+
+.chrome-page-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--primary);
+  background: rgba(10, 61, 98, 0.07);
+  border: 1px solid rgba(203, 230, 239, 0.9);
+  padding: 0.28rem 0.7rem;
+  border-radius: 999px;
 }
 
 .nav-float {
@@ -530,7 +886,11 @@ body {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 10px;
+  /* The row is right-aligned, so this is the navbar's own right inset: the last
+     button keeps a deliberate margin from the viewport edge instead of reading
+     as flush against it, in both the transparent and the floating-pill state. */
+  padding-right: 0.4rem;
   flex: 1 1 0;
 }
 
@@ -784,7 +1144,7 @@ body {
   color: rgba(255, 255, 255, 0.7);
 }
 
-.footer-grid a:hover { color: #fff; text-decoration: underline; }
+.footer-grid a:hover { color: #fff; text-decoration: none; }
 
 .footer-bottom {
   border-top: 1px solid rgba(255, 255, 255, 0.12);
@@ -1725,12 +2085,20 @@ body {
 /* ===== Auth (masuk / daftar) ===== */
 .chrome-btn-text {
   width: auto;
-  padding: 0 1rem;
+  /* Optical right padding. Every one of these gradients runs light → dark toward
+     the lower right, so a geometrically centred label drifts visually toward the
+     heavy end. The extra room on the right pulls it back. The `max-width: 560px`
+     block below collapses this to a symmetric padding on small screens. */
+  padding: 0 1.35rem 0 1rem;
   font-size: 13.5px;
   font-weight: 600;
 }
 
-.chrome-btn-text:not(.chrome-btn-ghost) {
+/* Ocean fill for a text-sized chrome button that names no colour of its own.
+   The `:not(.chrome-btn-brand)` is load-bearing: this selector is specificity
+   (0,2,0) and `.chrome-btn-brand` is only (0,1,0), so without it an element
+   carrying BOTH classes silently rendered ocean here instead of the blue ramp. */
+.chrome-btn-text:not(.chrome-btn-ghost):not(.chrome-btn-brand) {
   background: linear-gradient(135deg, var(--ocean-mid), var(--ocean-deep));
   color: #fff;
   border-color: rgba(255, 255, 255, 0.35);
@@ -1739,7 +2107,7 @@ body {
     inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
-.chrome-btn-text:not(.chrome-btn-ghost):hover {
+.chrome-btn-text:not(.chrome-btn-ghost):not(.chrome-btn-brand):hover {
   color: #fff;
   border-color: rgba(255, 255, 255, 0.5);
 }
@@ -1756,26 +2124,28 @@ body {
   color: var(--ocean-deep);
 }
 
+/* The app's primary action: the navbar `Daftar` button, and the reference for
+   every other primary CTA (see the `--brand-*` tokens). */
 .chrome-btn-brand {
   width: auto;
-  padding: 0 1rem;
+  padding: 0 1.35rem 0 1rem;
   font-size: 13.5px;
   font-weight: 600;
   border-radius: var(--radius);
-  border: 1px solid #93c5fd;
-  background: linear-gradient(to bottom right, #3b82f6, #60a5fa, #bfdbfe);
+  border: 1px solid var(--brand-border);
+  background: var(--brand-grad);
   color: #ffffff;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  box-shadow: var(--brand-shadow);
 }
 
 .chrome-btn-brand:hover {
   color: #ffffff;
-  border-color: #93c5fd;
+  border-color: var(--brand-border);
 }
 
 .chrome-btn-white {
   width: auto;
-  padding: 0 1rem;
+  padding: 0 1.35rem 0 1rem;
   font-size: 13.5px;
   font-weight: 600;
   border-radius: var(--radius);
@@ -1793,17 +2163,19 @@ body {
   box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.08);
 }
 
+/* The marketing/profile primary CTA. Shares the navbar `Daftar` ramp exactly —
+   it used to be a third hand-copied spelling of the same gradient. */
 .grad-btn {
-  border: 1px solid #93c5fd;
-  background: linear-gradient(to bottom right, #3b82f6, #60a5fa, #bfdbfe);
+  border: 1px solid var(--brand-border);
+  background: var(--brand-grad);
   color: #ffffff;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  box-shadow: var(--brand-shadow);
 }
 
 .grad-btn:hover {
   color: #ffffff;
-  border-color: #60a5fa;
-  background: linear-gradient(to bottom right, #2563eb, #3b82f6, #93c5fd);
+  border-color: var(--brand-border-hover);
+  background: var(--brand-grad-hover);
 }
 
 .field {
@@ -2203,14 +2575,31 @@ body {
 .dashboard-shell {
   display: flex;
   min-height: 100vh;
-  background: var(--background);
+  /* One ambient wash, not two. The shell is an Operate surface: the nav and
+     cards carry the hierarchy, so the backdrop stays quiet behind them. */
+  background:
+    radial-gradient(1100px 460px at 88% -8%, rgba(42, 127, 184, 0.08), transparent 62%),
+    var(--background);
+  /* The `AiMasteryNavbar` above the shell is sticky, so the shell's own sticky
+     rails (sidebar + topbar) must park below it instead of sliding underneath.
+     Mirrors `--app-chrome-h`: 85px where the bar wraps to two rows, 64px above.
+     Also repaints the winged bar's fill to the shell's card surface so the bar
+     and the sidebar/topbar read as one light system. */
+  --dashboard-chrome-h: 85px;
+  --wing-fill: var(--card);
+}
+
+@media (min-width: 769px) {
+  .dashboard-shell {
+    --dashboard-chrome-h: 64px;
+  }
 }
 
 .dashboard-sidebar-aside {
   position: sticky;
-  top: 0;
+  top: var(--dashboard-chrome-h);
   align-self: flex-start;
-  height: 100vh;
+  height: calc(100vh - var(--dashboard-chrome-h));
   width: 260px;
   flex-shrink: 0;
   overflow: hidden;
@@ -2220,8 +2609,48 @@ body {
     transform 260ms ease;
 }
 
+/* Collapsing keeps a slim rail rather than zeroing the sidebar: the
+   collapse/expand controls live in the sidebar itself (top-right corner when
+   expanded, top of the rail when collapsed), so the affordance never leaves
+   the panel. The rail holds the 36px icon rows plus the panel's own inset. */
 .dashboard-shell[data-collapsed="true"] .dashboard-sidebar-aside {
-  width: 0;
+  width: 88px;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+/* Sidebar panel: a floating card, inset from the viewport edges on desktop —
+   the AI Mastery "dock" treatment (mx/my-3, 100dvh minus the insets, dock radius,
+   --card fill, two-layer dock shadow). A flush full-height column reads as part
+   of the page furniture; floating it makes the nav a distinct object the
+   learner can collapse out of the way. Mobile keeps the flush drawer, because
+   an inset panel over an overlay wastes the width it is trying to win. */
+.dashboard-sidebar-panel {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  flex-direction: column;
+  background: var(--card);
+  padding: 0.75rem;
+  font-family: var(--font);
+}
+
+/* Collapsed rail panel: icon-only, centred, tighter padding. */
+.dashboard-sidebar-rail {
+  align-items: center;
+  padding: 0.75rem 0.5rem;
+}
+
+@media (min-width: 1024px) {
+  .dashboard-sidebar-aside {
+    padding: 0.75rem;
+  }
+
+  .dashboard-sidebar-panel {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-dock);
+    box-shadow: var(--shadow-dock);
+  }
 }
 
 .dashboard-content {
@@ -2231,19 +2660,9 @@ body {
   flex-direction: column;
 }
 
-.dashboard-topbar {
-  position: sticky;
-  top: 0;
-  z-index: 40;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  height: 56px;
-  padding: 0 1rem;
-  background: var(--card);
-  border-bottom: 1px solid var(--border);
-}
+/* The dashboard shell no longer renders its own topbar — the page label and the
+   sidebar toggle moved into `AiMasteryNavbar` (`app-shell.tsx` passes them in),
+   so the chrome above the sidebar is one bar, not two stacked. */
 
 .dashboard-overlay {
   position: fixed;
@@ -2319,19 +2738,19 @@ body {
   }
 }
 
+/* Card: an opaque surface on --card with a crisp 1px edge and one tight,
+   offset shadow. This is the AI Mastery `.surface-card` recipe (rounded-2xl /
+   border / bg-card / shadow-sm) so the dashboard and the AI chat read as one
+   product. The previous glass here was decoration: it blurred the page behind
+   the content and made body text sit on an unstable ground. */
 .card {
-  background: var(--glass-regular-bg);
-  backdrop-filter: blur(16px) saturate(150%);
-  border: 1px solid rgba(255, 255, 255, 0.65);
-  border-radius: var(--radius-lg);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
   padding: 1.4rem;
   box-shadow:
-    0 10px 30px -18px rgba(10, 61, 98, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7);
-}
-
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .card { background: rgba(255, 255, 255, 0.94); }
+    0 1px 2px rgba(10, 61, 98, 0.04),
+    0 8px 24px -16px rgba(10, 61, 98, 0.18);
 }
 
 .card-head {
@@ -2344,43 +2763,49 @@ body {
 
 .card-title {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--foreground);
 }
 
 .card-sub {
-  margin: 0.2rem 0 0;
-  color: var(--text-secondary);
-  font-size: 0.9rem;
+  margin: 0.25rem 0 0;
+  color: var(--muted-foreground);
+  font-size: 0.85rem;
 }
 
+/* Stat tile: a filled --muted chip, not a nested card. Elevation is declared
+   once in the system (the card), so a tile carries no shadow and no glass —
+   the tonal step alone separates it from the card it sits in. */
 .stat-box {
-  background: var(--glass-subtle-bg);
-  border: 1px solid var(--foam-line);
+  background: var(--muted);
   border-radius: var(--radius-md);
-  padding: 1rem 1.1rem;
+  padding: 0.95rem 1.05rem;
 }
 
 .stat-box-label {
   display: block;
-  font-size: 0.74rem;
+  font-size: 0.72rem;
   text-transform: uppercase;
-  letter-spacing: 0.09em;
-  color: var(--text-tertiary);
-  margin-bottom: 0.35rem;
+  letter-spacing: 0.08em;
+  color: var(--muted-foreground);
+  margin-bottom: 0.3rem;
 }
 
 .stat-box-value {
   font-family: var(--font-mono);
-  font-size: 1.6rem;
+  font-size: 1.75rem;
   font-weight: 600;
   color: var(--ocean-deep);
-  line-height: 1.1;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
 }
 
 .stat-box-note {
-  margin: 0.3rem 0 0;
-  font-size: 0.8rem;
-  color: var(--text-secondary);
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  color: var(--muted-foreground);
 }
 
 .kv {
@@ -2409,14 +2834,95 @@ body {
   font-family: var(--font-mono);
 }
 
+/* Chip: the AI Mastery `.muted-chip` shape — full pill, tonal fill, no border.
+   A 1px edge on a chip that small reads as a rendering artefact once the
+   surrounding card is opaque, so the fill alone carries it. */
 .tag {
   display: inline-block;
-  font-size: 0.76rem;
-  padding: 0.18rem 0.55rem;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.6rem;
   border-radius: var(--radius-pill);
-  background: var(--sea-foam);
-  color: var(--ocean-deep);
-  border: 1px solid var(--foam-line);
+  background: var(--muted);
+  color: var(--muted-foreground);
+  border: 1px solid transparent;
+}
+
+/* A tag used as a filter control. The `is-active` suffix is this file's existing
+   convention (.nav-item.is-active, .tab-btn.is-active) rather than a new
+   one-off class, so a chip reads the same as a selected tab. */
+button.tag {
+  cursor: pointer;
+  font-family: inherit;
+  line-height: 1.4;
+}
+
+button.tag:hover {
+  border-color: var(--ocean-mid);
+}
+
+.tag.is-active {
+  background: linear-gradient(135deg, var(--ocean-mid), var(--ocean-deep));
+  color: #fff;
+  border-color: transparent;
+}
+
+/* Verdict badge on an inbox row. Four states, not three: `verdict-unverified`
+   means "we did not check", which is a different claim from "we checked and it
+   is fine" and must never borrow the green. */
+.verdict-clean {
+  color: var(--color-success);
+  border-color: color-mix(in srgb, var(--color-success) 40%, transparent);
+}
+
+.verdict-quarantined {
+  color: var(--color-warning);
+  border-color: color-mix(in srgb, var(--color-warning) 45%, transparent);
+}
+
+.verdict-rejected {
+  color: var(--color-danger);
+  border-color: color-mix(in srgb, var(--color-danger) 45%, transparent);
+}
+
+.verdict-unverified {
+  color: var(--muted-foreground);
+  border-color: color-mix(in srgb, var(--muted-foreground) 35%, transparent);
+  border-style: dashed;
+}
+
+/* A row of filter chips. Wraps on desktop, but 76 company facets measured a
+   627px-tall block on a 390x844 phone — three quarters of the viewport spent on
+   chips before a single posting is visible. Below the md breakpoint the row
+   becomes one swipeable line instead, with the scrollbar hidden so it reads as a
+   strip rather than a control. Every chip stays reachable; nothing is truncated
+   behind a "more" affordance. */
+.tag-row {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin: 0.75rem 0;
+}
+
+@media (max-width: 767px) {
+  .tag-row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    /* Bleed past the card padding so the strip visibly runs off the edge. */
+    margin-inline: -0.75rem;
+    padding-inline: 0.75rem;
+  }
+
+  .tag-row::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Keep a chip from being squeezed into an unreadable sliver mid-scroll. */
+  .tag-row > * {
+    flex: 0 0 auto;
+  }
 }
 
 .status {
@@ -2465,13 +2971,15 @@ body {
   grid-template-columns: 1fr auto;
   gap: 0.35rem 1rem;
   align-items: center;
-  padding: 0.9rem 0;
-  border-bottom: 1px solid var(--foam-line);
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--border);
   transition: background-color 160ms ease-out;
 }
 
+/* The old hover was a translucent white wash, which vanished once the card
+   behind it became opaque. A tonal step is the equivalent signal here. */
 .list-app-row:hover {
-  background: rgba(255, 255, 255, 0.5);
+  background: color-mix(in srgb, var(--muted) 65%, transparent);
 }
 
 .list-app-row:last-child {
@@ -2479,19 +2987,20 @@ body {
 }
 
 .row-title {
-  font-weight: 600;
-  color: var(--ocean-deep);
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: var(--foreground);
   text-decoration: none;
 }
 
 .row-title:hover {
-  color: var(--ocean-mid);
+  color: var(--primary);
 }
 
 .row-meta {
   grid-column: 1;
-  color: var(--text-secondary);
-  font-size: 0.85rem;
+  color: var(--muted-foreground);
+  font-size: 0.78rem;
 }
 
 .row-aside {
@@ -2679,6 +3188,18 @@ body {
   resize: vertical;
 }
 
+/* Permukaan kode pada blok halaman. Tinggi minimum pendek supaya satu blok
+   kode tidak mengambil seluruh layar; tinggi sebenarnya mengikuti isi.
+   Warna disamakan dengan `.code-editor` di atas supaya tidak lahir warna
+   keempat untuk kode. */
+.kode-view {
+  min-height: 120px;
+  max-height: 60vh;
+  overflow: auto;
+  background: #06202f;
+  color: #d7eef7;
+}
+
 .log-list-app {
   max-height: 220px;
   overflow-y: auto;
@@ -2760,7 +3281,7 @@ body {
    Restyles the shared app classes to the dashboard look (solid cards,
    small type, subtle borders) for authenticated pages only. */
 .dashboard-shell .app-main {
-  padding: clamp(22px, 2.6vw, 34px) var(--page-pad) clamp(48px, 6vw, 72px);
+  padding: clamp(24px, 2.8vw, 36px) var(--page-pad) clamp(56px, 7vw, 80px);
 }
 
 .dashboard-shell .page-head {
@@ -2773,12 +3294,12 @@ body {
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--muted-foreground);
+  color: var(--primary);
   margin-bottom: 0.4rem;
 }
 
 .dashboard-shell .page-title {
-  font-size: clamp(22px, 2.4vw, 28px);
+  font-size: clamp(26px, 4vw, 38px);
   font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--foreground);
@@ -2813,102 +3334,19 @@ body {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.dashboard-shell .card {
-  background: var(--card);
-  backdrop-filter: none;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 1.25rem;
-  box-shadow: 0 1px 2px rgba(10, 42, 58, 0.04);
-}
-
-.dashboard-shell .card-head {
-  margin-bottom: 0.9rem;
-}
-
-.dashboard-shell .card-title {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--foreground);
-  letter-spacing: -0.01em;
-}
-
-.dashboard-shell .card-sub {
-  margin-top: 0.15rem;
-  font-size: 0.8rem;
-  color: var(--muted-foreground);
-}
-
-.dashboard-shell .stat-box {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 1.1rem 1.2rem;
-  box-shadow: 0 1px 2px rgba(10, 42, 58, 0.04);
-}
-
-.dashboard-shell .stat-box-label {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--muted-foreground);
-  margin-bottom: 0.5rem;
-}
-
-.dashboard-shell .stat-box-value {
-  font-family: var(--font);
-  font-size: 1.75rem;
-  font-weight: 600;
-  color: var(--foreground);
-  line-height: 1.1;
-}
-
-.dashboard-shell .stat-box-note {
-  margin-top: 0.35rem;
-  font-size: 0.78rem;
-  color: var(--muted-foreground);
-}
-
-.dashboard-shell .list-app-row {
-  border-bottom: 1px solid var(--border);
-  padding: 0.8rem 0.5rem;
-  border-radius: 8px;
-}
-
-.dashboard-shell .list-app-row:hover {
-  background: rgba(10, 61, 98, 0.03);
-}
-
-.dashboard-shell .row-title {
-  color: var(--foreground);
-  font-weight: 500;
-  font-size: 0.9rem;
-}
-
-.dashboard-shell .row-title:hover {
-  color: var(--primary);
-}
-
-.dashboard-shell .row-meta {
-  color: var(--muted-foreground);
-  font-size: 0.78rem;
-}
-
-.dashboard-shell .tag {
-  background: var(--muted);
-  color: var(--muted-foreground);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 11px;
-  padding: 0.2rem 0.5rem;
-}
+/* The card, stat tile, list row and chip all inherit from the base classes
+   above. They used to be re-declared here with a glass treatment that
+   contradicted the base system and fought the AI Mastery reference; that override
+   is gone so one surface rule governs the whole product. Only genuinely
+   dashboard-local concerns (page type scale, grid, bars, tables) live here. */
 
 .dashboard-shell .status {
   font-size: 11px;
   font-weight: 500;
-  padding: 0.2rem 0.55rem;
-  border-radius: 6px;
+  padding: 0.2rem 0.6rem;
+  /* Full pill, like `.tag` and the sidebar pills — a status chip and a level
+     chip are the same control at different weights. */
+  border-radius: var(--radius-pill);
   box-shadow: none;
 }
 
@@ -2928,6 +3366,17 @@ body {
   color: #b23a1c;
   background: rgba(228, 87, 46, 0.12);
   border-color: rgba(228, 87, 46, 0.28);
+}
+
+/* Loker rows in "Dipilih untukmu" use the shared list-app row language but carry
+   the learner link accent (#0056D2), not the global `.row-title` hover token. */
+.dashboard-shell .list-app-row .row-title {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.dashboard-shell .list-app-row:hover .row-title {
+  color: #0056D2;
 }
 
 .dashboard-shell .status-info {
@@ -3069,6 +3518,7 @@ body {
   font-family: var(--font-geist), var(--font);
 }
 
+.marketing-type .font-mono,
 .guild-type .font-mono {
   font-family: var(--font-geist-mono), ui-monospace, "SFMono-Regular", monospace;
 }
@@ -3112,7 +3562,7 @@ body {
 .marketing-type h2,
 .marketing-type h3,
 .marketing-type h4 {
-  color: #111827;
+  color: var(--ocean-deep);
 }
 
 .marketing-type a:hover {
@@ -3515,3 +3965,64 @@ body {
 }
 
 
+
+/* ========== SKELETON LOADING ANIMATIONS ========== */
+@keyframes loading-skeleton {
+  0% {
+    background-position: 200% center;
+  }
+  100% {
+    background-position: -200% center;
+  }
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse-soft {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-loading-skeleton {
+  animation: loading-skeleton 2s ease-in-out infinite;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 3s linear infinite;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.4s ease-out forwards;
+}
+
+.delay-50 { animation-delay: 50ms; }
+.delay-100 { animation-delay: 100ms; }
+.delay-150 { animation-delay: 150ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-250 { animation-delay: 250ms; }

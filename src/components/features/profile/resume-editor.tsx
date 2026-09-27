@@ -244,7 +244,7 @@ export function ResumeEditor({ resume, username }: { resume: Resume; username: s
                   />
                   <form action={hapusPengalamanAction}>
                     <input type="hidden" name="id" value={item.id} />
-                    <button type="submit" className="text-xs font-medium text-red-600 hover:underline">
+                    <button type="submit" className="text-xs font-medium text-red-600">
                       Hapus
                     </button>
                   </form>
@@ -288,7 +288,7 @@ export function ResumeEditor({ resume, username }: { resume: Resume; username: s
                     />
                     <form action={hapusProyekAction}>
                       <input type="hidden" name="id" value={item.id} />
-                      <button type="submit" className="text-xs font-medium text-red-600 hover:underline">
+                      <button type="submit" className="text-xs font-medium text-red-600">
                         Hapus
                       </button>
                     </form>
@@ -297,12 +297,12 @@ export function ResumeEditor({ resume, username }: { resume: Resume; username: s
                 {item.deskripsi ? <p className="mt-1 text-sm text-gray-600">{item.deskripsi}</p> : null}
                 <div className="mt-2 flex flex-wrap gap-3">
                   {item.url ? (
-                    <a href={item.url.startsWith("http") ? item.url : `https://${item.url}`} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:underline">
+                    <a href={item.url.startsWith("http") ? item.url : `https://${item.url}`} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 text-xs font-medium text-blue-600">
                       <ExternalLink className="size-3.5" aria-hidden="true" /> Demo
                     </a>
                   ) : null}
                   {item.repo ? (
-                    <a href={item.repo.startsWith("http") ? item.repo : `https://${item.repo}`} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:underline">
+                    <a href={item.repo.startsWith("http") ? item.repo : `https://${item.repo}`} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 text-xs font-medium text-blue-600">
                       <FolderGit2 className="size-3.5" aria-hidden="true" /> Repo
                     </a>
                   ) : null}
@@ -349,7 +349,7 @@ export function ResumeEditor({ resume, username }: { resume: Resume; username: s
                   />
                   <form action={hapusPendidikanAction}>
                     <input type="hidden" name="id" value={item.id} />
-                    <button type="submit" className="text-xs font-medium text-red-600 hover:underline">
+                    <button type="submit" className="text-xs font-medium text-red-600">
                       Hapus
                     </button>
                   </form>
@@ -433,7 +433,7 @@ export function ResumeEditor({ resume, username }: { resume: Resume; username: s
                   />
                   <form action={hapusSertifikatAction}>
                     <input type="hidden" name="id" value={item.id} />
-                    <button type="submit" className="text-xs font-medium text-red-600 hover:underline">
+                    <button type="submit" className="text-xs font-medium text-red-600">
                       Hapus
                     </button>
                   </form>

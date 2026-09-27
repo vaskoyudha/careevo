@@ -34,18 +34,23 @@ import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { getDb, tutupDb, type KoneksiDb } from "@/lib/db/client";
-import { quizAttemptAnswers, quizAttempts } from "@/lib/db/schema";
+import { moduleProgress, quizAttemptAnswers, quizAttempts } from "@/lib/db/schema";
 import { daftarPengguna } from "@/lib/auth/auth-service";
-import { daftarEnrollment, listJawabanAttempt } from "@/lib/learning/repository";
-
+import {
+  buatAttemptBerikutnya,
+  daftarEnrollment,
+  listJawabanAttempt,
+} from "@/lib/learning/repository";
 let db: KoneksiDb = getDb();
 let store: typeof import("@/lib/courses/store");
 let svc: typeof import("./assessment-service");
+let runSvc: typeof import("@/lib/learning/run-service");
 
 beforeAll(async () => {
   process.env.CAREEVO_DATA_DIR = mkdtempSync(path.join(tmpdir(), "careevo-assessment-"));
   store = await import("@/lib/courses/store");
   svc = await import("./assessment-service");
+  runSvc = await import("@/lib/learning/run-service");
 });
 
 beforeEach(async () => {
@@ -123,6 +128,49 @@ async function siapkanLearner(suffix: string) {
   });
 
   return { principal, enrollmentId: enrollment.id };
+}
+
+/**
+ * Menyiapkan kursus tersimpan dengan dua modul: kuis hanya dipasang di modul
+ * pertama. Dipakai untuk membuktikan attempt yang lulus pada kuis itu tidak
+ * bisa menandai modul kedua, dan untuk menyalakan gerbang kamera di jalur kuis.
+ */
+async function siapkanKursusDuaModul(suffix: string) {
+  const { principal } = await siapkanLearner(suffix);
+  const kuis = await buatKuisBank(`Kuis modul satu ${suffix}`);
+
+  const kursus = await store.createCourse({
+    title: `Kursus Dua Modul ${suffix}`,
+    description: "kursus uji pemasangan kuis",
+    provider: "Careevo",
+    url: "https://contoh.test/kursus",
+    duration_min: 60,
+  });
+  const modulA = await store.createModul(kursus.id, {
+    judul: "Modul A",
+    ringkasan: "modul dengan kuis",
+    durasi_min: 30,
+  });
+  const modulB = await store.createModul(kursus.id, {
+    judul: "Modul B",
+    ringkasan: "modul tanpa kuis",
+    durasi_min: 30,
+  });
+  if (!modulA || !modulB) throw new Error("gagal membuat modul");
+  // Pemasangan lewat API store — satu-satunya sumber `Modul.kuis`.
+  const dipasang = await store.pasangKuis(kursus.id, modulA.id, kuis.id);
+  if (!dipasang) throw new Error("gagal memasang kuis ke modul A");
+
+  // Enrollment harus menunjuk courseId kursus nyata agar resolver menemukan
+  // modul tersimpan; `siapkanLearner` memakai courseId sintetis, jadi daftar ulang.
+  const { enrollment: enrollmentNyata } = await daftarEnrollment({
+    userId: principal.userId,
+    courseId: kursus.id,
+    slug: kursus.slug,
+    title: kursus.title,
+  });
+
+  return { principal, enrollmentId: enrollmentNyata.id, kuis, kursus, modulA, modulB };
 }
 
 describe("mulaiAttemptVerified — snapshot dibekukan saat attempt dibuka", () => {
@@ -396,5 +444,495 @@ describe("kirimAttemptVerified — idempoten", () => {
       .where(sql`${quizAttempts.id} = ${attempt.id}`);
     expect(attemptTersimpan!.score).toBe(100);
     expect(attemptTersimpan!.status).toBe("submitted");
+  });
+});
+
+describe("mulaiAttemptVerified — penomoran attempt serentak", () => {
+  /**
+   * Inti Tahap 3: dua permintaan serentak untuk pasangan enrollment–kuis yang
+   * sama harus mendapat nomor attempt berbeda **tanpa** galat constraint.
+   *
+   * Tanpa kunci pada baris enrollment induk, keduanya bisa membaca `max` yang
+   * sama, lalu salah satunya ditolak unique
+   * `(enrollment_id, quiz_id, attempt_number)`. Tes ini menuntut kebalikannya:
+   * keduanya berhasil, nomornya berurutan {1, 2}, dan tidak ada galat.
+   */
+  it("dua permintaan serentak menghasilkan nomor berbeda tanpa galat constraint", async () => {
+    const { principal, enrollmentId } = await siapkanLearner("serentak");
+    const kuis = await buatKuisBank();
+
+    const [a, b] = await Promise.all([
+      svc.mulaiAttemptVerified({ principal, enrollmentId, quizId: kuis.id }),
+      svc.mulaiAttemptVerified({ principal, enrollmentId, quizId: kuis.id }),
+    ]);
+
+    const nomor = [a.attempt.attemptNumber, b.attempt.attemptNumber].sort((x, y) => x - y);
+    expect(nomor).toEqual([1, 2]);
+    expect(a.attempt.id).not.toBe(b.attempt.id);
+
+    // Tepat dua baris tersimpan untuk pasangan itu — tidak lebih, tidak kurang.
+    const tersimpan = await db
+      .select({ attemptNumber: quizAttempts.attemptNumber })
+      .from(quizAttempts)
+      .where(sql`${quizAttempts.enrollmentId} = ${enrollmentId}`);
+    expect(tersimpan.map((r) => r.attemptNumber).sort((x, y) => x - y)).toEqual([1, 2]);
+  });
+
+  /**
+   * Kunci berkisar pada satu enrollment: penomoran attempt dimulai dari 1 lagi
+   * pada enrollment lain, sehingga penomoran tidak bocor lintas pemilik.
+   */
+  it("enrollment berbeda punya seri nomor attempt sendiri", async () => {
+    const { principal: p1, enrollmentId: e1 } = await siapkanLearner("seri_a");
+    const { principal: p2, enrollmentId: e2 } = await siapkanLearner("seri_b");
+    const kuis = await buatKuisBank();
+
+    const [a1, a2] = await Promise.all([
+      svc.mulaiAttemptVerified({ principal: p1, enrollmentId: e1, quizId: kuis.id }),
+      svc.mulaiAttemptVerified({ principal: p2, enrollmentId: e2, quizId: kuis.id }),
+    ]);
+
+    // Keduanya nomor 1: kunci per-enrollment tidak menyerialkan lintas enrollment.
+    expect(a1.attempt.attemptNumber).toBe(1);
+    expect(a2.attempt.attemptNumber).toBe(1);
+  });
+
+  /**
+   * Jalur gagal-tertutup: enrollment yang tidak ada tidak boleh menghasilkan
+   * attempt yatim. `buatAttemptBerikutnya` mengembalikan sebab terkontrol dan
+   * service memetakannya ke kode domain yang sama dengan pemeriksaan kepemilikan.
+   */
+  it("enrollment hilang ditolak terkontrol tanpa membuat attempt", async () => {
+    const { principal } = await siapkanLearner("yatim");
+    const kuis = await buatKuisBank();
+    const enrollmentHilang = "00000000-0000-0000-0000-000000000000";
+
+    await expect(
+      svc.mulaiAttemptVerified({ principal, enrollmentId: enrollmentHilang, quizId: kuis.id }),
+    ).rejects.toMatchObject({ kode: "enrollment_tidak_ditemukan" });
+
+    expect(await db.select().from(quizAttempts)).toHaveLength(0);
+  });
+});
+
+describe("buatAttemptBerikutnya — kontrak repository", () => {
+  /**
+   * `mulaiAttemptVerified` memeriksa kepemilikan sebelum memanggil repository,
+   * jadi cabang "enrollment hilang" di repository hanya bisa dijangkau langsung.
+   * Tes ini menguncinya: baris kunci yang tidak ada mengembalikan sebab
+   * terkontrol dan **tidak** menulis attempt tanpa induk.
+   */
+  it("enrollment tidak ada dikembalikan sebagai sebab terkontrol, bukan galat", async () => {
+    const { principal } = await siapkanLearner("repo_yatim");
+
+    const hasil = await buatAttemptBerikutnya({
+      userId: principal.userId,
+      enrollmentId: "00000000-0000-0000-0000-000000000000",
+      quizId: "kuis-apa-saja",
+      assessmentDefinitionVersion: "v1",
+      assessmentSnapshot: { judul: "x", nilai_lulus: 70, soal: [] },
+    });
+
+    expect(hasil.ok).toBe(false);
+    if (hasil.ok) throw new Error("tidak boleh berhasil");
+    expect(hasil.sebab).toBe("enrollment_tidak_ditemukan");
+    expect(await db.select().from(quizAttempts)).toHaveLength(0);
+  });
+
+  /**
+   * Dua panggilan repository serentak pada pasangan yang sama: keduanya sukses
+   * dan unique `(enrollment_id, quiz_id, attempt_number)` **tidak** dilanggar.
+   */
+  it("dua panggilan serentak sukses dengan nomor berbeda", async () => {
+    const { principal, enrollmentId } = await siapkanLearner("repo_serentak");
+
+    const args = {
+      userId: principal.userId,
+      enrollmentId,
+      quizId: "kuis-serentak",
+      assessmentDefinitionVersion: "v1",
+      assessmentSnapshot: { judul: "x", nilai_lulus: 70, soal: [] },
+    };
+    const [a, b] = await Promise.all([
+      buatAttemptBerikutnya(args),
+      buatAttemptBerikutnya(args),
+    ]);
+
+    expect(a.ok && b.ok).toBe(true);
+    if (!a.ok || !b.ok) throw new Error("kedua panggilan harus berhasil");
+    const nomor = [a.attempt.attemptNumber, b.attempt.attemptNumber].sort((x, y) => x - y);
+    expect(nomor).toEqual([1, 2]);
+  });
+});
+
+describe("selesaikanModulKuisVerified — kuis harus benar-benar terpasang di modul", () => {
+  it("menolak modul yang tidak memasang kuis attempt, tanpa menulis progres", async () => {
+    const { principal, enrollmentId, kuis, kursus, modulB } =
+      await siapkanKursusDuaModul("pasang");
+
+    // Attempt lulus dibuka & dinilai terhadap kuis yang terpasang di modul A.
+    const { attempt } = await svc.mulaiAttemptVerified({
+      principal,
+      enrollmentId,
+      quizId: kuis.id,
+    });
+    const kirim = await svc.kirimAttemptVerified({
+      principal,
+      attemptId: attempt.id,
+      jawaban: [
+        { questionId: "q1", selectedOption: 0 },
+        { questionId: "q2", selectedOption: 1 },
+      ],
+    });
+    expect(kirim.lulus).toBe(true);
+
+    // Klaim modul B — attempt lulus untuk kuis yang TIDAK dipasang di sana.
+    await expect(
+      svc.selesaikanModulKuisVerified({
+        principal,
+        courseId: kursus.id,
+        modulId: modulB.id,
+        quizId: kuis.id,
+        attemptId: attempt.id,
+        policyVersion: 1,
+        // Kursus uji di berkas ini memakai kebijakan default `wajib`, jadi
+        // gerbang kamera tidak berlaku dan perilaku test tidak berubah.
+        wajibKamera: false,
+      }),
+    ).rejects.toMatchObject({ kode: "kuis_tidak_cocok" });
+
+    // Tidak ada progres terverifikasi yang menempel pada modul B (atau A).
+    expect(await db.select().from(moduleProgress)).toHaveLength(0);
+  });
+
+  it("menerima modul yang benar-benar memasang kuis attempt", async () => {
+    const { principal, enrollmentId, kuis, kursus, modulA } =
+      await siapkanKursusDuaModul("pasang_benar");
+
+    const { attempt } = await svc.mulaiAttemptVerified({
+      principal,
+      enrollmentId,
+      quizId: kuis.id,
+    });
+    await svc.kirimAttemptVerified({
+      principal,
+      attemptId: attempt.id,
+      jawaban: [
+        { questionId: "q1", selectedOption: 0 },
+        { questionId: "q2", selectedOption: 1 },
+      ],
+    });
+
+    const hasil = await svc.selesaikanModulKuisVerified({
+      principal,
+      courseId: kursus.id,
+      modulId: modulA.id,
+      quizId: kuis.id,
+      attemptId: attempt.id,
+      policyVersion: 1,
+      // Kursus uji di berkas ini memakai kebijakan default `wajib`, jadi
+      // gerbang kamera tidak berlaku dan perilaku test tidak berubah.
+      wajibKamera: false,
+    });
+
+    expect(hasil.modul.ok).toBe(true);
+    expect(hasil.attempt.attemptNumber).toBe(1);
+
+    const progres = await db.select().from(moduleProgress);
+    expect(progres).toHaveLength(1);
+    expect(progres[0]!.moduleId).toBe(modulA.id);
+    expect(progres[0]!.completionPath).toBe("terverifikasi");
+    expect(progres[0]!.evidenceId).toBe(attempt.id);
+  });
+
+  /**
+   * Gagal-tertutup untuk kursus yang tidak bisa di-resolve: daftar modul kosong
+   * **tidak** boleh menjadi izin menandai modul arbitrer. Attempt yang lulus
+   * tetap tidak bisa menulis progres terverifikasi bila kurikulumnya tak dikenal
+   * — membedakan jalur ini dari `tandaiModulDb` yang menerima id apa adanya.
+   */
+  it("menolak attempt dari kursus lain sebelum menulis progres", async () => {
+    const { principal, enrollmentId, kuis, modulA } =
+      await siapkanKursusDuaModul("lintas_kursus");
+    const kursusLain = await store.createCourse({
+      title: "Kursus Lain lintas_kursus",
+      description: "kursus lain",
+      provider: "Careevo",
+      url: "https://contoh.test/lain",
+      duration_min: 30,
+    });
+    const modulLain = await store.createModul(kursusLain.id, {
+      judul: "Modul Lain",
+      ringkasan: "modul lain",
+      durasi_min: 30,
+    });
+    if (!modulLain) throw new Error("gagal membuat modul lain");
+
+    const { attempt } = await svc.mulaiAttemptVerified({ principal, enrollmentId, quizId: kuis.id });
+    await svc.kirimAttemptVerified({
+      principal,
+      attemptId: attempt.id,
+      jawaban: [
+        { questionId: "q1", selectedOption: 0 },
+        { questionId: "q2", selectedOption: 1 },
+      ],
+    });
+
+    await expect(
+      svc.selesaikanModulKuisVerified({
+        principal,
+        courseId: kursusLain.id,
+        modulId: modulLain.id,
+        quizId: kuis.id,
+        attemptId: attempt.id,
+        policyVersion: 1,
+        // Kursus uji di berkas ini memakai kebijakan default `wajib`, jadi
+        // gerbang kamera tidak berlaku dan perilaku test tidak berubah.
+        wajibKamera: false,
+      }),
+    ).rejects.toMatchObject({ kode: "kuis_tidak_cocok" });
+    expect(await db.select().from(moduleProgress)).toHaveLength(0);
+
+    // Kursus asal tetap valid; guard hanya menolak mismatch relasi attempt↔course.
+    expect(modulA.id).not.toBe(modulLain.id);
+  });
+
+  it("menolak kursus tak dikenal (daftar modul kosong) alih-alih menandai modul arbitrer", async () => {
+    const { principal, enrollmentId } = await siapkanLearner("kursus_tak_dikenal");
+    const kuis = await buatKuisBank("Kuis tanpa kursus nyata");
+
+    const { attempt } = await svc.mulaiAttemptVerified({
+      principal,
+      enrollmentId,
+      quizId: kuis.id,
+    });
+    await svc.kirimAttemptVerified({
+      principal,
+      attemptId: attempt.id,
+      jawaban: [
+        { questionId: "q1", selectedOption: 0 },
+        { questionId: "q2", selectedOption: 1 },
+      ],
+    });
+
+    // courseId sintetis dari `siapkanLearner` tidak ada di store, jadi resolver
+    // mengembalikan daftar kosong. Penyelesaian harus ditolak, bukan dilewati.
+    await expect(
+      svc.selesaikanModulKuisVerified({
+        principal,
+        courseId: "crs-kursus_tak_dikenal",
+        modulId: "mod-arbitrer",
+        quizId: kuis.id,
+        attemptId: attempt.id,
+        policyVersion: 1,
+        // Kursus uji di berkas ini memakai kebijakan default `wajib`, jadi
+        // gerbang kamera tidak berlaku dan perilaku test tidak berubah.
+        wajibKamera: false,
+      }),
+    ).rejects.toMatchObject({ kode: "modul_tidak_ditemukan" });
+
+    expect(await db.select().from(moduleProgress)).toHaveLength(0);
+  });
+});
+
+
+describe("selesaikanModulKuisVerified — gerbang wajib_kamera di database", () => {
+  /**
+   * Unit test (`assessment-service.test.ts`) memock seluruh repository, jadi ia
+   * membuktikan *keputusan* gerbang — bukan bahwa baris `learning_events` yang
+   * ditulis `catatKejadianDb` benar-benar terbaca `listEventRun` milik
+   * `ambilRunAktif`. Test di sini menutup celah itu: run dan kejadian dibentuk
+   * lewat service sungguhan, dan tidak ada mock di jalur baca.
+   *
+   * Yang dikunci:
+   * 1. gagal-tertutup — tanpa run, dengan run tanpa `kamera_mulai`, dan dengan
+   *    kejadian `kamera_gagal` semuanya ditolak;
+   * 2. **run milik peserta lain tidak memenuhi gerbang** — inilah properti
+   *    keamanan yang paling mahal, karena `kamera_mulai` milik orang lain adalah
+   *    baris yang benar-benar ada di database;
+   * 3. `kamera_berhenti` **tidak** membatalkan gerbang — berhenti kamera adalah
+   *    celah integritas yang dilaporkan, bukan prasyarat akses (keputusan yang
+   *    ditegakkan tiga kali dalam review; di sini ia dikunci agar tidak
+   *    "diperbaiki" jadi syarat baru tanpa keputusan baru). Pasangannya juga
+   *    dikunci: berhenti **tanpa** pernah menyala tidak memenuhi syarat.
+   */
+  async function siapkanKuisLulus(suffix: string) {
+    const siap = await siapkanKursusDuaModul(`kamera_${suffix}`);
+    const { attempt } = await svc.mulaiAttemptVerified({
+      principal: siap.principal,
+      enrollmentId: siap.enrollmentId,
+      quizId: siap.kuis.id,
+    });
+    const kirim = await svc.kirimAttemptVerified({
+      principal: siap.principal,
+      attemptId: attempt.id,
+      jawaban: [
+        { questionId: "q1", selectedOption: 0 },
+        { questionId: "q2", selectedOption: 1 },
+      ],
+    });
+    if (!kirim.lulus) throw new Error("attempt seharusnya lulus");
+    return { ...siap, attemptId: attempt.id };
+  }
+
+  /** Jalankan gerbang dengan `wajibKamera: true` — jalur yang diuji di sini. */
+  function selesaikanKamera(siap: Awaited<ReturnType<typeof siapkanKuisLulus>>) {
+    return svc.selesaikanModulKuisVerified({
+      principal: siap.principal,
+      courseId: siap.kursus.id,
+      modulId: siap.modulA.id,
+      quizId: siap.kuis.id,
+      attemptId: siap.attemptId,
+      policyVersion: 1,
+      wajibKamera: true,
+    });
+  }
+
+  /** Nyalakan run aktif + tulis satu kejadian lewat service sungguhan. */
+  async function mulaiRunDanCatat(
+    principal: Awaited<ReturnType<typeof siapkanKursusDuaModul>>["principal"],
+    enrollmentId: string,
+    courseId: string,
+    jenis: Parameters<typeof runSvc.catatKejadianDb>[0]["jenis"],
+  ) {
+    const { run } = await runSvc.mulaiRunDb({
+      principal,
+      enrollmentId,
+      courseId,
+      policyVersion: 1,
+    });
+    const kejadian = await runSvc.catatKejadianDb({
+      principal,
+      runId: run.id,
+      jenis,
+      visibilitas: "visible",
+      // `asal` tidak dibaca gerbang (hanya `kind`), tapi fixture tidak boleh
+      // booted: `kamera_mulai` adalah self-report peramban, bukan turunan model —
+      // itulah yang membuat batas sinyalnya "browser", bukan "kamera".
+      asal: "browser",
+    });
+    if (!kejadian) throw new Error(`gagal mencatat ${jenis}`);
+    return run;
+  }
+
+  it("menolak tanpa run aktif, tanpa menulis progres", async () => {
+    const siap = await siapkanKuisLulus("tanpa_run");
+
+    await expect(selesaikanKamera(siap)).rejects.toMatchObject({ kode: "perlu_kamera" });
+    // Gerbang menolak SEBELUM `tandaiModulDb` — progres terverifikasi tidak boleh
+    // pernah lahir dari attempt yang kameranya tidak terbukti.
+    expect(await db.select().from(moduleProgress)).toHaveLength(0);
+  });
+
+  it("menolak run aktif yang tidak punya kamera_mulai", async () => {
+    const siap = await siapkanKuisLulus("tanpa_kamera");
+    await mulaiRunDanCatat(siap.principal, siap.enrollmentId, siap.kursus.id, "sesi_dimulai");
+
+    await expect(selesaikanKamera(siap)).rejects.toMatchObject({ kode: "perlu_kamera" });
+    expect(await db.select().from(moduleProgress)).toHaveLength(0);
+  });
+
+  it("menolak kamera_gagal — kegagalan kamera bukan kamera menyala", async () => {
+    const siap = await siapkanKuisLulus("kamera_gagal");
+    await mulaiRunDanCatat(siap.principal, siap.enrollmentId, siap.kursus.id, "kamera_gagal");
+
+    await expect(selesaikanKamera(siap)).rejects.toMatchObject({ kode: "perlu_kamera" });
+    expect(await db.select().from(moduleProgress)).toHaveLength(0);
+  });
+
+  it("menerima run aktif dengan kamera_mulai yang benar-benar tersimpan", async () => {
+    const siap = await siapkanKuisLulus("kamera_nyala");
+    const run = await mulaiRunDanCatat(
+      siap.principal,
+      siap.enrollmentId,
+      siap.kursus.id,
+      "kamera_mulai",
+    );
+
+    const hasil = await selesaikanKamera(siap);
+
+    expect(hasil.modul.ok).toBe(true);
+    const progres = await db.select().from(moduleProgress);
+    expect(progres).toHaveLength(1);
+    expect(progres[0]!.completionPath).toBe("terverifikasi");
+    // Bukti yang menempel tetap attempt, bukan run — `evidence_id` ditulis
+    // quiz writer, dan inilah sebabnya label jalur kuis berbunyi "tidak bisa
+    // ditelusuri ke run" meski gerbang baru saja memverifikasi kamera.
+    expect(progres[0]!.evidenceId).toBe(siap.attemptId);
+    expect(progres[0]!.evidenceId).not.toBe(run.id);
+  });
+
+  it("kamera_berhenti setelah kamera_mulai tetap memenuhi gerbang", async () => {
+    const siap = await siapkanKuisLulus("kamera_berhenti");
+    const run = await mulaiRunDanCatat(
+      siap.principal,
+      siap.enrollmentId,
+      siap.kursus.id,
+      "kamera_mulai",
+    );
+    await runSvc.catatKejadianDb({
+      principal: siap.principal,
+      runId: run.id,
+      jenis: "kamera_berhenti",
+      visibilitas: "visible",
+      asal: "browser",
+    });
+
+    // Berhenti adalah celah integritas yang dilaporkan, bukan syarat akses.
+    // Mengubah ini jadi syarat baru butuh keputusan tersendiri.
+    const hasil = await selesaikanKamera(siap);
+    expect(hasil.modul.ok).toBe(true);
+  });
+
+  it("menolak kamera_berhenti tanpa kamera_mulai — berhenti bukan berarti pernah menyala", async () => {
+    const siap = await siapkanKuisLulus("hanya_berhenti");
+    await mulaiRunDanCatat(siap.principal, siap.enrollmentId, siap.kursus.id, "kamera_berhenti");
+
+    // Pasangan gagal-tertutup dari test di atas. "Berhenti setelah menyala" tetap
+    // lolos; "berhenti tanpa pernah menyala" tidak pernah punya bukti kamera hidup,
+    // jadi tidak boleh dihitung memenuhi syarat. Kalau ini lolos, urutan kejadian
+    // tidak lagi berarti apa-apa.
+    await expect(selesaikanKamera(siap)).rejects.toMatchObject({ kode: "perlu_kamera" });
+    expect(await db.select().from(moduleProgress)).toHaveLength(0);
+  });
+
+  it("menolak run dan kamera_mulai milik peserta lain", async () => {
+    const siap = await siapkanKuisLulus("run_orang_lain");
+    const akunLain = await daftarPengguna({
+      nama: "Peserta Lain",
+      username: "peserta_kamera_lain",
+      email: "peserta_kamera_lain@contoh.test",
+      password: "rahasia-panjang",
+    });
+    if (!akunLain.ok) throw new Error("gagal buat akun peserta lain");
+    // Enrollment-nya menunjuk **kursus yang sama**, jadi run orang lain benar-benar
+    // pliable oleh gerbang — bukan tersaring oleh selisih `course_id`.
+    const { enrollment: enrollmentLain } = await daftarEnrollment({
+      userId: akunLain.principal.userId,
+      courseId: siap.kursus.id,
+      slug: siap.kursus.slug,
+      title: siap.kursus.title,
+    });
+
+    // Run + `kamera_mulai` sungguhan, tapi milik akun lain pada kursus yang sama.
+    // Baris-baris ini benar-benar ada di `learning_runs`/`learning_events`; satu
+    //-satunya alasan gerbang tetap menolak adalah filter pemilik.
+    const runOrangLain = await runSvc.mulaiRunDb({
+      principal: akunLain.principal,
+      enrollmentId: enrollmentLain.id,
+      courseId: siap.kursus.id,
+      policyVersion: 1,
+    });
+    const kejadianOrangLain = await runSvc.catatKejadianDb({
+      principal: akunLain.principal,
+      runId: runOrangLain.run.id,
+      jenis: "kamera_mulai",
+      visibilitas: "visible",
+      asal: "browser",
+    });
+    expect(kejadianOrangLain).not.toBeNull();
+
+    await expect(selesaikanKamera(siap)).rejects.toMatchObject({ kode: "perlu_kamera" });
+    expect(await db.select().from(moduleProgress)).toHaveLength(0);
   });
 });

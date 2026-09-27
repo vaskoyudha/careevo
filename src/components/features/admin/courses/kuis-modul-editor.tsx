@@ -67,7 +67,7 @@ export function KuisModulEditor({
                     type="button"
                     onClick={() => setPratinjauId(pratinjauId === k.id ? null : k.id)}
                     aria-expanded={pratinjauId === k.id}
-                    className="mt-1 cursor-pointer text-xs font-medium text-[#0056D2] hover:underline"
+                    className="mt-1 cursor-pointer text-xs font-medium text-[#0056D2]"
                   >
                     {pratinjauId === k.id ? "Sembunyikan pratinjau" : "Pratinjau"}
                   </button>

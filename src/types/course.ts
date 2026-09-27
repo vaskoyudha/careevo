@@ -51,7 +51,22 @@ export interface Course {
  * disanitasi, sehingga lubang XSS tersimpan tetap tertutup. Repo ini tidak
  * punya sanitizer — lihat alasan yang sama di `materi-view.tsx`.
  */
-export type TipeBlok = "paragraf" | "heading" | "daftar" | "kutipan" | "gambar";
+export type TipeBlok =
+  | "paragraf"
+  | "heading"
+  | "daftar"
+  | "kutipan"
+  | "gambar"
+  | "kode";
+
+/**
+ * Bahasa yang bisa dikompilasi runner.
+ *
+ * Union tertutup, bukan string bebas. `bahasa` memilih image kontainer, dan
+ * string bebas berarti image bisa dipilih dari mana saja. Menambah bahasa
+ * berarti mengganti image dan menguji ulang seluruh batas sandbox.
+ */
+export type BahasaKode = "cpp";
 
 /**
  * Ukuran huruf relatif terhadap skala tema, bukan px bebas.
@@ -92,6 +107,23 @@ export interface BlokHalaman {
   /** Path `/uploads/...` hasil route unggah; hanya untuk `tipe: "gambar"`. */
   src?: string;
   alt?: string;
+  /** Isi kode polos, yaitu sumber yang akan dikompilasi. */
+  kode?: string;
+  /** Bahasa kode. */
+  bahasa?: BahasaKode;
+  /** Titik mulai peserta di ruang latihan. Absen berarti sama dengan `kode`. */
+  kodeAwal?: string;
+  /** Masukan latihan yang dikirim ke program. */
+  stdin?: string;
+  /** Keluaran yang diharapkan, ditampilkan sebagai pane terpisah. */
+  outputHarapan?: string;
+  /**
+   * Sakelar mati milik ahli: blok ini tampil tapi tanpa tombol Jalankan.
+   *
+   * `undefined` berarti tidak boleh dijalankan (fail-closed), sehingga blok
+   * yang tidak pernah disentuh ahli tidak diam-diam dapat dieksekusi.
+   */
+  dapatDijalankan?: boolean;
 }
 
 /**
@@ -306,11 +338,16 @@ export type AturanBantuan = "bebas" | "bertutor" | "tanpa_ai";
  * Aturan pengawasan: apakah hasil hanya sah bila dikerjakan di sesi
  * terverifikasi.
  *
- * `wajib`/`opsional` (bukan daftar kontrol kamera) supaya kebijakan yang
- * tersimpan stabil saat detail teknis sesi berubah — detail kamera hidup di
- * mesin akses, bukan di data course.
+ * `wajib`/`opsional`/`wajib_kamera` (bukan daftar kontrol kamera) supaya
+ * kebijakan yang tersimpan stabil saat detail teknis sesi berubah — detail
+ * kamera hidup di mesin akses, bukan di data course.
+ *
+ * `wajib_kamera` nilai ketiga yang menambah satu syarat saja: kamera harus
+ * menyala. Ia **tidak** menambah nilai `completion_path` — jalur kamera
+ * diturunkan dari kejadian run, bukan disimpan (lihat spec
+ * 2026-09-27-lapisan-pengawasan-anti-curang-design.md).
  */
-export type AturanPengawasan = "wajib" | "opsional";
+export type AturanPengawasan = "wajib" | "opsional" | "wajib_kamera";
 
 export interface KebijakanCourse {
   aturan_bantuan: AturanBantuan;

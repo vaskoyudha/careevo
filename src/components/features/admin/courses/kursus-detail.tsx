@@ -217,7 +217,7 @@ function IdentitasKursus({ course }: { course: Course }) {
 }
 
 const ATURAN_BANTUAN_OPSI: AturanBantuan[] = ["bebas", "bertutor", "tanpa_ai"];
-const ATURAN_PENGAWASAN_OPSI: AturanPengawasan[] = ["wajib", "opsional"];
+const ATURAN_PENGAWASAN_OPSI: AturanPengawasan[] = ["wajib", "opsional", "wajib_kamera"];
 
 /**
  * Formulir kebijakan asesmen sebuah kursus.

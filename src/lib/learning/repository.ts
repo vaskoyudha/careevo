@@ -20,6 +20,14 @@
  *   service: `catatKejadianRun` mengunci baris run (`FOR UPDATE`) lalu menulis
  *   `sequence = max + 1`, sehingga dua event paralel tidak bisa memakai sequence
  *   yang sama, dan sequence yang dilompati tidak bisa diisi belakangan.
+ * - **Penomoran attempt juga dikunci**, dengan pola yang sama:
+ *   `buatAttemptBerikutnya` mengunci baris enrollment (`FOR UPDATE`) sebelum
+ *   membaca `max(attempt_number)` dan menulis attempt baru, sehingga dua
+ *   permintaan `mulaiAttemptVerified` serentak mendapat nomor berbeda alih-alih
+ *   bentrok. Unique `(enrollment_id, quiz_id, attempt_number)` tetap dipertahankan
+ *   sebagai pertahanan terakhir; pelanggarannya dikembalikan sebagai hasil
+ *   terkontrol (`HasilBuatAttempt` dengan `sebab: "bentrok_attempt"`), bukan
+ *   dibiarkan bocor sebagai galat driver.
  *
  * Nama fungsi bisnis berbahasa Indonesia; tipe/helper infrastruktur Inggris.
  */
@@ -425,41 +433,105 @@ export async function catatKejadianRun(input: {
  * Quiz attempts
  * ------------------------------------------------------------------ */
 
-/** Nomor attempt berikutnya untuk `(enrollmentId, quizId)`: `max + 1`. */
-export async function nomorAttemptBerikutnya(
-  enrollmentId: string,
-  quizId: string,
-): Promise<number> {
-  const [maks] = await getDb()
-    .select({ m: max(quizAttempts.attemptNumber) })
-    .from(quizAttempts)
-    .where(and(eq(quizAttempts.enrollmentId, enrollmentId), eq(quizAttempts.quizId, quizId)));
-  return (maks?.m ?? 0) + 1;
+/**
+ * Apakah galat ini pelanggaran unique PostgreSQL (`SQLSTATE 23505`)?
+ *
+ * Drizzle membungkus galat driver, jadi kode bisa berada di `err.code` atau
+ * `err.cause.code` — bentuk pemeriksaan yang sama dipakai `petakanGalatUnik`
+ * di `src/lib/auth/auth-service.ts`.
+ */
+function adalahPelanggaranUnique(err: unknown): boolean {
+  const kandidat = err as { code?: string; cause?: { code?: string } };
+  return (kandidat?.code ?? kandidat?.cause?.code) === "23505";
 }
 
-/** Buat attempt `in_progress`. */
-export async function buatAttempt(input: {
+/**
+ * Hasil `buatAttemptBerikutnya` — **selalu** hasil terkontrol, tidak pernah
+ * galat driver mentah untuk konflik yang sudah diperkirakan.
+ */
+export type HasilBuatAttempt =
+  | { ok: true; attempt: QuizAttempt }
+  | { ok: false; sebab: "enrollment_tidak_ditemukan" | "bentrok_attempt" };
+
+/**
+ * Buat attempt `in_progress` dengan nomor berikutnya — **atomik**.
+ *
+ * Pembacaan `max(attempt_number)` dan insert attempt berbagi satu kunci, sebab
+ * pola baca-lalu-tulis tanpa kunci membuat dua permintaan serentak membaca
+ * `max` yang sama dan mendapat nomor yang sama. Unique
+ * `(enrollment_id, quiz_id, attempt_number)` tetap menjadi pertahanan terakhir,
+ * tetapi tanpa kunci salah satu permintaan gagal dengan galat constraint —
+ * persis gejala yang ditutup fungsi ini.
+ *
+ * Kunci yang dipakai adalah **baris enrollment induk** (`FOR UPDATE`), bukan
+ * baris `quiz_attempts`: baris attempt belum ada saat nomor dihitung, jadi
+ * tidak ada baris untuk dikunci. Enrollment selalu ada sebelum attempt pertama
+ * dan sudah menjadi target FK `quiz_attempts.enrollment_id`, sehingga
+ * menguncinya menyerialkan seluruh penomoran attempt pada enrollment itu —
+ * pola yang sama dengan `catatKejadianRun`, yang menyerialkan sequence lewat
+ * kunci baris run. Kuncinya sengaja berkisar per-enrollment, bukan per-pasangan
+ * `(enrollment, quiz)`: itu berarti dua kuis berbeda pada satu enrollment juga
+ * berurutan, sebuah harga yang diterima untuk MVP dibanding menambah tabel kunci
+ * baru.
+ *
+ * Penguncian terjadi di dalam transaksi yang sama dengan insert, jadi kunci
+ * bertahan sampai commit: dua permintaan serentak **berurutan**, permintaan
+ * kedua menunggu commit pertama lalu membaca `max` yang sudah naik.
+ *
+ * Bila unique tetap dilanggar (seharusnya tidak terjadi selama kunci terpasang),
+ * galat 23505 dipetakan ke `bentrok_attempt` alih-alih dibiarkan bocor; tidak
+ * ada retry diam-diam, supaya bug penguncian tidak tersamarkan.
+ */
+export async function buatAttemptBerikutnya(input: {
   userId: string;
   enrollmentId: string;
   quizId: string;
   assessmentDefinitionVersion: string;
   assessmentSnapshot: Record<string, unknown>;
-  attemptNumber: number;
-}): Promise<QuizAttempt> {
-  const [baris] = await getDb()
-    .insert(quizAttempts)
-    .values({
-      userId: input.userId,
-      enrollmentId: input.enrollmentId,
-      quizId: input.quizId,
-      assessmentDefinitionVersion: input.assessmentDefinitionVersion,
-      assessmentSnapshot: input.assessmentSnapshot,
-      status: "in_progress",
-      attemptNumber: input.attemptNumber,
-    })
-    .returning();
-  if (!baris) throw new Error("Attempt gagal dibuat.");
-  return baris;
+}): Promise<HasilBuatAttempt> {
+  try {
+    return await denganTransaksi(async (tx) => {
+      // Kunci baris enrollment induk. Baris yang tidak ada mengembalikan nol
+      // baris — itu enrollment hilang, bukan izin lanjut tanpa kunci.
+      const [enrollment] = await tx
+        .select({ id: enrollments.id })
+        .from(enrollments)
+        .where(eq(enrollments.id, input.enrollmentId))
+        .for("update");
+      if (!enrollment) return { ok: false, sebab: "enrollment_tidak_ditemukan" } as const;
+
+      // Selama kunci dipegang, `max` tidak bisa berubah oleh transaksi lain.
+      const [maks] = await tx
+        .select({ m: max(quizAttempts.attemptNumber) })
+        .from(quizAttempts)
+        .where(
+          and(
+            eq(quizAttempts.enrollmentId, input.enrollmentId),
+            eq(quizAttempts.quizId, input.quizId),
+          ),
+        );
+      const attemptNumber = (maks?.m ?? 0) + 1;
+
+      const [baris] = await tx
+        .insert(quizAttempts)
+        .values({
+          userId: input.userId,
+          enrollmentId: input.enrollmentId,
+          quizId: input.quizId,
+          assessmentDefinitionVersion: input.assessmentDefinitionVersion,
+          assessmentSnapshot: input.assessmentSnapshot,
+          status: "in_progress",
+          attemptNumber,
+        })
+        .returning();
+
+      if (!baris) return { ok: false, sebab: "bentrok_attempt" } as const;
+      return { ok: true, attempt: baris } as const;
+    });
+  } catch (err) {
+    if (adalahPelanggaranUnique(err)) return { ok: false, sebab: "bentrok_attempt" };
+    throw err;
+  }
 }
 
 /** Attempt berdasarkan id. */

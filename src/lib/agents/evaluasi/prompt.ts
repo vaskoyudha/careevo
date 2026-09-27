@@ -154,6 +154,9 @@ Balas HANYA dengan satu objek JSON, tanpa penjelasan tambahan, dengan bentuk:
 
 ${SKEMA_HASIL}
 
+Jangan panggil tool apa pun dan jangan menjalankan perintah: tugas ini penilaian
+satu balasan, bukan sesi kerja. Balas langsung dengan objek JSON-nya.
+
 Untuk "kecocokan": ambil syarat-syarat nyata dari lowongan (jangan mengarang
 syarat), dan isi "bobot" sesuai seberapa penting syarat itu untuk lowongan INI.
 Untuk "wawancara": tulis story STAR+R (Situation, Task, Action, Result, Reflection)

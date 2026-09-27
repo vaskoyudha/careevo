@@ -138,6 +138,20 @@ describe("jumlahKata", () => {
   it("mengembalikan 0 untuk modul tanpa halaman", () => {
     expect(jumlahKata(modul(undefined))).toBe(0);
   });
+
+  it("tidak menghitung isi kode sebagai kata baca", () => {
+    const h: Halaman = {
+      id: "hal-1",
+      modul_id: "m1",
+      course_id: "c1",
+      judul: "Kode",
+      urutan: 1,
+      blok: [{ id: "blk-1", tipe: "kode", bahasa: "cpp", kode: "int main(){ return 0; }" }],
+      created_at: "2026-09-27T00:00:00.000Z",
+      updated_at: "2026-09-27T00:00:00.000Z",
+    };
+    expect(jumlahKata({ halaman: [h] })).toBe(0);
+  });
 });
 
 describe("judulHalamanOtomatis", () => {

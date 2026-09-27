@@ -358,6 +358,8 @@ describe("kirimDanSelesaikanKuisAction", () => {
       // 7 dari `getCourseById(...).kebijakan.versi` — tidak ada tempat di
       // signature action untuk versi dari klien.
       policyVersion: 7,
+      // Kursus uji tidak menyebut `aturan_pengawasan`, jadi bukan `wajib_kamera`.
+      wajibKamera: false,
     });
 
     expect(hasil).toMatchObject({
@@ -392,6 +394,32 @@ describe("kirimDanSelesaikanKuisAction", () => {
     expect(argumen.policyVersion).toBe(1); // `kebijakanDefault().versi`
   });
 
+  it("meneruskan wajibKamera dari kebijakan kursus, bukan dari klien", async () => {
+    mocks.kirimAttemptVerified.mockResolvedValue({
+      attempt: { id: ATTEMPT, status: "submitted", score: 100 },
+      score: 100,
+      lulus: true,
+    });
+    mocks.getCourseById.mockResolvedValue({
+      id: KURSUS,
+      slug: "kursus-uji",
+      title: "Kursus Uji",
+      kebijakan: { versi: 9, aturan_pengawasan: "wajib_kamera" },
+    });
+
+    await kirimDanSelesaikanKuisAction({
+      courseId: KURSUS,
+      modulId: MODUL,
+      quizId: KUIS,
+      attemptId: ATTEMPT,
+      jawaban: [{ questionId: "q1", selectedOption: 0 }],
+    });
+
+    expect(mocks.selesaikanModulKuisVerified).toHaveBeenCalledWith(
+      expect.objectContaining({ policyVersion: 9, wajibKamera: true }),
+    );
+  });
+
   it("memetakan galat penyelesaian menjadi state, bukan melempar", async () => {
     mocks.kirimAttemptVerified.mockResolvedValue({
       attempt: { id: ATTEMPT, status: "submitted", score: 100 },
@@ -412,6 +440,28 @@ describe("kirimDanSelesaikanKuisAction", () => {
 
     expect(hasil.ok).toBe(false);
     if (!hasil.ok) expect(hasil.error).toContain("belum lulus");
+  });
+
+  it("memetakan galat perlu_kamera menjadi pesan kamera, bukan melempar", async () => {
+    mocks.kirimAttemptVerified.mockResolvedValue({
+      attempt: { id: ATTEMPT, status: "submitted", score: 100 },
+      score: 100,
+      lulus: true,
+    });
+    mocks.selesaikanModulKuisVerified.mockRejectedValue(
+      new mocks.GalatAsesmen("perlu_kamera", "Course ini menuntut kamera menyala."),
+    );
+
+    const hasil = await kirimDanSelesaikanKuisAction({
+      courseId: KURSUS,
+      modulId: MODUL,
+      quizId: KUIS,
+      attemptId: ATTEMPT,
+      jawaban: [{ questionId: "q1", selectedOption: 0 }],
+    });
+
+    expect(hasil.ok).toBe(false);
+    if (!hasil.ok) expect(hasil.error.toLowerCase()).toContain("kamera");
   });
 
   it("menolak tanpa sesi sebelum mengirim apa pun", async () => {

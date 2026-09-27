@@ -39,6 +39,7 @@
 import type { LearningEvent, LearningRun } from "@/lib/db/schema";
 import type { SessionPrincipal } from "@/lib/auth/principal";
 import { JENIS_KEJADIAN_SAH, klasifikasiKejadian, type KJenisKejadian } from "./akses";
+import type { AsalSinyal } from "./sumber-sinyal";
 import {
   akhiriRun as akhiriRunRepo,
   ambilEnrollmentById,
@@ -46,6 +47,7 @@ import {
   ambilRunAktif,
   buatRun,
   catatKejadianRun,
+  listEventRun,
   listRun,
 } from "./repository";
 import { BATAS_SESI_BAWAAN_MENIT, buktiBaru, verifikasiBuktiSesi } from "./session";
@@ -174,12 +176,25 @@ function terbitkanBukti(courseId: string, userId: string, policyVersion: number)
  * sama dengan `KejadianIntegritas` di versi berkas; `detail` dipotong 300
  * karakter sebelum menyentuh database.
  */
+/** Empat asal yang sah; nilai lain apa pun turun ke `"server"`. */
+const ASAL_SAH: ReadonlySet<string> = new Set(["browser", "kamera", "luar", "server"]);
+
+function asalValid(nilai: string | undefined): AsalSinyal {
+  return nilai && ASAL_SAH.has(nilai) ? (nilai as AsalSinyal) : "server";
+}
+
 export async function catatKejadianDb(input: {
   principal: SessionPrincipal;
   runId: string;
   jenis: KJenisKejadian;
   visibilitas: "visible" | "hidden" | null;
   detail?: string;
+  /**
+   * Asal sinyal yang diklaim klien. **Tidak dipercaya penuh**: nilai di luar
+   * empat asal yang sah turun ke `"server"`, yang tidak menuduh dan selalu ada
+   * untuk setiap jenis kejadian.
+   */
+  asal?: string;
 }): Promise<LearningEvent | null> {
   if (!(JENIS_KEJADIAN_SAH as readonly string[]).includes(input.jenis)) return null;
 
@@ -193,6 +208,7 @@ export async function catatKejadianDb(input: {
     payloadRedacted: {
       jenis_klasifikasi: klasifikasiKejadian(input.jenis, input.visibilitas),
       visibilitas: input.visibilitas,
+      asal: asalValid(input.asal),
       ...(input.detail ? { detail: input.detail.slice(0, 300) } : {}),
     },
   });
@@ -268,4 +284,29 @@ export async function buktikanSesiDb(input: {
 /** Semua run — pembacaan lintas-pemilik untuk dashboard staf (tanpa gate). */
 export async function listRunStaf(): Promise<LearningRun[]> {
   return listRun();
+}
+
+/**
+ * `run id` → apakah run itu punya kejadian `kamera_mulai`, untuk satu pemilik.
+ *
+ * **Aksesor sempit, bukan tabel run.** Halaman laporan belajar tidak boleh
+ * membaca data sesi sama sekali; itu dipisah oleh guard di
+ * `src/lib/learning/security.test.ts` ("laporan belajar dan laporan integritas
+ * tidak bercampur"), yang melarang `listRun`, `kejadian`, dan
+ * `ringkasIntegritasByOwner` muncul di halaman-halaman itu. Yang halaman itu
+ * butuhkan hanyalah satu bit per run: apakah kamera tercatat menyala.
+ *
+ * Peta ini **penuh** untuk pemilik tersebut — bukan hanya run aktif, bukan satu
+ * periode, dan bukan hanya run yang dirujuk baris progres. Peta yang lebih
+ * sempit membuat run yang sebenarnya bisa ditelusuri tampil sebagai
+ * `terverifikasi_tanpa_bukti_kamera`, dan kalimat itu terbaca seperti temuan
+ * tentang orangnya, bukan seperti data yang tidak ada.
+ */
+export async function petaKameraMulaiPemilik(userId: string): Promise<Map<string, boolean>> {
+  const peta = new Map<string, boolean>();
+  for (const run of (await listRunStaf()).filter((r) => r.userId === userId)) {
+    const isi = await listEventRun(run.id);
+    peta.set(run.id, isi.some((k) => k.kind === "kamera_mulai"));
+  }
+  return peta;
 }
