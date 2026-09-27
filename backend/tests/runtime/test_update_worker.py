@@ -4,7 +4,11 @@ from pathlib import Path
 
 import pytest
 
-from deeptutor.runtime.update_worker import build_update_command, run_update_worker
+from deeptutor.runtime.update_worker import (
+    build_restart_command,
+    build_update_command,
+    run_update_worker,
+)
 from deeptutor.services.app_update import UpdateJob, UpdateJobStore
 
 
@@ -71,3 +75,25 @@ def test_update_command_rejects_non_stable_or_injected_versions() -> None:
         build_update_command("1.7.0rc1")
     with pytest.raises(ValueError):
         build_update_command("1.7.0; touch /tmp/nope")
+
+
+def test_restart_command_refuses_because_the_cli_launcher_is_gone(tmp_path: Path) -> None:
+    """A handoff job can no longer be restarted from inside the process.
+
+    The restart used to exec ``python -m deeptutor_cli.main start --home ...``.
+    That entry point was removed with the CLI, so the worker must refuse and
+    name the supervisor remedy rather than spawn a module that is not there.
+    """
+
+    _store, job = _handoff_job(tmp_path)
+
+    with pytest.raises(RuntimeError, match="systemctl"):
+        build_restart_command(job)
+
+
+def test_restart_command_still_requires_restart_information(tmp_path: Path) -> None:
+    store = UpdateJobStore(tmp_path / "update")
+    bare = store.create(current_version="1.6.1", target_version="1.7.0")
+
+    with pytest.raises(ValueError, match="missing restart information"):
+        build_restart_command(bare)

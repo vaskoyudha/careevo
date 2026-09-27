@@ -104,13 +104,20 @@ async def test_an_mcp_tool_call_carries_its_server() -> None:
 
 
 @pytest.mark.asyncio
-async def test_a_cli_app_call_carries_its_app_id() -> None:
-    registry = _Registry(_Tool("cli_blender", provider_kind="cli", provider_id="blender"))
-    events = await _dispatch(registry, "cli_blender")
+async def test_a_non_mcp_provider_call_carries_its_own_kind_and_id() -> None:
+    """``provider_kind`` is not hardwired to ``"mcp"``.
 
-    meta = _metas(events, "cli_blender")[0]
-    assert meta["tool_source"] == "cli"
-    assert meta["tool_provider"] == "blender"
+    PageIndex SDK tools are the remaining non-MCP provider: a trace row has to
+    be able to say *which* provider family ran, not just assume MCP.
+    """
+    registry = _Registry(
+        _Tool("pageindex_cloud_search", provider_kind="pageindex", provider_id="pageindex")
+    )
+    events = await _dispatch(registry, "pageindex_cloud_search")
+
+    meta = _metas(events, "pageindex_cloud_search")[0]
+    assert meta["tool_source"] == "pageindex"
+    assert meta["tool_provider"] == "pageindex"
 
 
 @pytest.mark.asyncio

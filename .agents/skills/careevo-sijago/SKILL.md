@@ -38,6 +38,42 @@ AI tutor" or "the AI Mastery UI", they mean `http://localhost:3000/ai-mastery`
 (or `:3790/chat` unframed) — there is no second implementation to confuse it
 with. Do not rebuild one.
 
+## The `deeptutor` CLI is gone — and so is CLI Apps
+
+Careevo serves a website and never invoked either. Two removals, both done
+deliberately, so don't read either as an accident:
+
+- **The `deeptutor` command-line program** (`backend/deeptutor_cli/`, its
+  console entry point, `packaging/deeptutor-cli/`, `start_deeptutor.command`,
+  `scripts/start_tour.py`). The API was always started directly with uvicorn.
+  `deeptutor/__main__.py` now raises with the uvicorn command rather than
+  failing as a missing module, and the two sites that shelled out to the CLI to
+  relaunch themselves — `runtime/launcher.py::_launch_detached` and
+  `runtime/update_worker.py::build_restart_command` — now raise a `RuntimeError`
+  naming a supervisor restart. That is the real shape of `:8011`
+  (`sijago-backend.service`), so **the in-app updater installs and then reports a
+  durable `failed` job**; restarting the unit is the upgrade step. Do not
+  "fix" this by reintroducing an entry point.
+  Trap: `requirements/cli.txt` and the `.[cli]` extra **stay** despite the name —
+  they are the *core* dependency set, and `requirements/server.txt` includes the
+  former via `-r cli.txt`. Deleting them breaks the server install.
+- **The CLI-Anything installer** (`/space/cli-apps`, `lib/cli-apps-api.ts`,
+  `CliAppsSection.tsx`, backend `deeptutor/services/cli_apps/` + its router, the
+  `grant.cli_apps` RBAC field, the `cli_*` deferred-tool provider, and
+  `CLI_ICON_SLUGS`). The install half and the invoke half went **together**:
+  leaving `grant.cli_apps` would have made the tool provider permanently inert
+  with no way to install anything. Consequence: `brandIconFor()` takes one
+  argument now (the `cli` namespace is gone) and `lib/brand-slugs.ts` curates
+  MCP brands only.
+
+Also note what the brand rename did **not** do: it replaced *user-visible*
+"DeepTutor" with **AI Personalize** in the backend's own surfaces (FastAPI
+title, the Codex-OAuth HTML pages, HTTP error details, the image labels), while
+`AI Mastery` remains the product's user-facing name in Careevo and the framed
+app. Lowercase `deeptutor` identifiers, pip references, and
+`HKUDS/DeepTutor` upstream URLs are untouched, and the Apache attribution
+headers in `src/` are not ours to edit.
+
 ## Process topology — which port is which
 
 Measured on this repo. Four processes, and the two backends are the trap.

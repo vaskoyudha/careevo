@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Any
 
 from deeptutor.core.context import UnifiedContext
-from deeptutor.services.cli_apps.models import TOOL_PREFIX as CLI_APP_TOOL_PREFIX
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +58,7 @@ def bind_workspace_tool_runtime(
         kwargs["_workspace_id"] = workspace.workspace_id
         kwargs["_language"] = context.language or "en"
 
-    if tool_name in {"exec"} or tool_name.startswith(CLI_APP_TOOL_PREFIX):
+    if tool_name == "exec":
         from deeptutor.services.sandbox import Mount
         from deeptutor.services.workspace.execution import prepare_workspace_execution_env
 
@@ -68,15 +67,13 @@ def bind_workspace_tool_runtime(
         if task_dir is None:
             return kwargs
 
-        work_name = "exec" if tool_name == "exec" else "cli"
-        workdir = task_dir / work_name
+        workdir = task_dir / "exec"
         workdir.mkdir(parents=True, exist_ok=True)
         state_dir = task_dir / ".deeptutor" / "execution"
         kwargs["_sandbox_workdir"] = str(workdir)
         kwargs["_sandbox_internal_root"] = str(state_dir)
-        if tool_name == "exec":
-            kwargs["_sandbox_code_workdir"] = str(workdir)
-            kwargs["_sandbox_source_dir"] = str(state_dir / "exec_calls")
+        kwargs["_sandbox_code_workdir"] = str(workdir)
+        kwargs["_sandbox_source_dir"] = str(state_dir / "exec_calls")
         kwargs["_sandbox_env"] = prepare_workspace_execution_env(
             task_dir,
             workspace_root=workspace.root if workspace is not None else None,

@@ -8,7 +8,6 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import secrets
 import shutil
 import signal
 import socket
@@ -1079,71 +1078,21 @@ def _launch_detached(
     dev: bool,
     open_browser: bool,
 ) -> None:
-    """Start a launcher outside the caller's console process group."""
+    """Start a launcher outside the caller's console process group.
 
-    paths = _detached_launcher_paths(runtime_home)
-    existing = _read_detached_state(paths)
-    existing_pid = _coerce_pid(existing.get("pid")) if existing is not None else None
-    if _is_pid_alive(existing_pid):
-        _log(_t("start.detached_already_running", pid=existing_pid, log=paths.log))
-        return
+    Removed with the ``deeptutor`` CLI. Detached mode used to re-exec
+    ``python -m deeptutor_cli.main start --home ...``; that entry point no
+    longer exists, so there is nothing to hand the process to. Start the API
+    under a supervisor instead — this deployment runs it as
+    ``sijago-backend.service`` on port 8011.
+    """
 
-    paths.state.unlink(missing_ok=True)
-    paths.stop.unlink(missing_ok=True)
-    paths.state.parent.mkdir(parents=True, exist_ok=True)
-    token = secrets.token_hex(16)
-    command = [
-        sys.executable,
-        "-m",
-        "deeptutor_cli.main",
-        "start",
-        "--home",
-        str(runtime_home.resolve()),
-    ]
-    if dev:
-        command.append("--dev")
-    if not open_browser:
-        command.append("--no-browser")
-
-    env = os.environ.copy()
-    env[DEEPTUTOR_HOME_ENV] = str(runtime_home.resolve())
-    env[DETACHED_WORKER_ENV] = "1"
-    env[DETACHED_TOKEN_ENV] = token
-    kwargs: dict[str, Any] = {
-        "cwd": str(runtime_home),
-        "env": env,
-        "stdin": subprocess.DEVNULL,
-        "stderr": subprocess.STDOUT,
-        "close_fds": True,
-        "shell": False,
-    }
-    if sys.platform == "win32":
-        kwargs["creationflags"] = (
-            subprocess.CREATE_NEW_PROCESS_GROUP  # type: ignore[attr-defined]
-            | subprocess.DETACHED_PROCESS  # type: ignore[attr-defined]
-        )
-    else:
-        kwargs["start_new_session"] = True
-
-    with paths.log.open("a", encoding="utf-8") as log:
-        process = subprocess.Popen(command, stdout=log, **kwargs)  # nosec B603
-
-    _write_detached_state(
-        paths,
-        {
-            "version": 1,
-            "token": token,
-            "pid": process.pid,
-            "status": "starting",
-            "home": str(runtime_home.resolve()),
-            "log": str(paths.log.resolve()),
-            "dev": dev,
-            "started_at": time.time(),
-        },
+    raise RuntimeError(
+        "Detached start is unavailable: the `deeptutor` CLI that owned it was "
+        "removed. Run the API under a process supervisor instead, e.g. "
+        "`python -m uvicorn deeptutor.api.main:app --host 127.0.0.1 --port 8011`."
     )
-    _log(_t("start.detached_started", pid=process.pid))
-    _log(_t("start.detached_log", path=paths.log))
-    _log(_t("start.detached_stop_hint", home=runtime_home.resolve()))
+    del runtime_home, dev, open_browser  # pragma: no cover - unreachable
 
 
 def _mark_detached_ready(
