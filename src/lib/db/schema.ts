@@ -781,6 +781,19 @@ export const submissions = pgTable(
     enrollmentId: uuid("enrollment_id").references(() => enrollments.id, {
       onDelete: "set null",
     }),
+    /**
+     * Topik jalur penguasaan yang menjadi bukti submission ini, atau `null`.
+     *
+     * **Referensi lunak, tanpa FK** — sama seperti `module_progress.evidence_id`.
+     * Topik disimpan di `.data/mastery/<hash>/<id>.json` dan **bisa** dihapus
+     * peserta; references yang menghambat penghapusan akan membuat kredensial
+     * yang sudah terbit bisa ikut runtuh. Karena itu bukti credential bukan
+     * kolom ini, melainkan `submission_versions.content_snapshot` yang dibekukan
+     * server (`src/lib/mastery/selesai.ts`, `snapshotsBuktiJalur`): snapshot
+     * sudah immutable dan sudah di-`restrict`, jadi menghapus topik tidak
+     * merusak badge.
+     */
+    masteryTopicId: text("mastery_topic_id"),
     status: text("status").notNull().default("draft"),
     currentVersion: integer("current_version").notNull().default(0),
     submittedAt: timestamp("submitted_at", { withTimezone: true, mode: "date" }),
@@ -795,6 +808,13 @@ export const submissions = pgTable(
     index("submissions_status_idx").on(table.status),
     index("submissions_reviewer_idx").on(table.assignedReviewerUserId),
     check("submissions_status_check", CHECK_STATUS_SUBMISSION),
+    // Satu submission tidak boleh terikat kursus **dan** jalur sekaligus:
+    // kredensial yang ditandatangani berbeda akan memunculkan dua klaim yang
+    // benar. Keduanya `null` = submission portofolio, yang tetap berdiri sendiri.
+    check(
+      "submissions_binding_check",
+      sql`not ("course_id" is not null and "mastery_topic_id" is not null)`,
+    ),
   ],
 );
 
