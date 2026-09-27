@@ -47,7 +47,21 @@ export function Chrome() {
   const pathname = usePathname();
   const onHome = pathname === "/";
   const [scrolled, setScrolled] = useState(false);
-  const isDarkHero = (pathname === "/loker" || pathname === "/kerja") && !scrolled;
+  /**
+   * Halaman yang hero-nya gelap, jadi navbar transparan di atasnya harus
+   * membalik ink-nya jadi putih.
+   *
+   * `/explore/most-popular-courses` masuk daftar karena hero-nya `#0060EB` solid:
+   * tanpa ini link navbar jatuh ke hitam di atas biru itu (terukur 3.77:1,
+   * di bawah AA untuk teks 15px) dan menabrak aturan "page tops under the
+   * transparent bar must be light". Syarat `!scrolled` tetap berlaku: begitu
+   * digeser, bar jadi pil kaca terang dan mode ini harus mati.
+   */
+  const isDarkHero =
+    (pathname === "/loker" ||
+      pathname === "/kerja" ||
+      pathname === "/explore/most-popular-courses") &&
+    !scrolled;
 
   useEffect(() => {
     const onScroll = () => {
