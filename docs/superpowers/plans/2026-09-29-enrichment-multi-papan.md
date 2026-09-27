@@ -217,6 +217,11 @@ export function htmlKeTeks(html: string): string {
       .replace(/<[^>]+>/g, " "),
   )
     .replace(/[ \t\u00a0]+/g, " ")
+    // The generic tag replace above leaves a space wherever a tag was, which
+    // after a block boundary reads as an indented line ("One\n Two"). Collapse
+    // that space so the block boundary is a newline and nothing else — the
+    // rule the doc comment above promises.
+    .replace(/[ \t]*\n[ \t]*/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
@@ -894,7 +899,7 @@ describe("tagKlasifikasi", () => {
 
 import { htmlKeTeks, ambilNextData } from "./html";
 import { applyUrlOffPlatform, hostDari } from "./url";
-import { perusahaanTerkenal, type HasilPapan, type Io, type PapanAdapter } from "./types";
+import { perusahaanTerkenal, type HasilPapan, type PapanAdapter } from "./types";
 
 /** `/c/<company-code>/jobs/<id>/<slug>` — the shape the scan records. */
 const BAGIAN_URL = /^https?:\/\/(?:www\.)?kalibrr\.com\/c\/([^/]+)\/jobs\/(\d+)(?:\/([^/?#]+))?/i;
@@ -1172,7 +1177,7 @@ Expected: FAIL — `Cannot find module './workable'`.
 
 import { htmlKeTeks } from "./html";
 import { applyUrlOffPlatform, hostDari } from "./url";
-import { perusahaanTerkenal, type HasilPapan, type Io, type PapanAdapter } from "./types";
+import { perusahaanTerkenal, type HasilPapan, type PapanAdapter } from "./types";
 
 const HOST = "apply.workable.com";
 
@@ -1269,7 +1274,7 @@ git commit -m "feat(career-ops): workable board adapter"
 
 import { htmlKeTeks } from "./html";
 import { applyUrlOffPlatform, hostDari } from "./url";
-import { perusahaanTerkenal, type HasilPapan, type Io, type PapanAdapter } from "./types";
+import { perusahaanTerkenal, type HasilPapan, type PapanAdapter } from "./types";
 
 const HOST = "jobs.smartrecruiters.com";
 const BAGIAN_URL = /^https?:\/\/jobs\.smartrecruiters\.com\/([^/]+)\/(\d+)/i;
@@ -1338,7 +1343,7 @@ export const smartrecruiters: PapanAdapter = {
 
 import { ambilNextData, htmlKeTeks } from "./html";
 import { applyUrlOffPlatform, hostDari } from "./url";
-import { perusahaanTerkenal, type HasilPapan, type Io, type PapanAdapter } from "./types";
+import { perusahaanTerkenal, type HasilPapan, type PapanAdapter } from "./types";
 
 const BAGIAN_URL = /^https?:\/\/dealls\.com\/loker\/([^~?#]+)(?:~([^?#]+))?/i;
 
@@ -1424,7 +1429,7 @@ export const dealls: PapanAdapter = {
 
 import { bersihkanPlaceholder, htmlKeTeks, metaOgDescription, potongDivId } from "./html";
 import { applyUrlOffPlatform, hostDari } from "./url";
-import { perusahaanTerkenal, type HasilPapan, type Io, type PapanAdapter } from "./types";
+import { perusahaanTerkenal, type HasilPapan, type PapanAdapter } from "./types";
 
 const HOST = /^[a-z0-9][a-z0-9-]*\.breezy\.hr$/i;
 const BAGIAN_URL = /^https?:\/\/[a-z0-9][a-z0-9-]*\.breezy\.hr\/p\//i;
@@ -2478,9 +2483,13 @@ describe("auditBaris", () => {
     expect(out.audit.status).toBe("rejected");
   });
 
-  it("keys the cache by URL, so a query string on the row still finds its entry", () => {
+  it("keys the cache by URL, so a normalized query string on the row still finds its entry", () => {
+    // `utm_source` is in `url-key.ts`'s TRACKING_PARAMS denylist, so it normalizes
+    // away and the lookup hits the base key. A param that is NOT denylisted (e.g.
+    // `?src=x`) would keep its own key and this row would be unenriched — which is
+    // the correct behaviour, not a bug, so the fixture must use a stripped param.
     const [out] = auditBaris(
-      [row({ url: `${URL_JOBSTREET}?src=x` })],
+      [row({ url: `${URL_JOBSTREET}?utm_source=x` })],
       cache(),
     );
     expect(out.enriched).toBe(true);

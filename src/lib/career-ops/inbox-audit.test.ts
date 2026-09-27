@@ -1,29 +1,36 @@
 import { describe, expect, it } from "vitest";
 import { auditBaris } from "./inbox-audit";
-import type { ListingJobstreet } from "./jobstreet-audit";
+import type { EntriCache, IsiCache } from "./job-cache";
 import type { InboxJobShape } from "./pipeline-table";
 
+const URL_JOBSTREET = "https://id.jobstreet.com/id/job/94839531";
+
 const row = (over: Partial<InboxJobShape> = {}): InboxJobShape => ({
-  url: "https://id.jobstreet.com/id/job/94839531",
+  url: URL_JOBSTREET,
   company: "YO AI Labs",
   role: "AI Data Trainer - Remote",
   done: false,
   ...over,
 });
 
-const listing = (over: Partial<ListingJobstreet> = {}): ListingJobstreet => ({
-  id: "94839531",
-  title: "AI Data Trainer - Remote",
-  teaser: "",
-  bulletPoints: [],
-  companyName: "YO AI Labs",
-  employer: { id: "1", name: "YO AI Labs" },
+const entri = (over: Partial<EntriCache> = {}): EntriCache => ({
+  board: "Jobstreet",
+  bahan: {
+    description: "Build our React dashboard",
+    apply_url: URL_JOBSTREET,
+    company: "YO AI Labs",
+    employer_known: true,
+  },
+  diambilPada: "2026-09-29",
   ...over,
 });
 
+/** The cache as `auditBaris` sees it: keyed by the normalized URL. */
+const cache = (over: Partial<EntriCache> = {}): IsiCache => ({ [URL_JOBSTREET]: entri(over) });
+
 describe("auditBaris", () => {
-  it("cleans a row whose listing names a real employer", () => {
-    const [out] = auditBaris([row()], { "94839531": listing() });
+  it("cleans a row whose entry names a real employer", () => {
+    const [out] = auditBaris([row()], cache());
     expect(out.audit.status).toBe("clean");
     expect(out.enriched).toBe(true);
   });
@@ -31,16 +38,30 @@ describe("auditBaris", () => {
   it("quarantines a Private Advertiser row", () => {
     const [out] = auditBaris(
       [row({ company: "Private Advertiser" })],
-      { "94839531": listing({ companyName: "Private Advertiser", employer: undefined }) },
+      cache({
+        bahan: {
+          description: "x",
+          apply_url: URL_JOBSTREET,
+          company: "Private Advertiser",
+          employer_known: false,
+        },
+      }),
     );
     expect(out.audit.status).toBe("quarantined");
     expect(out.audit.flags).toContain("perusahaan_tidak_terverifikasi");
   });
 
-  it("quarantines a teaser that sends the applicant to a short link", () => {
+  it("quarantines an entry whose apply_url is a short link", () => {
     const [out] = auditBaris(
       [row()],
-      { "94839531": listing({ teaser: "Apply as an employee at \nhttps://bit.ly/2yX06A9" }) },
+      cache({
+        bahan: {
+          description: "x",
+          apply_url: "https://bit.ly/2yX06A9",
+          company: "YO AI Labs",
+          employer_known: true,
+        },
+      }),
     );
     expect(out.audit.status).toBe("quarantined");
     expect(out.audit.trust_flags).toContain("link_pendek");
@@ -52,27 +73,37 @@ describe("auditBaris", () => {
     expect(out.audit.status).not.toBe("clean");
   });
 
-  it("judges a fee rule found in the bullet points", () => {
+  it("judges a fee rule found in the description", () => {
     const [out] = auditBaris(
       [row()],
-      { "94839531": listing({ bulletPoints: ["Dikenakan biaya administrasi Rp500.000"] }) },
+      cache({
+        bahan: {
+          description: "Dikenakan biaya administrasi Rp500.000",
+          apply_url: URL_JOBSTREET,
+          company: "YO AI Labs",
+          employer_known: true,
+        },
+      }),
     );
     expect(out.audit.fee_flags).toContain("biaya_administrasi");
     // One content signal alone quarantines; it does not reject. `rejected` needs
     // two independent signals, which is the Sentinel policy pinned in
-    // sentinel.test.ts. Asserting `rejected` here would over-reject a board
-    // where many postings merely mention a fee.
+    // sentinel.test.ts.
     expect(out.audit.status).toBe("quarantined");
   });
 
-  it("rejects when two independent fee rules appear in the listing", () => {
+  it("rejects when two independent fee rules appear in the description", () => {
     const [out] = auditBaris(
       [row()],
-      {
-        "94839531": listing({
-          bulletPoints: ["Dikenakan biaya administrasi Rp500.000", "Kirim OTP ke nomor saya"],
-        }),
-      },
+      cache({
+        bahan: {
+          description:
+            "Dikenakan biaya administrasi Rp500.000\nKirim OTP ke nomor saya",
+          apply_url: URL_JOBSTREET,
+          company: "YO AI Labs",
+          employer_known: true,
+        },
+      }),
     );
     expect(out.audit.fee_flags).toEqual(
       expect.arrayContaining(["biaya_administrasi", "panen_data"]),
@@ -80,38 +111,43 @@ describe("auditBaris", () => {
     expect(out.audit.status).toBe("rejected");
   });
 
-  it("keeps one audit per row when several rows share a job id", () => {
-    const out = auditBaris(
-      [row(), row({ url: "https://id.jobstreet.com/id/job/94839531?src=x" })],
-      { "94839531": listing() },
+  it("keys the cache by URL, so a normalized query string on the row still finds its entry", () => {
+    // `utm_source` is in `url-key.ts`'s TRACKING_PARAMS denylist, so it normalizes
+    // away and the lookup hits the base key. A param that is NOT denylisted (e.g.
+    // `?src=x`) would keep its own key and this row would be unenriched — which is
+    // the correct behaviour, not a bug, so the fixture must use a stripped param.
+    const [out] = auditBaris(
+      [row({ url: `${URL_JOBSTREET}?utm_source=x` })],
+      cache(),
     );
-    expect(out).toHaveLength(2);
-    expect(out[0].audit.status).toBe(out[1].audit.status);
+    expect(out.enriched).toBe(true);
   });
 
-  it("leaves a non-jobstreet row marked unenriched rather than judging it blind", () => {
+  it("leaves a row no board claims marked unenriched rather than judging it blind", () => {
     const [out] = auditBaris([row({ url: "https://careers.allianz.com/job/1" })], {});
     expect(out.enriched).toBe(false);
   });
 
-  it("falls back to the pipeline row's company when the listing names none", () => {
-    // This is the whole point of the fallback: the scan recorded a company, so the
-    // row is judged on that rather than on the detail endpoint's silence. An
-    // earlier version expected `quarantined` — it was describing the fallback not
-    // existing yet, not a requirement.
+  it("treats an unnormalizable URL as unenriched, never as a cache hit", () => {
+    // "" means NO KEY. If it were treated as a lookup key, every unparseable row
+    // would match every other one.
+    const [out] = auditBaris([row({ url: "N/A" })], { "": entri() });
+    expect(out.enriched).toBe(false);
+  });
+
+  it("falls back to the pipeline row's company when the entry names none", () => {
     const [out] = auditBaris(
       [row({ company: "PT Dari Pipeline" })],
-      { "94839531": listing({ companyName: "" as never, employer: undefined }) },
+      cache({
+        bahan: { description: "x", apply_url: URL_JOBSTREET, company: "", employer_known: true },
+      }),
     );
     expect(out.audit.status).toBe("clean");
   });
 
-  it("quarantines when neither the listing nor the pipeline row names an employer", () => {
-    const [out] = auditBaris(
-      [row({ company: "Private Advertiser" })],
-      { "94839531": listing({ companyName: "Private Advertiser", employer: undefined }) },
-    );
-    expect(out.audit.status).toBe("quarantined");
-    expect(out.audit.flags).toContain("perusahaan_tidak_terverifikasi");
+  it("keeps one audit per row when several rows share a URL", () => {
+    const out = auditBaris([row(), row()], cache());
+    expect(out).toHaveLength(2);
+    expect(out[0].audit.status).toBe(out[1].audit.status);
   });
 });

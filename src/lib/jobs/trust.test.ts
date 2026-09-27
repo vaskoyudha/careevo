@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ATS_DIIZINKAN,
   cocokDaftarDomain,
   foldAsciiUntukHostname,
   klasifikasiLevel,
@@ -180,5 +181,25 @@ describe("nilaiKepercayaan", () => {
   it("never returns a negative score", () => {
     const result = nilaiKepercayaan({ url: "javascript:x", company: "PT Foo" });
     expect(result.score).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("Indonesian boards are exempt from the company↔domain check", () => {
+  // Dealls serves postings from dealls.com and sejutacita.id. A missing entry
+  // here is not cosmetic: `nilaiKepercayaan` only skips the mismatch check for
+  // listed hosts, so an omission quarantines a legitimate posting.
+  it.each(["dealls.com", "www.dealls.com", "api.sejutacita.id"])(
+    "lists %s",
+    (host) => {
+      expect(cocokDaftarDomain(host, ATS_DIIZINKAN)).toBe(true);
+    },
+  );
+
+  it("does not flag a Dealls posting whose company is a brand name", () => {
+    const out = nilaiKepercayaan({
+      url: "https://dealls.com/loker/software-engineer-ai~sirclo",
+      company: "CFACTORY.CO",
+    });
+    expect(out.flags).not.toContain("domain_tidak_cocok");
   });
 });

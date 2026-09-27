@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { InboxJob } from "@/lib/career-ops";
-import type { ListingJobstreet } from "@/lib/career-ops";
+import type { EntriCache } from "@/lib/career-ops/job-cache";
 import type { JobFixture } from "@/lib/fixtures";
 import {
   kebutuhanDariInbox,
@@ -21,20 +21,25 @@ function baris(over: Partial<InboxJob> = {}): InboxJob {
   };
 }
 
-function listing(over: Partial<ListingJobstreet> = {}): ListingJobstreet {
+function entri(over: Partial<EntriCache> = {}): EntriCache {
   return {
-    id: "1",
-    title: "Software Engineer (Front End)",
-    teaser: "You will build our React and TypeScript dashboard with our design system.",
-    bulletPoints: ["3+ years with React", "TypeScript required"],
-    companyName: "GudangAda",
+    board: "Jobstreet",
+    bahan: {
+      description:
+        "You will build our React and TypeScript dashboard with our design system.",
+      apply_url: "https://id.jobstreet.com/id/job/1",
+      company: "GudangAda",
+      employer_known: true,
+    },
+    tags: ["Information & Communication Technology", "Business/Systems Analysts"],
+    diambilPada: "2026-09-29",
     ...over,
   };
 }
 
 describe("kebutuhanDariInbox", () => {
-  it("mengambil judul, deskripsi, dan kategori dari listing yang terambil", () => {
-    const { kebutuhan, sumber } = kebutuhanDariInbox(baris(), listing());
+  it("mengambil judul, deskripsi, dan kategori dari entri cache", () => {
+    const { kebutuhan, sumber } = kebutuhanDariInbox(baris(), entri());
     expect(sumber).toBe("penuh");
     expect(kebutuhan.title).toBe("Software Engineer (Front End)");
     expect(kebutuhan.description).toContain("React");
@@ -45,13 +50,13 @@ describe("kebutuhanDariInbox", () => {
     // Level proximity menambah `(2 - jarak) * 4` di ranker bersama. Level yang
     // ditebak akan menambah sampai 8 poin ke kursus yang dipilih untuk lowongan
     // yang tidak pernah menyebut level — jadi field-nya harus absen, bukan
-    //_default_.
-    const { kebutuhan } = kebutuhanDariInbox(baris(), listing());
+    // default.
+    const { kebutuhan } = kebutuhanDariInbox(baris(), entri());
     expect("level" in kebutuhan).toBe(false);
     expect(kebutuhan.level).toBeUndefined();
   });
 
-  it("jatuh ke title-only saat listing tidak bisa diambil, dan mengatakannya", () => {
+  it("jatuh ke title-only saat entri tidak ada, dan mengatakannya", () => {
     const { kebutuhan, sumber } = kebutuhanDariInbox(baris(), null);
     expect(sumber).toBe("ringan");
     expect(kebutuhan.title).toBe("Software Engineer (Front End)");
@@ -59,17 +64,26 @@ describe("kebutuhanDariInbox", () => {
     expect(kebutuhan.tags).toEqual([]);
   });
 
-  it("tetap 'penuh' bila hanya teaser yang ada, tanpa bulletPoints", () => {
-    const { sumber } = kebutuhanDariInbox(
-      baris(),
-      listing({ bulletPoints: [], teaser: "Membangun antarmuka React" }),
-    );
-    expect(sumber).toBe("penuh");
+  it("jatuh ke title-only saat entri ada tapi deskripsi dan tag kosong", () => {
+    const kosong = entri({
+      bahan: {
+        description: "   ",
+        apply_url: "https://id.jobstreet.com/id/job/1",
+        company: "GudangAda",
+        employer_known: true,
+      },
+      tags: [],
+    });
+    expect(kebutuhanDariInbox(baris(), kosong).sumber).toBe("ringan");
+  });
+
+  it("tetap 'penuh' bila hanya deskripsi yang ada, tanpa tag", () => {
+    expect(kebutuhanDariInbox(baris(), entri({ tags: [] })).sumber).toBe("penuh");
   });
 
   it("tidak melempar pada row tanpa lokasi atau gaji", () => {
     const minimal: InboxJob = {
-      url: "https://apply.workable.com/x/1",
+      url: "https://apply.workable.com/j/X",
       company: "X",
       role: "Backend Engineer",
       done: false,
@@ -77,20 +91,20 @@ describe("kebutuhanDariInbox", () => {
     expect(() => kebutuhanDariInbox(minimal, null)).not.toThrow();
   });
 
-  it("mengubah klasifikasi Jobstreet jadi tag, bukan menebak", () => {
-    const denganKlasifikasi = {
-      ...listing(),
-      classifications: [
-        {
-          classification: { id: "1", description: "Information & Communication Technology" },
-          subclassification: { id: "2", description: "Business/Systems Analysts" },
-        },
-      ],
-    } as ListingJobstreet;
-    const { kebutuhan, sumber } = kebutuhanDariInbox(baris(), denganKlasifikasi);
+  it("membawa tag papan apa pun, bukan hanya Jobstreet", () => {
+    const dealls = entri({
+      board: "Dealls",
+      bahan: {
+        description: "Bangun POS.",
+        apply_url: "https://dealls.com/loker/a~b",
+        company: "ESB",
+        employer_known: true,
+      },
+      tags: ["software-development"],
+    });
+    const { kebutuhan, sumber } = kebutuhanDariInbox(baris(), dealls);
     expect(sumber).toBe("penuh");
-    expect(kebutuhan.tags).toContain("Information & Communication Technology");
-    expect(kebutuhan.tags).toContain("Business/Systems Analysts");
+    expect(kebutuhan.tags).toEqual(["software-development"]);
   });
 });
 
@@ -138,7 +152,7 @@ describe("kesesuaian dengan ranker yang dipakai ulang", () => {
     { id: "un-1", title: "Unrelated Cooking", slug: "cooking", tags: ["cooking"], level: "pemula", is_free: true },
   ] as unknown as EntriKatalog[];
 
-  const { kebutuhan } = kebutuhanDariInbox(baris(), listing());
+  const { kebutuhan } = kebutuhanDariInbox(baris(), entri());
 
   it("memberi skor yang sama dengan JobFixture setara", () => {
     const jobFixture = {

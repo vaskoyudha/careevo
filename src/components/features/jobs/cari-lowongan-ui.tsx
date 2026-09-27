@@ -81,12 +81,22 @@ export function verdictBadge(row: Baris): VerdictLoker | null {
   if (!row.audit) return null;
 
   if (!row.enriched) {
+    // Naming the board matters: for a board with no adapter this state is
+    // permanent, and a generic "belum bisa diambil" reads like a transient
+    // failure a retry would fix.
+    const papan = row.papan;
     return {
       label: "Belum diperiksa",
       cls: "verdict-unverified",
       status: "quarantined",
-      title: "Data lowongan ini belum bisa diambil dari papan aslinya, jadi belum diverifikasi.",
-      sinyal: ["Data lowongan belum bisa diambil dari papan aslinya"],
+      title: papan
+        ? `Lowongan dari ${papan} belum bisa dibaca otomatis, jadi belum diverifikasi.`
+        : "Data lowongan ini belum bisa diambil dari papan aslinya, jadi belum diverifikasi.",
+      sinyal: [
+        papan
+          ? `Papan ${papan} belum bisa dibaca otomatis`
+          : "Data lowongan belum bisa diambil dari papan aslinya",
+      ],
       terperiksa: false,
     };
   }

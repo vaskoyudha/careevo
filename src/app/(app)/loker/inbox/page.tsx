@@ -9,7 +9,7 @@ import {
   bootstrapCareerOps,
   type InboxJob,
 } from "@/lib/career-ops";
-import { bacaCache } from "@/lib/career-ops/jobstreet-enrich";
+import { bacaCache } from "@/lib/career-ops/job-cache";
 import { katalogBelajar } from "@/lib/courses/katalog";
 import { hitungJumlahKursus } from "@/lib/jobs/hitung-kursus";
 
@@ -32,9 +32,9 @@ export default async function LokerInboxPage() {
     // fall through: the list renders empty and the button reports the failure
   }
 
-  // Enrichment reaches the network once per uncached Jobstreet id, so it must be
-  // allowed to fail: a dead listing drops that row to "belum diperiksa" rather
-  // than taking the page down with it.
+  // Enrichment no longer happens here: the cache is filled after a scan and by
+  // `scripts/enrich-inbox.ts`. A row missing from the cache renders as "belum
+  // diperiksa" rather than taking the page down or blocking on a fetch.
   const [rows, profile] = await Promise.all([
     bacaInboxDiaudit().catch(() => []),
     getProfile(session.userId, session.email),

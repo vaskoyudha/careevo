@@ -2,9 +2,8 @@
 
 import { getSession } from "@/lib/auth/session";
 import { katalogBelajar, type EntriKatalog } from "@/lib/courses/katalog";
-import { auditBaris, bacaInboxDenganTanggal } from "@/lib/career-ops";
-import { jobIdFromUrl } from "@/lib/career-ops/jobstreet-audit";
-import { bacaCache } from "@/lib/career-ops/jobstreet-enrich";
+import { auditBaris, bacaInboxDenganTanggal, normalisasiKunciUrl } from "@/lib/career-ops";
+import { bacaCache } from "@/lib/career-ops/job-cache";
 import {
   idLokerDariUrl,
   kebutuhanDariInbox,
@@ -102,11 +101,8 @@ export async function detailLokerInboxAction(url: string): Promise<DetailInboxSt
 
   const status = auditBaris([baris], cache)[0].audit.status;
   const jobId = idLokerDariUrl(baris.url);
-  const jobstreetId = jobIdFromUrl(baris.url);
-  const { kebutuhan, sumber } = kebutuhanDariInbox(
-    baris,
-    (jobstreetId ? cache[jobstreetId] : undefined) ?? null,
-  );
+  const kunci = normalisasiKunciUrl(baris.url);
+  const { kebutuhan, sumber } = kebutuhanDariInbox(baris, (kunci ? cache[kunci] : undefined) ?? null);
 
   const katalog = await katalogBelajar();
   const shortlist = rekomendasiKursusUntukInbox(katalog, kebutuhan, 3);
@@ -185,8 +181,8 @@ export async function buatJalurLokerInboxAction(url: string): Promise<JalurInbox
   }
 
   const jobId = idLokerDariUrl(baris.url);
-  const jobstreetId = jobIdFromUrl(baris.url);
-  const { kebutuhan } = kebutuhanDariInbox(baris, (jobstreetId ? cache[jobstreetId] : undefined) ?? null);
+  const kunci = normalisasiKunciUrl(baris.url);
+  const { kebutuhan } = kebutuhanDariInbox(baris, (kunci ? cache[kunci] : undefined) ?? null);
 
   const ada = (await listMasteryTopics(session.email)).find(
     (topic) => topic.status === "active" && topic.jobId === jobId,

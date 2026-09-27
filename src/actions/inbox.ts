@@ -16,10 +16,14 @@
 import { getSession } from "@/lib/auth/session";
 import {
   bacaInbox,
+  bacaInboxDenganTanggal,
   bacaRiwayatScan,
   bootstrapCareerOps,
   jalankanScan,
+  normalisasiKunciUrl,
 } from "@/lib/career-ops";
+import { perkayaSemua } from "@/lib/career-ops/job-cache";
+import { ioDefault } from "@/lib/career-ops/io";
 
 export interface HasilScanAction {
   ok: boolean;
@@ -34,6 +38,12 @@ export interface HasilScanAction {
   diagnosa: string[];
   /** A board that could not be reached, named. */
   boardGagal: string[];
+  /**
+   * Inbox rows that now have enrichment material — not "rows this run fetched",
+   * which the cache cannot tell us. `0` when enrichment itself failed, because a
+   * board being down must never turn a successful scan into a failed one.
+   */
+  diperkaya: number;
 }
 
 function angka(n: number | undefined): string {
@@ -43,7 +53,14 @@ function angka(n: number | undefined): string {
 export async function jalankanScanAction(): Promise<HasilScanAction> {
   const session = await getSession();
   if (!session) {
-    return { ok: false, pesan: "Sesi tidak ditemukan.", ditambah: 0, diagnosa: [], boardGagal: [] };
+    return {
+      ok: false,
+      pesan: "Sesi tidak ditemukan.",
+      ditambah: 0,
+      diagnosa: [],
+      boardGagal: [],
+      diperkaya: 0,
+    };
   }
 
   try {
@@ -55,6 +72,7 @@ export async function jalankanScanAction(): Promise<HasilScanAction> {
       ditambah: 0,
       diagnosa: [],
       boardGagal: [],
+      diperkaya: 0,
     };
   }
 
@@ -69,7 +87,27 @@ export async function jalankanScanAction(): Promise<HasilScanAction> {
       ditambah: 0,
       diagnosa: [],
       boardGagal: [],
+      diperkaya: 0,
     };
+  }
+
+  // Fill the enrichment cache now, so the inbox render never waits on a board.
+  // Best-effort on purpose: a board that is down must not turn a successful scan
+  // into a failed one — the rows it could not fill simply render "Belum
+  // diperiksa", which is the honest answer.
+  let diperkaya = 0;
+  try {
+    const baris = bacaInboxDenganTanggal();
+    const cache = await perkayaSemua(baris, ioDefault);
+    // How many inbox rows have material now — not "how many this run fetched",
+    // which the cache cannot tell us and which would be a different, unverifiable
+    // number.
+    diperkaya = baris.filter((r) => {
+      const kunci = normalisasiKunciUrl(r.url);
+      return kunci !== "" && Object.prototype.hasOwnProperty.call(cache, kunci);
+    }).length;
+  } catch {
+    // ignore: enrichment is an optimisation, not a precondition
   }
 
   const run = hasil.hasil;
@@ -112,5 +150,6 @@ export async function jalankanScanAction(): Promise<HasilScanAction> {
     ditambah,
     diagnosa: cari,
     boardGagal,
+    diperkaya,
   };
 }

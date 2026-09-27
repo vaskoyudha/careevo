@@ -20,6 +20,7 @@
     "seed:konten:verifikasi": "node scripts/seed/konten/verifikasi-katalog.mjs",
     "seed:konten:kode": "tsx scripts/seed/konten/verifikasi-kode.mts",
     "seed:konten:kerja": "tsx scripts/seed/konten/verifikasi-kerja.mts",
+    "enrich:inbox": "tsx scripts/enrich-inbox.ts",
     "outbox:replay": "tsx scripts/replay-outbox.ts",
     "skills:check": "node scripts/validate-skills.mjs",
     "check": "npm run typecheck && npm run lint && npm run skills:check && npm test",

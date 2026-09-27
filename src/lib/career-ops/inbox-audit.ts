@@ -1,7 +1,7 @@
 /**
  * inbox-audit.ts — derive a Sentinel verdict for every inbox row.
  *
- * Two rules govern this file, and both exist because of a way the obvious
+ * Three rules govern this file, and each exists because of a way the obvious
  * implementation lies:
  *
  *  1. A row we could not enrich is NEVER reported `clean`. "We could not check"
@@ -9,9 +9,12 @@
  *     put a reassuring badge over a posting nobody inspected. Unenriched rows
  *     are `quarantined` with `enriched: false`, so the UI can say "belum
  *     diperiksa" rather than "aman".
- *  2. A row with no Jobstreet id is left alone rather than judged against a
- *     listing that does not exist. A Western ATS posting is not a failure of
- *     this enrichment; it is simply out of scope.
+ *  2. A row no board claims is left alone rather than judged against material
+ *     that does not exist. A posting on a board we do not read is not a failure
+ *     of this audit; it is simply out of scope.
+ *  3. This module does not know which board a row came from. It receives
+ *     `BahanAudit` and derives a verdict — the board registry is the only place
+ *     board knowledge lives. `papan` is attached by the caller for display.
  *
  * Verdicts are computed here and returned beside the row. Nothing is written
  * back to `pipeline.md` — a verdict derived from a cache that can be deleted
@@ -19,13 +22,19 @@
  */
 
 import { auditLoker, type SentinelOutput } from "@/lib/agents/sentinel";
-import { bahanAudit, jobIdFromUrl, type ListingJobstreet } from "./jobstreet-audit";
+import type { IsiCache } from "./job-cache";
 import type { InboxJobShape } from "./pipeline-table";
+import { normalisasiKunciUrl } from "./url-key";
 
-export type BarisDiaudit = InboxJobShape & { audit: SentinelOutput; enriched: boolean };
+export type BarisDiaudit = InboxJobShape & {
+  audit: SentinelOutput;
+  enriched: boolean;
+  /** The board the row came from, for the "belum diperiksa" copy. Display only. */
+  papan?: string;
+};
 
 /**
- * The verdict for a row whose listing we could not read.
+ * The verdict for a row whose material we could not read.
  *
  * `data_tidak_terverifikasi` is deliberately its own id rather than a reuse of
  * `perusahaan_tidak_terverifikasi`: "we could not fetch this" is not a claim
@@ -43,21 +52,20 @@ function takTeraudit(): SentinelOutput {
   };
 }
 
-export function auditBaris(
-  rows: InboxJobShape[],
-  listings: Record<string, ListingJobstreet>,
-): BarisDiaudit[] {
+export function auditBaris(rows: InboxJobShape[], cache: IsiCache): BarisDiaudit[] {
   return rows.map((row) => {
-    const jobId = jobIdFromUrl(row.url);
-    const listing = jobId ? listings[jobId] : undefined;
+    const kunci = normalisasiKunciUrl(row.url);
+    // "" means NO KEY — never a value that can match another "". A row whose URL
+    // will not normalize is unenriched, not a cache hit on the empty string.
+    const entri = kunci ? cache[kunci] : undefined;
 
-    if (!jobId || !listing) {
+    if (!entri) {
       return { ...row, audit: takTeraudit(), enriched: false };
     }
 
-    // The pipeline row's company is the fallback: Jobstreet's single-job
-    // endpoint sometimes omits what its list endpoint recorded.
-    const bahan = bahanAudit(listing, row.company);
+    // The pipeline row's company is the fallback: a board's detail payload
+    // sometimes omits what its list endpoint recorded.
+    const bahan = entri.bahan;
     return {
       ...row,
       audit: auditLoker({
