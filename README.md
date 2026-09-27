@@ -1,5 +1,11 @@
 <div align="center">
-  <img src="public/careevo-logo.png" alt="Logo Careevo" width="360" />
+  <table>
+    <tr>
+      <td align="center" bgcolor="#ffffff">
+        <img src="public/careevo-logo.png" alt="Logo Careevo" width="360" />
+      </td>
+    </tr>
+  </table>
 
   # Learn. Verify. Earn.
 
