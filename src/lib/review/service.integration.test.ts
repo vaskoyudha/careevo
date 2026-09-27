@@ -28,6 +28,7 @@ import type { SessionPrincipal } from "@/lib/auth/principal";
 import {
   buatSubmissionDb,
   cabutAttestationDb,
+  ambilKredensialCourse,
   kelayakanKursusSubmission,
   kirimSubmissionDb,
   mulaiReviewDb,
@@ -36,6 +37,7 @@ import {
   transisiSah,
   type RubrikReview,
 } from "@/lib/review/service";
+import { ambilAttestationPublik } from "@/lib/review/repository";
 import { verifikasiSignature } from "@/lib/attestation/key";
 import { dariKanonik } from "@/lib/attestation/payload";
 
@@ -298,10 +300,10 @@ describe("kelayakan kursus submission", () => {
 
   it("jalur baca dan jalur tulis tidak boleh berbeda pendapat (satu definisi kelayakan)", async () => {
     // Aturan yang diuji: `kelayakanKursusSubmission` (yang menggerbang panel
-    // Project) dan `buatSubmissionDb` (jalur tulis) **harus**-FiNAKI肯定 pada
-    // enrollment yang sama. Saladanya terduplikasi, dan selisihnya yang
-    // berbahaya: pembaca menyimpang menampilkan "terbuka" sementara aksi
-    // menolak, atau sebaliknya.
+    // Project) dan `buatSubmissionDb` (jalur tulis) **harus** menghasilkan
+    // verdict yang sama pada enrollment yang sama. Kalau aturannya terduplikasi,
+    // selisihnya yang berbahaya: pembaca menyimpang menampilkan "terbuka"
+    // sementara aksi menolak, atau sebaliknya.
     //
     // Kasus ini hanya bisa gagal kalau jalur baca meloloskan sesuatu yang
     // jalur tulis tolak — yaitu completion yang `user_id`-nya bukan pemilik
@@ -497,5 +499,99 @@ describe("isolasi lintas user", () => {
     // Badge juga masih ada.
     const sisaBadge = await db.select().from(badges).where(eq(badges.id, hasil.badge!.id));
     expect(sisaBadge).toHaveLength(1);
+  });
+});
+
+/**
+ * `ambilKredensialCourse` dibaca oleh kotak sertifikat di halaman course: token
+ * yang dikembalikan jadi href `/verify/<token>`, jadi yang diuji bukan hanya
+ * "tidak bocor", tapi juga "benar-benar token publik yang hidup".
+ */
+describe("kredensial per course — bahan kotak sertifikat di halaman course", () => {
+  async function sampaiTerbit(learner: SessionPrincipal, staff: SessionPrincipal) {
+    const { submission } = await submissionTerikat(learner, { judul: "Karya", catatan: "x" });
+    await kirimSubmissionDb({ principal: learner, submissionId: submission.id });
+    await tetapkanReviewerDb({
+      principal: staff,
+      submissionId: submission.id,
+      reviewerUserId: staff.userId,
+    });
+    await mulaiReviewDb({ principal: staff, submissionId: submission.id });
+    const hasil = await putuskanReviewDb({
+      principal: staff,
+      submissionId: submission.id,
+      decision: "approved",
+      rubric: RUBRIK_LULUS,
+      rationale: "Alasan yang cukup panjang.",
+    });
+    return { submission, hasil };
+  }
+
+  it("token yang dikembalikan resolve di database dan signature-nya cocok", async () => {
+    const learner = await buatPrincipal("tok@contoh.test", "tok");
+    const staff = await buatStaff("staff-tok@contoh.test", "staff-tok");
+    const { hasil } = await sampaiTerbit(learner, staff);
+
+    const token = await ambilKredensialCourse(learner, "crs-1");
+    expect(token).toBe(hasil.attestation!.publicToken);
+
+    // Bukan sekadar string non-null: halaman `/verify/<token>` hanya berguna
+    // kalau token itu benar-benar menunjuk attestation aktif yang tanda
+    // tangannya masih cocok.
+    const publik = await ambilAttestationPublik(token!);
+    expect(publik?.attestation.status).toBe("active");
+    expect(
+      verifikasiSignature(
+        publik!.attestation.payloadCanonical,
+        publik!.attestation.signature,
+        publik!.attestation.keyVersion,
+      ),
+    ).toBe(true);
+  });
+
+  it("completion terverifikasi tapi karya belum disetujui → null", async () => {
+    // Ini bukan kegagalan: completion terverifikasi hanya membuka pengumpulan
+    // karya. Kotak sertifikat harus menampilkan status "Menunggu karya", bukan
+    // tautan verifikasi ke credential yang belum ada.
+    //
+    // Catatan jujur: yang membuat assertion ini hijau adalah "draf belum punya
+    // review, jadi belum punya attestation", bukan saringan `approved` di
+    // service — saringan itu penghematan query dan tidak punya test yang
+    // observesnya. Assertion ini mengunci **perilaku** yang dilihat peserta.
+    const learner = await buatPrincipal("siap@contoh.test", "siap");
+    const { submission } = await submissionTerikat(learner, { judul: "Masih draf" });
+    expect(submission.status).toBe("draft");
+    expect(await ambilKredensialCourse(learner, "crs-1")).toBeNull();
+  });
+
+  it("credential orang lain tidak bocor dan milik course lain tidak ikut", async () => {
+    const a = await buatPrincipal("iso-a@contoh.test", "iso-a");
+    const b = await buatPrincipal("iso-b@contoh.test", "iso-b");
+    const staff = await buatStaff("staff-iso@contoh.test", "staff-iso");
+    await sampaiTerbit(a, staff);
+
+    // B tidak punya karya apa pun → tidak boleh melihat credential milik A.
+    expect(await ambilKredensialCourse(b, "crs-1")).toBeNull();
+
+    // A tetap punya credential-nya, dan course yang memang tidak ada karyanya
+    // tidak membaca apa pun dari course lain.
+    expect(await ambilKredensialCourse(a, "crs-1")).not.toBeNull();
+    expect(await ambilKredensialCourse(a, "crs-tidak-ada")).toBeNull();
+  });
+
+  it("credential yang dicabut berhenti dipajang", async () => {
+    const learner = await buatPrincipal("cabut-tok@contoh.test", "cabut-tok");
+    const staff = await buatStaff("staff-cabut@contoh.test", "staff-cabut");
+    const { hasil } = await sampaiTerbit(learner, staff);
+    expect(await ambilKredensialCourse(learner, "crs-1")).not.toBeNull();
+
+    await cabutAttestationDb({
+      principal: staff,
+      attestationId: hasil.attestation!.id,
+      reason: "Karya ditarik kembali.",
+    });
+
+    // Attestation `revoked` tidak boleh muncul sebagai "sertifikat terbit".
+    expect(await ambilKredensialCourse(learner, "crs-1")).toBeNull();
   });
 });

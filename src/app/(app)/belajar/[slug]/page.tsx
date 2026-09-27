@@ -10,7 +10,7 @@ import { pastikanBackfill } from "@/lib/learning/backfill-lazy";
 import { progresKursusDb } from "@/lib/learning/service";
 import { getCourseById } from "@/lib/courses/store";
 import { kebijakanDefault } from "@/lib/courses/kebijakan";
-import { kelayakanKursusSubmission } from "@/lib/review/service";
+import { kelayakanKursusSubmission, ambilKredensialCourse } from "@/lib/review/service";
 import { tasks } from "@/lib/fixtures";
 import { selaraskanKursusAi } from "@/lib/learning/tutor-ai-kursus";
 
@@ -97,11 +97,30 @@ export default async function DetailKursusPage({
    * yang jalurnya `terverifikasi`. `kelayakanKursusSubmission` membaca
    * enrollment + completion; `null` berarti Project terkunci, walau progres
    * modul sudah 100% lewat jalur informal.
+   *
+   * Pembacaan yang sama juga menjadi gerbang kotak sertifikat: Project dan
+   * sertifikat dibuka oleh **satu** syarat yang sama, jadi keduanya
+   * diturunkan dari satu nilai di sini — bukan dua query yang bisa
+   * menyimpang dan menampilkan "sertifikat terbuka" di course yang Project-nya
+   * masih terkunci.
    */
   const layakProject = await kelayakanKursusSubmission(session, entri.id);
   const modulProyek = modul.find(
     (m) => m.checkpoint && m.checkpoint.mode === "proyek",
   );
+
+  /**
+   * Token publik credential yang sudah terbit untuk course ini, `null` bila
+   * belum.
+   *
+   * **Hanya ditanyakan setelah completion terverifikasi ada.** Kalau tidak,
+   * satu query yang dijamin `null` — dan mayoritas besar kunjungan ke halaman
+   * course justru belum sampai sana, jadi membacanya untuk semua pengunjung
+   * hanya menambah beban tanpa pernah mengubah yang tampil.
+   */
+  const tokenSertifikat = layakProject
+    ? await ambilKredensialCourse(session, entri.id)
+    : null;
 
   return (
     <LearnerShell session={session}>
@@ -135,6 +154,12 @@ export default async function DetailKursusPage({
           ringkasan:
             modulProyek?.ringkasan ??
             "Terapkan seluruh materi course ini dalam satu karya nyata, lalu kumpulkan untuk direview verifikator.",
+        }}
+        sertifikat={{
+          // Satu syarat, dua tampilan: nilai `terkunci` di sini identik dengan
+          // yang di `proyek` di atas, bukan dihitung ulang.
+          terkunci: layakProject === null,
+          token: tokenSertifikat,
         }}
         // Kebijakan tersimpan dibaca apa adanya; kursus yang belum pernah
         // disunting kebijakannya jatuh ke default aman (`aturan_pengawasan:
