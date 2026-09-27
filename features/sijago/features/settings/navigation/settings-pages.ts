@@ -136,6 +136,9 @@ const extraPages: SettingsLeaf[] = [
 export const HIDDEN_SETTINGS_KEYS = new Set([
   // Personal
   'data-migration',
+  'usage',
+  // Learning & conversation
+  'memory',
   // Features & integrations
   'tools',
   'capabilities',
