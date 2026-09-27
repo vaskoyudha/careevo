@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactElement } from "react";
+import { useEffect, useId, useRef, useState, type ReactElement } from "react";
 import { ChevronDown, ChevronUp, Link2, Link2Off, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -84,6 +84,10 @@ export function BlokEditor({
 }: BlokEditorProps) {
   const [tambahTipe, setTambahTipe] = useState<TipeBlok>("paragraf");
 
+  // Identitas lokal tiap blok, sejajar posisional dengan `blok`. Lihat
+  // catatan panjangnya di `useKunciBlok`.
+  const kunci = useKunciBlok(blok);
+
   const perbarui = (index: number, berikut: BlokHalaman) => {
     onChange(blok.map((b, i) => (i === index ? berikut : b)));
   };
@@ -94,6 +98,17 @@ export function BlokEditor({
     const berikut = [...blok];
     [berikut[index], berikut[tujuan]] = [berikut[tujuan], berikut[index]];
     onChange(berikut);
+    kunci.tukar(index, tujuan);
+  };
+
+  const hapus = (index: number) => {
+    onChange(blok.filter((_, i) => i !== index));
+    kunci.hapus(index);
+  };
+
+  const tambah = () => {
+    onChange([...blok, blokKosong(tambahTipe)]);
+    kunci.tambah();
   };
 
   return (
@@ -105,7 +120,7 @@ export function BlokEditor({
       ) : null}
 
       {blok.map((item, index) => (
-        <div key={item.id} className="rounded-xl border border-gray-200 bg-white">
+        <div key={kunci.dari(index)} className="rounded-xl border border-gray-200 bg-white">
           <div className="flex items-center gap-2 border-b border-gray-100 px-3 py-2">
             <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-gray-600 uppercase">
               {LABEL_TIPE[item.tipe]}
@@ -135,7 +150,7 @@ export function BlokEditor({
             </button>
             <button
               type="button"
-              onClick={() => onChange(blok.filter((_, i) => i !== index))}
+              onClick={hapus.bind(null, index)}
               title="Hapus blok"
               className="cursor-pointer rounded-md border border-red-200 p-1 text-red-600 hover:bg-red-50"
             >
@@ -147,6 +162,7 @@ export function BlokEditor({
           <div className="p-3">
             <IsiBlok
               blok={item}
+              identitas={kunci.dari(index)}
               onChange={(berikut) => perbarui(index, berikut)}
               courseId={courseId}
               modulId={modulId}
@@ -172,7 +188,7 @@ export function BlokEditor({
         </select>
         <button
           type="button"
-          onClick={() => onChange([...blok, blokKosong(tambahTipe)])}
+          onClick={tambah}
           className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
         >
           <Plus className="size-4" aria-hidden="true" />
@@ -181,6 +197,80 @@ export function BlokEditor({
       </div>
     </div>
   );
+}
+
+/**
+ * Identitas lokal tiap blok di daftar editor, sejajar posisional dengan
+ * `blok`.
+ *
+ * **Kenapa bukan `blok.id`.** Blok baru lahir dengan `id: ""` — `blokKosong`
+ * membiarkannya kosong supaya hanya `store` yang menetapkan id, dan blok yang
+ * batal disimpan tidak membakar id. Jadi semua blok yang belum disimpan
+ * berbagi id kosong yang sama, dan tiga hal sekaligus rusak: `key` React kembar
+ * (React membuang lalu membangun ulang subtree, jadi `EditorView` blok ikut
+ * hilang bersama riwayat undo dan kursornya), pasangan `htmlFor`/`id` blok
+ * kode semuanya menjadi `-stdin` dan `-harapan` sehingga setiap label
+ * "Masukan" menunjuk textarea blok pertama, dan `aria-label` di dalam editor
+ * bertabrakan jadi beberapa nama yang sama.
+ *
+ * **Kenapa tidak disimpan.** Identitas ini hanya dibutuhkan selama sesi
+ * penyuntingan; yang harus bertahan adalah isi bloknya. Field baru di
+ * `BlokHalaman` akan ikut masuk ke `blokListSchema`, ke berkas JSON, dan ke
+ * setiap renderer — untuk sesuatu yang tidak dibaca siapa pun di luar editor.
+ * `halaman-editor.tsx` sudah menyimpan daftar blok sebagai satu JSON hidden
+ * input, dan daftar kunci ini tidak ikut ke sana: ia state lokal, terpisah dari
+ * `blok`.
+ *
+ * **Invarian: `kunci.length === blok.length`.** Dijaga oleh tiga mutator di
+ * bawah, yang dipanggil di titik yang sama dengan mutasi `blok` — tambah, hapus,
+ * tukar. `perbarui` tidak menyentuh daftar karena mengganti isi blok tidak
+ * mengubah identitasnya. Kalau suatu saat penulis baru menambah blok tanpa
+ * memanggil `tambah`, panjangnya akan meleset dan React akan mengembalikan
+ * peringatan `key` kembar — gejala yang sama seperti sekarang, sehingga
+ * kegagalan tidak bisa senyap. Kunci untuk indeks di luar jangkauan sengaja
+ * memakai basis yang sama supaya tidak pernah `undefined`.
+ */
+function useKunciBlok(blok: BlokHalaman[]) {
+  // `useId()` memberi basis yang unik per instans komponen dan aman terhadap
+  // hydration; penghitung lokal hanya membedakan blok-blok baru di dalam satu
+  // editor.
+  const basis = useId();
+  // **Hanya dibaca di event handler.** `useState` di bawah menjalankan
+  // initializernya saat render, jadi `urut.current++` di sana membaca ref
+  // selama render — persis yang aturan `react-hooks` larang, dan ref yang
+  // dibaca di render bisa mengembalikan kunci yang sama untuk dua blok.
+  //
+  // Karena itu kunci blok awal memakai ruang nama sendiri (`baru-awal-<i>`)
+  // dan tidak menyentuh penghitung. Ruang nama terpisah itu juga yang menjamin
+  // tidak akan bentrok: penghitung hanya pernah naik, sedangkan indeks awal
+  // bisa terpakai ulang setelah `hapus`.
+  const urut = useRef(0);
+  const baru = () => `${basis}-baru-${urut.current++}`;
+
+  const [kunci, setKunci] = useState<string[]>(() =>
+    blok.map((b, i) => (b.id ? `${basis}-${b.id}` : `${basis}-baru-awal-${i}`)),
+  );
+
+  return {
+    dari: (index: number) => kunci[index] ?? `${basis}-luar-jangkauan-${index}`,
+    // Kunci baru dicetak di luar updater, bukan di dalamnya. React memanggil
+    // fungsi updater lebih dari satu kali — StrictMode memanggilnya dua kali
+    // untuk tiap pembaruan state di dev — jadi `urut.current++` di dalam sana
+    // maju dua kali per klik, dan itu terlihat sebagai lompatan nomor saat
+    // menambah blok di dev. Nilai yang dikomit tetap unik, tapi updater dengan
+    // efek samping tidak murni dan tidak boleh diandalkan.
+    tambah: () => {
+      const kunciBaru = baru();
+      setKunci((k) => [...k, kunciBaru]);
+    },
+    tukar: (a: number, b: number) =>
+      setKunci((k) => {
+        const berikut = [...k];
+        [berikut[a], berikut[b]] = [berikut[b], berikut[a]];
+        return berikut;
+      }),
+    hapus: (index: number) => setKunci((k) => k.filter((_, i) => i !== index)),
+  };
 }
 
 /**
@@ -196,6 +286,7 @@ export function BlokEditor({
  */
 function IsiBlok({
   blok,
+  identitas,
   onChange,
   courseId,
   modulId,
@@ -203,6 +294,12 @@ function IsiBlok({
   semuaBlok,
 }: {
   blok: BlokHalaman;
+  /**
+   * Identitas lokal blok ini — dipakai untuk `key` React, pasangan
+   * `htmlFor`/`id`, dan `aria-label`. Bukan `blok.id`: blok yang belum
+   * disimpan berbagi id kosong. Lihat `useKunciBlok`.
+   */
+  identitas: string;
   onChange: (berikut: BlokHalaman) => void;
   courseId: string;
   modulId: string;
@@ -216,11 +313,11 @@ function IsiBlok({
         <div className="space-y-2">
           {blok.tipe === "paragraf" ? (
             <div className="flex items-center gap-2">
-              <Label htmlFor={`${blok.id}-ukuran`} className="text-xs">
+              <Label htmlFor={`${identitas}-ukuran`} className="text-xs">
                 Ukuran
               </Label>
               <select
-                id={`${blok.id}-ukuran`}
+                id={`${identitas}-ukuran`}
                 value={blok.ukuran ?? "normal"}
                 onChange={(event) =>
                   onChange({ ...blok, ukuran: event.target.value as UkuranBlok })
@@ -235,7 +332,7 @@ function IsiBlok({
             </div>
           ) : null}
           <BarisEditor
-            id={`blok-${blok.id}`}
+            id={`baris-${identitas}`}
             segmen={blok.segmen ?? []}
             onChange={(segmen) => onChange({ ...blok, segmen })}
             placeholder={blok.tipe === "kutipan" ? "Tulis kutipan…" : "Tulis paragraf…"}
@@ -248,11 +345,11 @@ function IsiBlok({
       return (
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <Label htmlFor={`${blok.id}-level`} className="text-xs">
+            <Label htmlFor={`${identitas}-level`} className="text-xs">
               Level
             </Label>
             <select
-              id={`${blok.id}-level`}
+              id={`${identitas}-level`}
               value={blok.level ?? 2}
               onChange={(event) =>
                 onChange({ ...blok, level: Number(event.target.value) as 1 | 2 | 3 })
@@ -268,7 +365,7 @@ function IsiBlok({
             </span>
           </div>
           <BarisEditor
-            id={`blok-${blok.id}`}
+            id={`baris-${identitas}`}
             segmen={blok.segmen ?? []}
             onChange={(segmen) => onChange({ ...blok, segmen })}
             placeholder="Judul bagian"
@@ -281,11 +378,11 @@ function IsiBlok({
       return (
         <div className="space-y-2">
           {(blok.butir ?? []).map((butir, index) => (
-            <div key={`${blok.id}-${index}`} className="flex items-start gap-2">
+            <div key={`baris-${identitas}-${index}`} className="flex items-start gap-2">
               <span className="mt-2 text-xs text-gray-400">•</span>
               <div className="min-w-0 flex-1">
                 <BarisEditor
-                  id={`blok-${blok.id}-${index}`}
+                  id={`baris-${identitas}-${index}`}
                   segmen={butir}
                   onChange={(segmen) =>
                     onChange({
@@ -328,20 +425,20 @@ function IsiBlok({
             kode={blok.kode ?? ""}
             bahasa={blok.bahasa ?? "cpp"}
             editable
-            label={`Kode contoh ${blok.id}`}
+            label={`Kode contoh ${identitas}`}
             onChange={(berikut) => onChange({ ...blok, kode: berikut })}
           />
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
               <label
-                htmlFor={`${blok.id}-stdin`}
+                htmlFor={`${identitas}-stdin`}
                 className="block text-xs font-medium text-gray-600"
               >
                 Masukan (stdin)
               </label>
               <textarea
-                id={`${blok.id}-stdin`}
+                id={`${identitas}-stdin`}
                 value={blok.stdin ?? ""}
                 onChange={(event) => onChange({ ...blok, stdin: event.target.value })}
                 rows={2}
@@ -351,13 +448,13 @@ function IsiBlok({
             </div>
             <div className="space-y-1">
               <label
-                htmlFor={`${blok.id}-harapan`}
+                htmlFor={`${identitas}-harapan`}
                 className="block text-xs font-medium text-gray-600"
               >
                 Keluaran yang diharapkan
               </label>
               <textarea
-                id={`${blok.id}-harapan`}
+                id={`${identitas}-harapan`}
                 value={blok.outputHarapan ?? ""}
                 onChange={(event) => onChange({ ...blok, outputHarapan: event.target.value })}
                 rows={2}
@@ -407,11 +504,11 @@ function IsiBlok({
             <p className="field-hint">Belum ada gambar.</p>
           )}
           <div className="space-y-1.5">
-            <Label htmlFor={`${blok.id}-alt`} className="text-xs">
+            <Label htmlFor={`${identitas}-alt`} className="text-xs">
               Teks alternatif
             </Label>
             <Input
-              id={`${blok.id}-alt`}
+              id={`${identitas}-alt`}
               value={blok.alt ?? ""}
               onChange={(event) => onChange({ ...blok, alt: event.target.value })}
               placeholder="Deskripsi gambar untuk pembaca layar"
