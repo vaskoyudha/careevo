@@ -20,7 +20,7 @@ cache secara proaktif sehingga render halaman tidak pernah menunggu jaringan.
 Semua angka di bawah dari probe langsung ke API/HTML publik papan pada 2026-09-29,
 dan dari `.data/career-ops/data/pipeline.md` di mesin ini.
 
-### T1. Tujuh papan, satu yang bisa di-enrich
+### T1. Enam papan, satu yang bisa di-enrich
 
 Sebaran host di `pipeline.md`:
 
@@ -38,21 +38,26 @@ selain Jobstreet — dibuktikan dengan menjalankan regex-nya pada URL Breezy
 (`/\/id\/job\/(\d+)/` → `null`). `bacaInboxDiaudit` (`inbox.ts:103`) lalu
 **tidak menyentuh jaringan sama sekali** dan `auditBaris` jatuh ke `takTeraudit()`.
 
-### T2. Semua papan menyediakan deskripsi tanpa browser
+### T2. Semua papan menyediakan deskripsi tanpa browser — tetapi strateginya per-papan
 
-Klaim awal "Breezy kemungkinan butuh browser per lowongan" **salah**. Probe
-mengoreksinya:
+Klaim awal "Breezy kemungkinan butuh browser per lowongan" **salah**. Probe juga
+**mengoreksi** dua asumsi berikutnya: API pencarian Kalibrr bersifat global
+(param `company_code`/`job_id` **diabaikan** — mengembalikan perusahaan lain),
+dan widget Workable **tanpa** `details=true` tidak memuat deskripsi sama sekali.
+Yang benar:
 
-| Papan | Sumber deskripsi | Biaya | Bukti |
+| Papan | Sumber deskripsi | Strategi | Biaya terukur |
 |---|---|---|---|
-| Kalibrr | list API `/api/job_board/search` → `description` | 1 req / papan | 999 char terukur |
-| Workable | widget API `/api/v1/widget/accounts/<slug>` → `description` | 1 req / papan | terukur |
-| SmartRecruiters | detail API `/v1/companies/<slug>/postings/<id>` → `jobAd.sections.jobDescription` | 1 req / lowongan | 1105 char terukur |
-| Dealls | HTML `__NEXT_DATA__` → `responsibilities` + `requirements` | 1 req / lowongan | 2924 + 1035 char terukur |
-| Breezy | HTML server-rendered `#description` (dan `og:description`) | 1 req / lowongan | container 1618 char terukur |
+| Kalibrr | search API `?company=<code>` → `description` + `qualifications` | `ambilFeed` | 589 + 947 char; **1 req / perusahaan** (17 kode) |
+| Workable | widget `?details=true` → `job.description` | `ambilFeed` | 3876 char; **1 req / akun** |
+| SmartRecruiters | detail `/v1/companies/<slug>/postings/<id>` → `jobAd.sections.jobDescription` | `ambilDetail` | 1105 char; 1 req / lowongan |
+| Dealls | HTML `__NEXT_DATA__` → `responsibilities` + `requirements` | `ambilDetail` | 2924 + 1035 char; 1 req / lowongan |
+| Breezy | HTML server-rendered `#description` (dan `og:description`) | `ambilDetail` | container 1618 char; 1 req / lowongan |
 
-Konsekuensi: tidak ada kasus "butuh browser". Semua bisa diselesaikan dengan
-`fetch` biasa, jadi seluruh desain boleh mengandalkan HTTP saja.
+Konsekuensi: tidak ada kasus "butuh browser" — semua selesai dengan `fetch`
+biasa. Tetapi **tidak ada satu strategi yang berlaku untuk semua papan**, jadi
+kontrak adapter harus mengizinkan keduanya (`ambilFeed` **atau** `ambilDetail`),
+dan biaya dihitung per papan, bukan diasumsikan seragam.
 
 ### T3. Scan sudah memegang deskripsi lalu membuangnya
 
@@ -63,15 +68,15 @@ tetapi tidak pernah masuk `pipeline.md`.
 
 `engine/` byte-identik dan tidak boleh disentuh (batas `career-ops-port` +
 `careevo-attribution`), jadi enrichment **harus mengambil ulang** dari feed
-papan. Untuk papan ber-feed itu satu request per papan; untuk papan per-lowongan
-itu satu request per baris.
+papan. Untuk papan ber-feed itu satu request per perusahaan/akun; untuk papan
+per-lowongan itu satu request per baris.
 
 ### T4. Jalur render tidak boleh menunggu jaringan
 
 `bacaInboxDiaudit()` dipanggil dari `loker/inbox/page.tsx:39` saat render
 (`dynamic = "force-dynamic"` = setiap request), untuk seluruh baris. Aman
-sekarang karena Jobstreet di-cache. Tetapi 35 baris non-Jobstreet berdeskripsi
-per-lowongan berarti **puluhan request jaringan di jalur render** saat cache
+sekarang karena Jobstreet di-cache. Tetapi 77 baris non-Jobstreet berdeskripsi
+per-request berarti **puluhan request jaringan di jalur render** saat cache
 dingin — satu cache dingin akan memblokir halaman.
 
 ### T5. `ATS_DIIZINKAN` belum memuat Dealls
@@ -91,6 +96,24 @@ Dealls, `applyUrl` SmartRecruiters) — memakai URL posting mentah sebagai
 `apply_url` akan menghilangkan satu-satunya sinyal yang berarti (`link_pendek`,
 `link_apk`).
 
+### T7. Biaya nyata untuk 77 baris non-Jobstreet
+
+Dihitung dari `pipeline.md` di mesin ini (17 kode perusahaan Kalibrr berbeda,
+satu akun Workable):
+
+| Papan | Baris | Request sekali (lalu di-cache) |
+|---|---:|---:|
+| Kalibrr | 32 | ~17 (per-perusahaan, `company=<code>`) |
+| Workable | 10 | ~1–2 (per-akun, `details=true`) |
+| Breezy | 18 | 18 |
+| Dealls | 10 | 10 |
+| SmartRecruiters | 7 | 7 |
+| **Total** | **77** | **~53–54** |
+
+Ini yang membuat langkah pasca-scan (K3) menjadi wajib: ~53 request satu kali
+untuk menaikkan cakupan dari 180 → 257 baris tidak boleh berada di jalur render
+(T4).
+
 ## Keputusan
 
 ### K1. Satu registry adapter, `auditBaris` tetap murni
@@ -108,10 +131,16 @@ export interface BahanPapan {
 export interface PapanAdapter {
   nama: string;                       // "Kalibrr" — untuk copy UI
   cocok(url: string): boolean;        // apakah URL ini milik papan ini
-  /** Papan ber-feed: satu request mengembalikan banyak lowongan. */
-  ambilFeed?(fetchJson: FetchJson, fetchText: FetchText): Promise<BahanPapan[]>;
+  /**
+   * Papan ber-feed: satu request per kunci mengembalikan banyak lowongan. Boleh
+   * mengembalikan lebih banyak dari yang ada di inbox; pemanggil hanya menyimpan
+   * kunci inbox (lihat K3). Kunci datang dari `kunciFeed`.
+   */
+  ambilFeed?(kunci: string, fetchJson: FetchJson, fetchText: FetchText): Promise<BahanPapan[]>;
   /** Papan per-lowongan: satu request per posting. */
   ambilDetail?(url: string, fetchJson: FetchJson, fetchText: FetchText): Promise<BahanPapan | null>;
+  /** Dari URL inbox → kunci pengelompokan feed (mis. slug akun). `ambilFeed` saja. */
+  kunciFeed?(url: string): string | null;
 }
 ```
 
@@ -153,13 +182,16 @@ Record<urlTernormalisasi, { board: string; bahan: BahanAudit; tags?: string[]; d
 
 Fungsi `perkayaSemua(rows, opsi)` di `job-cache.ts`:
 
-- Kelompokkan baris per adapter; jalankan `ambilFeed` **sekali per papan**.
-  `ambilFeed` mengembalikan seluruh lowongan papan itu, bukan hanya yang ada di
-  inbox, jadi hasilnya di-key dengan `normalisasiKunciUrl(bahan.url)` dan
-  **hanya kunci yang ada di inbox yang disimpan**. Feed yang lebih besar dari
-  inbox adalah normal dan tidak boleh menulis ribuan baris ke cache.
-- Untuk adapter `ambilDetail`, jalankan per baris dengan **batas konkurensi
-  per-host** (4) + timeout per request (10 detik) + backoff pada HTTP 429.
+- Kelompokkan baris per adapter. Adapter ber-feed (`ambilFeed`) dikelompokkan
+  lagi lewat `kunciFeed(url)` — Kalibrr jadi satu request **per kode perusahaan**
+  (17, bukan 32), Workable satu request **per akun** (bukan 10). `ambilFeed`
+  boleh mengembalikan seluruh papan; hasilnya di-key dengan
+  `normalisasiKunciUrl(bahan.url)` dan **hanya kunci yang ada di inbox yang
+  disimpan**. Feed yang lebih besar dari inbox adalah normal dan tidak boleh
+  menulis ribuan baris ke cache.
+- Untuk adapter `ambilDetail` (Breezy, Dealls, SmartRecruiters), jalankan per
+  baris dengan **batas konkurensi per-host** (4) + timeout per request
+  (10 detik) + backoff pada HTTP 429.
 - Dipanggil dari `jalankanScanAction` **setelah** scan sukses. Render hanya
   membaca cache dan tidak pernah menunggu jaringan.
 - Satu baris gagal → tetap `enriched: false` (tidak pernah `clean`).
@@ -186,9 +218,9 @@ Fungsi `perkayaSemua(rows, opsi)` di `job-cache.ts`:
 | `types.ts` | `PapanAdapter`, `BahanPapan` |
 | `index.ts` | `adapterUntuk(url)`, `semuaAdapter()` |
 | `html.ts` | HTML→teks, ekstraksi `__NEXT_DATA__`, `og:description` |
-| `jobstreet.ts` | Membungkus `jobstreet-audit.ts` + `jobstreet-enrich.ts` yang ada — **tidak ditulis ulang** |
-| `kalibrr.ts` | `ambilFeed` |
-| `workable.ts` | `ambilFeed` |
+| `jobstreet.ts` | Membungkus `jobstreet-audit.ts` + `jobstreet-enrich.ts` yang ada — **tidak ditulis ulang** (`ambilFeed`, satu id per baris) |
+| `kalibrr.ts` | `ambilFeed` (`?company=<code>`, satu request per perusahaan) |
+| `workable.ts` | `ambilFeed` (`?details=true`, satu request per akun) |
 | `smartrecruiters.ts` | `ambilDetail` |
 | `dealls.ts` | `ambilDetail` (HTML `__NEXT_DATA__`) |
 | `breezy.ts` | `ambilDetail` (HTML `#description`) |
@@ -251,12 +283,16 @@ scan (engine)  →  data/pipeline.md
 | G4 | Cache lama belum dimigrasi | 180 baris Jobstreet tiba-tiba "Belum diperiksa" | Migrasi sekali baca; test menutup round-trip |
 | G5 | Dealls lolos tanpa masuk `ATS_DIIZINKAN` | 10 baris karantina palsu | Test mengunci `dealls.com` ada di `ATS_DIIZINKAN` |
 | G6 | `normalisasiKunciUrl` mengembalikan `""` | Kunci cache tidak valid | `""` = tanpa kunci; baris dianggap belum ter-enrich, bukan cocok dengan `""` lain |
+| G7 | `kunciFeed` tidak bisa diturunkan dari URL inbox (mis. URL Kalibrr tanpa `/c/<code>/jobs`) | Baris itu tak punya grup feed | Jatuh ke `ambilDetail`; bila itu juga tidak ada → `enriched: false` |
+| G8 | Satu feed perusahaan Workable/Kalibrr mengembalikan lowongan yang tidak ada di inbox, atau melewatkan yang ada | Cache tidak lengkap | Hanya kunci inbox yang disimpan; baris tanpa hasil tetap "Belum diperiksa" — feed tidak boleh dianggap sumber kebenaran daftar inbox |
 
 ## Pengujian
 
 | Test | Alasan |
 |---|---|
-| Kontrak tiap adapter (fixture respons → `BahanPapan`) | Mengunci parsing, termasuk HTML Dealls/Breezy |
+| Kontrak tiap adapter (fixture respons → `BahanPapan`) | Mengunci parsing, termasuk HTML Dealls/Breezy dan feed `?details=true` Workable |
+| `kunciFeed` menurunkan kode perusahaan/akun dari URL inbox | Menutup G7 |
+| Feed yang lebih besar dari inbox hanya menyimpan kunci inbox | Menutup G8 |
 | Round-trip cache + migrasi cache lama | Menutup G4 |
 | `auditBaris` berkunci URL: cache ada → `enriched: true`; tidak → `false` | Kontrak inti |
 | Baris tanpa deskripsi **tidak boleh** `clean` | Menjaga invarian `inbox-audit` |
