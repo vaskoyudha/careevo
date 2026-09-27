@@ -63,6 +63,8 @@ export function blokBerisi(blok: BlokHalaman): boolean {
       return segmenKeTeks(blok.segmen).length > 0;
     case "gambar":
       return Boolean(blok.src);
+    case "kode":
+      return (blok.kode ?? "").trim().length > 0;
     case "daftar":
       return (blok.butir ?? []).some((butir) => segmenKeTeks(butir).length > 0);
   }
@@ -75,6 +77,8 @@ export function ringkasBlok(blok: BlokHalaman, maks = 80): string {
     teks = (blok.butir ?? []).map((butir) => segmenKeTeks(butir)).filter(Boolean).join(" · ");
   } else if (blok.tipe === "gambar") {
     teks = blok.alt || blok.src || "";
+  } else if (blok.tipe === "kode") {
+    teks = (blok.kode ?? "").split("\n")[0] ?? "";
   } else {
     teks = segmenKeTeks(blok.segmen);
   }
@@ -246,6 +250,10 @@ export function blokKosong(tipe: TipeBlok, id = ""): BlokHalaman {
       return { id, tipe, butir: [[{ teks: "" }]] };
     case "kutipan":
       return { id, tipe, segmen: [{ teks: "" }] };
+    case "kode":
+      // `dapatDijalankan` sengaja false: blok baru tidak dapat dieksekusi
+      // sampai ahli menyalakannya secara eksplisit.
+      return { id, tipe, bahasa: "cpp", kode: "", dapatDijalankan: false };
     case "gambar":
       return { id, tipe, src: "", alt: "" };
   }

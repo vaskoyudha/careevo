@@ -22,6 +22,18 @@ const MAKS_BUTIR_PER_DAFTAR = 100;
 const MAKS_SEGMEN_PER_BARIS = 50;
 
 /**
+ * Batas panjang di lapisan transport (zod).
+ *
+ * Batas jumlah baris dan batas waktu ditegakkan runner, karena hanya runner
+ * yang tahu apa yang sudah dijalankan. Angka di sini hanya menahan kiriman
+ * besar sebelum mencapai proses. Pembagian ini disengaja: satu lapisan
+ * tidak menghitung ulang apa yang sudah ditegakkan lapisan lain.
+ */
+export const MAKS_KODE_KARAKTER = 200_000;
+export const MAKS_STDIN_KARAKTER = 8_192;
+export const MAKS_OUTPUT_HARAPAN_KARAKTER = 8_192;
+
+/**
  * Bentuk tautan yang diizinkan.
  *
  * Dua bentuk, dua alasan:
@@ -54,7 +66,7 @@ const segmenSchema = z.object({
   tautan: skemaTautan.optional(),
 });
 
-export const TIPE_BLOK = ["paragraf", "heading", "daftar", "kutipan", "gambar"] as const;
+export const TIPE_BLOK = ["paragraf", "heading", "daftar", "kutipan", "gambar", "kode"] as const;
 
 /**
  * `id` blok boleh kosong saat dikirim form.
@@ -132,6 +144,30 @@ export const blokSchema = z.discriminatedUnion("tipe", [
         message: "Path gambar harus berada di /uploads/",
       }),
     alt: z.string().trim().max(300, "Teks alternatif maksimal 300 karakter").optional(),
+  }),
+  z.object({
+    id: idSchema,
+    tipe: z.literal("kode"),
+    bahasa: z.enum(["cpp"]),
+    kode: z
+      .string()
+      .max(MAKS_KODE_KARAKTER, `Kode maksimal ${MAKS_KODE_KARAKTER} karakter`),
+    kodeAwal: z
+      .string()
+      .max(MAKS_KODE_KARAKTER, `Kode awal maksimal ${MAKS_KODE_KARAKTER} karakter`)
+      .optional(),
+    stdin: z
+      .string()
+      .max(MAKS_STDIN_KARAKTER, `Masukan maksimal ${MAKS_STDIN_KARAKTER} karakter`)
+      .optional(),
+    outputHarapan: z
+      .string()
+      .max(
+        MAKS_OUTPUT_HARAPAN_KARAKTER,
+        `Keluaran yang diharapkan maksimal ${MAKS_OUTPUT_HARAPAN_KARAKTER} karakter`,
+      )
+      .optional(),
+    dapatDijalankan: z.boolean().optional(),
   }),
 ]);
 

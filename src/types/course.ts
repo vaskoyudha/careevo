@@ -51,7 +51,22 @@ export interface Course {
  * disanitasi, sehingga lubang XSS tersimpan tetap tertutup. Repo ini tidak
  * punya sanitizer — lihat alasan yang sama di `materi-view.tsx`.
  */
-export type TipeBlok = "paragraf" | "heading" | "daftar" | "kutipan" | "gambar";
+export type TipeBlok =
+  | "paragraf"
+  | "heading"
+  | "daftar"
+  | "kutipan"
+  | "gambar"
+  | "kode";
+
+/**
+ * Bahasa yang bisa dikompilasi runner.
+ *
+ * Union tertutup, bukan string bebas. `bahasa` memilih image kontainer, dan
+ * string bebas berarti image bisa dipilih dari mana saja. Menambah bahasa
+ * berarti mengganti image dan menguji ulang seluruh batas sandbox.
+ */
+export type BahasaKode = "cpp";
 
 /**
  * Ukuran huruf relatif terhadap skala tema, bukan px bebas.
@@ -92,6 +107,23 @@ export interface BlokHalaman {
   /** Path `/uploads/...` hasil route unggah; hanya untuk `tipe: "gambar"`. */
   src?: string;
   alt?: string;
+  /** Isi kode polos, yaitu sumber yang akan dikompilasi. */
+  kode?: string;
+  /** Bahasa kode. */
+  bahasa?: BahasaKode;
+  /** Titik mulai peserta di ruang latihan. Absen berarti sama dengan `kode`. */
+  kodeAwal?: string;
+  /** Masukan latihan yang dikirim ke program. */
+  stdin?: string;
+  /** Keluaran yang diharapkan, ditampilkan sebagai pane terpisah. */
+  outputHarapan?: string;
+  /**
+   * Sakelar mati milik ahli: blok ini tampil tapi tanpa tombol Jalankan.
+   *
+   * `undefined` berarti tidak boleh dijalankan (fail-closed), sehingga blok
+   * yang tidak pernah disentuh ahli tidak diam-diam dapat dieksekusi.
+   */
+  dapatDijalankan?: boolean;
 }
 
 /**
