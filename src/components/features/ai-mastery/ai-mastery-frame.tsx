@@ -29,7 +29,12 @@ export function AiMasteryFrame({ src, title }: { src: string; title: string }) {
       // `--app-chrome-h` is published by `.ai-mastery-shell` and must track the
       // navbar's real height: the bar wraps to two rows below 769px, and a
       // hard-coded 4rem there pushes the frame's top under the bar.
-      className="h-[calc(100dvh-var(--app-chrome-h,4rem))] w-full border-0 bg-background"
+      // `bg-transparent` rather than a placeholder colour: the element's own
+      // background is only ever visible before the child document paints, and
+      // any tint other than the app's canvas shows up there as a band
+      // directly under the navbar. Transparent hands that moment to
+      // `.ai-mastery-shell`, which is already the app's colour.
+      className="h-[calc(100dvh-var(--app-chrome-h,4rem))] w-full border-0 bg-transparent"
       // Same-origin isolation: it loads its own assets and talks to its own
       // backend, and must not be able to reach into Careevo's document.
       sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
