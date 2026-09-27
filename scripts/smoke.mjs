@@ -16,6 +16,11 @@ const routes = [
   "/dashboard",
   "/belajar",
   "/challenge/1",
+  // Rute detail karya kini bersarang di dalam course. Rute nested di bawah
+  // adalah rumah barunya; `/submission` yang lama masih hidup sebagai redirect
+  // (ke `/progres`, atau ke course pemiliknya untuk `/submission/[id]`).
+  "/belajar/fullstack-web-development-nextjs-15-react-19/karya",
+  "/submission",
   "/submission/1",
   "/loker/1",
   "/pengaturan",

@@ -30,10 +30,8 @@ import { catatAudit } from "@/lib/auth/audit";
 import { ambilRolesAktif, cariUserById } from "@/lib/auth/identity-repository";
 import {
   ambilCompletion,
-  ambilCompletionBanyak,
   ambilEnrollment,
   ambilEnrollmentById,
-  listEnrollments,
 } from "@/lib/learning/repository";
 import { getDb } from "@/lib/db/client";
 import {
@@ -139,43 +137,133 @@ export interface KontenSubmission {
   catatan?: string | null;
 }
 
-/** Jalur kursus wajib memakai enrollment dan completion milik subjek di DB. */
+/**
+ * Entri kelayakan submission — satu enrollment yang completion-nya
+ * `terverifikasi`. Dahulu `daftarKursusSubmission` mengembalikan **daftar**
+ * untuk dropdown global `/submission`; sejak Project berpindah ke dalam course
+ * (`/belajar/[slug]/karya`), yang dibutuhkan hanyalah pasangan ini untuk satu
+ * course, dihitung server.
+ */
+export interface KelayakanKursus {
+  courseId: string;
+  enrollmentId: string;
+}
+
+/**
+ * Satu-satunya definisi kelayakan submission-per-course.
+ *
+ * Semua predikat yang menentukan "apakah user ini boleh mengirim karya untuk
+ * course ini" hidup di sini: enrollment milik user itu, completion-nya milik
+ * user dan course yang sama, jalurnya `terverifikasi`, dan course-nya masih
+ * ada di store. Kembalinya `null` berarti **tidak layak** — belum terdaftar,
+ * belum selesai, selesai informal, atau baris completion yang bukan miliknya.
+ *
+ * Defined once on purpose. `pastikanKelayakanKursus` (jalur tulis) dan
+ * `kelayakanKursusSubmission` (jalur baca yang menggerbang panel Project)
+ * keduanya memanggil ini. Menyebut aturan ini dua kali berarti definisi yang
+ * bocor: pembaca yang menyimpang menampilkan "terbuka" sementara aksi menolak,
+ * atau sebaliknya — dan selisihnya baru terlihat saat ada completion di luar
+ * jalur terverifikasi.
+ */
+async function verdictKelayakan(
+  userId: string,
+  courseId: string,
+): Promise<KelayakanKursus | null> {
+  const enrollment = await ambilEnrollment(userId, courseId);
+  if (!enrollment) return null;
+  const completion = await ambilCompletion(enrollment.id);
+  if (
+    !completion ||
+    completion.userId !== userId ||
+    completion.courseId !== courseId ||
+    completion.completionPath !== "terverifikasi" ||
+    !(await getCourseById(courseId))
+  ) {
+    return null;
+  }
+  return { courseId: enrollment.courseId, enrollmentId: enrollment.id };
+}
+
+/**
+ * Kelayakan submission principal untuk satu course — nilai yang menggerbang
+ * panel Project di `/belajar/[slug]`.
+ *
+ * `null` berarti terkunci, dan itu berlaku **walaupun** semua modul selesai lewat
+ * jalur informal: pembuka Project adalah `completion_path === "terverifikasi"`,
+ * bukan jumlah modul yang centangnya.
+ */
+export async function kelayakanKursusSubmission(
+  principal: SessionPrincipal,
+  courseId: string,
+): Promise<KelayakanKursus | null> {
+  return verdictKelayakan(principal.userId, courseId);
+}
+
+/**
+ * Gerbang tulis: sama seperti `verdictKelayakan`, **ditambah** syarat bahwa
+ * `enrollmentId` yang dibawa pemanggil benar-benar enrollment milik user itu di
+ * course itu.
+ *
+ * Syarat tambahan inilah yang membuat `buatSubmissionDb`/`kirimSubmissionDb`
+ * menolak enrollment milik orang lain: `verdictKelayakan` mencari enrollment
+ * **milik user itu sendiri**, jadi tanpa pemeriksaan eksplisit di sini
+ * `enrollmentId` yang dibawa pemanggil tidak pernah ikut diverifikasi dan akan
+ * lolos begitu verdict-nya tersedia.
+ */
 async function pastikanKelayakanKursus(
   userId: string,
   courseId: string | null | undefined,
   enrollmentId: string | null | undefined,
 ): Promise<void> {
-  // Submission portofolio lama tetap berdiri sendiri, bukan bukti lulus kursus.
+  // Submission portofolio lama & jalur mastery tetap berdiri sendiri, bukan
+  // bukti lulus kursus — tidak ada course untuk diverifikasi.
   if (!courseId && !enrollmentId) return;
-  const enrollment = enrollmentId
-    ? await ambilEnrollmentById(enrollmentId)
-    : courseId ? await ambilEnrollment(userId, courseId) : null;
-  if (!courseId || !enrollment || enrollment.userId !== userId || enrollment.courseId !== courseId) {
+  if (!courseId) {
     throw new GalatReview("kelayakan_ditolak", "Enrollment kursus tidak sesuai dengan pemilik submission.");
   }
-  const completion = await ambilCompletion(enrollment.id);
-  if (
-    !completion || completion.userId !== userId || completion.courseId !== courseId ||
-    completion.completionPath !== "terverifikasi" || !(await getCourseById(courseId))
-  ) {
+  if (enrollmentId) {
+    const enrollment = await ambilEnrollmentById(enrollmentId);
+    if (!enrollment || enrollment.userId !== userId || enrollment.courseId !== courseId) {
+      throw new GalatReview("kelayakan_ditolak", "Enrollment kursus tidak sesuai dengan pemilik submission.");
+    }
+  }
+  if (!(await verdictKelayakan(userId, courseId))) {
     throw new GalatReview("kelayakan_ditolak", "Selesaikan kursus melalui jalur terverifikasi sebelum mengirim karya.");
   }
 }
 
-/** Pilihan form berasal dari completion server, bukan klaim browser. */
-export async function daftarKursusSubmission(principal: SessionPrincipal): Promise<{
-  courseId: string; enrollmentId: string; title: string;
-}[]> {
-  const enrollments = await listEnrollments(principal.userId);
-  const completions = await ambilCompletionBanyak(enrollments.map((e) => e.id));
-  const hasil: { courseId: string; enrollmentId: string; title: string }[] = [];
-  for (const enrollment of enrollments) {
-    const completion = completions.get(enrollment.id);
-    if (completion?.completionPath !== "terverifikasi") continue;
-    const course = await getCourseById(enrollment.courseId);
-    if (course) hasil.push({ courseId: course.id, enrollmentId: enrollment.id, title: course.title });
-  }
-  return hasil;
+/**
+ * Semua submission principal yang terikat satu course.
+ *
+ * Submission tanpa ikatan course (`courseId`/`enrollmentId` null — portofolio
+ * lama atau jalur mastery) **tidak** dikembalikan: surface Project kini hanya
+ * hidup di dalam course, jadi karya yang tidak terikat course tidak punya
+ * rumah UI dan sengaja tidak dicampur ke sini.
+ */
+export async function listKaryaCourse(
+  principal: SessionPrincipal,
+  courseId: string,
+): Promise<Submission[]> {
+  return (await listSubmissionUser(principal.userId)).filter(
+    (baris) => baris.courseId === courseId,
+  );
+}
+
+/**
+ * Satu submission milik principal.
+ *
+ * Membaca id tunggal dan memeriksa kepemilikan di sini, bukan memuat seluruh
+ * daftar lalu mencari di page (cara lama `submission/[id]`). Submission yang
+ * tidak terikat course **ikut dikembalikan** — halaman detail memutuskan
+ * apakah menampilkan jalur portofolio lama atau mengarahkan ke course pemiliknya.
+ */
+export async function ambilKaryaPrincipal(
+  principal: SessionPrincipal,
+  submissionId: string,
+): Promise<Submission | null> {
+  const submission = await ambilSubmission(submissionId);
+  if (!submission || submission.userId !== principal.userId) return null;
+  return submission;
 }
 
 function wajibReviewer(submission: Submission, principal: SessionPrincipal): void {
@@ -186,15 +274,18 @@ function wajibReviewer(submission: Submission, principal: SessionPrincipal): voi
 }
 
 /**
- * Buat submission `draft` untuk learner.
+ * Buat submission `draft` untuk learner — **wajib terikat course**.
  *
- * `courseId` opsional; bila diisi, submission mengikat kursus. Konten dari klien
- * hanya untuk tampilan dashboard learner, **bukan** bahan payload attestation.
+ * Surface Project hidup di dalam course, jadi tidak ada lagi jalur buat
+ * submission tanpa `courseId`: karya yang dibuat di luar course tidak bisa
+ * dipastikan valid terhadap ketentuan yang kita punya. `courseId` + `enrollmentId`
+ * keduanya wajib; konten dari klien hanya untuk tampilan dashboard learner,
+ * **bukan** bahan payload attestation.
  */
 export async function buatSubmissionDb(input: {
   principal: SessionPrincipal;
-  courseId?: string | null;
-  enrollmentId?: string | null;
+  courseId: string;
+  enrollmentId: string;
   konten: KontenSubmission;
 }): Promise<{ submission: Submission; versi: SubmissionVersion }> {
   await pastikanKelayakanKursus(
@@ -205,8 +296,8 @@ export async function buatSubmissionDb(input: {
   return getDb().transaction(async (tx) => {
     const hasil = await buatSubmission(tx, {
       userId: input.principal.userId,
-      courseId: input.courseId ?? null,
-      enrollmentId: input.enrollmentId ?? null,
+      courseId: input.courseId,
+      enrollmentId: input.enrollmentId,
       contentSnapshot: {
         judul: input.konten.judul ?? null,
         catatan: input.konten.catatan ?? null,
@@ -268,11 +359,6 @@ export async function kirimSubmissionDb(input: {
     });
     return hasil;
   });
-}
-
-/** Daftar submission milik principal. */
-export async function listSubmissionDb(principal: SessionPrincipal): Promise<Submission[]> {
-  return listSubmissionUser(principal.userId);
 }
 
 /* ------------------------------------------------------------------ *

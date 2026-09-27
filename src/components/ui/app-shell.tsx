@@ -11,7 +11,6 @@ const PAGE_LABELS: Record<string, string> = {
   "/jelajah": "Jelajah",
   "/belajar": "Belajar",
   "/progres": "Progres",
-  "/submission": "Project",
   "/loker": "Loker",
   "/profil": "Profil",
   "/pengaturan": "Pengaturan",
