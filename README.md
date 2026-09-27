@@ -111,7 +111,7 @@ Gemini digunakan secara on-demand untuk beberapa panel evaluasi dan rekomendasi.
 2. Selesaikan `/onboarding`.
 3. Jelajahi kursus melalui `/belajar`, `/courses`, atau katalog terkait.
 4. Ikuti modul, materi, dan kuis.
-5. Gunakan `/dashboard`, `/belajar/jalur`, atau halaman fokus untuk melihat kemajuan.
+5. Gunakan `/dashboard`, `/progres`, atau halaman fokus untuk melihat kemajuan.
 6. Kirim pekerjaan dari area submission bila alur tersebut tersedia.
 7. Lihat hasil review dan bagikan token verifikasi jika attestation diterbitkan.
 

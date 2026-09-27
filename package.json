@@ -14,6 +14,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
     "worker": "tsx scripts/worker.ts",
+    "seed:demo": "tsx scripts/seed-demo-progres.mts",
     "outbox:replay": "tsx scripts/replay-outbox.ts",
     "skills:check": "node scripts/validate-skills.mjs",
     "check": "npm run typecheck && npm run lint && npm run skills:check && npm test",
