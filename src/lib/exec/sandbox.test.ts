@@ -55,10 +55,18 @@ const p = (exitCode, stdout, stderr) => m.petakanExitCode({ exitCode, stdout, st
 const kosong = "";
 
 const petakan = {};
-for (const k of [0, 1, 2, 3, 7, 40, 42, 124, 125, 126, 127, 134, 137, 138, 139, 255]) {
+for (const k of [0, 1, 2, 3, 7, 40, 42, 100, 124, 125, 126, 127, 128, 132, 134, 136, 137, 138, 139, 160, 165, 166, 200, 255]) {
   petakan["koso-" + k] = p(k, kosong, kosong);
 }
 petakan["42-diagnostik"] = p(42, kosong, "main.cpp:1:14: error: expected ';' before '}' token");
+for (const isi of [
+  "terminate called after throwing an instance of 'int'",
+  "a.out: main.cpp:2: int main(): Assertion \`1==2' failed.",
+  "timeout: the monitored command dumped core",
+  "Killed",
+]) {
+  petakan["134-dengan-" + isi] = p(134, kosong, isi);
+}
 petakan["137-dikilled"] = p(137, kosong, "Killed");
 petakan["139-core"] = p(139, kosong, "timeout: the monitored command dumped core");
 petakan["3-bukan-galat-runner"] = p(3, "hasil\\n", kosong);
@@ -414,8 +422,11 @@ describe("petakanExitCode mengikuti angka yang diukur", () => {
     //
     // Perhatikan yang TIDAK ada di daftar ini: 125, 126, 127, dan 255. Empat
     // kode itu bukan pilihan program — semuanya milik podman, dan test
-    // berikutnya mengunci keputusan untuk masing-masing.
-    for (const keluar of [1, 2, 3, 7, 124, 138]) {
+    // berikutnya mengunci keputusan untuk masing-masing. 100 dan 200 ada di
+    // sini untuk membuktikan aturan ini bukan sekadar "di bawah 128": kode
+    // peserta boleh berada di mana saja, termasuk di atas batas atas rentang
+    // sinyal.
+    for (const keluar of [1, 2, 3, 7, 100, 124, 200]) {
       expect(nyata.petakan[`koso-${keluar}`], `kode ${keluar}`).toBe("sukses");
     }
     expect(nyata.petakan["3-bukan-galat-runner"]).toBe("sukses");
@@ -444,7 +455,42 @@ describe("petakanExitCode mengikuti angka yang diukur", () => {
     }
   });
 
-  it("tidak ditulis sebagai rentang, yang akan menelan kode peserta", () => {
+  it("memetakan 134 ke galat_program, karena itu exception yang tidak tertangkap", () => {
+    // 134 adalah SIGABRT. `std::terminate` memanggil `abort()`, jadi program
+    // peserta yang melempar exception tanpa `catch` berakhir di sini. Diukur
+    // 2026-09-27 bersama `abort()` dan `assert` yang gagal.
+    //
+    // Ini yang paling penting: pelajaran exception adalah pelajaran C++
+    // pertama yang biasanya gagal ditulis peserta, jadi melaporkan kelas
+    // kesalahan ini sebagai "selesai tanpa galat" merusak pelajaran yang
+    // sedang dibangun, bukan hanya satu kasus tepi.
+    expect(nyata.petakan["koso-134"]).toBe("galat_program");
+  });
+
+  it("menjaga rentang sinyal, bukan hanya satu nilai", () => {
+    // Kalau pemetaannya `exitCode === 134`, test di atas tetap hijau. Yang
+    // menahan penyempitan itu test ini: ia memeriksa nilai di dalam rentang
+    // yang bukan 134, dan kedua ujungnya.
+    for (const keluar of [128, 132, 136, 139, 160, 165]) {
+      expect(nyata.petakan[`koso-${keluar}`], `kode ${keluar}`).toBe("galat_program");
+    }
+  });
+
+  it("tidak memindahkan 137 ke galat_program, karena itu batas kita", () => {
+    // 137 ada DI DALAM rentang sinyal, jadi pengecualiannya harus diuji
+    // sendiri. Tanpa ini, kesalahan "137 itu program yang crash" akan lolos
+    // karena rentangnya sendiri sudah benar.
+    expect(nyata.petakan["koso-137"]).toBe("batas_dilampaui");
+  });
+
+  it("tidak menganggap kode di luar rentang sebagai sinyal", () => {
+    // 127 adalah milik podman, dan 166 sudah melewati batas atas rentang
+    // `128 + N`. Keduanya harus tetap jatuh ke keputusan masing-masing.
+    expect(nyata.petakan["koso-127"]).toBe("galat_runner");
+    expect(nyata.petakan["koso-166"]).toBe("sukses");
+  });
+
+  it("tidak memakai rentang yang menelan kode peserta", () => {
     // Godaan shortcut-nya nyata: "kalau 125 ke atas, itu status kita" —
     // tapi kode 126 sampai 255 semuanya bisa dipilih program peserta sendiri,
     // dan `return 3` yang paling sering terjadi. Test ini menahan ketiga
@@ -477,6 +523,27 @@ describe("petakanExitCode mengikuti angka yang diukur", () => {
     // yang menolak berarti program belum pernah berjalan sekali pun.
     expect(nyata.petakan["koso-42"]).toBe("gagal_kompilasi");
     expect(nyata.petakan["koso-7"]).toBe("sukses");
+  });
+
+  it("tidak pernah membiarkan isi stderr mengubah status", () => {
+    // Ini yang membuat pesan 134 sampai ke peserta utuh. Kalau status bisa
+    // bergantung pada isi stderr, maka menebak-nebak teks GCC atau
+    // GNU timeout bisa menimpa stderr, dan `terminate called after throwing
+    // an instance of 'int'` — yang memberi tahu peserta apa yang sebenarnya
+    // salah — bisa hilang. Statusnya dihitung dari exit code saja; keluarannya
+    // hanya diteruskan.
+    const diagnostik = [
+      "terminate called after throwing an instance of 'int'",
+      "a.out: main.cpp:2: int main(): Assertion `1==2' failed.",
+      "timeout: the monitored command dumped core",
+      "Killed",
+    ];
+    for (const isi of diagnostik) {
+      expect(
+        nyata.petakan["134-dengan-" + isi],
+        `isi stderr "${isi}"`,
+      ).toBe("galat_program");
+    }
   });
 
   it("membawa kode keluar apa adanya untuk diagnosis", () => {

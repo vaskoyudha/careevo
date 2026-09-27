@@ -110,6 +110,41 @@ const KODE_PODMAN = {
   tidakDitemukan: 127,
 };
 
+/**
+ * Rentang `128 + N`: kode yang diberikan kernel saat program mati karena sinyal.
+ *
+ * **Rentang, bukan daftar.** Daftar harus diperpanjang setiap kali ada sinyal
+ * yang baru diingat, dan pada hari ada yang tidak diingat, kematian sinyal
+ * berikutnya dilaporkan ke peserta sebagai `sukses` — persis kesalahan yang
+ * membuat 134 lolos selama ini. Daftar juga tidak bisa diverifikasi: tidak ada
+ * yang bisa membuktikan sebuah daftar lengkap tanpa mengetahui seluruh tabel
+ * sinyal, sedangkan batas rentang bisa diuji di kedua ujungnya.
+ */
+const RENTANG_SINYAL = { awal: 128, akhir: 165 };
+
+/**
+ * Satu-satunya kode di rentang sinyal yang **bukan** milik program: SIGKILL
+ * yang dikirim oleh batas kita, jadi `batas_dilampaui`, bukan `galat_program`.
+ */
+const SIGKILL_DARI_BATAS = 137;
+
+/**
+ * Apakah `exitCode` adalah program yang mati karena sinyal.
+ *
+ * Diukur pada 2026-09-27: exception C++ yang tidak tertangkap memanggil
+ * `std::terminate` yang memanggil `abort` (SIGABRT, 134) — dan itu kode yang
+ * **paling sering** keluar dari program peserta yang belum menangani
+ * exception. `abort()` dan `assert` yang gagal juga 134. SIGSEGV 139 ada di
+ * rentang yang sama, dan tidak lagi perlu barisnya sendiri.
+ */
+function adalahKodeSinyal(exitCode) {
+  return (
+    exitCode >= RENTANG_SINYAL.awal &&
+    exitCode <= RENTANG_SINYAL.akhir &&
+    exitCode !== SIGKILL_DARI_BATAS
+  );
+}
+
 const BERKAS_BAHASA = { cpp: "main.cpp" };
 
 /**
@@ -250,10 +285,12 @@ export function bangunArgumenPodman({
  * | waktu habis | 137 | `Killed` |
  * | memori habis | 137 | `Killed` |
  * | fork bom | 137 | `Killed` |
- * | program crash sendiri | 139 | `timeout: the monitored command dumped core` |
+ * | program crash sendiri (SIGSEGV) | 139 | `timeout: the monitored command dumped core` |
+ * | exception tidak tertangkap | 134 | `terminate called after throwing an instance of …` |
+ * | `abort()` atau `assert` gagal | 134 | `Aborted`, `Assertion … failed.` |
  * | `return 7` | 7 | — |
  *
- * Dua kesimpulan yang mencerminkan pengukuran di atas, dan yang mudah hilang
+ * Empat kesimpulan yang mencerminkan pengukuran di atas, dan yang mudah hilang
  * kalau pemetaan ditulis dari ingatan:
  *
  * 1. **Satu status untuk tiga batas.** Waktu, memori, dan proses semuanya
@@ -272,6 +309,14 @@ export function bangunArgumenPodman({
  *    `--timeout` kita yang menyala. Kalau dibiarkan jatuh ke `sukses`, program
  *    yang menggantung cukup lama dilaporkan ke peserta sebagai "selesai tanpa
  *    galat" — kebohongan yang sama dengan yang di atas, hanya arahnya berlawanan.
+ * 4. **Mati karena sinyal adalah `galat_program`, bukan `sukses`.** Di sini
+ *    sebagian besar kode di rentang `128 + N` adalah kode peserta yang
+ *    benar-benar menabrak. Yang paling sering adalah 134: exception C++ yang
+ *    tidak tertangkap memanggil `std::terminate` yang memanggil `abort`. Dan
+ *    pelajaran exception adalah pelajaran C++ pertama yang biasanya gagal
+ *    ditulis peserta, jadi kelas kesalahan ini bukan kasus pinggir. Satu
+ *    pengecualian harus disebut: **137** itu SIGKILL dari batas kita, jadi
+ *    `batas_dilampaui`. Lihat `adalahKodeSinyal`.
  *
  * Jadi pemetaan ini **tidak** lagi berarti "apa pun yang tidak dikenali berarti
  * sukses". Yang berarti sukses adalah kode-kode yang memang bisa dipilih
@@ -299,12 +344,22 @@ export function petakanExitCode({ exitCode, stdout, stderr }) {
   if (exitCode === PENANDA_SUMBER) return "galat_runner";
   // Penanda dari perintah di atas. g++ yang menolak, program belum jalan.
   if (exitCode === PENANDA_KOMPILASI) return "gagal_kompilasi";
-  // 128 + 9, yaitu SIGKILL. Sumbernya bisa batas mana pun dari tiga, dan
-  // stderr hanya mengkonfirmasi bahwa proses dibunuh, bukan apa yang
-  // membunuhnya.
-  if (exitCode === 137) return "batas_dilampaui";
-  // 128 + 11, yaitu SIGSEGV. Program berhenti sendiri, bukan karena layanan.
-  if (exitCode === 139) return "galat_program";
+  // Aturan umum lebih dulu: program yang mati karena sinyal, yaitu seluruh
+  // rentang `128 + N` kecuali satu anggota. Di dalamnya 139 (SIGSEGV) yang
+  // dulu punya barisnya sendiri, dan 134 (SIGABRT) dari exception yang tidak
+  // tertangkap, `abort()`, atau `assert` yang gagal.
+  //
+  // Urutannya disengaja. Anggota yang dikecualikan harus ditolak oleh
+  // `adalahKodeSinyal` **sebelum** statusnya dihitung di baris berikutnya.
+  // Kalau pemeriksaan 137 diletakkan lebih dulu, pengecualian di dalam
+  // `adalahKodeSinyal` tidak akan pernah dibaca — dan kode yang tidak pernah
+  // dibaca tidak bisa diuji. `sandbox.test.ts` mengunci kedua arah.
+  if (adalahKodeSinyal(exitCode)) return "galat_program";
+  // 137, yaitu 128 + 9, SIGKILL. Satu-satunya kode di rentang sinyal yang
+  // dikirim oleh batas kita sendiri: sumbernya bisa kehabisan waktu, kehabisan
+  // memori, atau kehabisan proses, dan stderr hanya mengonfirmasi bahwa proses
+  // dibunuh tanpa menyatakan apa yang membunuhnya.
+  if (exitCode === SIGKILL_DARI_BATAS) return "batas_dilampaui";
   // Cadangan `--timeout` podman yang menyala: kontainer yang macet kita bunuh
   // sendiri. Batas yang aktif, jadi `batas_dilampaui` — bukan `sukses`, dan
   // bukan `galat_runner`, karena pelakunya memang batas dan bukan kelesetan.
