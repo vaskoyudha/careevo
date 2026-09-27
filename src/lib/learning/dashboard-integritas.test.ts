@@ -73,21 +73,49 @@ describe("dashboard peserta tidak mengklaim angka yang tidak bisa ditelusuri", (
     }
   });
 
-  it("copy halaman tidak lagi menjanjikan streak dan Navigator", () => {
-    // `PageHead.lead` di halaman ini masih menyebut "Jadwal, streak, rekomendasi
-    // Navigator" — janji yang tidak lagi didukung halaman mana pun setelah Task 2.
-    const isi = readFileSync(BERKAS_DASHBOARD, "utf8");
-    expect(isi).not.toMatch(/streak/i);
-    expect(isi).not.toMatch(/navigator/i);
+  it("tidak ada sumber dashboard yang menjanjikan streak dan Navigator", () => {
+    // Cakupannya harus mengikuti siapa saja yang bisa merender klaim itu, bukan
+    // hanya `page.tsx`: kartu yang dikembalikan ke folder komponen lolos begitu
+    // saja pada pemindaian satu berkas. Karena itu folder dipindai dengan
+    // helper yang sama seperti dua uji di atas — termasuk `jelajah/`, tempat
+    // prototipe pernah tinggal.
+    //
+    // Pindaian membaca seluruh isi berkas — komentar termasuk — jadi istilah
+    // tidak bisa kembali masuk lewat copy maupun lewat komentar tanpa memaksa
+    // keputusan yang sadar.
+    const isiHalaman = readFileSync(BERKAS_DASHBOARD, "utf8");
+    expect(
+      isiHalaman,
+      `${path.basename(BERKAS_DASHBOARD)} masih menjanjikan streak/Navigator`,
+    ).not.toMatch(/streak|navigator/i);
+
+    const komponen = sumberKomponenDashboard();
+    // Penjaga untuk perulangan di berkas ini: kalau folder ini suatu saat tidak
+    // memuat satu pun `.tsx`, iterasi di bawah jadi nol dan akan melaporkan hijau
+    // tanpa menguji apa pun.
+    expect(komponen.length).toBeGreaterThan(0);
+    for (const { nama, isi } of komponen) {
+      expect(`${nama}: ${isi}`, `${nama} masih menjanjikan streak/Navigator`).not.toMatch(
+        /streak|navigator/i,
+      );
+    }
   });
 
-  it("halaman tetap menampilkan dua permukaan nyata", () => {
-    // Penjaga penutup. Tanpa ini, cara termurah untuk membuat semua uji di
-    // atas hijau adalah mengosongkan halaman — dan halaman kosong juga lolos.
-    // Rekomendasi personal dan tauran lowongan adalah dua hal yang benar-benar
-    // ada, jadi keduanya harus tetap di sini.
+  it("halaman tetap merender dua permukaan nyata", () => {
+    // Penjaga penutup. Tanpa ini, cara termurah untuk membuat semua uji di atas
+    // hijau adalah mengosongkan halaman — dan halaman kosong juga lolos. Jadi
+    // yang diperiksa adalah *situs render*, bukan nama identifier: baris `import`
+    // tidak pernah diawali `<`, jadi menghapus elemen sambil mempertahankan
+    // importnya tidak akan lolos di sini. `tsconfig.json` tidak menyalakan
+    // `noUnusedLocals` dan lint berjalan tanpa `--max-warnings=0`, jadi import
+    // yang tak terpakai tidak akan tertangkap oleh perkakas lain.
+    //
+    // Rekomendasi personal dan tautan lowongan adalah dua hal yang benar-benar
+    // ada, jadi keduanya harus tetap dirender. Polanya menerima props apa pun dan
+    // tidak care self-closing atau tidak — yang diuji adalah "ada tag pembuka
+    // untuk komponen ini", bukan format JSX-nya.
     const isi = readFileSync(BERKAS_DASHBOARD, "utf8");
-    expect(isi).toContain("DashboardRecommendations");
-    expect(isi).toContain("JobInboxCard");
+    expect(isi).toMatch(/<DashboardRecommendations\b[^>]*>/);
+    expect(isi).toMatch(/<JobInboxCard\b[^>]*>/);
   });
 });

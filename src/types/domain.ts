@@ -45,6 +45,10 @@ export interface Schedule {
   weekly_target_hours: number;
 }
 
+/**
+ * Digantikan oleh `LearningRun` (`learning_runs`), yang tidak punya kolom
+ * durasi — jangan membangun lapisan absensi di atas tipe ini.
+ */
 export interface Checkin {
   id: string;
   user_id: string;
