@@ -687,6 +687,73 @@ function ExploreCategoriesBanner() {
     });
   };
 
+  /**
+   * Drag-to-scroll, mouse only.
+   *
+   * Touch already pans natively, and taking the pointer there would trade
+   * momentum scrolling for a 1:1 drag, so `pointerType` is the gate. Three
+   * details are load-bearing:
+   *
+   * - a 6px threshold before anything moves, so an ordinary click on a pill is
+   *   never mistaken for a drag;
+   * - capture is taken on the FIRST drag move, not on pointerdown. Capturing
+   *   early retargets the synthesised click to the capturing element, so a
+   *   plain click on a pill stopped navigating at all — capture has to wait
+   *   until we know this is a drag;
+   * - the click that lands after a drag is swallowed (`tangkapKlik`): without
+   *   it, releasing over a pill navigates to that pill;
+   * - `el.scrollLeft = …` rather than `scrollBy`, since the browser has already
+   *   applied its own drag delta by the time `pointermove` lands.
+   */
+  const [seret, setSeret] = useState({ geser: false });
+  const seretRef = useRef({ pointerId: -1, x: 0, scrollLeft: 0, geser: false });
+
+  const mulaiSeret = (event: React.PointerEvent<HTMLUListElement>) => {
+    if (event.pointerType !== "mouse" || event.button !== 0) return;
+    const el = pillRowRef.current;
+    if (!el) return;
+    seretRef.current = {
+      pointerId: event.pointerId,
+      x: event.clientX,
+      scrollLeft: el.scrollLeft,
+      geser: false,
+    };
+  };
+
+  const seretPill = (event: React.PointerEvent<HTMLUListElement>) => {
+    const state = seretRef.current;
+    if (state.pointerId !== event.pointerId) return;
+    const el = pillRowRef.current;
+    if (!el) return;
+    const dx = event.clientX - state.x;
+    if (!state.geser) {
+      if (Math.abs(dx) < 6) return;
+      state.geser = true;
+      // Only now, once this is known to be a drag, is capture safe to take.
+      el.setPointerCapture(event.pointerId);
+      setSeret({ geser: true });
+    }
+    el.scrollLeft = state.scrollLeft - dx;
+  };
+
+  const selesaiSeret = (event: React.PointerEvent<HTMLUListElement>) => {
+    const state = seretRef.current;
+    if (state.pointerId !== event.pointerId) return;
+    const el = pillRowRef.current;
+    if (el?.hasPointerCapture(event.pointerId)) {
+      el.releasePointerCapture(event.pointerId);
+    }
+    seretRef.current = { pointerId: -1, x: 0, scrollLeft: 0, geser: false };
+    setSeret({ geser: false });
+  };
+
+  const tangkapKlik = (event: React.MouseEvent<HTMLUListElement>) => {
+    if (!seretRef.current.geser) return;
+    event.preventDefault();
+    event.stopPropagation();
+    seretRef.current.geser = false;
+  };
+
   return (
     <section
       aria-labelledby="explore-categories-heading"
@@ -752,77 +819,84 @@ function ExploreCategoriesBanner() {
               </div>
             </div>
 
-            {/* Label + row. `flex-col` stacks the row under the label below
-                `sm`; `sm:flex-row` puts it beside the label from `sm` up.
-                Both are intentional — see the JSDoc above. The label is plain
-                uppercase text, not a filled pill, because a filled pill on the
-                heading's line reads as the headline. */}
-            <div className="mt-8 flex flex-col gap-2.5 sm:mt-10 sm:flex-row sm:items-center sm:gap-4">
-              <span className="shrink-0 text-[11px] font-bold tracking-[0.14em] text-[#0A3D62]/70 uppercase">
-                Explore categories
-              </span>
+            {/* The category row: one line, full width, mouse-draggable. No
+                label — an earlier pass had "EXPLORE CATEGORIES" inline here and
+                it both stole width from the pills and read as a second
+                headline. The heading above already says what this is. */}
+            <div className="relative mt-8 sm:mt-10">
+              {/* `tabIndex` on a scroll container is the documented way to make
+                  it keyboard-scrollable; arrow keys otherwise do nothing here. */}
+              <ul
+                ref={pillRowRef}
+                tabIndex={0}
+                aria-label="Kategori"
+                onScroll={syncPillScroll}
+                onPointerDown={mulaiSeret}
+                onPointerMove={seretPill}
+                onPointerUp={selesaiSeret}
+                onPointerCancel={selesaiSeret}
+                onClickCapture={tangkapKlik}
+                onDragStart={(event) => event.preventDefault()}
+                className={cn(
+                  "flex flex-nowrap items-center gap-2.5 overflow-x-auto py-1 pr-10 select-none",
+                  "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+                  // A mouse has no native drag-to-scroll, so `grab` is the only
+                  // cue that the row moves. Touch keeps its native momentum.
+                  "touch-pan-x cursor-grab",
+                  seret.geser && "cursor-grabbing",
+                )}
+              >
+                {CATEGORY_PILLS.map((pill) => {
+                  const Icon = pill.icon;
+                  return (
+                    <li key={pill.slug} className="shrink-0">
+                      <Link
+                        href={FIELD_HREF[pill.slug] ?? `/browse/${pill.slug}`}
+                        draggable={false}
+                        className="group inline-flex min-h-11 items-center gap-2 rounded-full border border-[#0A3D62]/15 bg-white/85 py-2.5 pr-5 pl-3.5 text-sm font-semibold text-[#0A3D62] shadow-2xs backdrop-blur-sm transition-colors hover:border-[#0A3D62] hover:bg-[#0A3D62] hover:text-white sm:text-[15px]"
+                      >
+                        <Icon
+                          className="size-4.5 shrink-0 opacity-70 transition-opacity group-hover:opacity-100"
+                          aria-hidden
+                        />
+                        {pill.name}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
 
-              <div className="relative min-w-0 flex-1">
-                {/* `tabIndex` on a scroll container is the documented way to make
-                    it keyboard-scrollable; arrow keys otherwise do nothing here. */}
-                <ul
-                  ref={pillRowRef}
-                  tabIndex={0}
-                  aria-label="Kategori"
-                  onScroll={syncPillScroll}
-                  className="flex flex-nowrap items-center gap-2 overflow-x-auto py-0.5 pr-8 scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-                >
-                  {CATEGORY_PILLS.map((pill) => {
-                    const Icon = pill.icon;
-                    return (
-                      <li key={pill.slug} className="shrink-0">
-                        <Link
-                          href={FIELD_HREF[pill.slug] ?? `/browse/${pill.slug}`}
-                          className="group inline-flex items-center gap-1.5 rounded-full border border-[#0A3D62]/15 bg-white/85 py-1.5 pr-3.5 pl-2.5 text-xs font-semibold text-[#0A3D62] shadow-2xs backdrop-blur-sm transition-colors hover:border-[#0A3D62] hover:bg-[#0A3D62] hover:text-white sm:text-[13px]"
-                        >
-                          <Icon
-                            className="size-3.5 shrink-0 opacity-70 transition-opacity group-hover:opacity-100"
-                            aria-hidden
-                          />
-                          {pill.name}
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
+              {/* Edge fades double as the "there is more" affordance, so each one
+                  only appears when there is actually something under it. The
+                  right one is white, not the banner's mint: that side sits over
+                  the artwork, and a mint veil there tinted the image. */}
+              <div
+                aria-hidden
+                className={cn(
+                  "pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-[#DCEAFB] to-transparent transition-opacity duration-200",
+                  pillScroll.start ? "opacity-100" : "opacity-0",
+                )}
+              />
+              <div
+                aria-hidden
+                className={cn(
+                  "pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-white/80 to-transparent transition-opacity duration-200",
+                  pillScroll.end ? "opacity-100" : "opacity-0",
+                )}
+              />
 
-                {/* Edge fades double as the "there is more" affordance, so each
-                    one only appears when there is actually something under it.
-                    The right one is white, not the banner's mint: that side sits
-                    over the artwork, and a mint veil there tinted the image. */}
-                <div
-                  aria-hidden
-                  className={cn(
-                    "pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-[#DCEAFB] to-transparent transition-opacity duration-200",
-                    pillScroll.start ? "opacity-100" : "opacity-0",
-                  )}
-                />
-                <div
-                  aria-hidden
-                  className={cn(
-                    "pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-white/80 to-transparent transition-opacity duration-200",
-                    pillScroll.end ? "opacity-100" : "opacity-0",
-                  )}
-                />
-
-                <button
-                  type="button"
-                  onClick={() => geserPill(1)}
-                  disabled={!pillScroll.end}
-                  aria-label="Geser kategori ke kanan"
-                  className={cn(
-                    "absolute top-1/2 right-0 grid size-7 -translate-y-1/2 place-items-center rounded-full border border-[#0A3D62]/15 bg-white text-[#0A3D62] shadow-sm transition-[opacity,background-color,color,transform] duration-200 hover:bg-[#0A3D62] hover:text-white active:scale-95 disabled:pointer-events-none",
-                    pillScroll.end ? "opacity-100" : "opacity-0",
-                  )}
-                >
-                  <ChevronRight className="size-4" aria-hidden />
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => geserPill(1)}
+                disabled={!pillScroll.end}
+                aria-label="Geser kategori ke kanan"
+                className={cn(
+                  "absolute top-1/2 right-0 grid size-8 -translate-y-1/2 place-items-center rounded-full border border-[#0A3D62]/15 bg-white text-[#0A3D62] shadow-sm transition-[opacity,background-color,color,transform] duration-200 hover:bg-[#0A3D62] hover:text-white active:scale-95 disabled:pointer-events-none",
+                  pillScroll.end ? "opacity-100" : "opacity-0",
+                )}
+              >
+                <ChevronRight className="size-4" aria-hidden />
+              </button>
             </div>
 
             {/* Illustration, below the copy on mobile: a cropped strip, so no
