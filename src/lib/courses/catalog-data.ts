@@ -19,6 +19,7 @@ export interface ProgramDetails {
   instructorBio: string;
   instructorAvatar: string;
   bannerGraphic?: string;
+  thumbnail?: string;
   rating: number;
   reviews: string;
   enrolled: string;
@@ -54,6 +55,7 @@ export const PROGRAMS_REGISTRY: Record<string, ProgramDetails> = {
       "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://coursera-instructor-photos.s3.amazonaws.com/0f/8af4a501964eb58b75f4484a0e35b3/AI-AGENTS-24-.jpg?auto=format%2Ccompress&dpr=1&w=75&h=75&fit=crop",
     bannerGraphic:
       "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/eb/462677a34a4d8bb160038d2a8fe758/Untitled-design-6-.png?auto=format%2Ccompress&dpr=1&h=45",
+    thumbnail: "/images/programs/claude-code-masterclass.jpg",
     rating: 4.9,
     reviews: "2.3K",
     enrolled: "2,348",
@@ -162,6 +164,7 @@ export const PROGRAMS_REGISTRY: Record<string, ProgramDetails> = {
       "Google Career Certificates are designed to prepare job seekers for entry-level careers in high-growth fields with no experience required.",
     instructorAvatar:
       "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=75&h=75",
+    thumbnail: "/images/programs/google-project-management.jpg",
     rating: 4.8,
     reviews: "120K",
     enrolled: "1,450,000",
@@ -243,6 +246,7 @@ export const PROGRAMS_REGISTRY: Record<string, ProgramDetails> = {
       "Created by Google data analysts, this program gives learners practical skills needed to collect, transform, clean, and visualize data for decision making.",
     instructorAvatar:
       "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=75&h=75",
+    thumbnail: "/images/programs/google-data-analytics.jpg",
     rating: 4.8,
     reviews: "140K",
     enrolled: "2,100,000",
@@ -304,6 +308,7 @@ export const PROGRAMS_REGISTRY: Record<string, ProgramDetails> = {
       "Developed by Google's cybersecurity leaders to prepare candidates for roles in security operations centers (SOC) and threat defense.",
     instructorAvatar:
       "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=75&h=75",
+    thumbnail: "/images/programs/google-cybersecurity.jpg",
     rating: 4.8,
     reviews: "45K",
     enrolled: "410,000",
@@ -364,6 +369,7 @@ export const PROGRAMS_REGISTRY: Record<string, ProgramDetails> = {
       "IBM experts teach the actual tools and techniques used in industry to analyze data, build predictive pipelines, and present results.",
     instructorAvatar:
       "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/bb/f5ced241374d08852372f5c71b6980/IBM_logo_blue_100x100.png?auto=format%2Ccompress&dpr=3&w=75&h=75",
+    thumbnail: "/images/programs/ibm-data-analyst.jpg",
     rating: 4.7,
     reviews: "82K",
     enrolled: "520,000",
@@ -424,6 +430,7 @@ export const PROGRAMS_REGISTRY: Record<string, ProgramDetails> = {
       "Andrew Ng is an AI pioneer who has taught machine learning to over 7 million people worldwide. He leads DeepLearning.AI and AI Fund.",
     instructorAvatar:
       "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://coursera-instructor-photos.s3.amazonaws.com/26/5d1ff0c20a11e7b26715f2146f88be/AndrewNg.jpg?auto=format%2Ccompress&dpr=1&w=75&h=75&fit=crop",
+    thumbnail: "/images/programs/machine-learning-introduction.jpg",
     rating: 4.9,
     reviews: "39K",
     enrolled: "380,000",
@@ -498,6 +505,7 @@ export function getProgramBySlug(slug: string): ProgramDetails {
       "Careevo programs are built in collaboration with leading technology companies and universities to deliver verified hands-on skills.",
     instructorAvatar:
       "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://coursera-instructor-photos.s3.amazonaws.com/0f/8af4a501964eb58b75f4484a0e35b3/AI-AGENTS-24-.jpg?auto=format%2Ccompress&dpr=1&w=75&h=75&fit=crop",
+    thumbnail: "/images/programs/google-data-analytics.jpg",
     rating: 4.8,
     reviews: "50K",
     enrolled: "350,000",

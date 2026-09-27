@@ -39,8 +39,19 @@ export function skorKursusUntukLoker(entry: EntriKatalog, job: JobFixture): numb
   }
 
   // A course tag the posting's own text mentions.
+  //
+  // The tag is matched as a SET OF WORDS, not as a string. `teksJob` holds
+  // single tokens, so the previous `teksJob.has(tag)` could only ever be true for
+  // a one-word tag: "Machine Learning", "REST API", "Data Analytics", and "CI/CD"
+  // were silently dead, which is to say every *specific* skill tag contributed
+  // nothing while a generic role word like "engineer" scored the full 8 and
+  // cleared the floor on its own. Measured on the scanned corpus, that made
+  // "Machine Learning Engineer" rank a Git course above the machine-learning
+  // course. Requiring every word of the tag to be present fixes the inversion
+  // and keeps single-word tags working exactly as before.
   for (const tag of tagKursus) {
-    if (teksJob.has(tag)) skor += 8;
+    const kata = tokenisasi(tag);
+    if (kata.size > 0 && [...kata].every((k) => teksJob.has(k))) skor += 8;
   }
 
   // Any other shared vocabulary, capped so one wordy description cannot dominate.
@@ -56,10 +67,20 @@ export function skorKursusUntukLoker(entry: EntriKatalog, job: JobFixture): numb
   if (skor === 0) return 0;
 
   // Level proximity, same ladder as profile recommendations.
-  const jarak = Math.abs(
-    LANGKAH_LEVEL.indexOf(job.level as Level) - LANGKAH_LEVEL.indexOf(entry.level as Level),
-  );
-  skor += (2 - jarak) * 4;
+  //
+  // A posting with NO level must contribute nothing here. `indexOf(undefined)`
+  // is -1, not 0, so the unguarded version treated "level tidak diketahui" as
+  // "satu tingkat di bawah dasar" and silently paid out a phantom bonus — a
+  // scanned inbox row has no level at all, so every such row was scored against
+  // a rung that does not exist. That made inbox scores incomparable with the
+  // `/loker/[id]` path (where `level` is always set) and quietly propped up
+  // matches near the floor. Guarded on both sides: an unknown rung on either
+  // side means the tiebreaker is silent, not guessed.
+  const iJob = LANGKAH_LEVEL.indexOf(job.level as Level);
+  const iKursus = LANGKAH_LEVEL.indexOf(entry.level as Level);
+  if (iJob >= 0 && iKursus >= 0) {
+    skor += (2 - Math.abs(iJob - iKursus)) * 4;
+  }
 
   if (entry.is_free) skor += 2;
   return skor;

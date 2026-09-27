@@ -49,7 +49,10 @@ export function AppShell({
   current: string;
   children: ReactNode;
 }) {
-  const [collapsed, setCollapsed] = useState(false);
+  // The rail is the default: the dashboard's nav is wayfinding, not the content,
+  // so it opens as the collapsed rail (icon + label) and the learner expands it
+  // when they need the full wording.
+  const [collapsed, setCollapsed] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const label = pageLabel(current);

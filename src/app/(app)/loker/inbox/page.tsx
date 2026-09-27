@@ -7,7 +7,11 @@ import {
   bacaInboxDiaudit,
   bacaRiwayatScan,
   bootstrapCareerOps,
+  type InboxJob,
 } from "@/lib/career-ops";
+import { bacaCache } from "@/lib/career-ops/jobstreet-enrich";
+import { katalogBelajar } from "@/lib/courses/katalog";
+import { hitungJumlahKursus } from "@/lib/jobs/hitung-kursus";
 
 export const metadata: Metadata = { title: "Lowongan Ditemukan" };
 
@@ -34,6 +38,15 @@ export default async function LokerInboxPage() {
   const rows = await bacaInboxDiaudit().catch(() => []);
   const adaRiwayat = bacaRiwayatScan().length > 0;
 
+  // Lencana "N kursus" di setiap kartu. Fungsi murni (ranker deterministik +
+  // deskripsi yang sudah ter-cache), jadi tidak ada jaringan tambahan: satu kali
+  // kerja server untuk seluruh baris, bukan satu permintaan per kartu.
+  const jumlahKursus = hitungJumlahKursus(
+    rows.map((r) => r as InboxJob),
+    await katalogBelajar(),
+    await bacaCache().catch(() => ({}) as Record<string, never>),
+  );
+
   return (
     <AppShell session={session} current="/loker">
       <PageHead
@@ -42,7 +55,11 @@ export default async function LokerInboxPage() {
         lead="Hasil pindai dari papan lowongan publik. Buka di situs aslinya, lalu lacak yang kamu minati."
       />
       <section className="card">
-        <InboxList awal={rows} adaRiwayat={adaRiwayat} />
+        <InboxList
+          awal={rows}
+          adaRiwayat={adaRiwayat}
+          jumlahKursusPerUrl={jumlahKursus}
+        />
       </section>
     </AppShell>
   );

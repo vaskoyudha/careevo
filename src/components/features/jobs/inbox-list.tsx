@@ -2,34 +2,47 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, RefreshCw } from "lucide-react";
+import { RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { jalankanScanAction, type HasilScanAction } from "@/actions/inbox";
 import type { InboxJob } from "@/lib/career-ops";
 import type { BarisDiaudit } from "@/lib/career-ops";
 import { labelSinyal } from "@/lib/agents/sentinel";
+import { filterInbox } from "@/lib/jobs/kueri-inbox";
+import {
+  ComposerCariLowongan,
+  KartuLokerInbox,
+  DaftarLokerLayarPenuh,
+} from "@/components/features/jobs/cari-lowongan-ui";
+import { PopupDetailLoker } from "@/components/features/jobs/popup-detail-loker";
 
 /**
- * InboxList — lowongan yang ditemukan scanner, belum dilacak.
+ * InboxList — permukaan pencarian lowongan hasil pindai.
  *
  * Di-ported dari career-ops (MIT), © 2026 Santiago Fernández de Valderrama.
- * Source: career-ops/web/src/components/inbox/triage-row.tsx (row + `agoLabel`)
+ * Source: career-ops/web/src/components/inbox/triage-row.tsx (baris + `agoLabel`)
  *          dan inbox-triage.tsx (sort/filter state).
  * https://github.com/career-ops-hq/career-ops
  *
  * Yang dipertahankan dari upstream: bentuk `agoLabel` dan ambangnya persis, satu
- * baris = satu posting dengan checkbox-style meta baris, dan `- [ ]` pending vs
- * `- [x]` processed dipisah.
+ * baris = satu posting, dan `- [ ]` pending vs `- [x]` processed dipisah.
  *
  * Delta yang disengaja:
+ *   - Halaman ini tidak menampilkan seluruh daftar. `scan.mjs` bisa menemukan
+ *     ratusan lowongan, dan menampilkan semuanya sekaligus adalah daftar
+ *     yang tidak bisa dibaca — bukan ringkasan. Yang tampil di sini hanya hasil
+ *     pencarian; daftar lengkap ada di balik ikon kisi dalam composer.
+ *   - Baris 150 chip perusahaan dihapus. Chip itu satu-satunya saringan yang
+ *     pernah ada di sini, dan saringan itu menjawab "Amartha" samaunay dengan
+ *     mengetik "Amartha" di composer — tapi butuh 150 klik untuk perusahaan mana
+ *     pun yang tidak sedang terlihat. Satu kotak pencarian menjawab keduanya.
+ *   - Kartu dan composer bergaya kartu chat AI Mastery; lihat
+ *     `cari-lowongan-ui.tsx` untuk peminjaman visualnya.
  *   - `useRouter`/`useSearchParams` → state lokal. Upstream menyimpan terpilih di
- *     URL; di Careevo tidak ada yang perlu dibagikan, dan membacanya akan
- *     membuat komponen ini client-only_boundary yang tidak perlu.
+ *     URL; di Careevo tidak ada yang perlu dibagikan.
  *   - Tanpa multi-select shortlist dan tanpa tombol Skip. Keduanya menulis ke
  *     `pipeline.md`, dan ini fase read-only.
- *   - Tailwind + komponen shadcn upstream → `globals.css` + `@/components/ui/*`.
- *     Menyalin JSX apa adanya akan membawa design system kedua ke repo.
  *   - Copy UI diterjemahkan ke Indonesia; ini perubahan konten, bukan logika.
  *
  * Read-only: satu-satunya aksi adalah membuka lowongan di situs aslinya. Tidak
@@ -47,12 +60,15 @@ type Baris = InboxJob & { firstSeen?: string } & Partial<BarisDiaudit>;
  * checked, so showing a green tick there would be the copy lying about the
  * product's own coverage.
  */
-function verdictBadge(row: Baris): { label: string; cls: string; title: string } | null {
+function verdictBadge(
+  row: Baris,
+): { label: string; cls: string; title: string; status?: "clean" | "quarantined" | "rejected" } | null {
   if (!row.audit) return null;
   if (!row.enriched) {
     return {
       label: "Belum diperiksa",
       cls: "verdict-unverified",
+      status: "quarantined",
       title: "Data lowongan ini belum bisa diambil dari papan aslinya, jadi belum diverifikasi.",
     };
   }
@@ -60,6 +76,7 @@ function verdictBadge(row: Baris): { label: string; cls: string; title: string }
     return {
       label: "Aman",
       cls: "verdict-clean",
+      status: "clean",
       title: "Tidak ditemukan pola penipuan pada lowongan ini.",
     };
   }
@@ -68,75 +85,59 @@ function verdictBadge(row: Baris): { label: string; cls: string; title: string }
     return {
       label: "Perlu ditinjau",
       cls: "verdict-quarantined",
+      status: "quarantined",
       title: flags ? `Sinyal: ${flags}` : "Ada sinyal yang perlu diperiksa lebih lanjut.",
     };
   }
   return {
     label: "Ditolak",
     cls: "verdict-rejected",
+    status: "rejected",
     title: `Sinyal: ${row.audit.flags.map(labelSinyal).join(" · ")}`,
   };
 }
 
 /**
- * Versi `agoLabel` dari upstream, dengan label alih bahasa. Ambang 1/7/30 hari
- * milik upstream dan sengaja tidak diubah: "2 minggu lalu" untukposting 10 hari
- * adalah membingungkan.
+ * Dua kondisi kosong, dan keduanya soal kueri — bukan soal "belum dipindai".
+ * Halaman ini menampilkan hasil pencarian saja, jadi "tidak ada lowongan" tanpa
+ * kueri berarti memang belum ada yang dipindai, dan dengan kueri berarti kueri
+ * itu tidak cocok dengan apa pun. Tanpa kueri, salinan yang menyalahkan filter
+ * akan berbohong: tidak ada filter yang berjalan.
  */
-function agoLabel(umur: number | null): string | null {
-  if (umur == null) return null;
-  if (umur <= 0) return "hari ini";
-  if (umur === 1) return "kemarin";
-  if (umur < 7) return `${umur} hari lalu`;
-  if (umur < 30) return `${Math.floor(umur / 7)} minggu lalu`;
-  return `${Math.floor(umur / 30)} bulan lalu`;
-}
-
-function umurHari(iso: string | undefined, sekarang: number): number | null {
-  if (!iso) return null;
-  const t = Date.parse(iso);
-  if (Number.isNaN(t)) return null;
-  return Math.floor((sekarang - t) / 86_400_000);
-}
-
-const SEMUA = "Semua";
-
-/**
- * The two empty states. The first one deliberately does NOT say the postings
- * were "dilacak" (tracked): nothing on this page marks a posting as handled —
- * upstream's Skip and shortlist wrote to `pipeline.md`, and both were dropped —
- * so blaming tracking would name a step that does not exist here. A scan that
- * adds nothing means the postings were already on the list, or a filter ate
- * them; the scan diagnostics above say which, and `portals.yml` is where to
- * loosen it.
- */
-const KOSONG_SUDAH_PINDAI =
-  "Pindai lagi tidak menambah apa pun — lowongan yang ditemukan sudah ada di daftar, atau habis karna filter. Longgarkan filter di portals.yml, atau buka lowongan yang ada dan lacak dari situ.";
 const KOSONG_BELUM_PINDAI =
   "Tekan “Pindai lowongan baru” untuk mengambil lowongan dari papan publik KarirHub, Glints, Jobstreet, dan ATS publik.";
+const KOSONG_TANPA_KUERI =
+  "Tulis di kotak di atas — peran, perusahaan, atau lokasi. Belum ada yang dipindai, jadi belum ada yang bisa dicari.";
+const KOSONG_TIDAK_COCOK =
+  "Tidak ada lowongan untuk kueri itu. Coba kata lain, atau buka daftar lengkap lewat ikon kisi.";
 
-export function InboxList({ awal, adaRiwayat }: { awal: Baris[]; adaRiwayat: boolean }) {
-  const [perusahaan, setPerusahaan] = useState<string>(SEMUA);
+export function InboxList({
+  awal,
+  adaRiwayat,
+  jumlahKursusPerUrl,
+}: {
+  awal: Baris[];
+  adaRiwayat: boolean;
+  /** Jumlah kursus per posting, dihitung server. Kartu hanya menampilkan lencana. */
+  jumlahKursusPerUrl?: Map<string, number>;
+}) {
+  const [kueri, setKueri] = useState("");
+  const [daftarTerbuka, setDaftarTerbuka] = useState(false);
+  const [detail, setDetail] = useState<{
+    url: string;
+    status?: "clean" | "quarantined" | "rejected";
+  } | null>(null);
+  const setDetailUrl = (url: string, status?: "clean" | "quarantined" | "rejected") =>
+    setDetail({ url, status });
   const [hasil, setHasil] = useState<HasilScanAction | null>(null);
   const [pending, mulai] = useTransition();
   const router = useRouter();
 
-  // Satu kali per mount, bukan per render: "hari ini" tidak boleh basi setelah
-  // tab terbuka semalaman, tapi juga tidak perlu dihitung ulang tiap ketikan.
-  const [sekarang] = useState(() => Date.now());
-
-  const namaPerusahaan = useMemo(
-    () =>
-      [...new Set(awal.map((r) => r.company).filter(Boolean))].sort((a, b) =>
-        a.localeCompare(b, "id"),
-      ),
-    [awal],
-  );
-
-  const terlihat = useMemo(
+  // Antrean: pending saja, terbaru dulu. Chip perusahaan tidak lagi menyaring —
+  // composer-filter yang 그렇게, dan `filterInbox` membaca company-nya.
+  const antrean = useMemo(
     () =>
       awal
-        .filter((r) => (perusahaan === SEMUA ? true : r.company === perusahaan))
         // Upstream memisahkan pending dari processed lewat checkbox `- [x]`.
         // Tidak ada aksi di Careevo yang menandai `done` — Skip dan shortlist
         // upstream menulis ke pipeline.md dan keduanya dihapus. Saringan ini
@@ -145,7 +146,13 @@ export function InboxList({ awal, adaRiwayat }: { awal: Baris[]; adaRiwayat: boo
         // ditangani", dan baris itu bukan lagi antrean yang perlu dilihat.
         .filter((r) => !r.done)
         .sort((a, b) => (b.firstSeen ?? "").localeCompare(a.firstSeen ?? "")),
-    [awal, perusahaan],
+    [awal],
+  );
+
+  const adaKueri = kueri.trim().length > 0;
+  const cocok = useMemo(
+    () => (adaKueri ? filterInbox(antrean, kueri) : []),
+    [antrean, kueri, adaKueri],
   );
 
   function pindai() {
@@ -167,10 +174,12 @@ export function InboxList({ awal, adaRiwayat }: { awal: Baris[]; adaRiwayat: boo
         <div>
           <h2 className="card-title">Lowongan ditemukan</h2>
           <p className="card-sub">
-            {terlihat.length} lowongan dari {awal.length} total
+            {adaKueri
+              ? `${cocok.length} dari ${antrean.length} lowongan cocok`
+              : `${antrean.length} lowongan tersedia`}
           </p>
         </div>
-        <Button type="button" variant="ocean" size="sm" disabled={pending} onClick={pindai}>
+        <Button type="button" variant="brand" size="pill-sm" disabled={pending} onClick={pindai}>
           <RefreshCw className={pending ? "animate-spin" : undefined} />
           {pending ? "Memindai…" : "Pindai lowongan baru"}
         </Button>
@@ -198,67 +207,70 @@ export function InboxList({ awal, adaRiwayat }: { awal: Baris[]; adaRiwayat: boo
         </div>
       ) : null}
 
-      {namaPerusahaan.length > 1 ? (
-        <div className="tag-row">
-          {[SEMUA, ...namaPerusahaan].map((c) => (
-            <button
-              key={c}
-              type="button"
-              className={`tag ${c === perusahaan ? "is-active" : ""}`}
-              aria-pressed={c === perusahaan}
-              onClick={() => setPerusahaan(c)}
-            >
-              {c}
-            </button>
-          ))}
+      <div style={{ marginTop: "1rem" }}>
+        <ComposerCariLowongan
+          kueri={kueri}
+          onKueri={setKueri}
+          onBukaDaftar={() => setDaftarTerbuka(true)}
+          jumlahTersedia={antrean.length}
+        />
+      </div>
+
+      {!adaKueri ? (
+        <div style={{ marginTop: "1rem" }}>
+          <EmptyState title={adaRiwayat ? "Cari di antara lowongan" : "Belum pernah dipindai"}>
+            {adaRiwayat ? KOSONG_TANPA_KUERI : KOSONG_BELUM_PINDAI}
+          </EmptyState>
         </div>
+      ) : cocok.length === 0 ? (
+        <div style={{ marginTop: "1rem" }}>
+          <EmptyState title="Tidak ada yang cocok">{KOSONG_TIDAK_COCOK}</EmptyState>
+        </div>
+      ) : (
+        <>
+          <p className="caption muted" style={{ marginTop: "0.9rem" }} aria-live="polite">
+            <Search className="size-3" aria-hidden /> {cocok.length} lowongan untuk
+            &ldquo;{kueri.trim()}&rdquo;
+          </p>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+              gap: "0.75rem",
+              marginTop: "0.6rem",
+            }}
+          >
+            {cocok.map((r) => (
+              <KartuLokerInbox
+                key={r.url}
+                job={r}
+                verdict={verdictBadge(r)}
+                onBukaDetail={setDetailUrl}
+                jumlahKursus={jumlahKursusPerUrl?.get(r.url)}
+              />
+            ))}
+          </div>
+        </>
+      )}
+
+      {daftarTerbuka ? (
+        <DaftarLokerLayarPenuh
+          baris={antrean}
+          onTutup={() => setDaftarTerbuka(false)}
+          renderVerdict={(job) => verdictBadge(job as Baris)}
+          kueriAwal={kueri}
+          onBukaDetail={setDetailUrl}
+          jumlahKursusPerUrl={jumlahKursusPerUrl}
+        />
       ) : null}
 
-      {terlihat.length === 0 ? (
-        <EmptyState title={adaRiwayat ? "Tidak ada lowongan baru" : "Belum pernah dipindai"}>
-          {adaRiwayat ? KOSONG_SUDAH_PINDAI : KOSONG_BELUM_PINDAI}
-        </EmptyState>
-      ) : (
-        <ul className="list-app" style={{ listStyle: "none", margin: 0, padding: 0 }}>
-          {terlihat.map((r) => {
-            const umur = agoLabel(umurHari(r.firstSeen, sekarang));
-            const verdict = verdictBadge(r);
-            return (
-              <li className="list-app-row" key={r.url} data-inbox-row>
-                {/* No wrapper element: `.list-app-row` is the grid, and
-                    `.row-meta`/`.row-aside` place themselves with
-                    `grid-column`. A wrapper <div> here would become the only
-                    grid item, the placement would stop applying, and company
-                    and role would render glued together on one line. */}
-                <span className="row-title">{r.company}</span>
-                <span className="row-meta">
-                  {r.role}
-                  {r.location ? ` · ${r.location}` : ""}
-                  {umur ? ` · ${umur}` : ""}
-                </span>
-                <span className="row-aside">
-                  {verdict ? (
-                    <span className={`tag ${verdict.cls}`} title={verdict.title}>
-                      {verdict.label}
-                    </span>
-                  ) : null}
-                  {r.compensation ? <span className="tag">{r.compensation}</span> : null}
-                  <a
-                    className="tag"
-                    href={r.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={`Buka lowongan ${r.role} di ${r.company}`}
-                  >
-                    <ExternalLink className="size-3" />
-                    Buka
-                  </a>
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      {detail ? (
+        <PopupDetailLoker
+          url={detail.url}
+          status={detail.status}
+          onTutup={() => setDetail(null)}
+        />
+      ) : null}
     </div>
   );
 }

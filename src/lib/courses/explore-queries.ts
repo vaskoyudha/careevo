@@ -17,6 +17,7 @@ export type ProgramListItem = {
   provider: string;
   providerLogo: string;
   bannerGraphic?: string;
+  thumbnail?: string;
   type: ProgramDetails["type"];
   category: string;
   subcategory: string;
@@ -47,6 +48,7 @@ function toListItem(p: ProgramDetails): ProgramListItem {
     provider: p.provider,
     providerLogo: p.providerLogo,
     bannerGraphic: p.bannerGraphic,
+    thumbnail: p.thumbnail,
     type: p.type,
     category: p.category,
     subcategory: p.subcategory,

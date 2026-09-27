@@ -82,9 +82,12 @@ export const CERTIFICATES: ExploreItem[] = [
 /* ------------------------------------------------------------------ */
 
 export const DEGREES: ExploreItem[] = [
-  { label: "Bachelor's Degrees", href: "/degrees/bachelors" },
-  { label: "Master's Degrees", href: "/degrees/masters" },
-  { label: "University Certificates", href: "/certificates/learn" },
+  { label: "Sarjana (S1)", href: "/degrees/bachelors" },
+  { label: "Magister (S2)", href: "/degrees/masters" },
+  // Slug harus `university-certificates`, mengikuti `LEVELS` di
+  // `/degrees/page.tsx`. Sebelumnya `/certificates/learn` — route itu
+  // tidak pernah ada, jadi tautan ini 404 dari dalam menu navbar.
+  { label: "Sertifikat universitas", href: "/degrees/university-certificates" },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -109,6 +112,17 @@ export const CERTIFICATION_PREP_VIEW_ALL = "/explore/certification-preparation-c
 export const EXPLORE_FALLBACKS = {
   browseAll: "/browse",
   viewAllRoles: "/career-academy",
+  /**
+   * BELUM BOLEH dipakai sebagai ajakan di UI.
+   *
+   * `ProgramDetails` tidak punya field harga sama sekali, jadi "gratis"
+   * tidak bisa dijawab dari katalog. `getProgramsByQuery("free")` tidak
+   * cocok dengan apa pun lalu jatuh ke fallback "tampilkan seluruh
+   * katalog" (lihat `explore-queries.ts`) — jadi tautan ini akan
+   * menampilkan keenam program seolah-olah gratis, termasuk yang
+   * berbayar. Itu janji yang tidak bisa ditepati, jadi menu Explore
+   * tidak memakainya. Hapus begitu `price` masuk ke registry.
+   */
   freeCourses: "/courses?query=free",
 } as const;
 
