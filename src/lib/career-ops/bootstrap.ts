@@ -21,25 +21,42 @@ const HEADER_TRACKER = [
 ].join("\n");
 
 /**
- * portals.yml is seeded from the engine's own `templates/portals.example.yml`
- * (202 entries) rather than hand-written here.
+ * The seed is chosen in preference order: Careevo's own Indonesian config
+ * first, then the engine's shipped example.
  *
- * The hand-written 15-line version that used to live here locked
- * `location_filter.allow` to Indonesian cities. Against a mostly-US dataset
- * that returned `postingsKept: 0` on every run, and any future filter dimension
- * the engine supports would have had to be re-added by hand. The template is
- * data, not code — copying it is both smaller and correct.
+ * Why a Careevo-owned seed exists at all: the engine template seeds 97 Western
+ * employers and one Polish board, with both Indonesian boards (Jobstreet ID,
+ * Glints ID) present but `enabled: false`. Scanning it returns ~14,000 European
+ * and American postings and about one in Indonesia. See the spec's T1.
  *
- * Write-once, like everything else here: a user who has edited their portals
- * config must never have it replaced by the shipped example.
+ * `engine/**` stays byte-identical — it is vendored source, and editing it would
+ * break the boundary recorded in AGENTS.md and the two attribution skills. We
+ * change only WHICH file gets copied, never the copy itself.
+ *
+ * The candidate list is a parameter so the preference order is testable without
+ * stubbing the filesystem or the environment.
  */
+export function cariSeedPortals(
+  candidates: string[] = [
+    path.join(process.cwd(), "src", "lib", "career-ops", "portals-careevo.yml"),
+    path.join(engineRoot(), "templates", "portals.example.yml"),
+  ],
+): string | null {
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return null;
+}
+
 function seedPortalsFromTemplate(): boolean {
   const target = path.join(dataRoot(), "portals.yml");
+  // Write-once, like everything else here: a user who has edited their portals
+  // config must never have it replaced by the shipped example.
   if (fs.existsSync(target)) return false;
-  const template = path.join(engineRoot(), "templates", "portals.example.yml");
-  if (!fs.existsSync(template)) return false;
+  const seed = cariSeedPortals();
+  if (!seed) return false;
   fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.writeFileSync(target, fs.readFileSync(template, "utf8"), "utf8");
+  fs.copyFileSync(seed, target);
   return true;
 }
 
