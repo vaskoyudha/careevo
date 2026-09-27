@@ -5,6 +5,7 @@ import { ChevronDown, ChevronUp, Link2, Link2Off, Plus, Trash2 } from "lucide-re
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { KodeView } from "@/components/features/learning/kode-view";
 import {
   blokKosong,
   daftarSection,
@@ -55,16 +56,21 @@ const LABEL_TIPE: Record<TipeBlok, string> = {
 };
 
 /**
- * Sengaja belum memuat `kode`.
+ * Satu-satunya penjaga kelengkapan, dan itu disengaja.
  *
- * Memasukkannya berarti Percaya bisa membuat blok kode, sementara
- * `BlokEditor` belum punya `case "kode"` untuk menyuntingnya — blok yang
- * dibuat tapi tidak bisa disunting adalah data rusak. Labelnya sudah ada di
- * `LABEL_TIPE` karena peta itu wajib exhaustif; yang belum boleh jalan adalah
- * pilihannya. `kode` masuk ke sini di Task 4
- * (`docs/superpowers/plans/2026-09-27-blok-kode-cpp.md`), setelah `KodeView`.
+ * `switch (blok.tipe)` di `IsiBlok` **tidak** diperiksa exhaustif oleh `tsc`
+ * — fungsi tanpa tipe balik eksplisit tetap hijau saat satu casing hilang.
+ * Jadi tipe yang masuk daftar ini tanpa punya `case`-nya akan tampil kosong
+ * dan tidak bisa disunting: data rusak yang tidak ada yang mengeluh.
  */
-const TIPE_BISA_DITAMBAH: TipeBlok[] = ["paragraf", "heading", "daftar", "kutipan", "gambar"];
+const TIPE_BISA_DITAMBAH: TipeBlok[] = [
+  "paragraf",
+  "heading",
+  "daftar",
+  "kutipan",
+  "kode",
+  "gambar",
+];
 
 export function BlokEditor({
   blok,
@@ -299,6 +305,71 @@ function IsiBlok({
           >
             Tambah butir
           </button>
+        </div>
+      );
+
+    case "kode":
+      return (
+        <div className="space-y-3">
+          <KodeView
+            kode={blok.kode ?? ""}
+            bahasa={blok.bahasa ?? "cpp"}
+            editable
+            label={`Kode contoh ${blok.id}`}
+            onChange={(berikut) => onChange({ ...blok, kode: berikut })}
+          />
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
+              <label
+                htmlFor={`${blok.id}-stdin`}
+                className="block text-xs font-medium text-gray-600"
+              >
+                Masukan (stdin)
+              </label>
+              <textarea
+                id={`${blok.id}-stdin`}
+                value={blok.stdin ?? ""}
+                onChange={(event) => onChange({ ...blok, stdin: event.target.value })}
+                rows={2}
+                placeholder="Budi"
+                className="w-full rounded-lg border border-input bg-transparent px-2 py-1 font-mono text-xs"
+              />
+            </div>
+            <div className="space-y-1">
+              <label
+                htmlFor={`${blok.id}-harapan`}
+                className="block text-xs font-medium text-gray-600"
+              >
+                Keluaran yang diharapkan
+              </label>
+              <textarea
+                id={`${blok.id}-harapan`}
+                value={blok.outputHarapan ?? ""}
+                onChange={(event) => onChange({ ...blok, outputHarapan: event.target.value })}
+                rows={2}
+                placeholder="Halo, Budi!"
+                className="w-full rounded-lg border border-input bg-transparent px-2 py-1 font-mono text-xs"
+              />
+            </div>
+          </div>
+
+          <label className="flex items-start gap-2 text-xs text-gray-600">
+            <input
+              type="checkbox"
+              checked={blok.dapatDijalankan === true}
+              onChange={(event) => onChange({ ...blok, dapatDijalankan: event.target.checked })}
+              className="mt-0.5"
+            />
+            <span>
+              Boleh dijalankan peserta.
+              <span className="block text-[11px] text-gray-500">
+                Biarkan tidak centang untuk kode contoh, pseudokode, atau cuplikan
+                yang belum selesai. Blok tanpa centang ini tampil tanpa tombol
+                Jalankan.
+              </span>
+            </span>
+          </label>
         </div>
       );
 
