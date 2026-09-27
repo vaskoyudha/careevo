@@ -625,16 +625,24 @@ const FIELD_HREF: Record<string, string> = {
 };
 
 /**
- * "Explore categories" banner: eyebrow, one horizontally scrollable pill row
- * beside it, then the copy — the layout of the reference banner.
+ * "Explore categories" banner: the copy owns the top, and the 11 category pills
+ * are one horizontally scrollable row UNDER it.
+ *
+ * The row is deliberately not on the heading's top line. That was tried, and
+ * with 11 pills in it the row reads as the banner's headline and the heading as
+ * a subtitle — the pills were taking over the top area. The row label is plain
+ * text for the same reason: a filled pill up there is the thing being objected
+ * to.
  *
  * The artwork is 2167x726 (≈3:1) with the subject at 55–80% width and an empty
  * pale LEFT half, so it is built for a wide banner with copy beside the subject,
  * not as a full-bleed background. It is therefore a right-hand column with its
  * left edge masked into the gradient, and the copy column is capped (26rem,
- * 30rem at `xl`) so the two never collide. Two `<Image>` elements rather than
- * one `fill`: on mobile the box is short and wide, where `object-cover` on a
- * full-height box would zoom into a few pixels of the source, so mobile gets a
+ * 30rem at `xl`) so the two never collide. A bottom fade stops it before the
+ * pill row, so a pill crossing the subject reads as a layer, not a collision.
+ * Two `<Image>` elements rather than one `fill`: on mobile the box is short and
+ * wide, where `object-cover` on a full-height box would zoom into a few pixels
+ * of the source, so mobile gets a
  * cropped strip under the copy instead. Same `src`, so it is fetched once.
  */
 function ExploreCategoriesBanner() {
