@@ -40,9 +40,7 @@ export default async function DashboardPage() {
           <DashboardRecommendations profile={profile} />
         </div>
       ) : null}
-      <div className="grid gap-6">
-        <JobInboxCard />
-      </div>
+      <JobInboxCard />
     </AppShell>
   );
 }

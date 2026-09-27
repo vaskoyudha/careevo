@@ -1,10 +1,13 @@
 import Link from "next/link";
 
 /**
- * Kartu "Cari lowongan" — satu-satunya blok di dashboard lama yang kebetulan
- * benar: isinya hanya penjelasan dan tautan ke `/loker/inbox`, tanpa satu pun
- * angka. Blocks ini dipisah dari `DashboardView` supaya halaman dashboard
- * tidak lagi needing a wrapper yang menyamar sebagai "the dashboard".
+ * Kartu "Cari lowongan" — blok yang tetap jujur di dashboard lama karena isinya
+ * hanya penjelasan dan tautan ke `/loker/inbox`, tanpa satu pun angka yang
+ * harus bisa ditelusuri ke data milik akun yang sedang masuk.
+ *
+ * Blok ini dipisah menjadi komponennya sendiri supaya halaman dashboard tidak
+ * lagi menjadi satu pembungkus fixture: apa yang benar-benar dirender halaman
+ * itu kini bisa dibaca langsung di halaman itu juga.
  *
  * Kartu memakai resep kartu katalog belajar yang sama dengan blok lain di
  * aplikasi (`rounded-xl`, `border-gray-200`, `shadow-xs`) supaya dashboard dan
