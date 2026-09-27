@@ -1,39 +1,45 @@
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
+import { LockKeyhole, Sparkles } from "lucide-react";
+import { tautanTutorAi } from "@/lib/learning/tutor-ai";
+import type { KeputusanAkses } from "@/lib/learning/akses";
 
 /**
  * Panel "Tutor AI" di sidebar kanan halaman detail kursus.
  *
- * Hanya dirender setelah peserta terdaftar ("course started"): sebelum itu
- * kursus belum dimulai untuk mereka, jadi tombol AI tidak boleh bisa dipicu.
- * Panel ini adalah satu-satunya titik masuk AI dari halaman kursus, dan ia
- * membawa konteks kursus lewat kontrak deep-link AI Mastery:
- * `/ai-mastery?course=<id>&capability=course_study`.
+ * Dua syarat, keduanya fail-closed:
  *
- * Dua lapis konteks:
- * - **Di Careevo** (`ai-mastery/page.tsx`), query `course` + `capability`
- *   diteruskan ke dalam frame AI Mastery.
- * - **Di AI Mastery**, capability `course_study` membaca state kursus itu
- *   (silabus, jalur mastery, bank soal, posisi baca, catatan konvensi) sebelum
- *   giliran model pertama — kontrak yang sama dipakai `CourseNextStep` dan
- *   kartu hand-off di aplikasi AI Mastery.
+ * 1. Terdaftar. Dicek oleh pemanggil (`sudahDaftar`), bukan di sini.
+ * 2. Boleh minta bantuan. `akses` adalah keputusan `putuskanAkses` untuk
+ *    `jenisKegiatan: "bantuan_akademik"`, jadi `aturan_bantuan` dihormati lewat
+ *    satu mesin keputusan, bukan salinan aturan. `tanpa_ai` membuat tombol
+ *    tampil tapi tidak bisa dipakai.
  *
- * Id kursus Careevo dikirim apa adanya. Bila id itu belum ada di store kursus
- * AI Mastery, aplikasi itu jatuh ke chat biasa alih-alih menolak — deep-link
- * ini tidak pernah meninggalkan peserta di halaman rusak.
+ * Panel tidak disembunyikan saat `tanpa_ai`: peserta berhak tahu fitur ini ada
+ * dan kenapa ia tidak bisa dipakai.
+ *
+ * `courseId` yang diteruskan sudah di-resolve di server (lihat
+ * `tutor-ai-kursus.ts`), bukan id Careevo mentah: AI Mastery hanya mengenali id
+ * yang ada di store kursus-nya sendiri.
  */
 export function KursusAiPanel({
   courseId,
   judul,
   penyedia,
   jumlahModul,
+  akses,
 }: {
   courseId: string;
   judul: string;
   penyedia: string;
   jumlahModul: number;
+  /** Keputusan `putuskanAkses` untuk `bantuan_akademik`. */
+  akses: KeputusanAkses;
 }) {
-  const href = `/ai-mastery?course=${encodeURIComponent(courseId)}&capability=course_study`;
+  // Fail-closed: apa pun selain "bebas" menutup tombol. `perlu_sesi` dan
+  // `perlu_kamera` tidak pernah terjadi untuk `bantuan_akademik` saat ini, tapi
+  // keduanya akan terlihat terbuka di sini kalau suatu saat ditambahkan.
+  const boleh = akses.tipe === "bebas";
+  const href = tautanTutorAi(courseId);
 
   return (
     <section
@@ -70,16 +76,41 @@ export function KursusAiPanel({
         </div>
       </dl>
 
-      <Link
-        href={href}
-        className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-full bg-[#0056D2] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#00419e]"
-      >
-        <Sparkles size={14} strokeWidth={2} aria-hidden="true" />
-        Tanya tutor AI
-      </Link>
-      <p className="mt-2 text-center text-[11px] leading-relaxed text-gray-500">
-        Dibuka di AI Mastery dengan kursus ini sebagai konteks belajarnya.
-      </p>
+      {boleh ? (
+        <>
+          <Link
+            href={href}
+            className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-full bg-[#0056D2] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#00419e]"
+          >
+            <Sparkles size={14} strokeWidth={2} aria-hidden="true" />
+            Tanya tutor AI
+          </Link>
+          <p className="mt-2 text-center text-[11px] leading-relaxed text-gray-500">
+            Dibuka di AI Mastery dengan kursus ini sebagai konteks belajarnya.
+          </p>
+        </>
+      ) : (
+        <>
+          {/* `disabled` pada <button> asli, bukan `aria-disabled` pada sebuah
+              link: `aria-disabled` mengeluarkan node dari accessibility tree,
+              bukan dari urutan tab, jadi link-nya tetap bisa di-fokus dan
+              di-Enter. Lihat careevo-browser-verify, "focusable but hidden". */}
+          <button
+            type="button"
+            disabled
+            aria-describedby="catatan-tutor-ai"
+            className="mt-4 flex w-full cursor-not-allowed items-center justify-center gap-1.5 rounded-full bg-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-400"
+          >
+            <LockKeyhole size={14} strokeWidth={2} aria-hidden="true" />
+            Tanya tutor AI
+          </button>
+          {/* Pesan dipakai apa adanya dari `putuskanAkses`, sama seperti
+              `CourseSessionGate`, supaya copy tidak menyimpang dari mesin akses. */}
+          <p id="catatan-tutor-ai" className="mt-2 text-center text-[11px] leading-relaxed text-gray-500">
+            {akses.pesan}
+          </p>
+        </>
+      )}
     </section>
   );
 }

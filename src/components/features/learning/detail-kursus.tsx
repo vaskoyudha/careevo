@@ -84,6 +84,7 @@ export function DetailKursus({
   terkait,
   tugas,
   kebijakan,
+  aiCourseId,
 }: {
   kursus: DetailKursusData;
   modul: ModulKursus[];
@@ -92,6 +93,11 @@ export function DetailKursus({
   terkait: KursusTerkait[];
   tugas: TugasTerkait | null;
   kebijakan: KebijakanCourse;
+  /**
+   * Id course di AI Mastery, sudah di-resolve server. Sama dengan `kursus.id`
+   * bila bridging tidak tersedia — lihat `tutor-ai-kursus.ts`.
+   */
+  aiCourseId?: string;
 }) {
   return (
     <CourseSessionProvider courseId={kursus.id} kebijakan={kebijakan}>
@@ -102,6 +108,7 @@ export function DetailKursus({
         selesaiAwal={selesaiAwal}
         terkait={terkait}
         tugas={tugas}
+        aiCourseId={aiCourseId ?? kursus.id}
       />
     </CourseSessionProvider>
   );
@@ -121,6 +128,7 @@ function RuangBelajar({
   selesaiAwal,
   terkait,
   tugas,
+  aiCourseId,
 }: {
   kursus: DetailKursusData;
   modul: ModulKursus[];
@@ -128,6 +136,7 @@ function RuangBelajar({
   selesaiAwal: string[];
   terkait: KursusTerkait[];
   tugas: TugasTerkait | null;
+  aiCourseId: string;
 }) {
   const [selesai, setSelesai] = useState<string[]>(() =>
     irisModulSelesai(selesaiAwal, modul),
@@ -162,6 +171,20 @@ function RuangBelajar({
    * Prosa (`halaman`) sengaja tetap bebas — membaca bukan penyelesaian.
    */
   const keputusanKuis = boleh("kuis");
+  /**
+   * Keputusan untuk tombol "Tanya tutor AI".
+   *
+   * `bantuan_akademik` adalah satu-satunya jenis kegiatan yang membaca
+   * `aturan_bantuan` — inilah jalur yang membuat aturan `tanpa_ai` ditegakkan di
+   * UI, dan `CourseSessionIndicator` yang menampilkan label aturan itu
+   * sebelumnya tidak punya consumers. Tanpa pemanggilan ini, kebijakan
+   * `tanpa_ai` hanya dicetak ke layar tanpa pernah membatasi apa pun.
+   *
+   * Perhatikan bahwa `putuskanAkses` untuk jenis ini **tidak** membaca
+   * `adaBuktiSesi`: tutor AI adalah bantuan belajar, bukan penyelesaian, jadi
+   * sesi terverifikasi tidak menjadi syaratnya.
+   */
+  const keputusanBantuan = boleh("bantuan_akademik");
   /**
    * Apakah course ini mewajibkan penyelesaian lewat sesi terverifikasi.
    *
@@ -614,10 +637,11 @@ function RuangBelajar({
 
             {sudahDaftar ? (
               <KursusAiPanel
-                courseId={kursus.id}
+                courseId={aiCourseId}
                 judul={kursus.title}
                 penyedia={kursus.provider}
                 jumlahModul={modul.length}
+                akses={keputusanBantuan}
               />
             ) : null}
           </aside>

@@ -4,6 +4,7 @@ import { LearnerShell } from "@/components/ui/learner-shell";
 import { AiMasteryNavbar } from "@/components/ui/ai-mastery-navbar";
 import { AiMasteryFrame } from "@/components/features/ai-mastery/ai-mastery-frame";
 import { AI_MASTERY_WEB_URL } from "@/lib/mode/store";
+import { urlFrameAiMastery } from "@/lib/learning/tutor-ai";
 
 /**
  * AI Mastery, hosted inside Careevo.
@@ -38,12 +39,10 @@ export default async function AiMasteryPage({
   // supaya aplikasi itu sendiri yang memvalidasi kursusnya. Id yang tidak
   // dikenalnya jatuh ke chat biasa, jadi deep-link ini tidak pernah memaksa
   // halaman rusak.
-  const frameQuery = new URLSearchParams();
-  if (course) frameQuery.set("course", course);
-  if (capability) frameQuery.set("capability", capability);
-  const src = frameQuery.size
-    ? `${AI_MASTERY_WEB_URL}?${frameQuery.toString()}`
-    : AI_MASTERY_WEB_URL;
+  //
+  // Tanpa query, `src` dikembalikan apa adanya — navbar dan halaman mastery
+  // menautkan `/ai-mastery` polos dan tidak boleh ikut berubah.
+  const src = urlFrameAiMastery(AI_MASTERY_WEB_URL, { course, capability });
 
   return (
     <LearnerShell

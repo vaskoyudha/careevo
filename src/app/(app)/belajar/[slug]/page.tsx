@@ -11,6 +11,7 @@ import { progresKursusDb } from "@/lib/learning/service";
 import { getCourseById } from "@/lib/courses/store";
 import { kebijakanDefault } from "@/lib/courses/kebijakan";
 import { tasks } from "@/lib/fixtures";
+import { selaraskanKursusAi } from "@/lib/learning/tutor-ai-kursus";
 
 export async function generateMetadata({
   params,
@@ -71,6 +72,24 @@ export default async function DetailKursusPage({
 
   const tugas = tasks.find((task) => task.status === "available" || task.status === "review") ?? null;
 
+  /**
+   * Id course pasangannya di AI Mastery, hanya untuk peserta yang terdaftar.
+   *
+   * Dijalankan **setelah** `enrollment` dibaca karena panel tutor hanya tampil
+   * setelah pendaftaran, sehingga course yang tidak pernah dibuka tidak pernah
+   * menyalakan panggilan ke service lain. `selaraskanKursusAi` mengembalikan
+   * `null` saat bridging tidak dikonfigurasi atau AI Mastery mati; null lalu
+   * menjadi `entri.id`, yaitu perilaku lama (link polosan yang ditolak backend
+   * secara diam-diam), bukan error.
+   */
+  const aiCourseId = enrollment
+    ? ((await selaraskanKursusAi({
+        courseId: entri.id,
+        title: entri.title,
+        modul: modul.map((m) => m.judul),
+      })) ?? entri.id)
+    : entri.id;
+
   return (
     <LearnerShell session={session}>
       <DetailKursus
@@ -96,6 +115,7 @@ export default async function DetailKursusPage({
         selesaiAwal={selesaiAwal}
         terkait={terkait}
         tugas={tugas ? { id: tugas.id, title: tugas.title, brief: tugas.brief } : null}
+        aiCourseId={aiCourseId}
         // Kebijakan tersimpan dibaca apa adanya; kursus yang belum pernah
         // disunting kebijakannya jatuh ke default aman (`aturan_pengawasan:
         // "wajib"`) supaya gerbang tidak diam-diam terbuka.
