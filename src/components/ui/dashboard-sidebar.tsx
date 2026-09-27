@@ -275,6 +275,8 @@ export function DashboardSidebar({
 
     return (
       <aside
+        id="dashboard-mobile-navigation"
+        aria-label="Navigasi dashboard"
         className={cn("dashboard-sidebar-aside", className)}
         data-open={mobileOpen}
       >
@@ -344,6 +346,8 @@ export function DashboardSidebar({
 
   return (
     <aside
+      id="dashboard-mobile-navigation"
+      aria-label="Navigasi dashboard"
       className={cn("dashboard-sidebar-aside", className)}
       data-open={mobileOpen}
     >
