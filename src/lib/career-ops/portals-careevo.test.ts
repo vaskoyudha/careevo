@@ -46,15 +46,20 @@ const CONFIG = path.join(
 );
 
 /**
- * Only the fields a guard actually reads. `name` and `provider` are absent on
- * purpose: nothing here consults them, and a declared-but-unread field reads
- * like a promise the file is not keeping. A future guard that needs one adds it
- * in the same commit that uses it.
+ * Only the fields a guard actually reads. The interface grew with the guards:
+ * `name` (for a readable assertion message), `provider`, `pageSize`,
+ * `maxPages`, and `searchKeywords` were added in the same commit as the guards
+ * that read them, which is the rule this comment has always stated.
  */
 interface Papan {
+  name?: string;
   enabled?: boolean;
+  provider?: string;
   siteKey?: string;
   countryCode?: string;
+  searchKeywords?: string;
+  pageSize?: number;
+  maxPages?: number;
 }
 
 interface FilterJudul {
@@ -110,6 +115,11 @@ function papanIndonesia(): Papan[] {
       b.enabled === true &&
       (b.siteKey?.startsWith("ID") === true || b.countryCode === "ID"),
   );
+}
+
+/** Enabled boards only — scan.mjs skips a disabled entry without a message. */
+function papanAktif(): Papan[] {
+  return daftarPapan(config().job_boards).filter((b) => b.enabled === true);
 }
 
 describe("config pindai Indonesia", () => {
@@ -197,5 +207,45 @@ describe("config pindai Indonesia", () => {
       (c) => c.enabled === true,
     );
     expect(aktif.length).toBeGreaterThanOrEqual(8);
+  });
+
+  it("setiap papan aktif punya provider dan batas halaman", () => {
+    // scan.mjs reads provider/pageSize/maxPages off each entry. A board missing
+    // any of them is dropped into an unnamed skip count, which reads as
+    // "config healthy, no results" — the same invisible-zero class as a
+    // disabled board.
+    for (const b of papanAktif()) {
+      expect(typeof b.provider, `${b.name}: provider`).toBe("string");
+      expect(Number(b.pageSize), `${b.name}: pageSize`).toBeGreaterThan(0);
+      expect(Number(b.maxPages), `${b.name}: maxPages`).toBeGreaterThan(0);
+    }
+  });
+
+  it("memakai provider Indonesia yang dikenal engine", () => {
+    // The four providers the engine ships for this market. An entry naming a
+    // provider the engine does not have resolves to `unknown provider` and the
+    // board is skipped, so a typo here is a silent zero for that entry.
+    const dikenal = new Set(["jobstreet", "glints", "kalibrr", "dealls"]);
+    for (const b of papanAktif()) {
+      expect(dikenal.has(b.provider ?? ""), `${b.name}: ${b.provider}`).toBe(true);
+    }
+  });
+
+  it("menyapu minimal delapan keluarga peran", () => {
+    // Three families shipped before this change. Five were added. The floor of
+    // eight leaves one family of headroom so a single deliberate removal is not
+    // mistaken for the regression this guard exists to catch.
+    const keluarga = new Set(
+      papanAktif()
+        .map((b) => (b.searchKeywords ?? "").trim().toLowerCase())
+        .filter(Boolean),
+    );
+    expect(keluarga.size).toBeGreaterThanOrEqual(8);
+  });
+
+  it("punya minimal 27 papan aktif", () => {
+    // 12 before (4 providers x 3 families), 15 added (3 answering providers x 5
+    // families). A drop below 27 means the keyword widening was partly reverted.
+    expect(papanAktif().length).toBeGreaterThanOrEqual(27);
   });
 });

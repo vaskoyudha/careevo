@@ -323,6 +323,167 @@ job_boards:
     enabled: true
     notes: Data analyst and science roles in Indonesia.
 
+  # --- Keluarga peran yang ditambahkan 2026-09-29 -------------------------
+  #
+  # Lima keluarga peran tech besar yang belum disapu, masing-masing untuk tiga
+  # provider yang MENJAWAB (Jobstreet, Kalibrr, Dealls). Glints sengaja tidak
+  # ditambah: papannya diblokir WAF dan mengembalikan nol, jadi entri Glints
+  # ekstra hanya menambah waktu pindai tanpa menambah baris.
+  #
+  # pageSize dan maxPages TIDAK dinaikkan. Batas per pindai tetap
+  # entries x 30 x 3, dan pindai punya timeout 5 menit di jalur aplikasi
+  # (src/lib/career-ops/tracker.ts). Menambah entri menambah permintaan secara
+  # linear; menaikkan kedalaman halaman akan mengalikannya lagi.
+  #
+  # title_filter.positive sudah memuat istilah untuk kelima keluarga ini
+  # ("backend", "frontend", "full stack", "devops", "quality assurance"), jadi
+  # tidak ada perubahan di sana.
+
+  - name: Jobstreet Indonesia — backend developer
+    provider: jobstreet
+    api: https://id.jobstreet.com/api/jobsearch/v5/search
+    siteKey: ID-Main
+    searchKeywords: backend developer
+    pageSize: 30
+    maxPages: 3
+    enabled: true
+    notes: Backend adalah keluarga terbesar setelah software engineer di pasar Indonesia.
+
+  - name: Jobstreet Indonesia — frontend developer
+    provider: jobstreet
+    api: https://id.jobstreet.com/api/jobsearch/v5/search
+    siteKey: ID-Main
+    searchKeywords: frontend developer
+    pageSize: 30
+    maxPages: 3
+    enabled: true
+    notes: React/Vue/Angular; audiens utama jalur Fullstack & Frontend Careevo.
+
+  - name: Jobstreet Indonesia — full stack developer
+    provider: jobstreet
+    api: https://id.jobstreet.com/api/jobsearch/v5/search
+    siteKey: ID-Main
+    searchKeywords: full stack developer
+    pageSize: 30
+    maxPages: 3
+    enabled: true
+    notes: Judul fullstack sering tidak menyebut "backend" maupun "frontend", jadi tidak tertangkap dua entri di atas.
+
+  - name: Jobstreet Indonesia — devops engineer
+    provider: jobstreet
+    api: https://id.jobstreet.com/api/jobsearch/v5/search
+    siteKey: ID-Main
+    searchKeywords: devops engineer
+    pageSize: 30
+    maxPages: 3
+    enabled: true
+    notes: DevOps, SRE, dan cloud; kategori "DevOps & Infrastruktur" di facet.
+
+  - name: Jobstreet Indonesia — quality assurance
+    provider: jobstreet
+    api: https://id.jobstreet.com/api/jobsearch/v5/search
+    siteKey: ID-Main
+    searchKeywords: quality assurance
+    pageSize: 30
+    maxPages: 3
+    enabled: true
+    notes: QA manual dan otomasi; kategori "QA & Pengujian" di facet.
+
+  - name: Kalibrr Indonesia — backend developer
+    provider: kalibrr
+    api: https://www.kalibrr.com/api/job_board/search
+    countryCode: ID
+    searchKeywords: backend developer
+    pageSize: 30
+    maxPages: 3
+    enabled: true
+    notes: REST publik tanpa token; mencakup sektor perbankan dan korporat Indonesia.
+
+  - name: Kalibrr Indonesia — frontend developer
+    provider: kalibrr
+    api: https://www.kalibrr.com/api/job_board/search
+    countryCode: ID
+    searchKeywords: frontend developer
+    pageSize: 30
+    maxPages: 3
+    enabled: true
+    notes: Posting frontend di papan Kalibrr Indonesia.
+
+  - name: Kalibrr Indonesia — full stack developer
+    provider: kalibrr
+    api: https://www.kalibrr.com/api/job_board/search
+    countryCode: ID
+    searchKeywords: full stack developer
+    pageSize: 30
+    maxPages: 3
+    enabled: true
+    notes: Peran fullstack di startup dan korporat Indonesia.
+
+  - name: Kalibrr Indonesia — devops engineer
+    provider: kalibrr
+    api: https://www.kalibrr.com/api/job_board/search
+    countryCode: ID
+    searchKeywords: devops engineer
+    pageSize: 30
+    maxPages: 3
+    enabled: true
+    notes: DevOps dan SRE di papan Kalibrr Indonesia.
+
+  - name: Kalibrr Indonesia — quality assurance
+    provider: kalibrr
+    api: https://www.kalibrr.com/api/job_board/search
+    countryCode: ID
+    searchKeywords: quality assurance
+    pageSize: 30
+    maxPages: 3
+    enabled: true
+    notes: QA manual dan otomasi di papan Kalibrr Indonesia.
+
+  - name: Dealls Indonesia — backend developer
+    provider: dealls
+    api: https://api.sejutacita.id/v1/explore-job/job
+    searchKeywords: backend developer
+    pageSize: 30
+    maxPages: 3
+    enabled: true
+    notes: REST publik tanpa token; marketplace talenta startup Indonesia.
+
+  - name: Dealls Indonesia — frontend developer
+    provider: dealls
+    api: https://api.sejutacita.id/v1/explore-job/job
+    searchKeywords: frontend developer
+    pageSize: 30
+    maxPages: 3
+    enabled: true
+    notes: Posting frontend di papan Dealls Indonesia.
+
+  - name: Dealls Indonesia — full stack developer
+    provider: dealls
+    api: https://api.sejutacita.id/v1/explore-job/job
+    searchKeywords: full stack developer
+    pageSize: 30
+    maxPages: 3
+    enabled: true
+    notes: Peran fullstack di startup Indonesia.
+
+  - name: Dealls Indonesia — devops engineer
+    provider: dealls
+    api: https://api.sejutacita.id/v1/explore-job/job
+    searchKeywords: devops engineer
+    pageSize: 30
+    maxPages: 3
+    enabled: true
+    notes: DevOps dan SRE di papan Dealls Indonesia.
+
+  - name: Dealls Indonesia — quality assurance
+    provider: dealls
+    api: https://api.sejutacita.id/v1/explore-job/job
+    searchKeywords: quality assurance
+    pageSize: 30
+    maxPages: 3
+    enabled: true
+    notes: QA manual dan otomasi di papan Dealls Indonesia.
+
 # VERIFIED 2026-09-27 — every careers_url below was produced by
 # `node engine/discover-ats.mjs --in perusahaan-id-final.yml --summary`
 # (resolved: 11 | unresolved: 0), then independently re-checked with curl -L:
