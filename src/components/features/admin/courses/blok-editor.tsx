@@ -40,14 +40,30 @@ interface BlokEditorProps {
   subjekUnggah: string;
 }
 
+/**
+ * `Record<TipeBlok, string>`, bukan `Partial<Record<...>>` — supaya menambah
+ * tipe blok baru memaksa labelnya ditulis di sini, bukan diam-diam tampil
+ * `undefined` di dropdown.
+ */
 const LABEL_TIPE: Record<TipeBlok, string> = {
   paragraf: "Paragraf",
   heading: "Judul section",
   daftar: "Daftar",
   kutipan: "Kutipan",
+  kode: "Kode",
   gambar: "Gambar",
 };
 
+/**
+ * Sengaja belum memuat `kode`.
+ *
+ * Memasukkannya berarti Percaya bisa membuat blok kode, sementara
+ * `BlokEditor` belum punya `case "kode"` untuk menyuntingnya — blok yang
+ * dibuat tapi tidak bisa disunting adalah data rusak. Labelnya sudah ada di
+ * `LABEL_TIPE` karena peta itu wajib exhaustif; yang belum boleh jalan adalah
+ * pilihannya. `kode` masuk ke sini di Task 4
+ * (`docs/superpowers/plans/2026-09-27-blok-kode-cpp.md`), setelah `KodeView`.
+ */
 const TIPE_BISA_DITAMBAH: TipeBlok[] = ["paragraf", "heading", "daftar", "kutipan", "gambar"];
 
 export function BlokEditor({
