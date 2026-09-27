@@ -139,7 +139,7 @@ function selesai(
 const NOW = jam("2026-09-27");
 
 describe("kunciHari", () => {
-  it("mengkeysolusi tanggal according to zona waktu, bukan UTC", () => {
+  it("mengkeysolusi tanggal menurut zona waktu, bukan UTC", () => {
     // 2026-09-26T20:00Z adalah 2026-09-27 03:00 WIB — hari berikutnya di lokal.
     expect(kunciHari(new Date("2026-09-26T20:00:00.000Z"), ZONA)).toBe("2026-09-27");
     // 2026-09-27T15:00Z adalah 2026-09-27 22:00 WIB — masih hari yang sama.
@@ -531,7 +531,7 @@ export function ringkasKehadiran(
 
 Run: `npx vitest run src/lib/learning/kehadiran.test.ts`
 
-Expected: PASS — 19 tests across five `describe` blocks.
+Expected: PASS — 19 tests across four `describe` blocks.
 
 - [ ] **Step 5: Run the full gate**
 
@@ -640,31 +640,45 @@ Append to `src/lib/learning/run-service.integration.test.ts`:
 
 ```ts
 describe("runDalamRentang", () => {
-  /** Run `completed` sepanjang `menit`, dimulai pada `mulai`. */
+  /**
+   * Satu run `completed` sepanjang `menit`, dimulai pada `mulai`.
+   *
+   * Memakai `buatRun` dan bukan `mulaiRunDb` dengan sengaja: `mulaiRunDb`
+   * menegakkan "satu run aktif per (user, course)" dan mengembalikan run yang
+   * sudah ada pada panggilan kedua, jadi tiga run untuk satu akun tidak bisa
+   * dibuat lewat sana. Yang diuji di sini adalah query pembacaan, bukan
+   * lifecycle run, jadi menyisipkan langsung adalah cara yang jujur.
+   */
   async function runSelesai(
-    principal: SessionPrincipal,
+    enrollmentId: string,
+    userId: string,
     mulai: Date,
     menit: number,
   ): Promise<void> {
-    const { run } = await mulaiRunDb({
-      principal,
-      enrollmentId: (await ambilEnrollmentAktif(principal)).id,
+    const run = await buatRun({
+      userId,
+      enrollmentId,
       courseId: COURSE_ID,
-      policyVersion: 1,
-      batasMenit: 600,
+      expiresAt: new Date(mulai.getTime() + 600 * 60_000),
+      integrityVersion: 1,
     });
     await db
       .update(learningRuns)
-      .set({ state: "completed", completedAt: new Date(mulai.getTime() + menit * 60_000) })
+      .set({
+        startedAt: mulai,
+        state: "completed",
+        completedAt: new Date(mulai.getTime() + menit * 60_000),
+      })
       .where(eq(learningRuns.id, run.id));
   }
 
   it("hanya mengembalikan run di dalam jendela, terurut menaik", async () => {
-    const principal = await siapkanPeserta();
+    const { principal, enrollment } = await siapkanPeserta();
     const dasar = new Date("2026-09-21T04:00:00.000Z");
-    await runSelesai(principal, new Date(dasar.getTime() + 86_400_000), 60); // 22 Sep
-    await runSelesai(principal, dasar, 30); // 21 Sep
-    await runSelesai(principal, new Date(dasar.getTime() + 2 * 86_400_000), 90); // 23 Sep
+    // Disisipkan tidak berurutan supaya urutan hasil benar-benar diuji.
+    await runSelesai(enrollment.id, principal.userId, new Date(dasar.getTime() + 86_400_000), 60);
+    await runSelesai(enrollment.id, principal.userId, dasar, 30);
+    await runSelesai(enrollment.id, principal.userId, new Date(dasar.getTime() + 2 * 86_400_000), 90);
 
     const hasil = await runDalamRentang(
       principal.userId,
@@ -672,8 +686,8 @@ describe("runDalamRentang", () => {
       new Date("2026-09-23T00:00:00.000Z"),
     );
 
-    // 23 Sep ada di tabel tetapiics startedAt-nya tepat pada batas atas
-    // eksklusif, jadi tidak ikut.
+    // Run 23 Sep ada di tabel, tetapi `startedAt`-nya tepat pada batas atas
+    // yang eksklusif, jadi tidak ikut.
     expect(hasil).toHaveLength(2);
     expect(hasil.map((r) => r.startedAt.toISOString())).toEqual([
       "2026-09-21T04:00:00.000Z",
@@ -685,21 +699,21 @@ describe("runDalamRentang", () => {
     const budi = await siapkanPeserta("budi@contoh.test");
     const sari = await siapkanPeserta("sari@contoh.test");
     const dasar = new Date("2026-09-21T04:00:00.000Z");
-    await runSelesai(budi, dasar, 30);
-    await runSelesai(sari, dasar, 30);
+    await runSelesai(budi.enrollment.id, budi.principal.userId, dasar, 30);
+    await runSelesai(sari.enrollment.id, sari.principal.userId, dasar, 30);
 
     const hasil = await runDalamRentang(
-      budi.userId,
+      budi.principal.userId,
       new Date("2026-09-21T00:00:00.000Z"),
       new Date("2026-09-28T00:00:00.000Z"),
     );
 
     expect(hasil).toHaveLength(1);
-    expect(hasil[0]!.userId).toBe(budi.userId);
+    expect(hasil[0]!.userId).toBe(budi.principal.userId);
   });
 
   it("jendela kosong menghasilkan array kosong, bukan galat", async () => {
-    const principal = await siapkanPeserta();
+    const { principal } = await siapkanPeserta();
     const hasil = await runDalamRentang(
       principal.userId,
       new Date("2020-01-01T00:00:00.000Z"),
@@ -708,8 +722,8 @@ describe("runDalamRentang", () => {
     expect(hasil).toEqual([]);
   });
 
-  it("jendela terbalik menghasilkan array kosong", async () => {
-    const principal = await siapkanPeserta();
+  it("jendela terbalik menghasilkan array kosong, bukan galat", async () => {
+    const { principal } = await siapkanPeserta();
     const hasil = await runDalamRentang(
       principal.userId,
       new Date("2026-09-28T00:00:00.000Z"),
@@ -720,10 +734,11 @@ describe("runDalamRentang", () => {
 });
 ```
 
-Two things to fix in that block before running it, because the code above is written to be read rather than pasted:
-
-1. `ambilEnrollmentAktif` does not exist. Replace the `runSelesai` helper with one that takes the enrollment id from `siapkanPeserta`, following how `run-service.integration.test.ts` already builds runs. Read `siapkanPeserta` at line 98 first and match it.
-2. Add `runDalamRentang` to the existing `@/lib/learning/repository` import at the top of the test file, and confirm `eq` and `learningRuns` are already imported — the file's `beforeEach` truncate references `learning_runs`, so they should be.
+`buatRun` must be added to the existing `@/lib/learning/repository` import at the
+top of the test file, alongside `runDalamRentang`. `eq`, `sql`, `learningRuns`,
+`getDb`, `tutupDb`, `daftarPengguna`, and `mulaiRunDb` are already imported by the
+existing tests, and `siapkanPeserta`, `COURSE_ID`, `db`, and `kosongkan` are
+defined above the new block — do not redeclare any of them.
 
 - [ ] **Step 4: Run the integration test to verify it passes**
 
@@ -889,10 +904,10 @@ describe("jadwalDariRingkasan", () => {
     expect(hasil.streakHari).toBe(0);
   });
 
-  it("seperiuh basal menghasilkan 15 dari 30", () => {
-    // 3 sesi dari basal 3 → kepatuhan 1.0 (20 poin); 150 menit = 2,5 jam dari
-    // basal 5 → rasio jam 0,5 (5 poin). Total 25, bukan 15: yangseparuh basal
-    // hanya di sisi jam.
+  it("seperiuh basal pada sisi jam menghasilkan 25 dari 30", () => {
+    // 3 sesi dari basal 3 → kepatuhan 1,0 (20 poin); 150 menit = 2,5 jam dari
+    // basal 5 → rasio jam 0,5 (5 poin). Total 25, bukan 15: yang setengah basal
+    // hanya sisi jam, sisi sesi sudah penuh.
     const hasil = jadwalDariRingkasan(
       ringkasKehadiran(
         [
@@ -933,8 +948,10 @@ describe("jadwalDariRingkasan", () => {
   });
 
   it("bentuk hasil selalu punya semua field — tidak ada optional yang bisa hilang", () => {
-    // Guard bentuk: UI membaca `hasil.streakHari` tanpaoptional chaining,
+    // Guard bentuk: UI membaca `hasil.streakHari` tanpa optional chaining,
     // jadi field yang hilang akan menjadi `undefined` di layar, bukan 0.
+    // `jadwalTotal` ikut diperiksa karena kartu mencetaknya di angka utama,
+    // jadi field yang hilang membuat judul kartu kosong.
     const hasil: JadwalPemain = jadwalDariRingkasan(nilai());
     for (const kunci of [
       "streakHari",
@@ -943,6 +960,7 @@ describe("jadwalDariRingkasan", () => {
       "targetJamMingguan",
       "jadwalSesi",
       "jadwalJam",
+      "jadwalTotal",
       "kepatuhan",
       "rasioJam",
     ] as const) {
@@ -952,9 +970,10 @@ describe("jadwalDariRingkasan", () => {
 });
 ```
 
-Both of these are deliberate: the first test proves the split terms sum to the same
-value `hitungSkorJadwal` returned (7 + 10 = 17), which is the property that would
-break silently if someone recovered the terms a different way later.
+The last two cases are deliberate rather than redundant: the field-list test is
+what fails if someone adds a field to `JadwalPemain` and forgets to populate it,
+and the 7 + 10 = 17 case is the property that breaks silently if someone later
+recovers the split terms a different way instead of from the ratios.
 
 - [ ] **Step 2: Run the test to verify it fails**
 
@@ -1103,7 +1122,7 @@ import { hitungSkorJadwal } from "@/lib/scoring";
 
 Run: `npx vitest run src/lib/learning/jadwal-service.test.ts`
 
-Expected: PASS, 8 tests across three `describe` blocks.
+Expected: PASS, 10 tests across two `describe` blocks.
 
 - [ ] **Step 5: Add one integration test for the real read**
 
