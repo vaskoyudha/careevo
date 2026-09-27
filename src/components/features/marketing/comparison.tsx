@@ -1,4 +1,4 @@
-import { Check, Minus, Scale, X } from "lucide-react";
+import { Check, Minus, MoveHorizontal, Scale, X } from "lucide-react";
 import { Reveal } from "./primitives";
 import {
   KELOMPOK,
@@ -107,8 +107,12 @@ export function MarketingComparison() {
 
         <Reveal>
           <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-feature-card">
+            <p className="flex items-center gap-2 border-b border-gray-200 px-4 py-2.5 text-xs text-gray-500 sm:hidden">
+              <MoveHorizontal size={13} strokeWidth={1.75} aria-hidden="true" />
+              Geser tabel ke samping untuk lihat platform lain
+            </p>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[860px] border-collapse text-left">
+              <table className="w-full min-w-[556px] border-collapse text-left sm:min-w-[700px] lg:min-w-[860px]">
                 <caption className="sr-only">
                   Perbandingan kemampuan Careevo dengan Dicoding, Karir.com,
                   dan Skill Academy
@@ -118,7 +122,7 @@ export function MarketingComparison() {
                   <tr className="border-b border-gray-200">
                     <th
                       scope="col"
-                      className="sticky left-0 z-20 w-[300px] bg-white px-5 py-4 align-bottom"
+                      className="sticky left-0 z-20 w-[136px] bg-white px-3 py-4 align-bottom sm:w-[200px] sm:px-5 lg:w-[300px]"
                     >
                       <span className="text-xs font-medium tracking-wide text-gray-400 uppercase">
                         Kemampuan
@@ -128,16 +132,14 @@ export function MarketingComparison() {
                       <th
                         key={p.key}
                         scope="col"
-                        className={`w-[140px] px-4 py-4 align-bottom ${p.ours ? kolomOurs : ""}`}
+                        className={`w-[104px] px-2 py-4 align-bottom sm:w-[124px] sm:px-4 lg:w-[140px] ${p.ours ? kolomOurs : ""}`}
                       >
                         <span
-                          className={`block text-sm font-semibold ${
-                            p.ours ? "text-blue-700" : "text-gray-900"
-                          }`}
+                          className={`block text-sm font-semibold ${p.ours ? "text-blue-700" : "text-gray-900"}`}
                         >
                           {p.label}
                         </span>
-                        <span className="mt-0.5 block text-xs font-normal text-gray-500">
+                        <span className="mt-0.5 hidden text-xs font-normal text-gray-500 sm:block">
                           {p.sub}
                         </span>
                       </th>
@@ -151,7 +153,7 @@ export function MarketingComparison() {
                       <th
                         scope="colgroup"
                         colSpan={PLATFORM.length + 1}
-                        className="sticky left-0 border-y border-gray-100 bg-[#F9FAFB] px-5 py-2.5 text-left"
+                        className="sticky left-0 border-y border-gray-100 bg-[#F9FAFB] px-3 py-2.5 text-left sm:px-5"
                       >
                         <span className="text-[11px] font-semibold tracking-wider text-gray-500 uppercase">
                           {kelompok.judul}
@@ -166,13 +168,13 @@ export function MarketingComparison() {
                       >
                         <th
                           scope="row"
-                          className="sticky left-0 z-10 bg-white px-5 py-4 align-top font-normal"
+                          className="sticky left-0 z-10 bg-white px-3 py-4 align-top font-normal sm:px-5"
                         >
                           <span className="block text-sm font-medium text-gray-900">
                             {baris.label}
                           </span>
                           {baris.note ? (
-                            <span className="mt-0.5 block text-xs text-gray-500">
+                            <span className="mt-0.5 hidden text-xs text-gray-500 sm:block">
                               {baris.note}
                             </span>
                           ) : null}
@@ -181,7 +183,7 @@ export function MarketingComparison() {
                         {PLATFORM.map((p) => (
                           <td
                             key={p.key}
-                            className={`px-4 py-4 align-top ${p.ours ? kolomOurs : ""}`}
+                            className={`px-2 py-4 align-top sm:px-4 ${p.ours ? kolomOurs : ""}`}
                           >
                             <Isi nilai={baris[p.key]} ours={p.ours} />
                           </td>
