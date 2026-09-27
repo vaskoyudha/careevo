@@ -16,6 +16,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { auditLog, jobs, profile, reviewQueue, submission, tasks } from "@/lib/fixtures";
+import { levelLabel } from "@/lib/onboarding/types";
 import { cn } from "@/lib/utils";
 import { Reveal } from "./primitives";
 
@@ -482,7 +483,7 @@ function SentinelWorkflowVisual() {
                       <div className="mt-2 flex flex-wrap gap-x-3 font-mono text-[9px] text-[#8aa0ac]">
                         <span>{job.source}</span>
                         <span>trust {job.trust_score}</span>
-                        <span>{job.level}</span>
+                        <span>{levelLabel(job.level)}</span>
                       </div>
                     </div>
                   </div>
