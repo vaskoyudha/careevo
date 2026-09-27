@@ -805,6 +805,26 @@ diblokir WAF. Jobstreet dan Kalibrr dipindai **12 halaman** per keluarga
 hanya berkas mana yang disalin yang berubah.
 ```
 
+- [ ] **Step 1b: Fix the stale `boards` value above "Batasnya"**
+
+The `### Membaca hasil pindai` section hard-codes the old six-board count in three places, all of which now contradict the 27 that Step 1 ships:
+
+- `Nilai yang benar adalah \`6\`.` → `Nilai yang benar adalah \`27\`.`
+- `` `boards: 6` dengan kontribusi nol dari Glints `` → `` `boards: 27` dengan kontribusi nol dari Glints ``
+- `` `boards: 6` dengan `new_added: 0` berarti tidak ada yang cocok `` → `` `boards: 27` dengan `new_added: 0` berarti tidak ada yang cocok ``
+
+Make exactly those three substitutions; the Glints-403 sentences between them stay, because they are still true (`3 auth` on the latest run — see Task 4's `portal-health.tsv`).
+
+Leave the `` `boards: 1` baru berarti config Careevo tidak terbaca sama sekali. `` sentence **exactly as it is**. It was tempting to bump that to `0` along with the rest, but the fallback tell did not move: `engine/templates/portals.example.yml` still enables exactly one board (SolidJobs IT, a Polish board), so a config that falls back to the template still reads `boards: 1`, exactly as it did before. Only the *normal* value changed (6 → 27); the *fallback* value did not.
+
+Then confirm no stale value remains:
+
+```bash
+grep -n 'boards: 6\|nilai yang benar adalah `6`\|Nilai yang benar adalah `6`' docs/local-db.md && echo "STALE 6 LEFT" || echo "clean"
+```
+
+Expected: `clean`.
+
 - [ ] **Step 2: Replace the ceiling arithmetic with the measured numbers**
 
 Find the section headed `### Batasnya, dan mengapa itu bukan cakupan nasional`. It runs from that heading down to (but not including) the next `###` heading, `### Pindai dua kali berturut-turut mengukur rate limit, bukan config`. Replace the **entire body** — the introductory line, the bullet list, and the trailing paragraph that begins `Langit-langit mentahnya sekitar 445` — with the Task 4 measurements. Leaving that paragraph would keep a stale `445`/`295` arithmetic contradicting the new counts directly above it. Use the real numbers, in this shape:
