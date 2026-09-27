@@ -62,10 +62,15 @@ title_filter:
   # sales-engineering and account-management postings, so those are vetoed here.
   #
   # Matching is substring for entries of four characters or more
-  # (title-keywords.mjs:121 compileKeyword), so these veto "Growth Marketing"
-  # and "Software Engineer, Sales" as intended. Two-letter and three-letter
-  # entries are the exception: they are word-boundary anchored, which is why
-  # `ios` above cannot match inside another word.
+  # (title-keywords.mjs:121 compileKeyword, whose catch-all return is
+  # `lower.includes(kw)` at :131), so `marketing` vetoes "Growth Marketing" and
+  # `sales engineer` vetoes "Software Sales Engineer". What substring matching
+  # does NOT catch is a reordering of the same two words: `sales engineer` is
+  # not a substring of "Software Engineer, Sales", so that title PASSES this
+  # sweep (verified against compileKeyword, not assumed). Two-letter and
+  # three-letter entries are the exception to the rule above: they are
+  # word-boundary anchored, which is why `ios` above cannot match inside another
+  # word.
   #
   # Java, PHP, Ruby and .NET are NOT vetoed. The engine template excluded them
   # because its market was European AI/automation roles; in Indonesia they are
@@ -279,14 +284,29 @@ job_boards:
 # Blibli, Indosat, Halodoc, Indodana, J&T) were verified as real careers pages
 # too, but NO engine provider claims them, so scan.mjs would skip every one
 # silently — the engine calls that verdict `no-provider`. They are deliberately
-# excluded — see task-1-report.md.
+# excluded, and the reason is provider reachability rather than quality: the
+# engine's own `loadProviders` + `resolveProvider` returns null for every one of
+# them (`node engine/audit-portals.mjs --summary` reports the verdict;
+# engine/verify-portals.mjs:907 prints the same count as "N no-provider
+# (skipped)"). A discovery command that resolves a live careers page cannot
+# answer that question, which is why it is asked separately.
 tracked_companies:
-  # --- Boards that are ENTIRELY Indonesian, so no filter is needed to be correct
+  # --- Boards that are Indonesian-DOMINATED, plus the reason for each exclusion
   #
   # This is a market-scope rule, not a quality ranking. Every board below was
-  # read back through the engine's own provider and is Indonesian-only: 767 live
-  # postings, 767 of them Indonesian (task-1-report.md). Nothing has to be
-  # filtered out of them.
+  # read back through the engine's own provider on 2026-09-27 — `loadProviders`
+  # + `resolveProvider` + `provider.fetch` over these nine `careers_url`s, no
+  # filters applied — with this result: 776 live postings, of which 767 are
+  # Indonesian and 9 are not. The nine are Kredivo listing Bangalore, Manila and
+  # Singapore; Techconnect listing Dili, Timor-Leste; and Amartha listing
+  # Shenzhen. "Entirely Indonesian" would therefore be false, and 767 is the
+  # POST-FILTER count rather than the live total.
+  #
+  # Those 9 are exactly what `allow` below rejects, row by row, which is the
+  # whole reason that filter stays load-bearing instead of belt-and-braces (see
+  # the "STILL LOAD-BEARING" block in the location_filter section). The
+  # domination ratio is 98.8%, against Grab's 19% and Bjak's 5.6% below, and
+  # that contrast — not a claim of purity — is what the rule below selects on.
   #
   # Grab and Bjak were VERIFIED and are still deliberately absent — not because
   # they failed verification, but because they are mixed-market: Grab is 85

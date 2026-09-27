@@ -311,11 +311,14 @@ rm .data/career-ops/portals.yml
 ```
 
 Setelah menghapus, muat ulang `/loker/inbox` **dalam sesi yang sudah masuk**.
-Layout `src/app/(app)/layout.tsx` memanggil `redirect("/masuk")` sebelum
-komponen halaman berjalan, jadi `bootstrapCareerOps()` tidak pernah tereksekusi
-pada permintaan tanpa sesi. Jadi `307` ke `/masuk` membuktikan **tidak ada**
-yang tersemai, bukan bahwa seeding sudah berhasil — dan `curl` tanpa cookie
-tidak akan pernah menyemai apa pun.
+Layout `src/app/(app)/layout.tsx` punya **dua** gerbang yang keduanya berjalan
+sebelum komponen halaman, jadi keduanya bisa mencegah seeding tanpa error yang
+terlihat: `redirect("/masuk")` (baris 21) kalau tidak ada sesi, dan
+`redirect("/onboarding")` (baris 25) kalau pengguna sudah masuk tetapi belum
+punya profil — pengecualian hanya untuk peran `verifikator`/`admin`. Jadi
+`307` ke `/masuk` **atau** ke `/onboarding` membuktikan **tidak ada** yang
+tersemai, bukan bahwa seeding sudah berhasil — dan `curl` tanpa cookie tidak
+akan pernah menyemai apa pun.
 
 Untuk memastikan seed mana yang terpakai:
 
@@ -341,31 +344,55 @@ benar adalah `6`. Hanya tiga yang menjawab: ketiga entri Glints mengembalikan
 adalah **bentuk keberhasilan yang diharapkan**, bukan kegagalan sebagian.
 `boards: 1` baru berarti config Careevo tidak terbaca sama sekali.
 
+`boards: 0` adalah perkiraan yang paling mungkin muncul dan yang paling
+berbahaya, karena tidak ada yang gagal keras: `scan.mjs` melewati setiap entri
+yang `enabled: false` tanpa satu pesan pun (`engine/scan.mjs:3354`) lalu
+mencetak ringkasan nol yang sehat. Dua bentuk lain yang senyap: `portals.yml`
+yang mengurai menjadi objek non-mapping menjadi `{}`
+(`engine/scan.mjs:3308`), dan `companies=0 boards=0 errors=0` pada receipt. Yang
+berbeda, `portals.yml` yang **hilang** atau tidak bisa diurai itu keras —
+`Error:` lalu `exit 1` (`engine/scan.mjs:3296-3299` dan `:3301-3307`) — jadi
+`boards: 0` bukan salah satu dari keduanya. Kalau `boards: 0`, periksa
+`enabled:` di config yang benar-benar tersemai, bukan `filtered_*`.
+
 `boards: 6` dengan `new_added: 0` berarti tidak ada yang cocok; periksa
 `filtered_location` dan `filtered_title` di baris yang sama. `filtered_title`
 yang mendekati `found` punya dua arti yang sama-sama sah: `title_filter` terlalu
 sempit, **atau** filter itu bekerja dengan benar karena banyak papan Indonesia
-bukan perusahaan teknologi. Amartha mengukurnya: 530 lowongan, hanya **6** yang
-teknis — sisanya nyata (44 sales, 35 collection, 11 finance, sisanya
-operasional), karena Amartha adalah perusahaan pinjaman digital. Rasio itu
-memang seharusnya begitu.
+bukan perusahaan teknologi. Amartha mengukurnya, dibaca ulang pada 2026-09-27
+dengan `buildTitleFilter` dan `location_filter` **dari config ini sendiri**:
+527 lowongan, hanya **3** yang lolos `title_filter`, dan dari 3 itu hanya
+**1** yang juga lolos `location_filter`. Sisanya nyata (44 sales, 35
+collection, 11 finance, sisanya operasional), karena Amartha adalah perusahaan
+pinjaman digital. Rasio itu memang seharusnya begitu. (Papan Workable bergerak:
+angka dasarnya bisa bergeser beberapa posting di antara dua pembacaan, jadi
+hitung ulang daripada memperlakukannya sebagai konstanta.)
 
 ### Batasnya, dan mengapa itu bukan cakupan nasional
 
 Batas-batas ini harus dibaca apa adanya, bukan sebagai jangkauan pasar:
 
-- Pindai bersih terakhir menambah **175** baris tech — angka hasil ukur, bukan
+- Pindai bersih terakhir menambah **201** baris tech — angka hasil ukur, bukan
   perkiraan, dan sudah sesudah `title_filter` serta `location_filter` menyisir.
+  (Bukan 175: itu hitungan pindai 09:32, tujuh menit sebelumnya. Yang di disk
+  adalah keluaran pindai 09:39 — 201 baris, semuanya `first_seen
+  2026-09-27`, dan 175 + 201 akan jadi 376, bukan 201.)
 - Enam entri papan memberi batas mentah `6 x pageSize 30 x maxPages 3 = 540`.
-  Karena Glints tidak menjawab, yang benar-benar menyumbang hanya
+  Karena Glints tidak menjawab, yang benar-benar menyumbang paling banyak
   `3 x 90 = 270` dari Jobstreet.
 
-Langit-langit mentahnya sekitar 445, dan itu pun belum menjamin apa yang akan
+Langit-langit mentahnya sekitar 445 **tidak dapat dipertahankan** dari data ini:
+angka itu menjumlahkan 270 + 175, yaitu 270 Jobstreet di pindai kedua ditambah
+176 hasil pindai pertama — dua pindai yang berbeda, bukan satu. Pada pindai yang
+benar-benar menghasilkan korpus di disk, sembilan perusahaan hanya menyumbang
+**25** baris (18 breezy, 7 smartrecruiters) dan Jobstreet **176**; kelima papan
+Workable mengembalikan nol karena rate-limiting. Jadi batas yang terukur pada
+satu pindai adalah **270 + 25 = 295**, dan itu pun belum menjamin apa yang akan
 muncul. Yang benar-benar terukur pada 2026-09-27: **201 baris, 150 perusahaan
-berbeda, seluruhnya Indonesia** — naik dari 486 baris yang sebelumnya hanya
-memuat satu lowongan Indonesia dan 485 sisanya Barat. Jadi ini **bukan cakupan
-nasional**, dan copy UI tidak boleh menjanjikan sebegitu. Frasa seperti
-"ribuan lowongan tech Indonesia" tidak didukung bukti yang ada sekarang.
+berbeda, seluruhnya Indonesia** — naik dari 486 baris yang sebelumnya hanya memuat satu
+lowongan Indonesia dan 485 sisanya Barat. Jadi ini **bukan cakupan nasional**,
+dan copy UI tidak boleh menjanjikan sebegitu. Frasa seperti "ribuan lowongan
+tech Indonesia" tidak didukung bukti yang ada sekarang.
 
 ### Pindai dua kali berturut-turut mengukur rate limit, bukan config
 
