@@ -124,7 +124,10 @@ describe("nilaiJalur — aturan retensi dan kedalaman", () => {
     expect(nilai.selesai).toBe(false);
   });
 
-  it("percobaan review yang benar 20 hari kemudian memenuhi kedalaman concept (7 hari)", () => {
+  it("review benar di attempt ke-3 memberi gap 19 hari — dari attempt sebelumnya, bukan 20", () => {
+    // Attempt review ada di HARI(20), tapi yang diukur adalah jarak dari attempt
+    // SEBELUMNYA di HARI(1), jadi 19. Menamaikannya "20 hari" akan menyesatkan
+    // siapa pun yang menelusuri kegagalan.
     const nilai = nilaiJalur(bundle([titikPython], tigaBenar("kp_1", 0)));
     expect(nilai.poin[0].gapHariTerpanjang).toBe(19);
     expect(nilai.poin[0].kedalaman).toBe(true);
@@ -168,6 +171,52 @@ describe("nilaiJalur — aturan retensi dan kedalaman", () => {
     expect(nilai.poin[0].retensi).toBe(true);
     expect(nilai.poin[0].kedalaman).toBe(true);
     expect(nilai.selesai).toBe(true);
+  });
+
+  it("review yang SALAH tidak memberi retensi maupun kedalaman — datang saja bukan bukti", () => {
+    // Ini bedanya "kembali saat jatuh tempo dan bisa" dari "kembali saat jatuh
+    // tempo dan gagal". Aturan 2 mengukur yang pertama, jadi attempt review yang
+    // salah harus diabaikan seluruhnya: bukan retensi, dan tidak boleh ikut
+    // memperpanjang gap.
+    const nilai = nilaiJalur(
+      bundle(
+        [titikPython],
+        [
+          { knowledgePointId: "kp_1", correct: true, at: HARI(0), source: "session" },
+          { knowledgePointId: "kp_1", correct: true, at: HARI(1), source: "session" },
+          { knowledgePointId: "kp_1", correct: false, at: HARI(20), source: "review" },
+        ],
+      ),
+    );
+    // Dua benar, satu salah → bobot 0.5 + 0.7 dari 2.05 = 1.2 → 0.585…
+    expect(nilai.poin[0].cakupan).toBe(false);
+    expect(nilai.poin[0].retensi).toBe(false);
+    // Attempt review salah tidak pernah dihitung, jadi gap tetap 0 meski 20 hari
+    // berlalu. Kalau ia ikut dihitung, `gapHariTerpanjang` akan jadi 19 dan
+    // `kedalaman` bisa menyesatkan begitu retensi diperbaiki.
+    expect(nilai.poin[0].gapHariTerpanjang).toBe(0);
+    expect(nilai.poin[0].kedalaman).toBe(false);
+    expect(nilai.selesai).toBe(false);
+  });
+
+  it("hasil identik apa pun urutan attempt di log — urutan disk bukan sumber kebenaran", () => {
+    // `recordAttempt` memang menambahkan di akhir, tapi file `.data/mastery/`
+    // bisa ditulis tangan dan urutan itulah yang mengukur kedalaman. Kalau
+    // `urutAttempts` hilang, `hitungPenguasaan` tetap cocok (bobotnya hanya
+    // bergantung pada hitungan benar/salah) — yang berubah diam-diam hanya
+    // `gapHariTerpanjang`. Test ini ada tepat untuk itu.
+    const kronologis = [
+      { knowledgePointId: "kp_1", correct: true, at: HARI(0), source: "session" },
+      { knowledgePointId: "kp_1", correct: true, at: HARI(1), source: "session" },
+      { knowledgePointId: "kp_1", correct: true, at: HARI(20), source: "review" },
+    ] satisfies Attempt[];
+    const nilaiAwal = nilaiJalur(bundle([titikPython], kronologis));
+    const nilaiAcak = nilaiJalur(bundle([titikPython], [...kronologis].reverse()));
+    expect(nilaiAcak).toEqual(nilaiAwal);
+    // Dinyatakan eksplisit supaya kegagalan mengarah ke penyebabnya, bukan
+    // "dua objek tidak sama" yang bisa dibaca sebagai apa pun.
+    expect(nilaiAcak.poin[0].gapHariTerpanjang).toBe(19);
+    expect(nilaiAcak.selesai).toBe(true);
   });
 });
 
@@ -234,7 +283,7 @@ describe("snapshotsBuktiJalur — bukti beku", () => {
     expect(snap.jalur.topicId).toBe("topic_1");
   });
 
-  it("tidak pernah enthusiastically mengklaim attempt yang dinilai saat ambang 0", () => {
+  it("tidak pernah mengklaim attempt yang dinilai saat ambang 0", () => {
     const nilai = nilaiJalur(bundle([titikPython], tigaBenar("kp_1", 0)));
     const snap = snapshotsBuktiJalur(nilai, topic()) as {
       jalur: { perBanding: Record<string, number> };
@@ -243,11 +292,26 @@ describe("snapshotsBuktiJalur — bukti beku", () => {
     expect(snap.jalur.perBanding.dideklarasikan).toBe(3);
   });
 
-  it("deterministik — dua pemanggilan menghasilkan JSON yang sama", () => {
+  it("deterministik — dua pemanggilan pada input yang sama menghasilkan JSON yang sama", () => {
     const nilai = nilaiJalur(bundle([titikPython], tigaBenar("kp_1", 0)));
     const a = JSON.stringify(snapshotsBuktiJalur(nilai, topic()));
     const b = JSON.stringify(snapshotsBuktiJalur(nilai, topic()));
     expect(a).toBe(b);
+  });
+
+  it("reproduibel dari log yang sama walau urutannya berbeda — inilah yang dibekukan", () => {
+    // Dua pemanggilan atas input yang sama hanya bisa gagal kalau ada
+    // `Date.now()`/`Math.random()`/iterasi takentu — jadi test di atas tidak
+    // menyentuh apa pun yang penting. Yang penting: snapshot ini jadi **bukti
+    // kredensial** yang beku, jadi harus bisa direproduksi ulang dari log yang
+    // sama. Log yang ditulis tangan bisa tidak urut, jadi yang diuji di sini
+    // adalah urutan acaknya, bukan mengulang pemanggilan yang sama.
+    const kronologis = tigaBenar("kp_1", 0);
+    const berurutan = nilaiJalur(bundle([titikPython], kronologis));
+    const takBerurutan = nilaiJalur(bundle([titikPython], [...kronologis].reverse()));
+    expect(JSON.stringify(snapshotsBuktiJalur(takBerurutan, topic()))).toBe(
+      JSON.stringify(snapshotsBuktiJalur(berurutan, topic())),
+    );
   });
 });
 
@@ -259,6 +323,35 @@ describe("kalimatKlaimJalur — kalimat yang harus jujur", () => {
     expect(kalimat).toContain("1 poin pengetahuan");
     expect(kalimat).toContain("3 percobaan");
     expect(kalimat).toContain("1 di antaranya dari antrean tinjauan");
+  });
+
+  it("menyatakan komposisi tipe dan jarak tinjauan minimum yang dihitung", () => {
+    // Dua segmen ini ikut dirender untuk fixture di atas (`1 konsep`, `7 hari`)
+    // tapi tidak pernah diperiksa, jadi menghapusnya tidak akan menggagalkan
+    // apa pun. Padahal keduanya bagian yang dibaca reviewer.
+    // Catatan: teksnya `dinilai` dengan huruf kecil, mengikuti fragmen lain yang
+    // dipisah `·`.
+    const nilai = nilaiJalur(bundle([titikPython], tigaBenar("kp_1", 0)));
+    const kalimat = kalimatKlaimJalur(nilai, topic());
+    expect(kalimat).toContain("(1 konsep)");
+    expect(kalimat).toContain("dinilai ulang setelah 7 hari");
+  });
+
+  it("memakai ambang design 14 hari, bukan nilai concept", () => {
+    // `design` punya tabel 2 langkah, jadi ambangnya 14 — kalimat harus
+    // mengikuti tabel itu, bukan angka yang ditulis tangan di sebelahnya.
+    const nilai = nilaiJalur(
+      bundle(
+        [{ ...titikPython, type: "design" }],
+        [
+          { knowledgePointId: "kp_1", correct: true, at: HARI(0), source: "session" },
+          { knowledgePointId: "kp_1", correct: true, at: HARI(1), source: "session" },
+        ],
+      ),
+    );
+    const kalimat = kalimatKlaimJalur(nilai, topic());
+    expect(kalimat).toContain("(1 desain)");
+    expect(kalimat).toContain("dinilai ulang setelah 14 hari");
   });
 
   it("tidak pernah menyebut 'nilai penuh' — mastery bukan kelulusan", () => {

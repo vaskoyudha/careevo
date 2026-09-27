@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import type { ModulKursus } from "@/lib/courses/kurikulum";
+import { PROVENANCES, isProvenance } from "./types";
 import type { KnowledgePoint } from "./types";
 
 // Point the store at a temp dir BEFORE importing it, so the test never touches
@@ -156,6 +157,19 @@ describe("mastery store", () => {
       knowledgePointId: "kp1", correct: true, at: new Date().toISOString(),
       source: "session", provenance: "dibuat-model" as never,
     })).toBeNull();
+  });
+
+  it("guards provenance in one place, so the union and the validator cannot drift", () => {
+    // The two literals live in `types.ts` and nowhere else: `store.ts` calls this
+    // guard instead of re-typing them. Were they hand-typed in both files, adding
+    // a third state would typecheck cleanly and then be rejected at runtime, and
+    // nothing here would notice. How `isAttempt` uses the guard is covered by the
+    // test above, which drives it through `recordAttempt`.
+    for (const nilai of PROVENANCES) expect(isProvenance(nilai)).toBe(true);
+    for (const lain of ["dibuat-model", "DINILAI", "", null, 1, undefined]) {
+      expect(isProvenance(lain)).toBe(false);
+    }
+    expect(PROVENANCES).toEqual(["dinilai", "dideklarasikan"]);
   });
 
   it("rejects an attempt against a point the topic does not teach", async () => {

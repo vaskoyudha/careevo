@@ -6,6 +6,7 @@ import { newSessionId, isValidSessionId } from "@/lib/ids";
 import {
   isKnowledgePoint,
   isMasteryTopic,
+  isProvenance,
   isRepetitionState,
   type Attempt,
   type KnowledgePoint,
@@ -86,7 +87,7 @@ function isAttempt(value: unknown): value is Attempt {
     typeof c.at === "string" &&
     !Number.isNaN(Date.parse(c.at)) &&
     (c.source === "session" || c.source === "review") &&
-    (c.provenance === undefined || c.provenance === "dinilai" || c.provenance === "dideklarasikan")
+    (c.provenance === undefined || isProvenance(c.provenance))
   );
 }
 
