@@ -83,7 +83,7 @@ export function MarketingComparison() {
   return (
     <section
       id="pbanding"
-      className="scroll-mt-24 border-y border-gray-100 bg-[#F9FAFB] py-20 sm:py-28"
+      className="scroll-mt-24 overflow-x-clip border-y border-gray-100 bg-[#F9FAFB] py-20 sm:py-28"
     >
       <div className="mx-auto max-w-7xl px-4 lg:px-6">
         <div className="mx-auto mb-14 max-w-2xl text-center">
