@@ -104,7 +104,7 @@ export default async function DetailKursusPage({
   );
 
   return (
-    <LearnerShell session={session}>
+    <LearnerShell session={session} overlayMain>
       <DetailKursus
         key={`${entri.id}-${selesaiAwal.join(",")}`}
         kursus={{

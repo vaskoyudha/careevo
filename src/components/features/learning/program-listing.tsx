@@ -11,7 +11,7 @@ import type { ProgramListItem } from "@/lib/courses/explore-queries";
  */
 export function ProgramCard({ program }: { program: ProgramListItem }) {
   const cover =
-    program.bannerGraphic ?? program.providerLogo;
+    program.thumbnail ?? program.bannerGraphic ?? program.providerLogo;
 
   return (
     <Link

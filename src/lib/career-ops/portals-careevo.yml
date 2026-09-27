@@ -198,12 +198,13 @@ location_filter:
     - Makassar
     - Palembang
 
-# Six entries, three per provider, following the SolidJobs precedent already in
-# the engine template (8 entries: IT, Engineering, Marketing, ...). One entry per
-# role family, because a single searchKeywords string cannot cover them.
+# Twelve entries, three per provider (Jobstreet, Glints, Kalibrr, Dealls),
+# following the SolidJobs precedent already in the engine template (8 entries:
+# IT, Engineering, Marketing, ...). One entry per role family, because a single
+# searchKeywords string cannot cover them.
 #
-# Ceiling is entries x pageSize x maxPages = 6 x 30 x 3 = 540 per scan. That is a
-# provider limit, not national coverage — do not let UI copy imply otherwise.
+# Ceiling is entries x pageSize x maxPages = 12 x 30 x 3 = 1080 per scan. That is
+# a provider limit, not national coverage — do not let UI copy imply otherwise.
 job_boards:
   - name: Jobstreet Indonesia — software engineer
     provider: jobstreet
@@ -264,6 +265,63 @@ job_boards:
     maxPages: 3
     enabled: true
     notes: Same WAF caveat as the entry above.
+
+  - name: Kalibrr Indonesia — software engineer
+    provider: kalibrr
+    api: https://www.kalibrr.com/api/job_board/search
+    countryCode: ID
+    searchKeywords: software engineer
+    pageSize: 30
+    maxPages: 3
+    enabled: true
+    notes: Public REST API, no auth token. Covers Indonesian banking, corporate, and tech sectors.
+
+  - name: Kalibrr Indonesia — mobile developer
+    provider: kalibrr
+    api: https://www.kalibrr.com/api/job_board/search
+    countryCode: ID
+    searchKeywords: mobile developer
+    pageSize: 30
+    maxPages: 3
+    enabled: true
+    notes: Android/iOS/Flutter postings in Indonesia.
+
+  - name: Kalibrr Indonesia — data
+    provider: kalibrr
+    api: https://www.kalibrr.com/api/job_board/search
+    countryCode: ID
+    searchKeywords: data analyst
+    pageSize: 30
+    maxPages: 3
+    enabled: true
+    notes: Data analyst and data engineer roles in Indonesia.
+
+  - name: Dealls Indonesia — software engineer
+    provider: dealls
+    api: https://api.sejutacita.id/v1/explore-job/job
+    searchKeywords: software engineer
+    pageSize: 30
+    maxPages: 3
+    enabled: true
+    notes: Public REST API, no auth token. Talent marketplace for Indonesian startups and tech.
+
+  - name: Dealls Indonesia — mobile developer
+    provider: dealls
+    api: https://api.sejutacita.id/v1/explore-job/job
+    searchKeywords: mobile developer
+    pageSize: 30
+    maxPages: 3
+    enabled: true
+    notes: Mobile development postings in Indonesia.
+
+  - name: Dealls Indonesia — data
+    provider: dealls
+    api: https://api.sejutacita.id/v1/explore-job/job
+    searchKeywords: data analyst
+    pageSize: 30
+    maxPages: 3
+    enabled: true
+    notes: Data analyst and science roles in Indonesia.
 
 # VERIFIED 2026-09-27 — every careers_url below was produced by
 # `node engine/discover-ats.mjs --in perusahaan-id-final.yml --summary`

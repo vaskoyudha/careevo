@@ -20,25 +20,24 @@ import { kredensialProgram, levelProgram, mulaiProgram } from "./format";
  */
 export function ProgramCard({ program }: { program: ProgramDetails }) {
   const [logoErrored, setLogoErrored] = useState(false);
+  const cover = program.thumbnail ?? program.bannerGraphic;
 
   return (
     <Link
       href={programHref(program)}
-      className="group flex h-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xs transition-shadow duration-200 hover:shadow-md"
+      className="group flex h-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xs transition-shadow duration-200 hover:shadow-md active:scale-[0.99]"
     >
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100">
-        {program.bannerGraphic ? (
+        {cover ? (
           <Image
-            src={program.bannerGraphic}
-            alt=""
+            src={cover}
+            alt={program.title}
             fill
             sizes="(min-width: 1024px) 22rem, (min-width: 640px) 45vw, 92vw"
             className="object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
-          // `bannerGraphic` hanya ada di satu dari enam program, jadi
-          // providerLogo/banner tidak bisa diandalkan sebagai artwork. Nama
-          // penyedia selalu ada dan selalu tampil.
+          // Nama penyedia tampil sebagai cadangan jika thumbnail belum tersedia.
           <div className="absolute inset-0 flex items-center justify-center bg-linear-to-br from-[#e2eef4] via-[#ecf3f7] to-[#cbe6ef] p-5">
             <span className="line-clamp-2 text-center text-[13px] leading-snug font-semibold text-[#0a3d62]">
               {program.provider}

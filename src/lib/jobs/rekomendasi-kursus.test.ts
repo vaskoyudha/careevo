@@ -55,6 +55,44 @@ describe("skorKursusUntukLoker", () => {
       skorKursusUntukLoker(lanjut, job()),
     );
   });
+
+  it("credits a MULTI-WORD course tag the posting mentions", () => {
+    // Regression: `teksJob` holds single tokens, so a tag like "Machine
+    // Learning" could never be found in it and the +8 was dead code. That is
+    // how "Machine Learning Engineer" came to rank a Git course first.
+    const ml = entry({ id: "ml", slug: "machine-learning", title: "Machine Learning", tags: ["Machine Learning"] });
+    const generic = entry({ id: "gen", slug: "git", title: "Git", tags: ["Engineer"] });
+    const lowongan = job({
+      title: "Machine Learning Engineer",
+      description: "",
+      tags: [],
+    });
+    expect(skorKursusUntukLoker(ml, lowongan)).toBeGreaterThan(
+      skorKursusUntukLoker(generic, lowongan),
+    );
+  });
+
+  it("does not credit a multi-word tag when only one of its words appears", () => {
+    // "Learning" alone must not unlock "Machine Learning": that is how an
+    // unrelated course would buy relevance with one common word. The job has no
+    // level, so the level tiebreak is silent and cannot mask the tag rule.
+    const ml = entry({ id: "ml", slug: "machine-learning", title: "Machine Learning", tags: ["Machine Learning"] });
+    const lowongan = job({ title: "Learning Something Else", description: "", tags: [], level: undefined as never });
+    const denganTagLain = entry({ id: "x", slug: "machine-learning", title: "Machine Learning", tags: ["Kubernetes"] });
+    expect(skorKursusUntukLoker(ml, lowongan)).toBe(skorKursusUntukLoker(denganTagLain, lowongan));
+  });
+
+  it("ignores the level tiebreak when the posting has no level", () => {
+    // Every scanned inbox row has no level. `indexOf(undefined)` is -1, not 0, so
+    // the unguarded version paid a phantom bonus computed against a rung that
+    // does not exist, and made inbox scores incomparable with /loker/[id].
+    const dasar = entry({ id: "a", level: "dasar" });
+    const lanjut = entry({ id: "b", level: "lanjut" });
+    const tanpaLevel = { ...job(), level: undefined as never };
+    expect(skorKursusUntukLoker(dasar, tanpaLevel)).toBe(
+      skorKursusUntukLoker(lanjut, tanpaLevel),
+    );
+  });
 });
 
 describe("rekomendasiKursusUntukLoker", () => {
