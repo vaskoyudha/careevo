@@ -2,6 +2,7 @@
 
 import { HalamanView } from "./halaman-view";
 import { KodeView } from "./kode-view";
+import { PembagiLab, useBagiLab } from "./pembagi-lab";
 import { blokKodeDijalankan } from "@/lib/courses/blok";
 import type { ModulKursus } from "@/lib/courses/kurikulum";
 import type { Halaman } from "@/types/course";
@@ -69,6 +70,19 @@ export function KodeLab({
    * pertama.
    */
   const blok = blokKodeDijalankan(halaman)[0];
+
+  /**
+   * Pembagian kolom yang dipilih peserta (`pembagi-lab.tsx`). Disimpan per
+   * halaman di `localStorage`, dan hanya berlaku di `lg` ke atas — di bawahnya
+   * kedua kolom menumpuk, jadi tidak ada garis pembagi yang berguna.
+   *
+   * Hook-nya dipanggil **sebelum** `if (!blok) return null` karena aturan hook:
+   * jumlah hook tidak boleh berbeda antar-render. Halaman yang tidak ber-lab
+   * memang tidak sampai ke sini sama sekali (`MateriPane` yang memutuskan),
+   * tetapi urutannya tetap dijaga supaya komponennya tidak rapuh.
+   */
+  const { kunci: kunciBagi, bagi, setBagi } = useBagiLab(halaman.id);
+
   if (!blok) return null;
 
   return (
@@ -92,22 +106,32 @@ export function KodeLab({
      * kerja yang layak dalam pembagian itu tanpa memaksa pane meluber keluar
      * kotaknya — di bawah itu, editor yang menyusut sampai satu baris lebih
      * buruk daripada kuismu terdorong sedikit ke bawah.
+     *
+     * Lebar kolomnya ditulis inline karena nilainya ditentukan peserta saat
+     * berjalan; `data-pembagi-lab` adalah pegangan pembaginya untuk mengukur
+     * wadah ini, dan `--lab-bagi` yang dibaca `.lab-lab` di `globals.css`.
      */
-    <div className="grid items-stretch gap-5 lg:min-h-[20rem] lg:flex-1 lg:grid-cols-2">
+    <div
+      data-pembagi-lab
+      style={{ ["--lab-bagi" as string]: `${bagi}fr 6px ${1 - bagi}fr` }}
+      className="lab-lab grid grid-cols-1 items-stretch gap-x-5 gap-y-5 lg:min-h-[20rem] lg:flex-1"
+    >
       {/* Kolom bahan belajar — menggulir di dalam kolomnya sendiri supaya kolom
           kanan yang menempel tidak pernah ikut tergulir. Blok latihannya
           disembunyikan, dan pagernya dimatikan: bar kaki reader sudah punya
           tombol maju, dan dua tombol "berikutnya" di satu layar dengan tujuan
           berbeda (halaman vs modul) terbaca sebagai duplikat. */}
-      <div className="min-w-0 lg:h-full lg:overflow-y-auto lg:pr-1">
+      <div className="lab-kolom-kiri min-w-0 lg:h-full lg:overflow-y-auto lg:pr-1">
         <HalamanView modul={modul} halaman={halaman} sembunyikanKodeDijalankan sembunyikanPager />
       </div>
+
+      <PembagiLab kunci={kunciBagi} bagi={bagi} onBagi={setBagi} />
 
       {/* Kolom editor: editor di atas, hasil di bawah. `lg:sticky` menahannya di
           dalam viewport saat bahan di kiri digulir, dengan `top-4` sebagai
           napas kecil dari tepi atas area baca (bar fokus sudah baris terpisah
           di atasnya, jadi tidak ada yang perlu dihindari). */}
-      <div className="flex min-w-0 flex-col lg:sticky lg:top-4 lg:h-full lg:overflow-y-auto">
+      <div className="lab-kolom-kanan flex min-w-0 flex-col lg:sticky lg:top-4 lg:h-full lg:overflow-y-auto">
         <KodeView
           susunan="lab"
           kunci={blok.id}

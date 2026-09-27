@@ -4741,6 +4741,83 @@ button.tag:hover {
   overflow-y: auto;
 }
 
+/* ===== Pembagi kolom lab (`.kode-lab.tsx`) =====
+
+   Kolom lab bisa dilebarkan peserta. Rumus track-nya (`--lab-bagi`) ditulis
+   inline oleh komponennya karena lebarnya ditentukan saat berjalan; aturan di
+   sini yang **memakainya**, dan hanya di `lg` ke atas — di bawah itu kedua kolom
+   menumpuk, jadi tidak ada garis pembagi yang berguna.
+
+   `minmax(0, …fr)` pada track kolom (bukan `1fr` polos) penting: `1fr` setara
+   `minmax(auto, 1fr)`, dan lantai `auto` membuat track menolak menyusut di bawah
+   lebar isinya — jadi menyeret pembagi ke kiri tidak akan pernah mempersempit
+   kolom materi selama ada satu kata panjang di dalamnya. */
+@media (min-width: 1024px) {
+  .lab-lab {
+    grid-template-columns: var(--lab-bagi, minmax(0, 1fr) 6px minmax(0, 1fr));
+  }
+}
+
+/* Lantai lebar kedua kolom. Tanpa ini, menyeret sampai ujung membuat salah satu
+   kolom selebar nol — dan yang hilang bukan sekadar tampilan: editor nol lebar
+   berarti peserta tidak bisa lagi menyunting programnya. Angka minimumnya
+   ditulis komponennya (`bagi-lab.ts`: `MIN_KIRI`/`MIN_KANAN`). */
+.lab-kolom-kiri {
+  min-width: var(--lab-min-kiri, 280px);
+}
+
+.lab-kolom-kanan {
+  min-width: var(--lab-min-kanan, 340px);
+}
+
+/* Pembaginya sendiri. `cursor: col-resize` dipasang di seluruh permukaannya
+   (bukan hanya grip-nya) supaya sasarannya cukup besar untuk ditangkap mouse —
+   garis setipis 2px sulit dikenai. `touch-action: none` wajib: tanpa itu
+   peramban menyerahkan gestur horizontal ke gulir halaman, dan seretnya tidak
+   pernah dimulai. */
+.lab-pembagi {
+  display: none;
+  cursor: col-resize;
+  touch-action: none;
+  align-self: stretch;
+}
+
+@media (min-width: 1024px) {
+  .lab-pembagi {
+    display: block;
+  }
+}
+
+/* Garis yang terlihat. Sengaja elemen terpisah: permukaan tangkapnya selebar
+   seluruh track, sedangkan garisnya tetap tipis di tengahnya. */
+.lab-pembagi-grip {
+  display: block;
+  width: 2px;
+  height: 100%;
+  margin: 0 auto;
+  border-radius: 999px;
+  background: rgba(10, 61, 98, 0.14);
+  transition: background-color 150ms ease;
+}
+
+.lab-pembagi:hover .lab-pembagi-grip,
+.lab-pembagi:focus-visible .lab-pembagi-grip,
+.lab-pembagi[data-menyeret="true"] .lab-pembagi-grip {
+  background: var(--brand, #0056d2);
+}
+
+.lab-pembagi:focus-visible {
+  outline: 2px solid var(--brand, #0056d2);
+  outline-offset: 2px;
+}
+
+/* Selama seret: kursor dikunci dan seleksi teks dimatikan. Tanpa
+   `user-select: none`, menyeret melintasi kolom kiri ikut menyorot prosanya. */
+body.lab-menyeret {
+  cursor: col-resize;
+  user-select: none;
+}
+
 .log-list-app {
   max-height: 220px;
   overflow-y: auto;

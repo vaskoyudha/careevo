@@ -69,6 +69,31 @@ describe("KodeLab sebagai berkas sumber", () => {
     expect(sumber).toContain("sembunyikanPager");
   });
 
+  it("menyediakan pembagi kolom yang lebarnya bisa diatur peserta", () => {
+    // Permintaan pemilik produk: kolom materi dan editor bisa dilebarkan-
+    // sempitkan. Yang gampang hilang tanpa satu pun error:
+    //
+    //  1. **Pembaginya hilang** — kolomnya kembali terkunci separuh-separuh, dan
+    //     peserta yang kodenya panjang tidak bisa melebarkan editornya.
+    //  2. **Track grid-nya tidak menyusut** — `1fr` di dalam grid sama dengan
+    //     `minmax(auto, 1fr)`, jadi kolomnya menolak mengecil di bawah lebar
+    //     isinya. Seretnya lalu terasa "mentok" di satu arah. Karena itu aturan
+    //     track-nya wajib `minmax(0, …)`.
+    //  3. **Nilai tersimpannya tidak dipakai** — pembagiannya kembali ke tengah
+    //     setiap halaman dimuat.
+    expect(sumber).toContain("<PembagiLab");
+    expect(sumber).toContain("useBagiLab(");
+    expect(sumber).toContain("--lab-bagi");
+    // Aturan track-nya hidup di CSS; yang dijaga di sini cuma bentuknya.
+    expect(sumber).not.toMatch(/lg:grid-cols-2/);
+    const css = readFileSync(
+      fileURLToPath(new URL("../../app/globals.css", import.meta.url)),
+      "utf8",
+    );
+    expect(css).toMatch(/grid-template-columns: var\(--lab-bagi/);
+    expect(css).toMatch(/minmax\(0, 1fr\) 6px minmax\(0, 1fr\)/);
+  });
+
   it("mengisi tinggi area baca, bukan memakai kartu putih bertumpuk", () => {
     // Editor di lab adalah **alat kerja**, bukan contoh di tengah prosa. Kolom
     // kanannya mengambil `flex-1` dari rantai flex shell → pane, dan `KodeView`
