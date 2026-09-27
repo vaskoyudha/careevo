@@ -95,10 +95,19 @@ export function petakanStatus(status: StatusJalankan): PetakanStatus {
       // Kalau suatu hari runtime benar-benar menyatakan batas mana yang meletus,
       // memisahkannya kembali itu perubahan kecil — satu nilai union, satu kasus
       // di `switch`, satu baris di `SEMUA` pada test.
+      //
+      // Kenapa `detail` juga menyebut cadangan 25 detik: status ini punya dua
+      // jalan masuk, dan hanya satu yang dibatasi tiga angka utama. Jalan kedua
+      // adalah cadangan podman yang menyala, yaitu 25 detik. Kalau `detail` hanya
+      // menyebut tiga angka itu, peserta yang programnya kena cadangan diberi
+      // tahu batas yang salah — dan angka yang disebut berarti "batas-batas ini
+      // adalah semua yang ada", bukan "batas-batas ini yang biasanya berlaku".
       return {
         judul: "Program dihentikan karena melampaui batas layanan.",
         nada: "galat",
-        detail: "Batas layanan adalah 10 detik, 512 MB memori, dan 64 proses per percobaan.",
+        detail:
+          "Batas layanan adalah 10 detik, 512 MB memori, dan 64 proses per percobaan, " +
+          "ditambah cadangan 25 detik untuk kontainer yang macet.",
       };
     case "galat_program":
       // Bug peserta sendiri, jadi nadanya boleh berbeda dari batas layanan. Tapi
