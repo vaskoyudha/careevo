@@ -21,7 +21,7 @@ export default async function AppLayout({
     redirect("/masuk");
   }
 
-  if (!isStaffRole(session.role) && !(await hasProfile(session.email))) {
+  if (!isStaffRole(session.role) && !(await hasProfile(session.userId, session.email))) {
     redirect("/onboarding");
   }
 

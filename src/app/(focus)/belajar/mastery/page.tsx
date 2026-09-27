@@ -21,7 +21,7 @@ export default async function MasteryIndexPage() {
   if (!session) return null;
 
   const [profile, catalog, enrollments, topics] = await Promise.all([
-    getProfile(session.email),
+    getProfile(session.userId, session.email),
     katalogBelajar(),
     listPendaftaran(session.email),
     listMasteryTopics(session.email),

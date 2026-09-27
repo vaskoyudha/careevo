@@ -14,7 +14,7 @@ import { hasProfile } from "@/lib/onboarding/store";
  * `/onboarding`; the onboarding page bounces already-onboarded users home,
  * making this idempotent.
  */
-export async function landingFor(role: Role, owner: string): Promise<string> {
+export async function landingFor(role: Role, userId: string, email?: string): Promise<string> {
   if (isStaffRole(role)) return "/review";
-  return (await hasProfile(owner)) ? "/dashboard" : "/onboarding";
+  return (await hasProfile(userId, email)) ? "/dashboard" : "/onboarding";
 }

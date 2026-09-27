@@ -2,6 +2,12 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { normalizeOwner } from "@/lib/auth/types";
 import { bacaSecret } from "@/lib/config/secrets";
+import { denganTransaksi, getDb } from "@/lib/db/client";
+import {
+  cariProfilOnboarding,
+  hapusProfilOnboarding,
+  simpanProfilOnboarding,
+} from "./profile-repository";
 import {
   INTERESTS,
   MAX_INTERESTS,
@@ -19,21 +25,11 @@ import {
 /**
  * Onboarding profile persistence.
  *
- * Mirrors `src/lib/auth/user-store.ts`: the profile is serialized to JSON,
- * HMAC-SHA256 signed, and stored in an httpOnly cookie. This keeps the
- * prototype dependency-free (no DB) while still giving the flow a real,
- * tamper-evident store.
- *
- * Because the cookie is per-browser, every profile carries an `owner` (the
- * account email) so a new account on the same browser does not inherit — or
- * get skipped past — another account's onboarding.
- *
- * Swapping this for a real database means replacing only these functions
- * (`getProfile` / `saveProfile` / `clearProfile` / `hasProfile`) — nothing in
- * the UI or recommendation engine touches the cookie directly.
+ * Profiles are keyed by the authenticated account's stable database user id.
+ * The signed cookie remains only as a one-time migration source for accounts
+ * that completed onboarding before profiles were stored in PostgreSQL.
  */
 export const PROFILE_COOKIE = "ls_profile";
-const PROFILE_MAX_AGE = 60 * 60 * 24 * 180; // ~6 months
 
 function sign(body: string): string {
   return createHmac("sha256", bacaSecret("SESSION_SECRET"))
@@ -83,11 +79,6 @@ function decode(raw: string | undefined): OnboardingProfile | null {
   }
 }
 
-function encode(profile: OnboardingProfile): string {
-  const body = Buffer.from(JSON.stringify(profile), "utf8").toString("base64url");
-  return `${body}.${sign(body)}`;
-}
-
 export interface CompleteOnboardingInput {
   experience: OnboardingProfile["experience"];
   background: OnboardingProfile["background"];
@@ -100,33 +91,71 @@ export interface CompleteOnboardingInput {
 export { normalizeOwner };
 
 /**
- * Read the signed profile cookie, or null when absent/invalid.
- *
- * Pass `owner` to additionally require that the profile belongs to that
- * account. Omitted, the raw stored profile is returned (used by the store's
- * own tests and the settings editor, which then checks ownership itself).
+ * Read by account id; migrate a matching legacy cookie once when no database
+ * profile exists. Email is used only to verify legacy cookie ownership.
  */
-export async function getProfile(owner?: string): Promise<OnboardingProfile | null> {
+export async function getProfile(userId: string, email?: string): Promise<OnboardingProfile | null> {
+  const db = getDb();
+  const row = await cariProfilOnboarding(db, userId);
+  if (row) {
+    const profile: OnboardingProfile = {
+      owner: normalizeOwner(email ?? userId),
+      experience: row.experience as OnboardingProfile["experience"],
+      background: row.background as OnboardingProfile["background"],
+      interests: row.interests as OnboardingProfile["interests"],
+      goal: row.goal,
+      weeklyHours: row.weeklyHours,
+      workPreference: row.workPreference as OnboardingProfile["workPreference"],
+      completedAt: row.completedAt.toISOString(),
+      version: row.version,
+    };
+    return isOnboardingProfile(profile) ? profile : null;
+  }
+
+  if (!email) return null;
   const jar = await cookies();
-  const profile = decode(jar.get(PROFILE_COOKIE)?.value);
-  if (!profile) return null;
-  if (owner !== undefined && profile.owner !== normalizeOwner(owner)) return null;
-  return profile;
+  const legacy = decode(jar.get(PROFILE_COOKIE)?.value);
+  if (!legacy || legacy.owner !== normalizeOwner(email)) return null;
+
+  const completedAt = new Date(legacy.completedAt);
+  const imported = await denganTransaksi(async (tx) => {
+    const existing = await cariProfilOnboarding(tx, userId);
+    if (existing) return false;
+    await simpanProfilOnboarding(tx, userId, {
+      experience: legacy.experience,
+      background: legacy.background,
+      interests: legacy.interests,
+      goal: legacy.goal,
+      weeklyHours: legacy.weeklyHours,
+      workPreference: legacy.workPreference,
+      completedAt,
+      version: legacy.version,
+    });
+    return true;
+  });
+  jar.set(PROFILE_COOKIE, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 0,
+  });
+  return imported ? legacy : getProfile(userId, email);
 }
 
-/** True when *this account* has finished onboarding on this browser. */
-export async function hasProfile(owner: string): Promise<boolean> {
-  return (await getProfile(owner)) !== null;
+/** True when this account has a completed profile in PostgreSQL. */
+export async function hasProfile(userId: string, email?: string): Promise<boolean> {
+  return (await getProfile(userId, email)) !== null;
 }
 
 /** Persist a completed profile, stamping owner + version + completion time. */
 export async function saveProfile(
   input: CompleteOnboardingInput,
-  owner: string,
+  userId: string,
+  email?: string,
 ): Promise<OnboardingProfile> {
-  const jar = await cookies();
   const profile: OnboardingProfile = {
-    owner: normalizeOwner(owner),
+    owner: normalizeOwner(email ?? userId),
     experience: input.experience,
     background: input.background,
     interests: input.interests.slice(0, MAX_INTERESTS),
@@ -137,19 +166,23 @@ export async function saveProfile(
     version: ONBOARDING_VERSION,
   };
 
-  jar.set(PROFILE_COOKIE, encode(profile), {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: PROFILE_MAX_AGE,
+  await simpanProfilOnboarding(getDb(), userId, {
+    experience: profile.experience,
+    background: profile.background,
+    interests: profile.interests,
+    goal: profile.goal,
+    weeklyHours: profile.weeklyHours,
+    workPreference: profile.workPreference,
+    completedAt: new Date(profile.completedAt),
+    version: profile.version,
   });
 
   return profile;
 }
 
 /** Remove the profile — used by "reset onboarding" in settings. */
-export async function clearProfile(): Promise<void> {
+export async function clearProfile(userId: string): Promise<void> {
+  await hapusProfilOnboarding(getDb(), userId);
   const jar = await cookies();
   jar.set(PROFILE_COOKIE, "", {
     httpOnly: true,

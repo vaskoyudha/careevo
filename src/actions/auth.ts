@@ -124,7 +124,7 @@ export async function loginAction(
   }
 
   await pasangCookieSesi(token);
-  redirect(await landingFor(hasil.principal.role, hasil.principal.email));
+  redirect(await landingFor(hasil.principal.role, hasil.principal.userId, hasil.principal.email));
 }
 
 /**
@@ -207,7 +207,7 @@ export async function registerAction(
 
   const token = await terbitkanSesi(hasil.principal, await konteksRequest());
   await pasangCookieSesi(token);
-  redirect(await landingFor(hasil.principal.role, hasil.principal.email));
+  redirect(await landingFor(hasil.principal.role, hasil.principal.userId, hasil.principal.email));
 }
 
 /**

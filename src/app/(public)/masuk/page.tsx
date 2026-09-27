@@ -19,7 +19,7 @@ export default async function MasukPage({
 }) {
   // Already signed in? No reason to show the login form again.
   const session = await getSession();
-  if (session) redirect(await landingFor(session.role, session.email));
+  if (session) redirect(await landingFor(session.role, session.userId, session.email));
 
   // Demo credentials are shown only on a development machine that opted in
   // with `DEMO_MODE=1`; the accounts are also rejected by `authenticate`
