@@ -89,9 +89,11 @@ describe("tabel kebijakan", () => {
     }
   });
 
-  it("jalankanKode dikelompokkan per principal, bukan per IP", () => {
-    // Satu kelas belajar berada di satu jaringan. Pengelompokan per IP akan
-    // membatasi satu geng dan membiarkan penyalahguna berpindah IP.
+  it("jalankanKode menambah bucket per principal, bukan menggantikannya", () => {
+    // Flag ini menambahkan bucket kedua, ia tidak memilih pengelompokan.
+    // `identifierUntuk` selalu menghitung IP lebih dulu dan menolak begitu
+    // salah satu bucket habis, jadi yang diuji di sini adalah bucket tambahan
+    // yang menangkap akun yang lari ke IP baru — bukan pelepasan batas per IP.
     expect(AMBANG.jalankanKode.bucketPrincipal).toBe(true);
   });
 
