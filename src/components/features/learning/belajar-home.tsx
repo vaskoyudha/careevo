@@ -78,7 +78,7 @@ const HERO_PROMO_CARDS: HeroPromoCard[] = [
     description:
       "Pilih langkah belajar yang sesuai dengan tujuanmu berikutnya.",
     cta: "Mulai gratis",
-    href: "/belajar/jalur",
+    href: "/belajar",
     image: "/images/customer-stories/modal-cover.webp",
     imagePosition: "object-[72%_center]",
     tone: "blue",
@@ -89,7 +89,7 @@ const HERO_PROMO_CARDS: HeroPromoCard[] = [
     description:
       "Selesaikan proyek dan tunjukkan bukti karyamu kepada dunia kerja.",
     cta: "Lihat cara kerja",
-    href: "/belajar/jalur",
+    href: "/submission",
     image: "/images/customer-stories/railway-cover.webp",
     imagePosition: "object-[60%_center]",
     tone: "mist",
@@ -446,11 +446,11 @@ function HeroSection({
             Mulai belajar
           </LandingBtnLink>
           <LandingBtnLink
-            href="/belajar/jalur"
+            href="/progres"
             variant="secondary"
             className="w-full sm:w-auto"
           >
-            Lihat jalur belajar
+            Lihat progres
           </LandingBtnLink>
         </div>
 

@@ -45,7 +45,7 @@ import type { SessionPayload } from "@/lib/auth/types";
  * Deliberately NOT shared with `Chrome`: the `learnerNavItems` list itself.
  * It currently holds the same five destinations as `Chrome`'s `navItems` — but
  * only by coincidence. They were once different (the learner bar carried
- * `/belajar/jalur` and `/submission`, both since moved to the dashboard
+ * `/progres` and `/submission`, both since moved to the dashboard
  * sidebar), and they are free to diverge again: one list is signed-in
  * wayfinding, the other is a marketing bar deciding at render time whether the
  * visitor has a session. Two lists that look alike are not the same list — do

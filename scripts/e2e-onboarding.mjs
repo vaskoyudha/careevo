@@ -97,16 +97,26 @@ console.log("— without session —");
 await checkRoute({ label: "no-session", path: "/dashboard", status: 307 });
 await checkRoute({ label: "no-session", path: "/onboarding", status: 307 });
 await checkRoute({
-  label: "jalur redirects to login",
-  path: "/belajar/jalur",
+  label: "progres redirects to login",
+  path: "/progres",
   status: 307,
   location: "/masuk",
+});
+await checkRoute({
+  // Bukan 307: halaman ini sudah mulai streaming, jadi `redirect()` dari
+  // `next/navigation` hanya bisa berlaku in-band — `<meta http-equiv="refresh">`
+  // di dalam body, dengan status 200. Peramban berakhir di /progres.
+  label: "legacy jalur points at progres",
+  path: "/belajar/jalur",
+  cookie: sessionCookie,
+  status: 200,
+  required: ['http-equiv="refresh" content="1;url=/progres"'],
 });
 
 console.log("\n— session, NO profile —");
 await checkRoute({
-  label: "jalur redirects to onboarding",
-  path: "/belajar/jalur",
+  label: "progres redirects to onboarding",
+  path: "/progres",
   cookie: sessionCookie,
   status: 307,
   location: "/onboarding",
@@ -140,38 +150,39 @@ await checkRoute({
 await checkRoute({ label: "edit mode stays", path: "/onboarding?edit=1", cookie: learnerCookie, status: 200 });
 await checkRoute({ label: "demo public", path: "/onboarding/demo", status: 200 });
 await checkRoute({
-  label: "public login has no learner path",
+  label: "public login has no learner progress",
   path: "/masuk",
   status: 200,
-  forbidden: ["data-path-source"],
+  forbidden: ["% selesai"],
 });
+// Progres: tanpa enrollment, kartu progres tidak boleh tampil sama sekali —
+// pesertanya belum punya apa pun untuk dilaporkan.
 await checkRoute({
-  label: "recommendation path",
-  path: "/belajar/jalur",
+  label: "progres is empty without enrollment",
+  path: "/progres",
   cookie: learnerCookie,
   status: 200,
-  required: ['data-path-source="recommendation"', "Mulai kursus"],
-  forbidden: ['data-path-source="active-enrollment"'],
+  required: ["Belum ada kursus yang diambil"],
+  forbidden: ["% selesai"],
 });
+// Enrollment milik peserta sendiri: 2 dari 5 modul turunan = 40%. Angka ini
+// diturunkan di server dari `module_progress`, bukan dikirim peramban.
 await checkRoute({
-  label: "owned enrollment path",
-  path: "/belajar/jalur",
+  label: "owned enrollment shows progress",
+  path: "/progres",
   cookie: `${learnerCookie}; ${ownedEnrollmentCookie}`,
   status: 200,
-  required: [
-    'data-path-source="active-enrollment"',
-    'data-module-status="current"',
-    "Lanjutkan belajar",
-  ],
-  forbidden: ['data-path-source="recommendation"'],
+  required: ["40%", "2/5 modul"],
 });
+// Enrollment lama tanpa `owner` tidak boleh diadopsi: itu akun lain yang belum
+// klaim progresnya, jadi halaman tetap kosong.
 await checkRoute({
-  label: "legacy enrollment remains recommendation",
-  path: "/belajar/jalur",
+  label: "legacy enrollment is not adopted",
+  path: "/progres",
   cookie: `${learnerCookie}; ${legacyEnrollmentCookie}`,
   status: 200,
-  required: ['data-path-source="recommendation"', "Mulai kursus"],
-  forbidden: ['data-path-source="active-enrollment"'],
+  required: ["Belum ada kursus yang diambil"],
+  forbidden: ["2/5 modul"],
 });
 
 console.log("\n— mastery path —");
