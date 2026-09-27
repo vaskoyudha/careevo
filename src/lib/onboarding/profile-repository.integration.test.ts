@@ -29,6 +29,7 @@ import {
   simpanProfilOnboarding,
   type NilaiOnboarding,
 } from "@/lib/onboarding/profile-repository";
+import { getProfile, hasProfile, saveProfile } from "@/lib/onboarding/store";
 import {
   BACKGROUNDS,
   EXPERIENCE_LEVELS,
@@ -114,6 +115,28 @@ describe("repository profil onboarding", () => {
     expect(row!.workPreference).toBe("remote");
     expect(row!.completedAt.toISOString()).toBe("2026-01-15T08:00:00.000Z");
     expect(row!.version).toBe(2);
+  });
+
+  it("store reads and writes onboarding by the authenticated user id", async () => {
+    const email = "store@contoh.test";
+    const userId = await buatAkun(email, "store");
+
+    expect(await hasProfile(userId, email)).toBe(false);
+    await saveProfile({
+      experience: sample.experience,
+      background: sample.background,
+      interests: sample.interests,
+      goal: sample.goal,
+      weeklyHours: sample.weeklyHours,
+      workPreference: sample.workPreference,
+    }, userId, email);
+
+    expect(await hasProfile(userId, email)).toBe(true);
+    await expect(getProfile(userId, email)).resolves.toMatchObject({
+      owner: email,
+      interests: sample.interests,
+      goal: sample.goal,
+    });
   });
 
   it("preserves a reversed interest order rather than sorting it", async () => {

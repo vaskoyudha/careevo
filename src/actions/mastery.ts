@@ -45,7 +45,7 @@ export async function mulaiTopikAction(formData: FormData): Promise<void> {
   const session = await getSession();
   if (!session) redirect("/masuk");
 
-  const profile = await getProfile(session.email);
+  const profile = await getProfile(session.userId, session.email);
   if (!profile) redirect("/onboarding");
 
   const [catalog, enrollments] = await Promise.all([

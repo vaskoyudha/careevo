@@ -52,7 +52,7 @@ export async function completeOnboardingAction(
     };
   }
 
-  await saveProfile(parsed.data, session.email);
+  await saveProfile(parsed.data, session.userId, session.email);
   redirect(homeForRole(session.role));
 }
 
@@ -64,6 +64,6 @@ export async function resetOnboardingAction(): Promise<void> {
   const session = await getSession();
   if (!session) redirect("/masuk");
   const { clearProfile } = await import("@/lib/onboarding/store");
-  await clearProfile();
+  await clearProfile(session.userId);
   redirect("/onboarding");
 }

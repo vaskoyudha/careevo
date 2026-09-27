@@ -15,7 +15,7 @@ export default async function BookIndexPage() {
   if (!session) return null;
 
   const [profile, catalog, enrollments, books] = await Promise.all([
-    getProfile(session.email),
+    getProfile(session.userId, session.email),
     katalogBelajar(),
     listPendaftaran(session.email),
     listBooks(session.email),

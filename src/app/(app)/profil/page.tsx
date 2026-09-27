@@ -26,7 +26,7 @@ export default async function ProfilPage() {
   if (!session) return null;
 
   const [profile, editable, resume] = await Promise.all([
-    getProfile(session.email),
+    getProfile(session.userId, session.email),
     getEditableProfile(session.email),
     ambilResume(session.email),
   ]);

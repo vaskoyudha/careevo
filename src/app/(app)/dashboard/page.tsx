@@ -27,7 +27,7 @@ export default async function DashboardPage() {
   const session = await getSession();
   if (!session) return null;
 
-  const profile = await getProfile(session.email);
+  const profile = await getProfile(session.userId, session.email);
 
   return (
     <AppShell session={session} current="/dashboard">
