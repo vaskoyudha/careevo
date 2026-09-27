@@ -351,36 +351,20 @@ describe("MateriShell", () => {
     expect(html).not.toContain("min-h-dvh");
   });
 
-  it("menaruh ajakan sesi di atas kartu materi, bukan di bar fokus", () => {
+  it("tidak menaruh pita ajakan sesi di kolom baca", () => {
     /**
-     * Permintaan yang sebenarnya: kartu verifikasi kuning harus **di atas
-     * kartu materi**, bukan di dalam bar fokus.
+     * Permintaan pemilik produk: popup verifikasi hanya muncul saat tombol
+     * "Buka materi" ditekan, jadi pita ajakannya **tidak** lagi dirender di
+     * reader. Membiarkannya di sini akan mengembalikan permintaan yang sudah
+     * dipindahkan ke `gerbang-mulai-course.tsx`.
      *
-     * Alasannya bentuk, bukan isi — bar fokus `sticky`, jadi apa pun yang
-     * tinggal di dalamnya ikut mengambang sepanjang modul, dan kartu amber
-     * setinggi beberapa baris menutupi judul modul tepat saat peserta
-     * membacanya.
-     *
-     * Diperiksa lewat **urutan di HTML**, bukan `toContain`: kedua komponen
-     * ada di dokumen yang sama dalam keadaan seed `wajib`, jadi keberadaan
-     * saja tidak membuktikan siapa yang di atas siapa. Yang dijaga adalah
-     * urutan render — kartu sesi mendahului isi modul.
+     * Diperiksa lewat **teks sumber**, bukan render: `CourseSessionPrompt`
+     * menyembunyikan dirinya saat sesi berjalan, jadi HTML-nya bisa bersih
+     * walaupun pita itu masih terpasang untuk keadaan lain.
      */
     pathname.nilai = "/belajar/kursus-uji/materi/crs-1-m1";
-    const html = render();
-    const kartuSesi = html.indexOf("Course ini mewajibkan sesi terverifikasi");
-    const isiModul = html.indexOf("Isi modul.");
-    // Penanda yang hilang membuat test merah, bukan lulus diam-diam.
-    expect(kartuSesi, "kartu ajakan sesi tidak dirender").toBeGreaterThanOrEqual(0);
-    expect(isiModul, "isi modul tidak dirender").toBeGreaterThanOrEqual(0);
-    expect(kartuSesi).toBeLessThan(isiModul);
-
-    // Keduanya harus berada di kolom baca (`<main>`) — kalau kartu sesi
-    // kembali ke dalam `<header>`, urutannya masih "di atas" markup modul dan
-    // assertion di atas tetap hijau tanpa perubahan yang diklaimnya.
-    const main = potongan(html, "<main", "</main>");
-    expect(main).toContain("Course ini mewajibkan sesi terverifikasi");
-    expect(barFokus(html)).not.toContain("Course ini mewajibkan sesi terverifikasi");
+    expect(render()).not.toContain("Course ini mewajibkan sesi terverifikasi");
+    expect(tanpaKomentar(BERKAS_SHELL)).not.toContain("CourseSessionPrompt");
   });
 
   it("menyembunyikan drawer sampai tombol tutor ditekan", () => {

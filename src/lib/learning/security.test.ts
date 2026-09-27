@@ -52,6 +52,7 @@ describe("keamanan jalur ujian", () => {
 // berkas, jadi jangan disatukan kembali hanya karena tesnya dulu begitu.
 const BERKAS_DETAIL = path.join(ROOT, "src/components/features/learning/detail-kursus.tsx");
 const BERKAS_PANE = path.join(ROOT, "src/components/features/learning/materi-pane.tsx");
+const BERKAS_SHELL = path.join(ROOT, "src/components/features/learning/materi-shell.tsx");
 const BERKAS_SESI = path.join(ROOT, "src/components/features/learning/course-session.tsx");
 const BERKAS_SKOR = path.join(ROOT, "src/actions/assessment.ts");
 const BERKAS_KUIS_VIEW = path.join(
@@ -86,17 +87,33 @@ const BERKAS_LAYOUT_READER = path.join(
 );
 
 describe("gerbang UI sesi terverifikasi", () => {
-  it("halaman kursus selalu menawarkan cara memulai sesi", () => {
+  it("gerbang mulai terpasang di silabus, dan benar-benar memulai sesi", () => {
+    // Gerbangnya hidup di tombol "Buka materi" (`GerbangMulaiCourse`), bukan
+    // lagi sebagai pita amber di halaman — lihat komentar di `detail-kursus.tsx`.
     // Modul turunan tidak punya lampiran, sehingga `CourseSessionGate` (tombol
-    // "Mulai sesi" yang satunya lagi) tidak pernah ikut terender di sana. Tanpa
-    // ajakan tingkat-course ini, tidak ada satu pun cara memenuhi syarat
-    // penyelesaian modul `wajib` — penyelesaian otomatis di halaman terakhir
-    // mustahil berhasil, tapi tetap ditolak server.
-    expect(readFileSync(BERKAS_DETAIL, "utf8")).toContain("<CourseSessionPrompt />");
-    // Ajakan itu harus benar-benar memulai sesi, bukan sekadar label mati.
-    expect(readFileSync(BERKAS_SESI, "utf8")).toMatch(
-      /export function CourseSessionPrompt[\s\S]*?void mulai\(\)/,
+    // "Mulai sesi" yang satunya lagi) tidak pernah ikut terender untuk mereka;
+    // tanpa gerbang ini tidak ada satu pun cara memenuhi syarat penyelesaian
+    // modul `wajib`, dan penyelesaian otomatis di halaman terakhir mustahil
+    // berhasil walaupun tetap ditolak server.
+    expect(readFileSync(BERKAS_DETAIL, "utf8")).toContain("<GerbangMulaiCourse");
+    // Gerbang itu harus benar-benar memulai sesi lewat mesin yang sama — bukan
+    // tombol mati, dan bukan jalur kedua yang menyimpang dari gerbang reader.
+    const gerbang = readFileSync(
+      path.join(ROOT, "src/components/features/learning/gerbang-mulai-course.tsx"),
+      "utf8",
     );
+    expect(gerbang).toContain("useCourseSession()");
+    expect(gerbang).toMatch(/await mulai\(\)/);
+    expect(gerbang).toContain("daftarKursusAction");
+  });
+
+  it("pita ajakan sesi tidak kembali ke silabus maupun reader", () => {
+    // Permintaan pemilik produk: popup verifikasi hanya muncul saat "Buka materi"
+    // ditekan — tidak lagi sebagai pita di mode fokus. Dua tempat yang dulu
+    // memuatnya dijaga sekaligus, karena hanya satu yang bisa hilang dan sisanya
+    // tetap hijau.
+    expect(readFileSync(BERKAS_DETAIL, "utf8")).not.toContain("<CourseSessionPrompt");
+    expect(readFileSync(BERKAS_SHELL, "utf8")).not.toContain("<CourseSessionPrompt");
   });
 
   it("silabus me-seed sesi berjalan dari server, bukan mulai dari kosong", () => {
@@ -121,6 +138,21 @@ describe("gerbang UI sesi terverifikasi", () => {
     // buktinya lalu ditolak server.
     expect(readFileSync(BERKAS_HALAMAN_KURSUS, "utf8")).toContain("sesiReaderAwal({");
     expect(readFileSync(BERKAS_LAYOUT_READER, "utf8")).toContain("sesiReaderAwal({");
+  });
+
+  it("reader menolak peserta yang belum mendaftar kursus", () => {
+    // Prasyarat masuk reader kini dijaga di dua tempat, dan keduanya perlu:
+    // gerbang "Buka materi" mengurus **alurnya** (daftar dulu, lalu sesi), dan
+    // gerbang di layout menutup **jalan pintas** — URL satu modul yang
+    // dilangkahkan langsung tanpa pernah menekan tombolnya.
+    //
+    // `redirect` ke silabus, bukan `notFound`: halamannya ada, dan peserta
+    // berhak tahu cara masuk. 404 di sini berbohong tentang sebabnya.
+    const layout = readFileSync(BERKAS_LAYOUT_READER, "utf8");
+    expect(layout).toMatch(/if \(!enrollment\) redirect\(`\/belajar\/\$\{slug\}`\)/);
+    // Gerbangnya harus menguji `enrollment` yang benar-benar dibaca dari DB,
+    // bukan variabel lain yang kebetulan bernama mirip.
+    expect(layout).toContain("const { enrollment, selesai } = await progresKursusDb(");
   });
 
   it("kuis hanya dirender setelah keputusan akses mengizinkan", () => {

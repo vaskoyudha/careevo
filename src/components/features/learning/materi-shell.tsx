@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useCourseSession, CourseSessionPrompt } from "./course-session";
+import { useCourseSession } from "./course-session";
 import { MateriFocusBar } from "./materi-focus-bar";
 import { ReaderPanelSilabus } from "./reader-silabus";
 import { MateriFootBar } from "./materi-foot-bar";
@@ -369,9 +369,10 @@ export function MateriShell({
                 // Halaman ber-lab juga **membagi tinggi** area baca, bukan
                 // menggulir seperti prosa. Editor butuh tinggi yang pasti untuk
                 // bisa mengisi kolomnya; tanpa rantai ini `flex-1` di bawah
-                // tidak punya apa pun untuk dibagi. `CourseSessionPrompt` di
-                // atasnya ikut terhitung — itulah kenapa tingginya diambil dari
-                // sini, bukan dari rumus `100dvh` yang menebak tinggi chrome.
+                // tidak punya apa pun untuk dibagi — termasuk tinggi bar fokus,
+                // bar kaki, dan padding area baca. Itulah kenapa tingginya
+                // diambil dari sini, bukan dari rumus `100dvh` yang menebak
+                // tinggi chrome.
                 //
                 // `min-h-0` di sepanjang rantai wajib utuh; tanpanya kolom flex
                 // menolak menyusut di bawah tinggi isinya dan `flex-1` tidak
@@ -381,20 +382,17 @@ export function MateriShell({
                 lebarLab && "lg:flex lg:h-full lg:min-h-0 lg:flex-col",
               )}
             >
-              {/* Ajakan memulai sesi, tepat di atas kartu materi.
-                  Dulu ia tinggal di bar fokus yang `sticky`, dan di situ kartu
-                  amber setinggi beberapa baris menutupi judul modul selama
-                  seluruh halaman digulir — persis saat peserta membacanya.
-                  `CourseSessionPrompt` sudah menyembunyikan dirinya saat sesi
-                  berjalan, jadi ia tidak pernah menumpuk dengan `KejadianPanel`
-                  di atas: keduanya tidak tampil bersamaan.
+              {/* Ajakan sesi **tidak lagi** dirender di sini.
 
-                  Jaraknya dari `space-y-6` pembungkus ini, **bukan** `mb` pada
-                  elemennya sendiri: course `opsional` membuat komponen ini
-                  mengembalikan `null`, dan `mb` yang menempel padanya akan
-                  menyisakan rongga kosong di atas kartu pertama. `space-y-6`
-                  hanya memberi jarak ke saudara yang benar-benar dirender. */}
-              <CourseSessionPrompt />
+                  Dulu pita amber-nya berdiri tepat di atas kartu materi, dan
+                  satu lagi di silabus. Sekarang ia hidup di gerbang "mulai
+                  belajar" (`gerbang-mulai-course.tsx`), di titik peserta benar-
+                  benar memutuskan masuk — bukan sebagai pita yang ikut
+                  menggulir bersama bacaan.
+
+                  Yang tersisa di reader adalah `KejadianPanel` di atas baris
+                  baca: ia **pelaporan** selama sesi berjalan, bukan ajakan
+                  sebelum masuk, jadi tempatnya memang di sini. */}
               {children}
             </div>
           </main>

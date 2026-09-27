@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { cariEntri } from "@/lib/courses/katalog";
 import { modulUntukSumber } from "@/lib/courses/modul-resolver";
@@ -59,6 +59,25 @@ export default async function MateriLayout({
   await pastikanBackfill(session);
   const { enrollment, selesai } = await progresKursusDb(session, entri.id);
   const selesaiValid = irisModulSelesai(selesai, modul);
+
+  /**
+   * Gerbang enrollment: reader adalah ruang belajar **peserta kursus**.
+   *
+   * Halaman ini dulu bisa dibaca siapa pun yang sudah masuk, tanpa mendaftar.
+   * Sejak gerbangnya pindah ke tombol "Buka materi", prasyarat itu jadi sesuatu
+   * yang bisa dilangkahi: URL satu modul cukup untuk masuk tanpa pernah menekan
+   * tombolnya. Gerbang di sini menutup jalan itu — bukan dengan mengusir peserta
+   * ke beranda, melainkan mengembalikannya ke silabus, tempat `GerbangMulaiCourse`
+   * menyelesaikan langkah yang belum beres.
+   *
+   * `redirect`, bukan `notFound`: halamannya ada dan peserta berhak tahu cara
+   * masuk — 404 di sini berbohong tentang sebabnya dan tidak menawarkan jalan.
+   *
+   * Diletakkan **setelah** pembacaan progres karena enrollment itu sendiri yang
+   * dibaca; memindahkannya ke atas berarti membaca `progresKursusDb` dua kali
+   * untuk satu permintaan.
+   */
+  if (!enrollment) redirect(`/belajar/${slug}`);
 
   // Seed sesi: peserta yang memuat ulang atau membuka deep link ke satu modul
   // tidak kehilangan sesi terverifikasi yang masih berjalan. `null` berarti

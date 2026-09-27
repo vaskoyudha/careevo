@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Check,
   CircleCheck,
@@ -13,17 +14,17 @@ import {
   SquareTerminal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { PitaHeaderDither } from "@/components/ui/pita-header-dither";
 import type { ModulKursus } from "@/lib/courses/kurikulum";
 import { levelLabel, tipeLabel } from "@/lib/onboarding/types";
 import { hitungProgres, irisModulSelesai } from "@/lib/courses/kurikulum";
 import { daftarKursusAction } from "@/actions/enrollment";
+import { wajibSesiTerverifikasi } from "@/lib/learning/akses";
 import {
   CourseSessionIndicator,
-  CourseSessionPrompt,
   CourseSessionProvider,
   useCourseSession,
 } from "./course-session";
+import { GerbangMulaiCourse } from "./gerbang-mulai-course";
 import { KursusAiPanel } from "./kursus-ai-panel";
 import { KursusSubNav } from "./kursus-subnav";
 import { DitheredHeroBackdrop } from "./dithered-hero-backdrop";
@@ -246,6 +247,7 @@ export function DetailKursus({
         proyek={proyek}
         sertifikat={sertifikat}
         catatanIntegritas={catatanIntegritas ?? null}
+        kebijakan={kebijakan}
       />
     </CourseSessionProvider>
   );
@@ -269,6 +271,7 @@ function RuangBelajar({
   proyek,
   sertifikat,
   catatanIntegritas,
+  kebijakan,
 }: {
   kursus: DetailKursusData;
   modul: ModulKursus[];
@@ -280,6 +283,8 @@ function RuangBelajar({
   proyek: RingkasanProject;
   sertifikat: RingkasanSertifikat;
   catatanIntegritas: BarisPelanggaran[] | null;
+  /** Kebijakan course — dipakai gerbang "Buka materi" untuk tahu apakah sesi wajib. */
+  kebijakan: KebijakanCourse;
 }) {
   /**
    * Progres baca dari server. **Bukan state**: penyelesaian modul sudah tidak
@@ -293,6 +298,14 @@ function RuangBelajar({
   const [sudahDaftar, setSudahDaftar] = useState(terdaftar);
   const [pesan, setPesan] = useState<string | null>(null);
   const [butuhPlus, setButuhPlus] = useState(false);
+  /**
+   * Modul yang sedang dituju lewat gerbang "Buka materi", atau `null`.
+   *
+   * Gerbangnya **satu** untuk seluruh daftar modul, bukan satu per baris: hanya
+   * satu dialog yang bisa terbuka, dan menyimpan id modulnya di sini membuat
+   * tujuan reader-nya jelas tanpa menyalin status "sedang membuka" ke tiap baris.
+   */
+  const [modulDituju, setModulDituju] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   /**
    * Keputusan akses untuk tombol "Tanya tutor AI".
@@ -313,7 +326,7 @@ function RuangBelajar({
    * `adaBuktiSesi`: tutor AI adalah bantuan belajar, bukan penyelesaian, jadi
    * sesi terverifikasi tidak menjadi syaratnya.
    */
-  const { boleh } = useCourseSession();
+  const { boleh, bukti } = useCourseSession();
   const keputusanBantuan = boleh("bantuan_akademik");
   const progres = hitungProgres(selesaiValid.length, modul.length);
   const jumlahHalaman = modul.reduce((total, m) => total + (m.halaman?.length ?? 0), 0);
@@ -499,19 +512,20 @@ function RuangBelajar({
               {terdaftar ? "" : " · daftar untuk menyimpan progres"}
             </p>
             <div className="mb-4">
-              {/* Ajakan mendahului indikator. Keduanya tidak pernah tampil
-                  bersamaan — prompt hilang begitu sesi `aktif` — jadi peserta
-                  di course `wajib` selalu punya satu titik masuk untuk memulai
-                  sesi sebelum masuk ke reader. Inilah satu-satunya sisa
-                  kewajiban sesi di silabus: begitu peserta menekan sebuah modul,
-                  gerbangnya hidup di reader (`materi-pane.tsx`), bukan di sini.
+              {/* Ajakan memulai sesi **tidak lagi tinggal di sini** sebagai pita.
 
-                  `KejadianPanel` dulu dirender tepat di bawah indikator, tetapi
-                  panel itu menjawab "apa yang tercatat selama sesi?" — pertanyaan
-                  yang hanya berguna di dalam sesi, dan sesinya kini berjalan di
-                  reader. Ia pindah ke sana bersama sesinya (`materi-shell.tsx`),
-                  bukan dihapus. */}
-              <CourseSessionPrompt />
+                  Dulu ia pita amber statis di atas daftar modul — dan satu lagi
+                  di kolom baca reader. Dua permukaan meminta hal yang sama, dan
+                  yang di reader muncul setelah peserta sudah masuk: sudah
+                  terlambat jadi gerbang, cukup awal untuk mengganggu bacaan.
+
+                  Sekarang prasyaratnya dijaga di titik keputusannya: tombol "Buka
+                  materi" membuka `GerbangMulaiCourse`, yang menjalankan langkah
+                  yang belum beres (daftar, lalu sesi) sebelum mengantar masuk.
+
+                  `CourseSessionIndicator` **tetap** di sini: ia bukan ajakan,
+                  melainkan keterangan bahwa sesi sedang berjalan — informasi yang
+                  memang milik halaman ini. */}
               <CourseSessionIndicator />
             </div>
             <ol className="space-y-3">
@@ -586,12 +600,13 @@ function RuangBelajar({
                           terverifikasi berjalan. Silabus hanya mengantar. */}
                       <div className="shrink-0 self-center">
                         {punyaIsi ? (
-                          <Link
-                            href={`/belajar/${kursus.slug}/materi/${m.id}`}
-                            className="chrome-btn chrome-btn-brand !h-11"
+                          <button
+                            type="button"
+                            onClick={() => setModulDituju(m.id)}
+                            className="chrome-btn chrome-btn-brand !h-11 cursor-pointer"
                           >
                             Buka materi
-                          </Link>
+                          </button>
                         ) : (
                           <a
                             href={m.url}
@@ -669,7 +684,17 @@ function RuangBelajar({
                       tombol "Lanjutkan" tidak lagi terbaca sebagai keluarga lain
                       dari tombol navbar yang bersebelahan dengannya. */}
                   <Link
-                    href={hrefLanjut}
+                    href={`/belajar/${kursus.slug}/materi/${modulBerikutnya.id}`}
+                    onClick={(e) => {
+                      // Jalur masuk yang sama dengan tombol "Buka materi": kalau
+                      // sesi belum dimulai, dialognya yang muncul — supaya
+                      // "Lanjutkan belajar" tidak jadi pintu samping yang
+                      // melewati gerbang sesi.
+                      if (wajibSesiTerverifikasi(kebijakan) && !bukti) {
+                        e.preventDefault();
+                        setModulDituju(modulBerikutnya.id);
+                      }
+                    }}
                     className="mt-4 block rounded-[var(--radius-md)] bg-gray-900 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-gray-700"
                   >
                     {progres === 100 ? "Ulas kembali modul" : "Lanjutkan belajar"}
@@ -739,44 +764,114 @@ function RuangBelajar({
           </aside>
         </div>
 
+        {/* Gerbang "mulai belajar": satu dialog untuk seluruh daftar modul.
+
+            Ditaruh di akhir JSX, bukan di dalam `<ol>`: hanya satu dialog yang
+            bisa terbuka, dan menaruhnya di tingkat halaman membuatnya tidak ikut
+            ter-render ulang per baris modul. `modulDituju` menyimpan modul mana
+            yang dituju tombol "Buka materi" terakhir. */}
+        <GerbangMulaiCourse
+          buka={modulDituju !== null}
+          onTutup={() => setModulDituju(null)}
+          courseId={kursus.id}
+          judulKursus={kursus.title}
+          hrefTujuan={`/belajar/${kursus.slug}/materi/${modulDituju ?? ""}`}
+          terdaftar={sudahDaftar}
+          wajibSesi={wajibSesiTerverifikasi(kebijakan)}
+          gratis={kursus.is_free}
+        />
+
         {tugas ? (
           /*
-           * Tantangan praktik — pita dither + dua kolom.
+           * Tantangan praktik — panel ber-arsip + lembar putih yang menumpuknya.
            *
-           * Sebelumnya: satu panel biru datar (`from-blue-800 to-blue-500`)
-           * dengan tiga baris teks dan pil putih. Tiga hal salah sekaligus, dan
-           * ketiganya sudah pernah dicatat di repo ini:
+           * Kartu ini adalah penutup silabus: satu tugas nyata dengan standar
+           * penilaiannya. Bentuknya sengaja bukan kartu putih rata, karena
+           * justru itulah yang membuatnya tenggelam di antara kartu-kartu lain
+           * di halaman yang sama.
            *
-           *  1. **Ramp birunya di tangan.** Setiap permukaan biru lain di repo
-           *     mengambil gradiennya dari satu sumber (resep kartu dashboard,
-           *     `PitaHeaderDither`, `--brand-grad`); panel ini menulis
-           *     `from-blue-800 to-blue-500` sendiri, jadi birunya bebas
-           *     menyimpang. Sekarang media-nya `PitaHeaderDither` — resep yang
-           *     sama dengan header `/belajar` dan panel "Cocok Untukmu".
-           *  2. **Tinta putih di atas field terang.** Media dither itu terang;
-           *     putih di atasnya ~1.1:1. Karena itu isinya tinta gelap
-           *     (`#0a3d62`), bukan `text-white`.
-           *  3. **Nol informasi tentang tugasnya.** Judul challenge saja tidak
-           *     memberi tahu apa yang akan dinilai. `criteria` dari fixture yang
-           *     sama dengan ruang kerja challenge sekarang tampil di sini, jadi
-           *     peserta tahu standar penilaiannya sebelum menekan tombol.
+           * **Arsipnya adalah gambar, bukan gradien.** Sebelum ini header-nya
+           * `PitaHeaderDither` — empat lapisan (ground + dot grid + video
+           * dithered WebGL + veil) untuk sebuah pita setinggi satu baris judul.
+           * Sekarang satu `.webp` statis yang sudah menggambar langit, grid
+           * titik, dan kartu kaca itu sendiri, jadi byte-nya jauh lebih kecil,
+           * tidak ada canvas yang harus dihentikan saat offscreen, dan tidak ada
+           * crop video yang harus ikut disetel ulang kalau kartu ini berubah
+           * tinggi. Gambarnya dekoratif murni: `alt=""`, `aria-hidden` lewat
+           * `alt` kosong, dan tidak ada teks di dalamnya yang perlu dibaca.
            *
-           * Isi duduk di **lembar putih yang MENUMPUK pitanya** (`relative z-10
+           * **`object-[70%_18%]` memilih pita yang benar, dan itu bukan
+           * selera.** Gambar 1774x887 dipotong `object-cover` ke pita yang
+           * sangat lebar dan tipis, jadi hampir seluruh garis vertikalnya
+           * terbuang. Sisi KIRI gambar (tempat judul duduk) adalah langit pucat
+           * rata; yang bergambar — sampel titik dan tiga kartu kaca — ada di
+           * kanan dan di sepertiga atas. Nilai itu menaruh bagian bergambar di
+           * sisi kanan pita, tempat yang memang tidak dipakai teks, dan
+           * menyisakan bidang rata di belakang judul.
+           *
+           * **Tinta tetap gelap, dan itu diukur.** Tidak ada scrim di atas
+           * gambar (DESIGN.md melarangnya). Yang menahan keterbacaan adalah
+           * gambar itu sendiri: separuh kirinya rata ~0.93-0.96 luminance,
+           * sehingga judul `#0a3d62` dan eyebrow tetap lolos AA tanpa lapisan
+           * tambahan apa pun. Putih di atas bidang itu hanya ~1.1:1 — karena
+           * itu tidak ada `text-white` di sini.
+           *
+           * **Isi duduk di lembar putih yang MENUMPUK arsipnya** (`relative z-10
            * -mt-4 rounded-t-2xl bg-white`) — perangkat yang sama dengan kartu
-           * katalog (`-mt-8`) dan panel rekomendasi loker (`-mt-4`), hanya
-           * dengan tinggi pita 72px yang sama dengan panel itu. Keempat
+           * katalog (`-mt-8`) dan panel rekomendasi loker (`-mt-4`). Keempat
            * kelasnya satu paket: `-mt-4` sebesar radius 16px, jadi seluruh
-           * lengkungnya menyingkap pita di belakangnya; tanpa negatif margin,
+           * lengkungnya menyingkap gambar di belakangnya; tanpa negatif margin,
            * `bg-white`, atau `z-10` bentuknya diam-diam kembali jadi kotak
-           * putih persegi.
+           * putih persegi di atas gambar yang terpotong.
+           *
+           * **`criteria` tinggal di dalam kartu sendiri**, bukan sebagai empat
+           * baris lepas. Itu satu-satunya isi kartu ini yang benar-benar
+           * dibutuhkan peserta — standar penilaiannya — dan mengelompokkannya
+           * membuat batas penilaian terbaca sebagai satu blok, sejajar dengan
+           * `bg-blue-50 ring-blue-100` yang sudah dipakai chip level di
+           * atasnya, bukan sebagai daftar yang mengambang di badan kartu.
            */
           <section
             aria-labelledby="judul-praktik"
             className="overflow-hidden rounded-2xl border border-[rgba(147,197,253,0.45)] bg-white shadow-[0_1px_2px_rgba(10,61,98,0.04),0_10px_24px_-16px_rgba(10,61,98,0.18)]"
           >
-            <PitaHeaderDither className="h-[72px]">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-white/70 text-[#0a3d62] ring-1 ring-[#0a3d62]/15">
+            <div className="relative h-[88px] shrink-0 overflow-hidden">
+              <Image
+                src="/images/belajar/challenge-praktik-hero.webp"
+                alt=""
+                fill
+                unoptimized
+                sizes="(min-width: 1024px) 1024px, 100vw"
+                className="object-cover object-top"
+              />
+
+              {/* Wash kiri-ke-kanan. Ini perangkat yang sama dengan panel "Hasil
+                  karier" di `/belajar` (`bg-[linear-gradient(90deg,
+                  rgba(255,255,255,0.9)…)]`) dan bukan scrim penuh: DESIGN.md
+                  melarang menutup seluruh permukaan media, tetapi mengizinkan
+                  wash arah yang menahan teks di sisi yang memang rata.
+
+                  Fungsinya di sini konkret: separuh kiri arsip ini rata, tapi
+                  menyimpan satu garis tipis melengkung (sisa objek gambar).
+                  Garis itu, kalau lolos ke bawah judul, terbaca sebagai cacat
+                  render — bukan dekorasi. Wash ini menutupnya sekaligus
+                  menaikkan kontras judul ke bidang yang praktis putih, jadi
+                  `#0a3d62` tinggal melawan ~#fbfdff alih-alih melawan piksel
+                  bergaris. Sisi kanan dibiarkan bersih supaya kartu kacanya
+                  tetap terlihat; kartu itu motif yang justru dipilih. */}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.95)_0%,rgba(255,255,255,0.9)_34%,rgba(255,255,255,0.5)_54%,rgba(255,255,255,0)_70%)]"
+              />
+
+              {/* Judul pita saja. Level dan estimasi **tidak** di sini: keduanya
+                  akan hilang di bawah `sm` kalau ditempatkan di pita setinggi
+                  ini, dan informasi yang muncul hanya di lebar tertentu adalah
+                  informasi yang hilang separuh waktu. Keduanya pindah ke baris
+                  meta di badan kartu, jadi lebar layar tidak pernah menentukan
+                  apa yang bisa dibaca. */}
+              <div className="absolute inset-0 flex items-center gap-2.5 px-5 lg:px-8">
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-white/85 text-[#0a3d62] shadow-[0_1px_2px_rgba(10,61,98,0.08)] ring-1 ring-white/70">
                   <SquareTerminal aria-hidden className="size-4" />
                 </span>
                 <h2
@@ -786,14 +881,7 @@ function RuangBelajar({
                   Challenge praktik
                 </h2>
               </div>
-
-              {/* Judul pita saja. Level dan estimasi **tidak** di sini: keduanya
-                  akan hilang di bawah `sm` kalau ditempatkan di pita 72px, dan
-                  informasi yang muncul hanya di lebar tertentu adalah
-                  informasi yang hilang separuh waktu. Keduanya pindah ke baris
-                  meta di badan kartu, jadi lebar layar tidak pernah menentukan
-                  apa yang bisa dibaca. */}
-            </PitaHeaderDither>
+            </div>
 
             <div className="relative z-10 -mt-4 rounded-t-2xl bg-white px-5 pt-6 pb-6 lg:px-8 lg:pb-7">
               <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end lg:gap-8">
@@ -820,24 +908,30 @@ function RuangBelajar({
                     {tugas.brief}
                   </p>
 
-                  <p className="mt-5 flex items-center gap-2 text-[11px] font-semibold tracking-[0.14em] text-gray-500 uppercase">
-                    <ListChecks aria-hidden className="size-3.5 text-[#0056D2]" />
-                    Yang dinilai
-                  </p>
-                  <ul className="mt-2.5 grid gap-2 sm:grid-cols-2">
-                    {tugas.criteria.map((kriteria) => (
-                      <li
-                        key={kriteria}
-                        className="flex items-start gap-2 text-sm leading-snug text-gray-700"
-                      >
-                        <CircleCheck
-                          aria-hidden
-                          className="mt-0.5 size-4 shrink-0 text-emerald-600"
-                        />
-                        <span>{kriteria}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  {/* Standar penilaian: satu blok, bukan empat baris lepas.
+                      `text-gray-600` untuk eyebrow, bukan `text-gray-500`:
+                      di atas `bg-blue-50` yang sedikit lebih gelap dari putih,
+                      `#6b7280` turun ke ~4.4:1 dan gagal AA untuk teks 11px. */}
+                  <div className="mt-5 rounded-xl bg-blue-50 p-4 ring-1 ring-blue-100">
+                    <p className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.14em] text-gray-600 uppercase">
+                      <ListChecks aria-hidden className="size-3.5 text-[#0056D2]" />
+                      Yang dinilai
+                    </p>
+                    <ul className="mt-3 grid gap-2.5 sm:grid-cols-2">
+                      {tugas.criteria.map((kriteria) => (
+                        <li
+                          key={kriteria}
+                          className="flex items-start gap-2 text-sm leading-snug text-gray-700"
+                        >
+                          <CircleCheck
+                            aria-hidden
+                            className="mt-0.5 size-4 shrink-0 text-emerald-600"
+                          />
+                          <span>{kriteria}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
 
                 {/* Satu aksi utama, di kanan dan sejajar dasar kolom teks.
