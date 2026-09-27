@@ -87,3 +87,35 @@ export function urlFrameAiMastery(
   if (capability) url.searchParams.set("capability", capability);
   return url.toString();
 }
+
+/** Path rute chromeless AI Mastery yang dipakai drawer tutor. */
+const RUTE_EMBED_TUTOR = "/embed/chat";
+
+/**
+ * URL rute embed AI Mastery untuk drawer tutor.
+ *
+ * Berbeda dari `urlFrameAiMastery` yang mengembalikan `baseUrl` apa adanya saat
+ * tidak ada query, di sini **path-nya sendiri** yang bermakna: `/embed/chat`
+ * adalah rute chromeless yang tidak mewarisi `AppShell`/sidebar. Karena itu
+ * `baseUrl` polos tidak pernah menjadi hasil yang benar.
+ *
+ * Id kursus di-encode dengan alasan yang sama seperti `tautanTutorAi`:
+ * `courses.id` adalah `text`, jadi ia boleh memuat `&` — menempelkannya mentah
+ * memecah query dan kursus yang tiba bukan kursus yang diklik.
+ *
+ * `baseUrl` tidak valid dilempar (`new URL` melempar), mengikuti
+ * `urlFrameAiMastery`: salah konfigurasi harus gagal saat render, bukan memuat
+ * frame yang diam-diam kosong.
+ */
+export function urlFrameTutorEmbed(
+  baseUrl: string,
+  query: { course?: string | null; capability?: string | null },
+): string {
+  const course = query.course?.trim();
+  const capability = query.capability?.trim();
+
+  const url = new URL(RUTE_EMBED_TUTOR, baseUrl);
+  if (course) url.searchParams.set("course", course);
+  if (capability) url.searchParams.set("capability", capability);
+  return url.toString();
+}

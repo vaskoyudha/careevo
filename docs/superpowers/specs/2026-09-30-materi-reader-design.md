@@ -72,9 +72,23 @@ src/app/(focus)/belajar/[slug]/materi/[modulId]/page.tsx ← hanya pane modul
   me-remount rail, provider sesi, atau iframe tutor. Kalau shell ada di `page.tsx`,
   setiap klik modul memuat ulang iframe dan memutus WebSocket di tengah giliran —
   ini jebakan yang sengaja dirancang keluar, bukan detail gaya.
-- Reader memakai **shell-nya sendiri**, bukan `LearnerShell`: `min-h-dvh flex
-  flex-col`, tanpa `.chrome`. Ini pola yang sudah ada di `latihan-view.tsx:133` dan
+- Reader memakai **shell-nya sendiri**, bukan `LearnerShell`: `h-dvh overflow-hidden
+  flex flex-col`, tanpa `.chrome`. Ini pola yang sudah ada di **reader ter-dock**
+  repo ini (`book-reader.tsx:31`), bukan `min-h-dvh` milik `latihan-view.tsx:133` /
   `book-library.tsx:33`.
+  **Kenapa terbatas tinggi, bukan `min-h-dvh`:** dengan `min-h-dvh` tidak ada yang
+  membatasi baris flex di bawah bar fokus, jadi modul yang lebih tinggi dari
+  viewport membuat baris itu tumbuh setinggi isinya — rail dan pane ikut setinggi
+  modul (`overflow-y-auto` keduanya jadi hampa; yang menggulir dokumen), dan
+  `TutorDrawer` yang ter-dock di `xl` (saudara flex di baris yang sama, §3.7) juga
+  setinggi itu. Akar `h-dvh` aplikasi AI Mastery di dalam iframe mengikuti tinggi
+  aside-nya, sehingga daftar pesannya tidak pernah menggulir dan **composer tutor
+  berakhir ribuan piksel di bawah** — tidak terjangkau selama membaca bagian atas
+  modul. Diukur di Chrome headless 1440×900 dengan pane 2600px:
+  `docScrollHeight=2680 aside clientHeight=2600 composerTop=2566`. Di bawah `xl`
+  drawer adalah lembar `fixed`, jadi masalahnya khusus `xl` ke atas. `h-dvh
+  overflow-hidden` memindahkan gulir ke baris; rantai `min-h-0` di bawahnya wajib
+  utuh supaya kolom-kolom flex benar-benar bisa menyusut.
 - Bar fokus: `sticky top-0`, `border-b`, memuat **← Silabus · judul kursus · pil
   sesi · tombol tutor · "Tandai selesai"**. Karena bar ini di `top-0` (bukan di bawah
   navbar mengambang), ia **tidak** membutuhkan offset `--chrome-h` dan tidak boleh

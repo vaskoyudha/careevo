@@ -30,6 +30,7 @@ export function KursusSubNav({
   gratis,
   pending,
   onDaftar,
+  hrefLanjut,
   trigger,
 }: {
   judul: string;
@@ -41,6 +42,13 @@ export function KursusSubNav({
   gratis: boolean;
   pending: boolean;
   onDaftar: () => void;
+  /**
+   * Reader route for the course's first unfinished module, computed by
+   * `detail-kursus.tsx` — the page owns the progress state, so it owns the
+   * "which module is next" decision too. `#kurikulum` is the caller's fallback
+   * for an empty curriculum.
+   */
+  hrefLanjut: string;
   /** The course header block, owned by `detail-kursus.tsx`. */
   trigger: RefObject<HTMLElement | null>;
 }) {
@@ -74,12 +82,12 @@ export function KursusSubNav({
           </span>
         ) : null}
         {terdaftar ? (
-          <a
-            href="#kurikulum"
+          <Link
+            href={hrefLanjut}
             className="inline-flex h-9 items-center justify-center rounded-lg bg-gray-900 px-4 text-sm font-semibold text-white transition-colors duration-200 hover:bg-gray-700"
           >
             {progres === 100 ? "Ulas modul" : "Lanjutkan"}
-          </a>
+          </Link>
         ) : gratis ? (
           <button
             type="button"

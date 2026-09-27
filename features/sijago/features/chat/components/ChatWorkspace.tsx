@@ -17,7 +17,7 @@ import {
 import { useChatWorkspaces } from "@/hooks/useChatWorkspaces";
 import { useComposerResources } from "@/hooks/useComposerResources";
 import { useWorkspaceBinding } from "@/hooks/useWorkspaceBinding";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import {
   type KeyboardEvent,
@@ -27,7 +27,10 @@ import {
   useRef,
   useState,
 } from "react";
-import { useChatRouteSession } from "@/features/chat/controllers/useChatRouteSession";
+import {
+  isEmbeddedChatRoute,
+  useChatRouteSession,
+} from "@/features/chat/controllers/useChatRouteSession";
 import { waitForReplyLanguageSave } from "@/features/chat/controllers/reply-language-save";
 
 import {
@@ -260,6 +263,11 @@ export default function ChatWorkspace({
   watching?: boolean;
 }) {
   const { router, sessionId: sessionIdParam } = useChatRouteSession();
+  const pathname = usePathname();
+  // Framed in Careevo's tutor drawer. The URL rewrites below stay off: the
+  // chromeless route has no session segment to rewrite to, and any `/chat`
+  // target would pull the workspace sidebar into a 300–640px frame.
+  const embeddedChat = isEmbeddedChatRoute(pathname);
   const searchParams = useSearchParams();
   const requestedWorkspaceId = searchParams.get("dt_workspace") ?? searchParams.get("workspace") ?? null;
   const { t } = useTranslation();
@@ -337,6 +345,11 @@ export default function ChatWorkspace({
       : null;
   const goToSession = useCallback(
     (sessionId: string) => {
+      // The header's prev/next arrows reach here too. On the embed there is no
+      // session segment to move to, and `sessionRoute` resolves to a
+      // chrome-bearing page — so the arrows stay inert rather than ejecting
+      // the frame out of the chromeless route.
+      if (embeddedChat) return;
       setActiveSessionId(sessionId);
       const session = sessionIndexRef.current.find(
         (item) => item.session_id === sessionId,
@@ -346,7 +359,7 @@ export default function ChatWorkspace({
         router.push,
       );
     },
-    [router, setActiveSessionId],
+    [router, setActiveSessionId, embeddedChat],
   );
   const [replyLanguageSavingKey, setReplyLanguageSavingKey] = useState<string | null>(null);
   const replyLanguageSaveRef = useRef<{ key: string; pending: Promise<void> } | null>(null);
@@ -716,6 +729,7 @@ export default function ChatWorkspace({
   const isResearchMode = activeCap.value === "deep_research";
   const isWatchingMode = watching;
   useEffect(() => {
+    if (embeddedChat) return;
     if (!sessionIdParam || state.sessionId !== sessionIdParam) return;
     if (!watching && state.workspaceMode === "immersive_watching") {
       router.replace(watchingRoute(sessionIdParam), {
@@ -726,7 +740,14 @@ export default function ChatWorkspace({
         scroll: false,
       });
     }
-  }, [watching, state.workspaceMode, state.sessionId, sessionIdParam, router]);
+  }, [
+    watching,
+    state.workspaceMode,
+    state.sessionId,
+    sessionIdParam,
+    router,
+    embeddedChat,
+  ]);
   const capabilityNeedsConfig = isQuizMode || isVisualizeMode || isResearchMode;
   const returnedResearchTurnRef = useRef<string | null>(null);
 
@@ -1130,8 +1151,11 @@ export default function ChatWorkspace({
   /* ---- URL-driven session loading ---- */
 
   const navigateToHome = useCallback(() => {
+    // The embed has nowhere to go home to: it is always mounted at
+    // `/embed/chat`, so the cancel only needs to drop the pending load.
+    if (embeddedChat) return;
     router.replace(scopedUrl(watching ? WATCHING_HOME : "/chat"), { scroll: false });
-  }, [router, watching]);
+  }, [router, watching, embeddedChat]);
 
   /** Abort in-flight load + navigate home. */
   const cancelSessionLoad = useCallback(() => {
@@ -1292,6 +1316,7 @@ export default function ChatWorkspace({
 
   // When a new session_id is assigned by the server, update the URL
   useEffect(() => {
+    if (embeddedChat) return;
     if (
       state.sessionId &&
       !sessionIdParam &&
@@ -1301,7 +1326,14 @@ export default function ChatWorkspace({
         scroll: false,
       });
     }
-  }, [state.sessionId, state.workspaceId, sessionIdParam, router, watching]);
+  }, [
+    state.sessionId,
+    state.workspaceId,
+    sessionIdParam,
+    router,
+    watching,
+    embeddedChat,
+  ]);
 
   useEffect(() => {
     setActiveSessionId(state.sessionId || sessionIdParam || null);
@@ -1519,6 +1551,11 @@ export default function ChatWorkspace({
   const handleSelectCapability = useCallback(
     (value: string) => {
       if (value === "immersive_watching" && !watching) {
+        // The Watching workspace is a `(workspace)` page, so this push would
+        // eject the frame into the sidebar layout. The chip stays inert and
+        // the capability is not adopted either — the embed has no watching
+        // surface to put it in.
+        if (embeddedChat) return;
         router.push(scopedUrl(WATCHING_HOME));
         return;
       }
@@ -1542,7 +1579,15 @@ export default function ChatWorkspace({
       setCapabilityConfigConfirmed(false);
       setCapMenuOpen(false);
     },
-    [capabilities, setCapability, setTools, userEnabledTools, watching, router],
+    [
+      capabilities,
+      setCapability,
+      setTools,
+      userEnabledTools,
+      watching,
+      router,
+      embeddedChat,
+    ],
   );
 
   const fileToAttachment = fileToPendingAttachment;
@@ -2457,17 +2502,19 @@ export default function ChatWorkspace({
                 ) : null}
                 {/* Prev/next arrows ride immediately left of the session name
                     and walk the sidebar's recency order (pinned first, then
-                    streaming, then most recent). Disabled at either end. */}
+                    streaming, then most recent). Disabled at either end — and
+                    always on the embed, where `goToSession` is suppressed and
+                    the button would otherwise look live but do nothing. */}
                 <div className="flex shrink-0 items-center -ml-1">
                   <HeaderActionButton
                     onClick={() => prevSessionId && goToSession(prevSessionId)}
-                    disabled={!prevSessionId}
+                    disabled={!prevSessionId || embeddedChat}
                     icon={ChevronLeft}
                     label={t("Previous session")}
                   />
                   <HeaderActionButton
                     onClick={() => nextSessionId && goToSession(nextSessionId)}
-                    disabled={!nextSessionId}
+                    disabled={!nextSessionId || embeddedChat}
                     icon={ChevronRight}
                     label={t("Next session")}
                   />

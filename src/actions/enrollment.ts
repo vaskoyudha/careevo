@@ -253,5 +253,8 @@ export async function tandaiModulAction(
   });
   safeRevalidate("/belajar");
   safeRevalidate(`/belajar/${target.slug}`);
+  // Sama seperti `selesaikanMateriAction`: reader punya route sendiri, jadi
+  // tanda centang di rail butuh revalidasi route itu, bukan hanya halaman kursus.
+  safeRevalidate(`/belajar/${target.slug}/materi/${modulId}`);
   return { ok: true };
 }

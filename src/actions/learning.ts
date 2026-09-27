@@ -391,6 +391,9 @@ export async function selesaikanMateriAction(input: {
   // membaca progres pendaftaran yang baru saja berubah.
   safeRevalidate("/belajar");
   safeRevalidate(`/belajar/${kursus.slug}`);
+  // Reader adalah halaman lain: tanpa ini, rail-nya bisa tetap menampilkan
+  // modul yang baru saja diselesaikan sampai muat ulang penuh.
+  safeRevalidate(`/belajar/${kursus.slug}/materi/${input.modulId}`);
   return { ok: true, runId: bukti?.id };
 }
 

@@ -404,11 +404,17 @@ import { kebijakanDefault } from "@/lib/courses/kebijakan";
  */
 
 function render(props: { buktiAwal?: string | null; runIdAwal?: string | null }) {
+  // Props disusun sebagai satu objek, lalu `children` dioper lewat properti —
+  // **bukan** sebagai argumen ketiga `createElement`. Di React 19 types,
+  // `children` adalah properti wajib `CourseSessionProvider`, dan
+  // `createElement(Comp, props, child)` gagal `npm run typecheck` dengan
+  // TS2769 "Property 'children' is missing". Objek literal inline juga ditolak
+  // `eslint react/no-children-prop`, jadi variabel perantara ini memang perlu.
+  const isi = { ...props, children: createElement(CourseSessionPrompt) };
   return renderToStaticMarkup(
     createElement(
       CourseSessionProvider,
-      { courseId: "crs-1", kebijakan: kebijakanDefault(), ...props },
-      createElement(CourseSessionPrompt),
+      { courseId: "crs-1", kebijakan: kebijakanDefault(), ...isi },
     ),
   );
 }
@@ -792,41 +798,56 @@ const MODUL: ModulKursus = {
 };
 
 function render(aksesTutor: Parameters<typeof MateriFocusBar>[0]["aksesTutor"]) {
-  return renderToStaticMarkup(
-    createElement(
-      CourseSessionProvider,
-      { courseId: "crs-1", kebijakan: kebijakanDefault(), buktiAwal: "t.a", runIdAwal: "r-1" },
-      createElement(MateriFocusBar, {
-        slug: "kursus-uji",
-        kursusJudul: "Kursus Uji",
-        modul: MODUL,
-        sudah: false,
-        onTandai: () => {},
-        pending: false,
-        drawerBuka: false,
-        onToggleDrawer: () => {},
-        aksesTutor,
-      }),
-    ),
-  );
+  // `children` dioper lewat properti, bukan argumen ketiga `createElement`:
+  // di React 19 types `children` adalah properti wajib `CourseSessionProvider`,
+  // dan bentuk tiga-argumen gagal `npm run typecheck` dengan TS2769. Sama
+  // seperti helper di Task 3.
+  const isi = {
+    courseId: "crs-1",
+    kebijakan: kebijakanDefault(),
+    buktiAwal: "t.a",
+    runIdAwal: "r-1",
+    children: createElement(MateriFocusBar, {
+      slug: "kursus-uji",
+      kursusJudul: "Kursus Uji",
+      modul: MODUL,
+      sudah: false,
+      onTandai: () => {},
+      pending: false,
+      drawerBuka: false,
+      onToggleDrawer: () => {},
+      aksesTutor,
+    }),
+  };
+  return renderToStaticMarkup(createElement(CourseSessionProvider, isi));
 }
 
 describe("MateriFocusBar", () => {
-  it("menautkan kembali ke silabus", () => {
+  it("menautkan kembali ke silabus dengan nama aksesibel", () => {
     const html = render({ tipe: "bebas" });
     expect(html).toContain('href="/belajar/kursus-uji"');
+    // `aria-label` wajib ada: di bawah `sm` label visualnya `display:none` dan
+    // ikonnya `aria-hidden`, jadi tanpa ini tautannya tanpa nama di mobile —
+    // dan ini satu-satunya jalan keluar dari reader.
+    expect(html).toContain('aria-label="Silabus"');
   });
 
   it("tombol tutor aktif saat kebijakan mengizinkan", () => {
     const html = render({ tipe: "bebas" });
     expect(html).toContain('aria-expanded="false"');
-    expect(html).not.toContain("disabled");
+    // Dihitung dari **atribut** `disabled=""`, bukan substring "disabled":
+    // kelas Tailwind `disabled:opacity-60` pada tombol "Tandai selesai" juga
+    // memuat kata itu, sehingga `not.toContain("disabled")` gagal pada kode
+    // yang benar dan `toContain("disabled")` lulus tanpa membuktikan apa pun.
+    expect(html.match(/disabled=""/g) ?? []).toHaveLength(0);
   });
 
   it("tombol tutor nonaktif saat `tanpa_ai`, tapi tetap dirender dengan alasannya", () => {
     const html = render({ tipe: "ditolak", pesan: "Aturan course ini melarang bantuan AI." });
     expect(html).toContain("Aturan course ini melarang bantuan AI.");
-    expect(html).toContain("disabled");
+    // Tepat satu tombol nonaktif — tombol tutor. "Tandai selesai" tidak
+    // (`pending` false), jadi jumlahnya membedakan keduanya.
+    expect(html.match(/disabled=""/g) ?? []).toHaveLength(1);
   });
 
   it("menampilkan tombol tandai selesai saat modul belum selesai", () => {
@@ -897,6 +918,12 @@ export function MateriFocusBar({
       <div className="flex w-full items-center gap-3 px-3 py-2.5 sm:px-5">
         <Link
           href={`/belajar/${slug}`}
+          // Nama aksesibel yang **tidak bergantung breakpoint**: di bawah `sm`
+          // span labelnya `display: none` dan ikonnya `aria-hidden`, sehingga
+          // tanpa `aria-label` ini satu-satunya jalan keluar dari reader
+          // diumumkan sebagai "link" tanpa nama. Label visualnya tetap seperti
+          // semula bagi pengguna awas.
+          aria-label="Silabus"
           className="inline-flex shrink-0 items-center gap-1.5 text-[13px] text-gray-600 transition-colors hover:text-gray-900"
         >
           <ArrowLeft className="size-4" strokeWidth={1.8} aria-hidden="true" />
@@ -1043,7 +1070,12 @@ describe("TutorDrawer", () => {
     // drawer untuk membaca. Melepas iframe akan memuat ulang dokumennya.
     const html = render({ buka: false });
     expect(html).toContain("<iframe");
-    expect(html).toContain("hidden");
+    // `hidden` harus ada di kelas `<aside>`, **bukan** sekadar di suatu tempat di
+    // HTML: gagang resize dan scrim sama-sama memakai kelas `hidden`, jadi
+    // `toContain("hidden")` yang longgar tetap hijau walau aside-nya dibiarkan
+    // selalu terbuka — assertion yang tidak bisa merah tidak membuktikan apa pun.
+    const aside = html.match(/<aside[^>]*>/)?.[0] ?? "";
+    expect(aside).toContain("hidden");
   });
 
   it("tidak memuat iframe sama sekali saat kebijakan melarang", () => {
@@ -1054,7 +1086,11 @@ describe("TutorDrawer", () => {
   it("memasang sandbox dan referrerPolicy", () => {
     const html = render();
     expect(html).toContain('sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"');
-    expect(html).toContain('referrerpolicy="no-referrer"');
+    // Dibandingkan tanpa peduli huruf besar/kecil: React 19 merender atribut ini
+    // sebagai `referrerPolicy` (camelCase) di `renderToStaticMarkup`, sementara
+    // HTML sendiri tidak case-sensitive untuk nama atribut. Assertion lowercase
+    // yang ketat akan gagal pada kode yang benar.
+    expect(html.toLowerCase()).toContain('referrerpolicy="no-referrer"');
   });
 
   it("punya id yang bisa dirujuk aria-controls tombol", () => {
@@ -1212,7 +1248,12 @@ export function TutorDrawer({
         className={cn(
           "border-gray-200 bg-white",
           buka
-            ? "fixed inset-y-0 right-0 z-40 flex flex-col border-l shadow-xl xl:static xl:z-auto xl:shadow-none"
+            // `xl:relative`, **bukan** `xl:static`: gagang resize di bawah
+            // diposisikan `absolute`, dan elemen `static` tidak membentuk
+            // containing block — gagangnya akan mengukur terhadap viewport dan
+            // mendarat sebagai pita setinggi layar di tepi kiri halaman, bukan di
+            // batas drawer. `relative` tetap in-flow, jadi docking tidak berubah.
+            ? "fixed inset-y-0 right-0 z-40 flex flex-col border-l shadow-xl xl:relative xl:z-auto xl:shadow-none"
             : "hidden",
         )}
         style={buka ? { width: `${lebar}px`, maxWidth: "92vw" } : undefined}
@@ -1275,9 +1316,17 @@ git commit -m "feat(reader): drawer tutor AI, ter-mount permanen"
 
 **Interfaces:**
 - Consumes: `HalamanView`, `MateriView`, `KuisView`, `CourseSessionGate`, `useCourseSession`, `ModulKursus`.
-- Produces: `MateriPane({ kursusId, modul, halamanTerpilih, onPindahHalaman, keputusanLampiran, keputusanKuis }: {...})`.
+- Produces: `MateriPane({ kursusId, modul }: { kursusId: string; modul: ModulKursus })`.
 
-**Gerbang (dari spec §3.3):** halaman **bebas**; lampiran `keputusanLampiran`; kuis `keputusanKuis`. Keputusan datang sebagai prop dari server-rendered parent yang sudah memanggil `boleh()` — bukan dihitung ulang di sini.
+**Gerbang (dari spec §3.3):** halaman **bebas**; lampiran `boleh("materi")`; kuis `boleh("kuis")`.
+
+**Kenapa pane membaca keputusannya sendiri.** Versi pertama plan ini mengoper
+`keputusanLampiran`/`keputusanKuis` sebagai prop dari shell. Itu salah untuk
+struktur yang dipakai Task 8: shell hidup di `layout.tsx`, dan layout **tidak**
+punya akses ke `modulId` anaknya, jadi ia tidak bisa merender pane. Pane dirender
+oleh `page.tsx` yang berada **di bawah** provider — dan `useCourseSession()` di
+sana membaca sesi yang sama. Keputusannya tetap dihitung **saat render**, bukan
+disimpan di state, jadi gerbang tidak bisa tertinggal basi.
 
 - [ ] **Step 1: Tulis test yang gagal**
 
@@ -1297,9 +1346,10 @@ import type { KeputusanAkses } from "@/lib/learning/akses";
  * Pane modul — diuji lewat HTML hasil render.
  *
  * Yang dikunci: prosa **selalu** tampil (membaca bukan penyelesaian), sedangkan
- * lampiran dan kuis tunduk pada keputusan yang diberikan. Ini gerbang yang sama
- * dengan silabus lama, hanya dipindahkan — jadi test-nya memeriksa bahwa
- * keputusan `perlu_sesi` benar-benar menutup, bukan sekadar diabaikan.
+ * lampiran dan kuis tunduk pada keputusan `putuskanAkses`. Keputusan itu dibaca
+ * pane dari `useCourseSession()`, jadi test ini menyuntikkan bukti lewat
+ * `CourseSessionProvider` alih-alih mengoper keputusan sebagai prop — itu yang
+ * membuatnya benar-benar menguji gerbangnya, bukan sekadar meneruskan nilai.
  */
 
 const HALAMAN = {
@@ -1347,46 +1397,48 @@ const MODUL: ModulKursus = {
   ],
 };
 
-function render(keputusanLampiran: KeputusanAkses, keputusanKuis: KeputusanAkses) {
-  return renderToStaticMarkup(
-    createElement(
-      CourseSessionProvider,
-      { courseId: "crs-1", kebijakan: kebijakanDefault() },
-      createElement(MateriPane, {
-        kursusId: "crs-1",
-        modul: MODUL,
-        halamanTerpilih: "hal-1",
-        onPindahHalaman: () => {},
-        keputusanLampiran,
-        keputusanKuis,
-      }),
-    ),
-  );
+/**
+ * `bukti` menentukan keputusan: tanpa bukti, kebijakan `wajib` membuat
+ * `putuskanAkses` menjawab `perlu_sesi` untuk `materi` dan `kuis`.
+ */
+function render(bukti: string | null) {
+  // `children` lewat properti, bukan argumen ketiga: di React 19 types
+  // `children` wajib pada `CourseSessionProvider` dan bentuk tiga-argumen gagal
+  // `npm run typecheck` (TS2769). Sama seperti helper Task 3 dan Task 5.
+  const isi = {
+    courseId: "crs-1",
+    kebijakan: kebijakanDefault(),
+    buktiAwal: bukti,
+    runIdAwal: bukti ? "run-1" : null,
+    children: createElement(MateriPane, { kursusId: "crs-1", modul: MODUL }),
+  };
+  return renderToStaticMarkup(createElement(CourseSessionProvider, isi));
 }
 
-const BEBAS: KeputusanAkses = { tipe: "bebas" };
-const PERLU: KeputusanAkses = { tipe: "perlu_sesi", pesan: "Butuh sesi terverifikasi dulu." };
-
 describe("MateriPane", () => {
-  it("selalu menampilkan prosa, apa pun keputusannya", () => {
-    expect(render(PERLU, PERLU)).toContain("Isi materi.");
+  it("selalu menampilkan prosa, bahkan tanpa sesi", () => {
+    // Membaca bukan penyelesaian: gerbang tidak boleh menutup prosa.
+    expect(render(null)).toContain("Isi materi.");
   });
 
-  it("menutup lampiran saat keputusan bukan bebas", () => {
-    const html = render(PERLU, BEBAS);
-    expect(html).toContain("Butuh sesi terverifikasi dulu.");
+  it("menutup lampiran tanpa sesi", () => {
+    const html = render(null);
     // Embed YouTube tidak boleh ikut ter-render saat gerbang menutup.
     expect(html).not.toContain("youtube.com/embed");
   });
 
-  it("menampilkan lampiran saat keputusan bebas", () => {
-    expect(render(BEBAS, BEBAS)).toContain("youtube.com/embed");
+  it("menampilkan lampiran saat sesi terverifikasi aktif", () => {
+    expect(render("token.abc")).toContain("youtube.com/embed");
   });
 
   it("menutup kuis secara terpisah dari lampiran", () => {
-    const html = render(BEBAS, PERLU);
-    expect(html).toContain("Butuh sesi terverifikasi dulu.");
+    // Tanpa sesi, keduanya tertutup — tetapi yang dibuktikan di sini adalah
+    // pesan gerbang `kuis` muncul sendiri, bukan hanya pesan `materi`.
+    const html = render(null);
+    expect(html).toContain("Kuis");
+    expect(html).not.toContain("Periksa jawaban");
   });
+});
 });
 ```
 
@@ -1402,43 +1454,42 @@ Buat `src/components/features/learning/materi-pane.tsx`:
 ```tsx
 "use client";
 
+import { useState } from "react";
 import { HalamanView } from "./halaman-view";
 import { MateriView } from "./materi-view";
 import { KuisView } from "./kuis-view";
-import { CourseSessionGate } from "./course-session";
-import type { KeputusanAkses } from "@/lib/learning/akses";
+import { CourseSessionGate, useCourseSession } from "./course-session";
 import type { ModulKursus } from "@/lib/courses/kurikulum";
 
 /**
  * Isi satu modul di reader.
  *
- * Urutannya mengikuti alur belajar yang lama — prosa dulu, lalu lampiran, lalu
- * kuis — supaya peserta tidak perlu belajar ulang tata letaknya. Yang berubah
- * hanya rumahnya: dulu ini dirender di dalam akordeon daftar modul, sekarang di
- * pane reader.
+ * Urutannya mengikuti alur belajar yang lama — prosa dulu, lalu **kuis**, lalu
+ * **lampiran** — supaya peserta tidak perlu belajar ulang tata letaknya. Urutan
+ * itu bukan pilihan baru: halaman kursus lama merender dengan urutan yang sama
+ * (`detail-kursus.tsx`: `HalamanView` di :614, `KuisView` di :632, `MateriView`
+ * di :658). Yang berubah hanya rumahnya: dulu dirender di dalam akordeon daftar
+ * modul, sekarang di pane reader.
  *
- * Keputusan akses datang sebagai **prop**, bukan dihitung di sini: pemanggilnya
- * (`materi-reader.tsx`) sudah memanggil `boleh()` dari `useCourseSession`, dan
- * satu keputusan dihitung sekali. Menghitung ulang di sini berarti dua sumber
- * yang bisa menyimpang saat bukti sesi berubah.
+ * Keputusan akses dibaca **di sini**, dari `useCourseSession()`, bukan dioper
+ * sebagai prop. Pane dirender oleh `page.tsx` yang berada di bawah
+ * `CourseSessionProvider` di layout, jadi konteksnya tersedia; dan karena
+ * keputusannya dihitung saat render (bukan disimpan di state), gerbangnya tidak
+ * bisa tertinggal basi ketika sesi dimulai atau diakhiri.
+ *
+ * Halaman yang sedang dibaca juga state lokal di sini. Dulu ia di shell, tetapi
+ * shell ada di `layout.tsx` yang tidak punya akses ke `modulId` anaknya — dan
+ * pager halaman memang milik satu modul, jadi tempatnya di sini.
  *
  * Panel tutor AI **tidak** di sini: ia pindah ke drawer (spec §3.7).
  */
-export function MateriPane({
-  kursusId,
-  modul,
-  halamanTerpilih,
-  onPindahHalaman,
-  keputusanLampiran,
-  keputusanKuis,
-}: {
-  kursusId: string;
-  modul: ModulKursus;
-  halamanTerpilih: string | null;
-  onPindahHalaman: (halamanId: string) => void;
-  keputusanLampiran: KeputusanAkses;
-  keputusanKuis: KeputusanAkses;
-}) {
+export function MateriPane({ kursusId, modul }: { kursusId: string; modul: ModulKursus }) {
+  const { boleh } = useCourseSession();
+  const keputusanLampiran = boleh("materi");
+  const keputusanKuis = boleh("kuis");
+
+  const [halamanTerpilih, setHalamanTerpilih] = useState<string | null>(null);
+
   const daftarHalaman = [...(modul.halaman ?? [])].sort((a, b) => a.urutan - b.urutan);
   const daftarMateri = modul.materi ?? [];
   const daftarKuis = modul.kuis ?? [];
@@ -1468,7 +1519,7 @@ export function MateriPane({
   return (
     <div className="space-y-6">
       {halamanAktif ? (
-        <HalamanView modul={modul} halaman={halamanAktif} onPindahHalaman={onPindahHalaman} />
+        <HalamanView modul={modul} halaman={halamanAktif} onPindahHalaman={setHalamanTerpilih} />
       ) : null}
 
       {daftarKuis.length > 0 ? (
@@ -1527,7 +1578,7 @@ git commit -m "feat(reader): pane isi modul dengan gerbang per kegiatan"
 
 **Files:**
 - Create: `src/app/(focus)/belajar/[slug]/materi/layout.tsx`
-- Create: `src/components/features/learning/materi-reader.tsx` (komposisi klien)
+- Create: `src/components/features/learning/materi-shell.tsx` (komposisi klien: bar + rail + drawer)
 - Create: `src/app/(focus)/belajar/[slug]/materi/[modulId]/page.tsx`
 - Modify: `scripts/smoke.mjs` (tambah route)
 
@@ -1535,7 +1586,26 @@ git commit -m "feat(reader): pane isi modul dengan gerbang per kegiatan"
 - Consumes: `modulUntukSumber`, `sesiReaderAwal` (Task 2), `kebijakanDefault`/`kursusKebijakan`, `urlFrameTutorEmbed` (Task 1), `AI_MASTERY_WEB_URL`, `selaraskanKursusAi`, semua komponen Task 3–7.
 - Produces: route `/belajar/[slug]/materi/[modulId]` yang bisa dibuka.
 
-**Kenapa shell di `layout.tsx`:** layout Next.js bertahan lintas child-route. Menaruhnya di `page.tsx` membuat setiap klik modul me-remount provider sesi dan iframe — sesi dan percakapan hilang. Ini keputusan struktural, bukan preferensi gaya.
+**Kenapa shell di `layout.tsx`:** layout Next.js **tidak** di-render ulang saat
+navigasi (docs Next: *"Layouts do not re-render on navigation"*), jadi provider
+sesi dan iframe tutor tidak pernah di-remount saat berpindah modul. Menaruhnya di
+`page.tsx` membuat setiap klik modul me-remount keduanya — sesi dan percakapan
+hilang. Ini keputusan struktural, bukan preferensi gaya.
+
+**Konsekuensi yang harus ditangani:** layout di `materi/layout.tsx` hanya menerima
+`params.slug` — ia **tidak** menerima `modulId`, karena segmen itu milik anaknya.
+Karena itu modul aktif **diturunkan dari pathname di komponen klien**, persis yang
+disarankan docs Next (*"To access the current pathname, you can read it inside a
+Client Component using the `usePathname()` hook"*). Layout tetap server component
+untuk membaca data; shell-nya klien.
+
+**Pembagian tanggung jawab:**
+
+| Berkas | Peran |
+|---|---|
+| `materi/layout.tsx` (server) | Baca kursus, modul, progres, seed sesi, URL tutor. Render provider + `<MateriShell>` |
+| `materi-shell.tsx` (klien) | `usePathname()` → modul aktif. Render bar fokus, rail, drawer, `KejadianPanel`, dan `{children}` |
+| `[modulId]/page.tsx` (server) | `notFound()` untuk id tak dikenal; render `<MateriPane>` saja |
 
 - [ ] **Step 1: Tulis `layout.tsx`**
 
@@ -1543,80 +1613,187 @@ Buat `src/app/(focus)/belajar/[slug]/materi/layout.tsx`:
 
 ```tsx
 import type { ReactNode } from "react";
+import { notFound } from "next/navigation";
+import { getSession } from "@/lib/auth/session";
+import { cariEntri } from "@/lib/courses/katalog";
+import { modulUntukSumber } from "@/lib/courses/modul-resolver";
+import { getCourseById } from "@/lib/courses/store";
+import { kebijakanDefault } from "@/lib/courses/kebijakan";
+import { irisModulSelesai } from "@/lib/courses/kurikulum";
+import { progresKursusDb } from "@/lib/learning/service";
+import { pastikanBackfill } from "@/lib/learning/backfill-lazy";
+import { sesiReaderAwal } from "@/lib/learning/reader-sesi";
+import { selaraskanKursusAi } from "@/lib/learning/tutor-ai-kursus";
+import { urlFrameTutorEmbed, KAPABILITAS_COURSE_STUDY } from "@/lib/learning/tutor-ai";
+import { AI_MASTERY_WEB_URL } from "@/lib/mode/store";
+import { CourseSessionProvider } from "@/components/features/learning/course-session";
+import { MateriShell } from "@/components/features/learning/materi-shell";
 
 /**
  * Shell reader — tinggal di **layout**, bukan di halaman.
  *
- * Layout Next.js bertahan saat child-route berubah, jadi berpindah modul 1 → 4
- * tidak me-remount rail, provider sesi, atau iframe tutor. Kalau shell ini
- * ditaruh di `page.tsx`, setiap klik modul akan memuat ulang iframe dan memutus
- * WebSocket di tengah giliran — dan sesi terverifikasi yang sedang berjalan ikut
- * hilang karena provider-nya dibongkar.
+ * Layout Next.js tidak di-render ulang saat navigasi, jadi berpindah modul 1 → 4
+ * tidak me-remount provider sesi atau iframe tutor. Kalau shell ini ditaruh di
+ * `page.tsx`, setiap klik modul akan memuat ulang iframe dan memutus WebSocket di
+ * tengah giliran — dan sesi terverifikasi yang sedang berjalan ikut hilang karena
+ * provider-nya dibongkar.
+ *
+ * Layout ini **tidak** tahu modul mana yang aktif: `params` di sini hanya memuat
+ * `slug`, karena `[modulId]` adalah segmen anak. Modul aktif diturunkan dari
+ * pathname di dalam `MateriShell` (klien).
  *
  * Gerbang sesi + onboarding tidak diulang di sini: `(focus)/layout.tsx` sudah
- * memilikinya, dan halaman ini berada di bawahnya.
+ * memilikinya, dan layout ini berada di bawahnya.
  */
-export default function MateriLayout({ children }: { children: ReactNode }) {
-  return <div className="flex min-h-dvh flex-col bg-white">{children}</div>;
+export default async function MateriLayout({
+  children,
+  params,
+}: {
+  children: ReactNode;
+  params: Promise<{ slug: string }>;
+}) {
+  const session = await getSession();
+  if (!session) return null;
+
+  const { slug } = await params;
+  const entri = await cariEntri(slug);
+  if (!entri) notFound();
+
+  const kursusAsli = await getCourseById(entri.id);
+  const kebijakan = kursusAsli?.kebijakan ?? kebijakanDefault();
+
+  const modul = await modulUntukSumber({
+    id: entri.id,
+    title: entri.title,
+    tags: entri.tags,
+    duration_min: entri.duration_min,
+    url: entri.url,
+  });
+
+  await pastikanBackfill(session);
+  const { selesai } = await progresKursusDb(session, entri.id);
+  const selesaiValid = irisModulSelesai(selesai, modul);
+
+  // Seed sesi: peserta yang memuat ulang atau membuka deep link ke satu modul
+  // tidak kehilangan sesi terverifikasi yang masih berjalan. `null` berarti
+  // memang tidak ada sesi — gerbang biasa yang tampil, bukan galat.
+  const sesiAwal = await sesiReaderAwal({
+    userId: session.userId,
+    courseId: entri.id,
+    policyVersion: kebijakan.versi,
+  });
+
+  // Bridging tutor: `selaraskanKursusAi` mengembalikan `null` saat bridging tidak
+  // dikonfigurasi atau AI Mastery mati, dan null jatuh ke `entri.id` — perilaku
+  // lama, bukan error.
+  const aiCourseId =
+    (await selaraskanKursusAi({
+      courseId: entri.id,
+      title: entri.title,
+      modul: modul.map((m) => m.judul),
+    })) ?? entri.id;
+
+  const tutorSrc = urlFrameTutorEmbed(AI_MASTERY_WEB_URL, {
+    course: aiCourseId,
+    capability: KAPABILITAS_COURSE_STUDY,
+  });
+
+  return (
+    <CourseSessionProvider
+      courseId={entri.id}
+      kebijakan={kebijakan}
+      buktiAwal={sesiAwal?.bukti ?? null}
+      runIdAwal={sesiAwal?.runId ?? null}
+    >
+      <MateriShell
+        slug={entri.slug}
+        kursusJudul={entri.title}
+        kursusId={entri.id}
+        kebijakan={kebijakan}
+        modul={modul}
+        selesai={selesaiValid}
+        tutorSrc={tutorSrc}
+      >
+        {children}
+      </MateriShell>
+    </CourseSessionProvider>
+  );
 }
 ```
 
-- [ ] **Step 2: Tulis `materi-reader.tsx`**
+- [ ] **Step 2: Tulis `materi-shell.tsx`**
 
-Buat `src/components/features/learning/materi-reader.tsx`:
+Buat `src/components/features/learning/materi-shell.tsx`:
 
 ```tsx
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { useCourseSession } from "./course-session";
 import { MateriRail } from "./materi-rail";
 import { MateriFocusBar } from "./materi-focus-bar";
-import { MateriPane } from "./materi-pane";
 import { TutorDrawer } from "./tutor-drawer";
+import { KejadianPanel } from "./kejadian-panel";
 import { useSelesaikanModul } from "./selesaikan-modul";
 import type { ModulKursus } from "@/lib/courses/kurikulum";
 import type { KebijakanCourse } from "@/types/course";
 
 /**
- * Komposisi reader: rail + pane + bar fokus + drawer.
+ * Shell reader — bar fokus + rail + drawer, membungkus pane modul.
  *
- * Berada di dalam `CourseSessionProvider` yang dipasang `layout.tsx`, sehingga
- * `useCourseSession()` di sini membaca sesi yang sama di setiap modul.
+ * Ini **komponen klien** karena satu alasan: ia harus tahu modul mana yang aktif,
+ * dan layout yang merendernya tidak menerima `modulId` (`params` di
+ * `materi/layout.tsx` hanya memuat `slug`; `[modulId]` adalah segmen anak).
+ * Pathname dibaca dengan `usePathname()` — cara yang disarankan docs Next untuk
+ * mendapat pathname dari Client Component, karena layout sendiri tidak
+ * di-render ulang saat navigasi.
  *
- * Drawer dirender **selalu**, termasuk saat tertutup — lihat alasan di
- * `tutor-drawer.tsx`: transkrip dan WebSocket hidup di dalam iframe.
+ * Karena shell ini hidup di `layout.tsx`, ia **tidak** di-remount saat berpindah
+ * modul: `TutorDrawer` dan `CourseSessionProvider` di atasnya bertahan, sehingga
+ * percakapan tutor dan sesi terverifikasi tidak hilang.
+ *
+ * `KejadianPanel` dirender di sini — panel itu satu-satunya tempat peserta bisa
+ * melihat apa yang sudah tercatat selama sesi (spec §2), dan ia menyembunyikan
+ * dirinya sendiri saat tidak relevan (`kejadian-panel.tsx:76`).
  */
-export function MateriReader({
+export function MateriShell({
   slug,
   kursusJudul,
   kursusId,
   kebijakan,
   modul,
-  modulAktif,
   selesai,
   tutorSrc,
+  children,
 }: {
   slug: string;
   kursusJudul: string;
   kursusId: string;
   kebijakan: KebijakanCourse;
   modul: ModulKursus[];
-  modulAktif: ModulKursus;
   selesai: string[];
   /** URL rute embed tutor, sudah dihitung server. */
   tutorSrc: string;
+  children: ReactNode;
 }) {
   const { boleh } = useCourseSession();
   const [drawerBuka, setDrawerBuka] = useState(false);
+
   /**
-   * Halaman yang sedang dibaca, disimpan sebagai state.
+   * Modul aktif, dari segmen terakhir pathname.
    *
-   * Bukan diturunkan dari URL: pager halaman berada di dalam modul, dan
-   * menaikkannya ke query akan memuat ulang seluruh halaman hanya untuk
-   * berpindah halaman materi.
+   * `/belajar/<slug>/materi/<modulId>` → `<modulId>`. `decodeURIComponent` karena
+   * id modul tersimpan boleh memuat karakter yang di-encode di URL.
+   *
+   * Kalau segmennya tidak cocok dengan modul mana pun (id basi), shell jatuh ke
+   * modul pertama hanya untuk membuat bar tetap punya judul; `page.tsx` yang
+   * memutuskan `notFound()` untuk id yang benar-benar tidak ada.
    */
-  const [halamanTerpilih, setHalamanTerpilih] = useState<string | null>(null);
+  const pathname = usePathname();
+  const segmenTerakhir = pathname.split("/").filter(Boolean).at(-1) ?? "";
+  const modulAktif =
+    modul.find((m) => m.id === decodeURIComponent(segmenTerakhir)) ?? modul[0];
 
   /**
    * Keputusan akses dihitung **saat render**, bukan disimpan di state.
@@ -1626,14 +1803,14 @@ export function MateriReader({
    * menutup lampiran yang sudah sah — alasan yang sama yang sudah ditulis di
    * `detail-kursus.tsx:231`.
    */
-  const keputusanLampiran = boleh("materi");
-  const keputusanKuis = boleh("kuis");
   const keputusanTutor = boleh("bantuan_akademik");
-  const sudah = selesai.includes(modulAktif.id);
 
-  // Penyelesaian modul: satu jalur, dua cabang, semuanya diputuskan server.
-  // Hook ini membaca `bukti` dari provider yang sama, jadi ia selalu memakai
-  // sesi yang sedang berjalan di modul mana pun.
+  // Kalau kurikulum kosong, tidak ada modul yang bisa ditampilkan. Ini bukan
+  // keadaan yang seharusnya terjadi pada kursus yang bisa dibuka, tetapi
+  // mengembalikan `null` lebih jujur daripada merender bar tanpa modul.
+  if (!modulAktif) return <>{children}</>;
+
+  const sudah = selesai.includes(modulAktif.id);
   const { jalankan, pending } = useSelesaikanModul({
     courseId: kursusId,
     modulId: modulAktif.id,
@@ -1642,7 +1819,7 @@ export function MateriReader({
   });
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex min-h-dvh flex-col bg-white">
       <MateriFocusBar
         slug={slug}
         kursusJudul={kursusJudul}
@@ -1655,6 +1832,12 @@ export function MateriReader({
         aksesTutor={keputusanTutor}
       />
 
+      {/* Panel kejadian: penjelasan + pelaporan selama sesi berjalan. Menyembunyikan
+          dirinya sendiri saat status bukan `aktif` dan tanpa celah. */}
+      <div className="px-3 pt-3 sm:px-5">
+        <KejadianPanel />
+      </div>
+
       <div className="flex min-h-0 flex-1">
         {/* Rail tersembunyi di bawah `lg`: pada layar sempit ia akan memakan
             separuh lebar dan menyisakan kolom baca yang tidak terbaca. */}
@@ -1663,16 +1846,7 @@ export function MateriReader({
         </div>
 
         <main className="min-w-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
-          <div className="mx-auto w-full max-w-3xl">
-            <MateriPane
-              kursusId={kursusId}
-              modul={modulAktif}
-              halamanTerpilih={halamanTerpilih}
-              onPindahHalaman={setHalamanTerpilih}
-              keputusanLampiran={keputusanLampiran}
-              keputusanKuis={keputusanKuis}
-            />
-          </div>
+          <div className="mx-auto w-full max-w-3xl">{children}</div>
         </main>
 
         <TutorDrawer
@@ -1694,20 +1868,9 @@ Buat `src/app/(focus)/belajar/[slug]/materi/[modulId]/page.tsx`:
 ```tsx
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getSession } from "@/lib/auth/session";
 import { cariEntri } from "@/lib/courses/katalog";
 import { modulUntukSumber } from "@/lib/courses/modul-resolver";
-import { getCourseById } from "@/lib/courses/store";
-import { kebijakanDefault } from "@/lib/courses/kebijakan";
-import { irisModulSelesai } from "@/lib/courses/kurikulum";
-import { progresKursusDb } from "@/lib/learning/service";
-import { pastikanBackfill } from "@/lib/learning/backfill-lazy";
-import { sesiReaderAwal } from "@/lib/learning/reader-sesi";
-import { selaraskanKursusAi } from "@/lib/learning/tutor-ai-kursus";
-import { urlFrameTutorEmbed, KAPABILITAS_COURSE_STUDY } from "@/lib/learning/tutor-ai";
-import { AI_MASTERY_WEB_URL } from "@/lib/mode/store";
-import { CourseSessionProvider } from "@/components/features/learning/course-session";
-import { MateriReader } from "@/components/features/learning/materi-reader";
+import { MateriPane } from "@/components/features/learning/materi-pane";
 
 export async function generateMetadata({
   params,
@@ -1720,29 +1883,32 @@ export async function generateMetadata({
 }
 
 /**
- * Reader satu modul.
+ * Satu modul di dalam shell reader.
  *
- * Server component: membaca kurikulum, progres, dan bukti sesi, lalu menyerahkan
- * interaksi ke klien. Gerbang sesi + onboarding datang dari `(focus)/layout.tsx`.
+ * Halaman ini sengaja **tipis**. Shell-nya — bar fokus, rail, drawer tutor, dan
+ * `CourseSessionProvider` — hidup di `materi/layout.tsx` supaya tidak di-remount
+ * saat berpindah modul. Yang dikerjakan di sini hanya dua hal: menolak id modul
+ * yang tidak ada di kurikulum saat ini, dan merender pane-nya.
  *
- * Halaman ini **tidak** meneruskan callback ke klien — pemanggilan action
- * penyelesaian hidup di `materi-reader.tsx` (klien), yang memakai hook
- * `useSelesaikanModul`. Itu sebabnya tidak ada prop `onTandai` di sini.
+ * Modul dibaca ulang di sini karena halaman ini yang harus memvalidasi `modulId`
+ * dan menyerahkan modulnya ke pane. Pembacaan kedua ini murah: store kursus
+ * menghidrasi dirinya **sekali per proses** ke state modul (`pastikanTermuat`,
+ * `store.ts:235`), jadi `modulUntukSumber` setelah itu hanya bekerja di memori.
+ * Yang **tidak** dibaca ulang di sini adalah progres dan bukti sesi: keduanya
+ * sudah dibaca layout, dan membacanya lagi berarti dua pembacaan yang bisa
+ * menyimpang.
+ *
+ * `MateriPane` membaca keputusan aksesnya sendiri dari `useCourseSession()` —
+ * ia berada di bawah provider yang dipasang layout, jadi konteksnya tersedia.
  */
 export default async function MateriModulPage({
   params,
 }: {
   params: Promise<{ slug: string; modulId: string }>;
 }) {
-  const session = await getSession();
-  if (!session) return null;
-
   const { slug, modulId } = await params;
   const entri = await cariEntri(slug);
   if (!entri) notFound();
-
-  const kursusAsli = await getCourseById(entri.id);
-  const kebijakan = kursusAsli?.kebijakan ?? kebijakanDefault();
 
   const modul = await modulUntukSumber({
     id: entri.id,
@@ -1752,64 +1918,19 @@ export default async function MateriModulPage({
     url: entri.url,
   });
 
-  const modulAktif = modul.find((m) => m.id === modulId);
   // Id modul yang tidak ada di kurikulum saat ini adalah 404, bukan render modul
   // kosong: modul yang dihapus admin tidak boleh tampil sebagai halaman hampa.
+  const modulAktif = modul.find((m) => m.id === modulId);
   if (!modulAktif) notFound();
 
-  await pastikanBackfill(session);
-  const { selesai } = await progresKursusDb(session, entri.id);
-  const selesaiValid = irisModulSelesai(selesai, modul);
-
-  // Seed sesi: peserta yang memuat ulang atau membuka deep link ke satu modul
-  // tidak kehilangan sesi terverifikasi yang masih berjalan. `null` berarti
-  // memang tidak ada sesi — gerbang biasa yang tampil, bukan galat.
-  const sesiAwal = await sesiReaderAwal({
-    userId: session.userId,
-    courseId: entri.id,
-    policyVersion: kebijakan.versi,
-  });
-
-  // Bridging tutor hanya ditanyakan untuk peserta yang terdaftar, sama seperti
-  // di halaman kursus: kursus yang tidak pernah dibuka tidak menyalakan
-  // panggilan ke service lain.
-  const aiCourseId = (await selaraskanKursusAi({
-    courseId: entri.id,
-    title: entri.title,
-    modul: modul.map((m) => m.judul),
-  })) ?? entri.id;
-
-  const tutorSrc = urlFrameTutorEmbed(AI_MASTERY_WEB_URL, {
-    course: aiCourseId,
-    capability: KAPABILITAS_COURSE_STUDY,
-  });
-
-  return (
-    <CourseSessionProvider
-      courseId={entri.id}
-      kebijakan={kebijakan}
-      buktiAwal={sesiAwal?.bukti ?? null}
-      runIdAwal={sesiAwal?.runId ?? null}
-    >
-      <MateriReader
-        slug={entri.slug}
-        kursusJudul={entri.title}
-        kursusId={entri.id}
-        kebijakan={kebijakan}
-        modul={modul}
-        modulAktif={modulAktif}
-        selesai={selesaiValid}
-        tutorSrc={tutorSrc}
-      />
-    </CourseSessionProvider>
-  );
+  return <MateriPane kursusId={entri.id} modul={modulAktif} />;
 }
 ```
 
-**Catatan:** `MateriReader` menerima `kebijakan` karena ia yang menjalankan
-penyelesaian modul (`useSelesaikanModul`, langkah berikutnya) dan karena itu
-membutuhkan kebijakan yang sama dengan yang dipakai server. `page.tsx` tidak
-meneruskan callback apa pun — server component tidak bisa.
+**Catatan:** halaman ini tidak merender shell, provider, atau drawer. Semuanya
+milik `layout.tsx`. Kalau kamu menemukan diri menambahkan `CourseSessionProvider`
+di sini, itu tanda shell-nya bocor kembali ke halaman — persis yang membuat sesi
+dan percakapan hilang saat berpindah modul.
 
 - [ ] **Step 4: Buat hook penyelesaian modul**
 
@@ -1898,11 +2019,11 @@ export function useSelesaikanModul({
 }
 ```
 
-**Catatan urutan:** `materi-reader.tsx` (Step 2) mengimpor hook ini, jadi hook harus
+**Catatan urutan:** `materi-shell.tsx` (Step 2) mengimpor hook ini, jadi hook harus
 ada sebelum `npm run build` di Step 6 bisa lulus. Kalau kamu mengerjakan langkah
 berurutan, tulis Step 2 dulu lalu Step 4, dan baru jalankan build.
 
-Di `materi-reader.tsx`, pemanggilan hook yang sudah tertulis di Step 2 memakai prop
+Di `materi-shell.tsx`, pemanggilan hook yang sudah tertulis di Step 2 memakai prop
 `checkpoint` (bukan `checkpointMode`), dan nilainya `modulAktif.checkpoint` apa
 adanya — `checkpointEfektif` di dalam hook yang mengisi default untuk modul turunan:
 
@@ -1963,7 +2084,7 @@ berpindah modul tidak memuat ulang halaman (rail tetap, tanpa kedip putih).
 - [ ] **Step 8: Commit**
 
 ```bash
-git add src/app/\(focus\)/belajar/\[slug\]/materi src/components/features/learning/materi-reader.tsx src/components/features/learning/selesaikan-modul.ts scripts/smoke.mjs
+git add src/app/\(focus\)/belajar/\[slug\]/materi src/components/features/learning/materi-shell.tsx src/components/features/learning/selesaikan-modul.ts scripts/smoke.mjs
 git commit -m "feat(reader): route + shell materi per modul"
 ```
 

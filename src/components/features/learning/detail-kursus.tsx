@@ -7,31 +7,21 @@ import { cn } from "@/lib/utils";
 import type { ModulKursus } from "@/lib/courses/kurikulum";
 import { levelLabel, tipeLabel } from "@/lib/onboarding/types";
 import { hitungProgres, irisModulSelesai } from "@/lib/courses/kurikulum";
-import { checkpointEfektif, checkpointTerverifikasi, wajibSesiTerverifikasi } from "@/lib/learning/akses";
 import { daftarKursusAction, tandaiModulAction } from "@/actions/enrollment";
 import { selesaikanMateriAction } from "@/actions/learning";
-import { MateriView } from "./materi-view";
-import { HalamanView } from "./halaman-view";
+import { pilihJalurPenyelesaian } from "./selesaikan-modul";
 import {
-  CourseSessionGate,
   CourseSessionIndicator,
   CourseSessionPrompt,
   CourseSessionProvider,
   useCourseSession,
 } from "./course-session";
-import { KejadianPanel } from "./kejadian-panel";
-import { KuisView } from "./kuis-view";
 import { KursusAiPanel } from "./kursus-ai-panel";
 import { KursusSubNav } from "./kursus-subnav";
 import { DitheredHeroBackdrop } from "./dithered-hero-backdrop";
 import { SertifikatPanel } from "./sertifikat-panel";
 import { TabelPelanggaran } from "./tabel-pelanggaran";
-import type { KebijakanCourse, TipeMateri } from "@/types/course";
-
-const LABEL_TIPE: Record<TipeMateri, string> = {
-  video: "Video",
-  pdf: "PDF",
-};
+import type { KebijakanCourse } from "@/types/course";
 
 export interface KursusTerkait {
   slug: string;
@@ -223,32 +213,13 @@ function RuangBelajar({
   const [pending, startTransition] = useTransition();
   const [modulSibuk, setModulSibuk] = useState<string | null>(null);
   /**
-   * Satu modul terbuka pada satu waktu. Hanya modul tersimpan yang punya
-   * materi; modul turunan tetap menampilkan tautan eksternal seperti dulu.
-   */
-  const [modulTerbuka, setModulTerbuka] = useState<string | null>(null);
-  /**
-   * Keputusan akses kegiatan "materi" (lampiran), dihitung **saat render**.
+   * Keputusan akses untuk tombol "Tanya tutor AI".
    *
-   * Sengaja tidak disimpan di state: keputusannya bergantung pada bukti sesi
-   * yang bisa berubah kapan saja (sesi dimulai/diakhiri). Menyalinnya ke state
-   * berarti gerbang bisa tertinggal menutup lampiran yang sudah sah dan
-   * sebaliknya — dan menyinkronkannya lewat effect malah menambah render
-   * berantai. `boleh` sendiri dimemo oleh provider.
-   */
-  const { boleh, kebijakan, bukti } = useCourseSession();
-  const keputusanLampiran = boleh("materi");
-  /**
-   * Keputusan untuk kuis — mesin yang sama, jenis kegiatan berbeda.
-   *
-   * Kuis adalah asesmen, jadi ia ikut digerbangi seperti lampiran. Tanpa ini
-   * peserta bisa mengerjakan asesmen course `wajib` tanpa satu pun sesi
-   * berjalan, padahal cakupan anti-curang mencakup materi, kuis, dan proyek.
-   * Prosa (`halaman`) sengaja tetap bebas — membaca bukan penyelesaian.
-   */
-  const keputusanKuis = boleh("kuis");
-  /**
-   * Keputusan untuk tombol "Tanya tutor AI".
+   * Halaman ini sekarang **silabus**: ia hanya menjawab "apa yang harus saya
+   * pelajari, dan di mana?" — jadi satu-satunya keputusan akses yang tersisa di
+   * sini adalah untuk panel tutor. Keputusan kegiatan (`boleh("materi")`,
+   * `boleh("kuis")`) pindah ke reader bersama gerbangnya
+   * (`materi-pane.tsx`), tempat soal dan lampiran benar-benar dirender.
    *
    * `bantuan_akademik` adalah satu-satunya jenis kegiatan yang membaca
    * `aturan_bantuan` — inilah jalur yang membuat aturan `tanpa_ai` ditegakkan di
@@ -260,37 +231,24 @@ function RuangBelajar({
    * `adaBuktiSesi`: tutor AI adalah bantuan belajar, bukan penyelesaian, jadi
    * sesi terverifikasi tidak menjadi syaratnya.
    */
+  const { boleh, kebijakan, bukti } = useCourseSession();
   const keputusanBantuan = boleh("bantuan_akademik");
-  /**
-   * Apakah course ini mewajibkan penyelesaian lewat sesi terverifikasi.
-   *
-   * Hanya sifat **kebijakan**, bukan ketersediaan bukti saat ini: `bukti` sengaja
-   * tidak dibaca di sini. Kalau klien memilih jalur berdasarkan ada/tidaknya
-   * bukti, jalur terverifikasi justru hanya terpilih saat bukti **tidak** ada —
-   * peserta yang sudah memulai sesi dibelokkan ke penandaan informal (gerbang
-   * server dilewati), dan peserta tanpa bukti dikirim ke action terverifikasi
-   * dengan bukti kosong yang selalu ditolaknya, sehingga modulnya mustahil
-   * diselesaikan. Karena itu klien tidak menyaring sama sekali: ia hanya
-   * *merutekan* ke action yang memverifikasi, dan server yang memutuskan —
-   * dengan bukti, permintaan berhasil; tanpa bukti, server menjawab
-   * `PESAN_POLICY.wajib` sebagai pesan gerbang yang jelas.
-   *
-   * Dipakai bersama `selesaikanMateriAction` supaya definisi "wajib" hanya ada
-   * satu; di sini ia dipasangkan dengan `checkpointEfektif(modul).mode` untuk
-   * memilih jalur per modul.
-   */
-  const wajibSesiMateri = wajibSesiTerverifikasi(kebijakan);
-  /**
-   * Halaman yang sedang dibaca di dalam modul yang terbuka.
-   *
-   * Disimpan sebagai state, bukan diturunkan dari URL: pager halaman berada di
-   * dalam daftar modul, dan menaikkan query ke URL akan memuat ulang seluruh
-   * halaman hanya untuk berpindah halaman materi.
-   */
-  const [halamanTerpilih, setHalamanTerpilih] = useState<string | null>(null);
   const selesaiValid = irisModulSelesai(selesai, modul);
   const progres = hitungProgres(selesaiValid.length, modul.length);
   const jumlahHalaman = modul.reduce((total, m) => total + (m.halaman?.length ?? 0), 0);
+  /**
+   * Sasaran "Lanjutkan" — modul pertama yang belum selesai, dihitung klien.
+   *
+   * Dihitung dari `selesaiValid` (bukan `selesaiAwal`) supaya tombolnya ikut
+   * bergerak setelah satu modul ditandai selesai tanpa muat ulang penuh. `?? modul[0]`
+   * menutup dua kasus: semua modul sudah selesai (maka "Ulas modul" mengulang dari
+   * awal) dan daftar modul yang kosong (maka `#kurikulum` tetap jadi jangkar
+   * terakhir yang masuk akal — silabusnya sendiri).
+   */
+  const modulBerikutnya = modul.find((m) => !selesaiValid.includes(m.id)) ?? modul[0];
+  const hrefLanjut = modulBerikutnya
+    ? `/belajar/${kursus.slug}/materi/${modulBerikutnya.id}`
+    : "#kurikulum";
   /**
    * Blok header course, jadi trigger sub-header lengket.
    *
@@ -311,38 +269,30 @@ function RuangBelajar({
   /**
    * Tandai/batalkan satu modul selesai.
    *
-   * Dua jalur sengaja, dipilih **saat klik** (bukan disimpan di state, supaya
-   * perubahan sesi tidak membuat state basi memilih jalur yang salah):
+   * Jalur dipilih **saat klik** (bukan disimpan di state, supaya perubahan sesi
+   * tidak membuat state basi memilih jalur yang salah) oleh
+   * `pilihJalurPenyelesaian` — satu-satunya tempat aturan itu hidup, dipakai juga
+   * oleh reader (`useSelesaikanModul`). Di sini hanya **pelaksanaannya** yang
+   * khas permukaan ini:
    *
-   * - Moderasi `wajib` + checkpoint `materi` → `selesaikanMateriAction`, satu-
-   *   satunya jalur yang memverifikasi bukti sesi di server. Klien **tidak**
-   *   memeriksa ada/tidaknya bukti sebelum memilih jalur: kalau ia menyaring,
-   *   peserta yang belum memenuhi syarat justru lolos lewat jalur informal
-   *   (gerbang Task 7 jadi hiasan) dan peserta yang sudah memenuhi syarat
-   *   ditolak. Hasilnya ditentukan server: bukti sah → modul selesai; tanpa
-   *   bukti → server menolak dengan pesan gerbangnya sendiri (`PESAN_POLICY.wajib`)
-   *   dan modul tetap belum selesai. Di jalur ini tidak ada penulisan
-   *   optimistis — hanya `hasil.ok` yang menambah centang.
-   * - Sisanya — checkpoint `kuis`/`proyek`, kursus `opsional`, atau pembatalan
-   *   (`sudah === true`) → jalur informal `tandaiModulAction`, supaya modul
-   *   kuis tetap tersimpan sebagai progres informal dan kursus non-verifikasi
-   *   tidak berubah perilakunya. Pembatalan tidak punya jalur terverifikasi:
-   *   action itu hanya menandai selesai, jadi mengoreksi tanda harus tetap
-   *   mungkin lewat jalur informal.
-   *
-   * Jadi jalur informal hanya untuk `opsional`, checkpoint `kuis`/`proyek`, dan
-   * pembatalan; setiap penyelesaian `materi` di course `wajib` diperiksa server.
+   * - `terverifikasi` (`wajib` + checkpoint `materi`, bukan pembatalan) →
+   *   `selesaikanMateriAction`, satu-satunya jalur yang memverifikasi bukti sesi
+   *   di server. Server yang menentukan hasilnya: bukti sah → modul selesai;
+   *   tanpa bukti → server menolak dengan pesan gerbangnya sendiri
+   *   (`PESAN_POLICY.wajib`) dan modul tetap belum selesai. Di jalur ini tidak
+   *   ada penulisan optimistis — hanya `hasil.ok` yang menambah centang.
+   * - `informal` (checkpoint `kuis`/`proyek`, kursus `opsional`, atau pembatalan)
+   *   → `tandaiModulAction`, supaya modul kuis tetap tersimpan sebagai progres
+   *   informal dan kursus non-verifikasi tidak berubah perilakunya. Jalur ini
+   *   **optimistis**: centangnya dipasang lebih dulu lalu dikembalikan bila
+   *   server menolak, sehingga klik terasa seketika. Perbedaan perlakuan ini
+   *   memang milik permukaan ini — reader sengaja tidak menulis optimistis, dan
+   *   yang dibagi hanya keputusannya.
    */
   const tandai = (modul: ModulKursus, sudah: boolean) =>
     startTransition(async () => {
-      // Kedua suku murni soal kebijakan/checkpoint; tidak ada pemeriksaan bukti
-      // di klien. Konsekuensinya jalur informal hanya untuk `opsional`,
-      // checkpoint non-`materi`, dan pembatalan — persis kontrak di atas.
-      const wajibTerverifikasi = wajibSesiMateri && checkpointTerverifikasi(checkpointEfektif(modul));
-      // Modul yang belum tuntas tidak bisa "dibatalkan" lewat jalur
-      // terverifikasi: action itu hanya menandai selesai. Pembatalan tetap
-      // informal supaya peserta masih bisa mengoreksi tandanya.
-      if (!wajibTerverifikasi || sudah) {
+      const jalur = pilihJalurPenyelesaian({ kebijakan, checkpoint: modul.checkpoint, sudah });
+      if (jalur === "informal") {
         setModulSibuk(modul.id);
         setSelesai((daftar) =>
           sudah ? daftar.filter((id) => id !== modul.id) : [...daftar, modul.id],
@@ -386,6 +336,7 @@ function RuangBelajar({
         gratis={kursus.is_free}
         pending={pending}
         onDaftar={daftar}
+        hrefLanjut={hrefLanjut}
         trigger={headerRef}
       />
       <div
@@ -504,17 +455,17 @@ function RuangBelajar({
               {/* Ajakan mendahului indikator. Keduanya tidak pernah tampil
                   bersamaan — prompt hilang begitu sesi `aktif` — jadi peserta
                   di course `wajib` selalu punya satu titik masuk untuk memulai
-                  sesi, termasuk di kursus yang modulnya tidak punya lampiran
-                  (di sanalah `CourseSessionGate` tidak pernah ikut terender). */}
+                  sesi sebelum masuk ke reader. Inilah satu-satunya sisa
+                  kewajiban sesi di silabus: begitu peserta menekan sebuah modul,
+                  gerbangnya hidup di reader (`materi-pane.tsx`), bukan di sini.
+
+                  `KejadianPanel` dulu dirender tepat di bawah indikator, tetapi
+                  panel itu menjawab "apa yang tercatat selama sesi?" — pertanyaan
+                  yang hanya berguna di dalam sesi, dan sesinya kini berjalan di
+                  reader. Ia pindah ke sana bersama sesinya (`materi-shell.tsx`),
+                  bukan dihapus. */}
               <CourseSessionPrompt />
               <CourseSessionIndicator />
-              {/* Panel kejadian tepat di bawah indikator: indikator menjawab
-                  "sesi saya berjalan?", panel menjawab "apa yang tercatat?".
-                  Panel menyembunyikan dirinya sendiri saat tidak relevan
-                  (`status !== "aktif"` dan tanpa celah). */}
-              <div className="mt-3">
-                <KejadianPanel />
-              </div>
             </div>
             <ol className="space-y-3">
               {modul.map((m, index) => {
@@ -524,12 +475,6 @@ function RuangBelajar({
                 const daftarKuis = m.kuis ?? [];
                 const punyaIsi =
                   daftarMateri.length > 0 || daftarHalaman.length > 0 || daftarKuis.length > 0;
-                const terbuka = modulTerbuka === m.id;
-                // Halaman yang sedang ditampilkan di dalam modul ini. Berbeda
-                // dari `modulTerbuka`, ini berpindah tanpa menutup modul supaya
-                // pembaca tidak kehilangan tempatnya saat menekan "Berikutnya".
-                const halamanAktif =
-                  daftarHalaman.find((h) => h.id === halamanTerpilih) ?? daftarHalaman[0] ?? null;
                 return (
                   <li
                     key={m.id}
@@ -563,21 +508,18 @@ function RuangBelajar({
                             </span>
                           ) : null}
                           {punyaIsi ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                // Modul selalu boleh dibuka: halaman berformatnya
-                                // bebas dibaca. Yang digerbang hanya lampiran,
-                                // dan itu diputuskan `keputusanLampiran` di
-                                // bagian render — supaya sesi yang baru dimulai
-                                // langsung membuka lampiran tanpa state basi.
-                                setModulTerbuka(terbuka ? null : m.id);
-                              }}
-                              aria-expanded={terbuka}
-                              className="cursor-pointer font-medium text-[#0056D2]"
+                            /* Silabus, bukan ruang baca: baris ini mengantar ke
+                               reader milik modul — satu halaman penuh dengan
+                               rail, bar fokus, dan drawer tutor. Gerbang sesi
+                               lampiran/kuis hidup di sana (`materi-pane.tsx`),
+                               sehingga tidak ada lagi state `modulTerbuka` di
+                               sini yang bisa tertinggal basi saat sesi berubah. */
+                            <Link
+                              href={`/belajar/${kursus.slug}/materi/${m.id}`}
+                              className="font-medium text-[#0056D2] hover:underline"
                             >
-                              {terbuka ? "Tutup materi" : "Buka materi"}
-                            </button>
+                              Buka materi
+                            </Link>
                           ) : (
                             <a
                               href={m.url}
@@ -607,64 +549,6 @@ function RuangBelajar({
                         </button>
                       ) : null}
                     </div>
-
-                    {terbuka && punyaIsi ? (
-                      <div className="space-y-4 border-t border-gray-100 px-4 py-4">
-                        {halamanAktif ? (
-                          <HalamanView
-                            modul={m}
-                            halaman={halamanAktif}
-                            onPindahHalaman={setHalamanTerpilih}
-                          />
-                        ) : null}
-
-                        {daftarKuis.length > 0 ? (
-                          <div className="space-y-3">
-                            <p className="text-[11px] font-semibold tracking-wider text-gray-500 uppercase">
-                              Kuis
-                            </p>
-                            {/* Gerbang yang sama dengan lampiran: soal tidak
-                                dirender sebelum sesi terverifikasi tersedia.
-                                Pesan diambil apa adanya dari `putuskanAkses`
-                                supaya copy tidak menyimpang dari mesin akses. */}
-                            {keputusanKuis.tipe === "bebas" ? (
-                              daftarKuis.map((kuis) => (
-                                <KuisView
-                                  key={kuis.id}
-                                  kuis={kuis}
-                                  konteks={{ courseId: kursus.id, modulId: m.id }}
-                                />
-                              ))
-                            ) : (
-                              <CourseSessionGate pesan={keputusanKuis.pesan} />
-                            )}
-                          </div>
-                        ) : null}
-
-                        {daftarMateri.length > 0 ? (
-                          <div className="space-y-3">
-                            <p className="text-[11px] font-semibold tracking-wider text-gray-500 uppercase">
-                              Lampiran
-                            </p>
-                            {keputusanLampiran.tipe === "bebas" ? (
-                              daftarMateri.map((materi) => (
-                                <div key={materi.id}>
-                                  <p className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-gray-700">
-                                    <span className="inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-[#0056D2] uppercase">
-                                      {LABEL_TIPE[materi.tipe]}
-                                    </span>
-                                    {materi.judul}
-                                  </p>
-                                  <MateriView materi={materi} />
-                                </div>
-                              ))
-                            ) : (
-                              <CourseSessionGate pesan={keputusanLampiran.pesan} />
-                            )}
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : null}
                   </li>
                 );
               })}
@@ -722,12 +606,12 @@ function RuangBelajar({
                   <p className="mt-2 text-xs text-gray-500">
                     {selesaiValid.length} dari {modul.length} modul selesai
                   </p>
-                  <a
-                    href="#kurikulum"
+                  <Link
+                    href={hrefLanjut}
                     className="mt-4 block rounded-full bg-gray-900 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-gray-700"
                   >
                     {progres === 100 ? "Ulas kembali modul" : "Lanjutkan belajar"}
-                  </a>
+                  </Link>
                 </>
               ) : kursus.is_free ? (
                 <>

@@ -34,6 +34,13 @@ const routes = [
   "/onboarding/demo",
   "/belajar/fullstack-web-development-nextjs-15-react-19",
   "/belajar/r1",
+  // Reader materi: rute baru per modul. Smoke berjalan **tanpa sesi**, jadi
+  // route ini dijawab redirect (307) ke `/masuk` sebelum `modulId` pernah
+  // dibaca — dan redirect dihitung lulus oleh skrip ini. Yang dicari bukan
+  // isinya, melainkan bahwa halamannya bisa dimuat sama sekali: 500 akibat
+  // impor server-only yang salah (mis. `reader-sesi`/`modul-resolver` tertarik
+  // ke bundel klien) langsung tertangkap di sini.
+  "/belajar/r1/materi/r1-m1",
   "/progres",
   // Rute lama masih hidup sebagai redirect ke /progres. Karena halamannya sudah
   // streaming, redirect-nya in-band (meta refresh) dengan status 200, bukan 307.

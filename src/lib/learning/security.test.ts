@@ -45,7 +45,13 @@ describe("keamanan jalur ujian", () => {
 // penulisan, melainkan dua cara gerbang ini hilang diam-diam saat panel
 // disunting: ajakan sesi dihapus dari halaman, atau kuis kembali dirender apa
 // adanya tanpa keputusan akses.
+//
+// Dua berkas, sesuai rumah barunya: silabus (`detail-kursus.tsx`) masih memegang
+// ajakan tingkat-course, sedangkan gerbang kuis dan lampiran pindah ke pane
+// reader (`materi-pane.tsx`) saat akordeonnya dibongkar. Keduanya dulu satu
+// berkas, jadi jangan disatukan kembali hanya karena tesnya dulu begitu.
 const BERKAS_DETAIL = path.join(ROOT, "src/components/features/learning/detail-kursus.tsx");
+const BERKAS_PANE = path.join(ROOT, "src/components/features/learning/materi-pane.tsx");
 const BERKAS_SESI = path.join(ROOT, "src/components/features/learning/course-session.tsx");
 const BERKAS_SKOR = path.join(ROOT, "src/actions/assessment.ts");
 const BERKAS_KUIS_VIEW = path.join(
@@ -89,7 +95,9 @@ describe("gerbang UI sesi terverifikasi", () => {
   });
 
   it("kuis hanya dirender setelah keputusan akses mengizinkan", () => {
-    const isi = readFileSync(BERKAS_DETAIL, "utf8");
+    // Gerbangnya ada di pane reader, bukan lagi di halaman silabus: akordeon
+    // halaman kursus dibongkar, dan kuis mengikuti materinya ke `materi-pane.tsx`.
+    const isi = readFileSync(BERKAS_PANE, "utf8");
     // Membuang kedua penanda ini mengembalikan kuis ke render tanpa sesi.
     expect(isi).toContain('keputusanKuis.tipe === "bebas"');
     expect(isi).toContain("<CourseSessionGate pesan={keputusanKuis.pesan} />");
@@ -161,8 +169,13 @@ describe("pencatatan skor kuis", () => {
     // `konteks` is optional so the admin previews compile without it — which is
     // exactly why the learner path needs pinning. Dropping it here would make
     // quiz answers stop being graded on the server with no error anywhere.
-    expect(readFileSync(BERKAS_DETAIL, "utf8")).toContain(
-      "konteks={{ courseId: kursus.id, modulId: m.id }}",
+    //
+    // Rumahnya sekarang pane reader, dan nama variabelnya berbeda karena pane
+    // menerima keduanya sebagai prop (`kursusId`, `modul.id`) — yang diuji adalah
+    // `konteks` benar-benar sampai ke `KuisView` di jalur peserta, bukan ejaan
+    // prop-nya.
+    expect(readFileSync(BERKAS_PANE, "utf8")).toContain(
+      "konteks={{ courseId: kursusId, modulId: modul.id }}",
     );
   });
 });

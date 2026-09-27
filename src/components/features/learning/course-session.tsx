@@ -157,17 +157,44 @@ export function useCourseSession(): SessionKonteks {
 export function CourseSessionProvider({
   courseId,
   kebijakan,
+  buktiAwal = null,
+  runIdAwal = null,
+  kejadianAwal,
   children,
 }: {
   courseId: string;
   kebijakan: KebijakanCourse;
+  /**
+   * Bukti sesi yang sudah sah, dihitung **server** (`reader-sesi.ts`).
+   *
+   * Dipakai reader: peserta yang memuat ulang halaman atau membuka deep link ke
+   * satu modul tidak kehilangan sesi terverifikasi yang masih berjalan. Provider
+   * tidak menghitungnya sendiri karena ia klien, dan service sesi server-only.
+   *
+   * `null` berarti "tidak ada sesi" — sama seperti perilaku lama.
+   */
+  buktiAwal?: string | null;
+  /** Id run aktif pasangan `buktiAwal`; hanya dipakai untuk indikator. */
+  runIdAwal?: string | null;
+  /** Kejadian yang sudah tercatat di run itu, supaya panel tidak mulai kosong. */
+  kejadianAwal?: KejadianSesi[];
   children: React.ReactNode;
 }) {
-  const [status, setStatus] = useState<SessionKonteks["status"]>("idle");
-  const [bukti, setBukti] = useState<string | null>(null);
-  const [runId, setRunId] = useState<string | null>(null);
+  /**
+   * Status awal mengikuti ada/tidaknya bukti seed.
+   *
+   * Bukti kosong (`""`) diperlakukan sebagai tidak ada: `putuskanAkses` memakai
+   * `Boolean(bukti)`, dan status `aktif` untuk token kosong akan menampilkan
+   * indikator sesi yang tidak bisa dipertanggungjawabkan server.
+   */
+  const adaBuktiAwal = Boolean(buktiAwal);
+  const [status, setStatus] = useState<SessionKonteks["status"]>(
+    adaBuktiAwal ? "aktif" : "idle",
+  );
+  const [bukti, setBukti] = useState<string | null>(buktiAwal ?? null);
+  const [runId, setRunId] = useState<string | null>(runIdAwal ?? null);
   const [error, setError] = useState<string | null>(null);
-  const [kejadian, setKejadian] = useState<KejadianSesi[]>([]);
+  const [kejadian, setKejadian] = useState<KejadianSesi[]>(kejadianAwal ?? []);
   /**
    * Cermin `runId` yang bisa dibaca sinkron.
    *
@@ -175,8 +202,13 @@ export function CourseSessionProvider({
    * closure akan memakai nilai basi (listener di-mount tanpa runId), sehingga
    * kejadian setelah sesi dimulai hilang. Ref memberi nilai terbaru tanpa
    * memaksa re-subscribe tiap kejadian.
+   *
+   * Diinisialisasi dari `runIdAwal`: listener kejadian membaca ref ini, bukan
+   * state, jadi kalau dibiarkan `null` pada render pertama, sesi hasil seed akan
+   * **berjalan tanpa mencatat kejadian** sampai peserta memulai sesi baru —
+   * celah integritas, bukan sekadar bug UI.
    */
-  const runRef = useRef<string | null>(null);
+  const runRef = useRef<string | null>(runIdAwal ?? null);
   /**
    * Waktu ketikan terakhir di halaman ini.
    *
