@@ -259,13 +259,18 @@ describe("nilaiJalur — aturan cakupan", () => {
   });
 
   it("dua percobaan benar tidak cukup — cap 0.8 MENOLAK cakupan", () => {
+    // Dua, bukan tiga: inilah yang diuji `CONFIDENCE_CAP[2] = 0.8`. Tiga
+    // percobaan benar akan menghasilkan mastery 1 dan membuktikan kebalikan.
     const nilai = nilaiJalur(
-      bundle([titikPython], [
-        { knowledgePointId: "kp_1", correct: true, at: HARI(0), source: "session" },
-        { knowledgePointId: "kp_1", correct: true, at: HARI(1), source: "session" },
-        { knowledgePointId: "kp_1", correct: true, at: HARI(2), source: "session" },
-      ]),
+      bundle(
+        [titikPython],
+        [
+          { knowledgePointId: "kp_1", correct: true, at: HARI(0), source: "session" },
+          { knowledgePointId: "kp_1", correct: true, at: HARI(1), source: "session" },
+        ],
+      ),
     );
+    expect(nilai.poin[0].mastery).toBe(0.8);
     expect(nilai.poin[0].cakupan).toBe(false);
   });
 
@@ -329,19 +334,25 @@ describe("nilaiJalur — aturan retensi dan kedalaman", () => {
     expect(nilai.poin[0].kedalaman).toBe(false);
   });
 
-  it("attempt review pertama diukur dari createdAt, jadi bisa dessen", () => {
+  it("attempt review PERTAMA diukur dari createdAt, bukan dari attempt sebelumnya", () => {
+    // Attempt review harus jadi attempt **pertama** (idx 0) agar cabang
+    // `index === 0 ? dibuatPada : ...` benar-benar dieksekusi. Menaruhnya di
+    // akhir — seperti test di atas — hanya menguji cabang "attempt sebelumnya".
     const nilai = nilaiJalur(
       bundle(
         [titikPython],
         [
-          { knowledgePointId: "kp_1", correct: true, at: HARI(10), source: "session" },
-          { knowledgePointId: "kp_1", correct: true, at: HARI(11), source: "session" },
           { knowledgePointId: "kp_1", correct: true, at: HARI(30), source: "review" },
+          { knowledgePointId: "kp_1", correct: true, at: HARI(31), source: "session" },
+          { knowledgePointId: "kp_1", correct: true, at: HARI(32), source: "session" },
         ],
       ),
     );
-    expect(nilai.poin[0].gapHariTerpanjang).toBe(19);
+    // `topic.createdAt` = HARI(0), jadi gap = 30 hari, bukan 0.
+    expect(nilai.poin[0].gapHariTerpanjang).toBe(30);
+    expect(nilai.poin[0].retensi).toBe(true);
     expect(nilai.poin[0].kedalaman).toBe(true);
+    expect(nilai.selesai).toBe(true);
   });
 });
 
@@ -1775,9 +1786,9 @@ Dan tambahkan satu baris ke `AGENTS.md` di bagian "Outbox"/arsitektur — di man
 - [ ] **Step 8: Gate penuh dan commit terakhir**
 
 ```bash
-npm run check
-npm run test:db
-git add -A
+# Paths eksplisit, bukan `git add -A`: working tree punya perubahan milik sesi
+# lain di docs/superpowers/plans/ yang TIDAK boleh ikut commit ini.
+git add docs/adr/0004-review-state-machine-dan-lifecycle-attestation.md AGENTS.md
 git commit -m "docs: catat credential jalur di ADR 0004 dan AGENTS.md"
 ```
 
