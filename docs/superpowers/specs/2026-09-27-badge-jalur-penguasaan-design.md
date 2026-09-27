@@ -192,3 +192,21 @@ dan di UI — bukan di payload yang ditandatangani.
 - **Reviewer menilai bukti, bukan angka.** `provenanceMinimum: 0` berarti reviewer
   sedang menilai disiplin belajar. Form reviewer harus menyatakan itu, supaya
   keputusan approve bernalar.
+
+## 6. Hasil Task 0 (spike)
+
+LAYANAN_BISA_PER_PESERTA: true — store mastery diisolasi per-akun, bukan per-workspace
+tunggal: `LearningStore()` tanpa argumen (`mastery_path.py:439-448`,
+`storage.py:353-361`) mewarisi ContextVar pengguna yang dipasang `require_auth`
+(`auth.py:416`), dan `get_account_path_service()` (`paths.py:153-161`) mengembalikan root
+`data/users/<uid>` yang berbeda per akun non-admin. Detail dan bukti mentah:
+`docs/ai-mastery-scope-finding.md`.
+
+Konsekuensi: `provenanceMinimum` tetap `0` pada plan ini. Bridge AI Mastery tetap
+plan terpisah, karena temuannya memunculkan prasyarat operasional, bukan perubahan di
+sini: `AUTH_ENABLED` sekarang `false` (`backend/data/user/settings/auth.json`), jadi
+seluruh request adalah local-admin dan semua peserta berbagi satu store. Isolasi
+per-peserta baru berlaku setelah Careevo mengaktifkan auth dan memprovisioning satu akun
+non-admin per peserta. `path_id` sendiri tidak membawa identitas peserta, jadi bridge
+harus memetakan peserta Careevo → akun AI Mastery secara eksplisit, bukan lewat
+`path_id`.
