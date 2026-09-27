@@ -421,7 +421,22 @@ function IsiBlok({
     case "kode":
       return (
         <div className="space-y-3">
+          {/*
+            `kunci={identitas}` — yang di sini adalah `kunci.dari(index)`, bukan
+            `blok.id`. Editor ini menampilkan blok yang belum disimpan, dan blok
+            yang belum disimpan punya `id: ""`, jadi memakai `blok.id` membuat
+            seluruh blok kode yang belum disimpan berbagi satu kunci ruang
+            latihan. Itu bentrok yang sama persis dengan yang `useKunciBlok`
+            sudah cegah untuk `key` React dan untuk pasangan `htmlFor`/`id`.
+
+            Konsekuensi yang tidak dihindari dan memang benar: ruang latihan
+            admin memakai kunci yang ikut berubah saat blok ditukar, jadi
+            isinya bertahan selama sesi penyuntingan saja. Itu yang pantas untuk
+            admin — yang perlu bertahan adalah isi blok di `blok.kode`, dan itu
+            disalin oleh `onChange` di bawah, bukan dari ruang latihan.
+          */}
           <KodeView
+            kunci={identitas}
             kode={blok.kode ?? ""}
             bahasa={blok.bahasa ?? "cpp"}
             editable
@@ -459,6 +474,38 @@ function IsiBlok({
                 onChange={(event) => onChange({ ...blok, outputHarapan: event.target.value })}
                 rows={2}
                 placeholder="Halo, Budi!"
+                className="w-full rounded-lg border border-input bg-transparent px-2 py-1 font-mono text-xs"
+              />
+            </div>
+            {/*
+              `kodeAwal` — titik mulai peserta di ruang latihan.
+
+              Kosong berarti "mulai dari kode yang sama seperti yang ditulis
+              di atas", dan itu memang kasus yang paling sering, jadi fieldnya
+              kosong pada hampir semua blok. Yang membuatnya field tersendiri
+              adalah kasus sebaliknya: cuplikan yang sengaja belum bisa
+              dikompilasi, atau program yang perlu peserta lengkapi sendiri,
+              bisa ditulis di sini tanpa ikut berubah menjadi contoh yang
+              ditampilkan sebagai kode jadi.
+
+              Tanpa field ini `kodeAwal` tidak punya penghasil sama sekali,
+              jadi nilainya selalu `undefined` dan titik mulai selalu sama dengan
+              kode contoh. `KodeView` sudah membacanya, jadi begitu ada blok yang
+              benar-benar butuh titik mulai berbeda, tempatnya sudah ada.
+            */}
+            <div className="space-y-1 sm:col-span-2">
+              <label
+                htmlFor={`${identitas}-awal`}
+                className="block text-xs font-medium text-gray-600"
+              >
+                Kode awal peserta
+              </label>
+              <textarea
+                id={`${identitas}-awal`}
+                value={blok.kodeAwal ?? ""}
+                onChange={(event) => onChange({ ...blok, kodeAwal: event.target.value })}
+                rows={2}
+                placeholder="Kosongkan bila peserta boleh mulai dari kode di atas"
                 className="w-full rounded-lg border border-input bg-transparent px-2 py-1 font-mono text-xs"
               />
             </div>

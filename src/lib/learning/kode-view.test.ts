@@ -144,6 +144,206 @@ describe("KodeView sebagai berkas sumber", () => {
     expect(sumber).not.toContain("@codemirror/autocomplete");
     expect(sumber).not.toContain("autocompletion");
   });
+
+  it("menjalankan lewat server, tidak pernah menjalankan apa pun di peramban", () => {
+    // P3 spec. Komponen ini klien; ia tidak boleh punya cara menjalankan
+    // program. Yang boleh ada hanyalah `fetch` ke route yang sudah digerbang.
+    // Sifat ini mustahil diuji `typecheck`/lint/build: `import("node:child_process")`
+    // di komponen klien tetap lolos keduanya dan hanya meledak saat bundling.
+    // URL-nya dipatok sebagai literal panggilan, bukan sebagai substring.
+    // `toContain("/api/jalankan")` ikut cocok untuk `/api/jalankan-lama` dan
+    // untuk route mati apa pun yang namanya berawalan sama — semuanya hijau
+    // untuk alamat yang tidak pernah ada.
+    expect(sumber).toContain('fetch("/api/jalankan"');
+    expect(sumber).toContain('method: "POST"');
+    expect(sumber).not.toContain("child_process");
+    expect(sumber).not.toContain("podman");
+    // Bentuk lain dari yang sama: membuat proses tanpa `child_process` masih
+    // mungkin lewat `spawn`/`execSync` yang diimpor dengan nama lain.
+    expect(sumber).not.toMatch(/\b(spawn|spawnSync|execFile|execFileSync|execSync)\b/);
+  });
+
+  it("mengirim nama field body yang benar, yaitu dapatDijalankan", () => {
+    // Nama field di badan adalah `z.literal(true)` di `skemaTubuh` route.
+    // Ejaan yang berbeda tidak akan terlihat sebagai galat tipe di mana pun:
+    // `JSON.stringify` menerima objek apa pun, dan route menjawab 400 dengan
+    // pesan yang tidak menyebut nama fieldnya. Gejalanya "tombol selalu gagal".
+    //
+    // Karena itu bentuk yang benar dikunci, dan bentuk yang salah dilarang
+    // muncul sebagai kunci objek — dokumenasi JSDoc boleh menyebutnya, kode
+    // tidak boleh mengirimnya.
+    expect(sumber).toMatch(/dapatDijalankan: true/);
+    expect(sumber).not.toMatch(/dapatJalankan\s*:/);
+  });
+
+  it("menyimpan ruang latihan lewat helper persistent yang sudah ada", () => {
+    // P5 spec. Helper repo bukan soal gaya: keduanya berkoordinasi lewat satu
+    // `EventTarget` modul, jadi setiap komponen yang memakai kunci sama ikut
+    // tahu saat nilainya berubah. Panggilan `localStorage` mentah tidak
+    // memberi tahu siapa pun.
+    expect(sumber).toContain("usePersistentValue");
+    expect(sumber).toContain("setPersistentValue");
+    // Bentuk mentah apa pun yang menembus helper tetap dilarang. Polanya yang
+    // dikunci, bukan kata "localStorage" secara harfiah, supaya catatan prosa
+    // tentang tempat penyimpanan tidak ikut gagal.
+    expect(sumber).not.toMatch(/localStorage\.(getItem|setItem|removeItem|clear|key)\b/);
+    expect(sumber).not.toMatch(/\blocalStorage\s*\[/);
+    // Kuncinya di-ruas, supaya tidak pernah bentrok dengan penyimpanan lain
+    // yang bukan milik halaman materi.
+    expect(sumber).toContain("careevo:kode:");
+  });
+
+  it("menyimpan ruang latihan saat mengetik, bukan hanya saat menekan Jalankan", () => {
+    // Kalau disimpan hanya di handler tombol, mengedit lalu pindah halaman tanpa
+    // menjalankan akan membuang seluruh pekerjaan peserta — dan tidak ada satu
+    // test atau typecheck pun yang menangkapnya.
+    const listener = sumber.match(/EditorView\.updateListener\.of\([\s\S]*?\}\),/);
+    expect(listener).not.toBeNull();
+    expect(listener![0]).toContain("setPersistentValue");
+  });
+
+  it("menjalankan teks ruang latihan, bukan kode prop", () => {
+    // Kalau yang dikirim `kode` prop, peserta mengedit ruang latihan lalu menekan
+    // Jalankan, dan program yang jalan bukan yang ada di layarnya. Tidak ada
+    // yang di layar yang menunjukkan bedanya.
+    expect(sumber).toMatch(/const teks = tersimpan \?\? kodeAwal \?\? kode;/);
+    // `||` di titik yang sama berarti editor yang dikosongkan total akan
+    // kembali menjalankan kode ahli.
+    expect(sumber).not.toMatch(/tersimpan \|\|/);
+  });
+
+  it("menampilkan status lewat pemetaan, bukan exit code mentah", () => {
+    // P4 spec. Angka exit dari podman tidak selalu berarti satu hal, dan
+    // "137" tidak menjelaskan apa pun kepada peserta. Kalau UI membandingkan
+    // `exitCode` sendiri, angka itu bocor ke layar.
+    expect(sumber).toMatch(/petakanStatus\(/);
+    expect(sumber).toContain('from "@/lib/exec/port"');
+    // Bukan hanya tidak dibandingkan: nama fieldnya sendiri tidak boleh muncul,
+    // karena satu rujukan yang tidak disengaja tidak bisa dipratinjau.
+    expect(sumber).not.toContain("exitCode");
+  });
+
+  it("menampilkan pesan kompilator apa adanya, dengan nomor barisnya", () => {
+    // Untuk `gagal_kompilasi`, `stderr` adalah pesan g++ lengkap, dan nomor
+    // barisnya justru sinyalnya. Ringkasnya jadi "kode salah sintaks"
+    // menghapus satu-satunya informasi yang berguna.
+    //
+    // Yang diuji di sini adalah bentuk render-nya: seluruh `stderr` masuk ke
+    // `<pre>` yang mempertahankan baris baru, dan tidak ada pemotongan. both
+    // diperiksa, sebab salah satu saja bisa lolos.
+    expect(sumber).toMatch(/\{hasil\.stderr \? \(/);
+    expect(sumber).toMatch(/whitespace-pre-wrap[\s\S]*?\{hasil\.stderr\}/);
+    expect(sumber).not.toMatch(/hasil\.stderr\.(slice|substring|substr|trim|replace)\(/);
+    // Label terpisah supaya output compiler tidak salah dibaca sebagai output
+    // program.
+    expect(sumber).toMatch(/dariKompilator: data\.status === "gagal_kompilasi"/);
+  });
+
+  it("menjelaskan saat layanannya yang bermasalah, bukan kodenya", () => {
+    // `galat_runner` berarti tidak ada jawaban program sama sekali. Kalau pane
+    // menulis seperti programnya gagal, peserta akan/debug program yang
+    // sebenarnya belum pernah jalan.
+    //
+    // Jalur yang harus menghasilkan `galat_runner`: jaringan putus (catch) dan
+    // balasan 200 tanpa `status`. Keduanya harus lewat `petakanStatus`, bukan
+    // kalimat yang diketik sendiri di sini.
+    expect(sumber).toMatch(/petakanStatus\("galat_runner"\)/);
+    // `detail` itu "Coba lagi sebentar lagi." dan hanya tampil kalau dirender.
+    // Tanpa baris ini, `batas_dilampaui` dan `galat_runner` kehilangan satu-
+    // satunya petunjuk apa yang harus dilakukan peserta.
+    expect(sumber).toMatch(/\{hasil\.detail \? \(/);
+  });
+
+  it("menampilkan pesan penolakan gerbang apa adanya", () => {
+    // 401 sesi dan 429 rate limit menjawab `{ ok: false, error }` tanpa
+    // `status`. Menemapkannya ke `galat_runner` berbohong dengan cara lain:
+    // "layanan sedang tidak tersedia" untuk sesi yang habis mengarahkan
+    // peserta ke programnya sendiri.
+    expect(sumber).toMatch(/if \(!data\.ok\)/);
+    expect(sumber).toContain("judul: data.error");
+  });
+
+  it("menampilkan tombol hanya untuk dapatJalankan === true", () => {
+    // Kontrak fail-closed yang sama dengan `z.literal(true)` di server. Blok
+    // yang sakelarnya mati harus tampil TANPA tombol, bukan dengan tombol yang
+    // menolak saat diklik: tombol yang menolak masih mengiklankan fitur yang
+    // tidak boleh dipakai.
+    //
+    // `=== true`, bukan kebenaran biasa. Prop-nya opsional, dan `undefined`
+    // berarti tidak boleh dijalankan; `{dapatJalankan ? ...}` akan membukanya
+    // untuk nilai apa pun yang bukan `false`.
+    expect(sumber).toMatch(/dapatJalankan = false/);
+    expect(sumber).toMatch(/dapatJalankan\?: boolean/);
+    expect(sumber).toMatch(/\{dapatJalankan === true \?/);
+    expect(sumber).not.toMatch(/\{\s*dapatJalankan \?/);
+  });
+});
+
+describe("Panggilan KodeView di dua jalur", () => {
+  const halaman = readFileSync(
+    fileURLToPath(
+      new URL("../../components/features/learning/halaman-view.tsx", import.meta.url),
+    ),
+    "utf8",
+  );
+  const editor = readFileSync(
+    fileURLToPath(
+      new URL("../../components/features/admin/courses/blok-editor.tsx", import.meta.url),
+    ),
+    "utf8",
+  );
+
+  it("jalur peserta memakai blok.id sebagai kunci ruang latihan", () => {
+    // Benar di sini: blok yang tampil di materi sudah tersimpan, jadi setiap
+    // blok punya id sendiri.
+    expect(halaman).toContain("kunci={blok.id}");
+  });
+
+  it("jalur admin memakai identitas lokal blok, bukan blok.id", () => {
+    // `blok.id` di editor admin selalu `""` untuk blok yang belum disimpan, jadi
+    // seluruh blok kode yang belum disimpan akan berbagi satu kunci ruang
+    // latihan. Bentrok yang persis sama dengan yang `useKunciBlok` sudah
+    // cegah untuk `key` React dan pasangan `htmlFor`/`id`.
+    expect(editor).toContain("kunci={identitas}");
+    expect(editor).not.toContain("kunci={blok.id}");
+  });
+
+  it("kedua jalur meneruskan kodeAwal, stdin, dan sakelar jalankan", () => {
+    // Tanpa ini, `kodeAwal` hanya akan selalu `undefined` dan ruang latihan
+    // selalu mulai dari kode contoh.
+    expect(halaman).toContain("kodeAwal={blok.kodeAwal}");
+    expect(halaman).toContain("stdin={blok.stdin}");
+    // `=== true` lagi: `dapatDijalankan` di `BlokKode` itu opsional, dan blok
+    // yang tidak pernah disentuh ahli tidak punya nilainya.
+    expect(halaman).toContain("dapatJalankan={blok.dapatDijalankan === true}");
+  });
+});
+
+describe("Editor admin bisa mengisi kodeAwal", () => {
+  const editor = readFileSync(
+    fileURLToPath(
+      new URL("../../components/features/admin/courses/blok-editor.tsx", import.meta.url),
+    ),
+    "utf8",
+  );
+
+  it("punya field kodeAwal yang menulis lewat spread yang sama", () => {
+    // Tanpa penghasil, `kodeAwal` di tipe dan di skema zod hanya bisa selalu
+    // `undefined`, dan tidak ada blok yang bisa punya titik mulai berbeda.
+    expect(editor).toContain("kodeAwal: event.target.value");
+    expect(editor).toContain("htmlFor={`${identitas}-awal`}");
+    expect(editor).toContain("id={`${identitas}-awal`}");
+  });
+
+  it("memberi label Bahasa Indonesia dan sejajar dengan tetangganya", () => {
+    // Id baru harus memakai awalan `identitas`, bukan `blok.id`: pasangan
+    // `htmlFor`/`id` yang menunjuk blok pertama akan membuat setiap label
+    // "Masukan" menulis ke textarea blok pertama.
+    expect(editor).toMatch(/Kode awal peserta/);
+    // Field ini melintasi dua kolom, jadi butuh `sm:col-span-2`; tanpanya ia
+    // hanya mengisi satu dari dua kolom yang sisa di baris itu.
+    expect(editor).toMatch(/sm:col-span-2/);
+  });
 });
 
 describe("BlokEditor memberi identitas lokal per blok", () => {
