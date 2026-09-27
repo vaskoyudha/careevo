@@ -16,6 +16,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { HeroSubNav } from "@/components/ui/hero-subnav";
+import { DitheredHeroBackdrop } from "@/components/features/learning/dithered-hero-backdrop";
 import type { ProgramDetails } from "@/lib/courses/catalog-data";
 
 export function ProgramDetailView({ program }: { program: ProgramDetails }) {
@@ -31,7 +32,7 @@ function ProgramDetail({ program }: { program: ProgramDetails }) {
   const heroRef = useRef<HTMLElement>(null);
 
   return (
-    <div className="min-h-screen bg-white text-gray-900">
+    <div className="relative min-h-screen -mt-[60px] bg-white text-gray-900 overflow-x-hidden">
       <HeroSubNav
         trigger={heroRef}
         badge={program.type}
@@ -39,23 +40,30 @@ function ProgramDetail({ program }: { program: ProgramDetails }) {
         subtitle={`${program.seriesCount} course series · ${program.level}`}
         cta={{ href: "/daftar", label: "Enroll for free" }}
       />
-      {/* Hero Section with Concentric Arcs Background */}
+      {/* Hero Section: dithered bit field (lihat catatan di `detail-kursus.tsx`) */}
       <header
         ref={heroRef}
-        className="surface-blue-fade relative border-b border-gray-200 pt-20 sm:pt-24 pb-0"
+        className="relative z-10 w-full border-b border-gray-200/80 pt-36 sm:pt-32 md:pt-36 lg:pt-40 pb-0"
       >
-        {/* Concentric Geometric Arcs Graphic on Right */}
-        <div className="pointer-events-none absolute right-0 top-0 h-full w-2/5 overflow-hidden opacity-40 hidden md:block">
-          <svg
-            className="absolute -right-20 -top-20 h-[650px] w-[650px] text-[#0056D2]/20"
-            viewBox="0 0 650 650"
-            fill="none"
-          >
-            <circle cx="325" cy="325" r="120" stroke="currentColor" strokeWidth="2" strokeDasharray="4 4" />
-            <circle cx="325" cy="325" r="200" stroke="currentColor" strokeWidth="1.5" />
-            <circle cx="325" cy="325" r="280" stroke="currentColor" strokeWidth="1.5" />
-            <circle cx="325" cy="325" r="360" stroke="currentColor" strokeWidth="2" strokeDasharray="6 6" />
-          </svg>
+        <div className="pointer-events-none absolute inset-0 z-0 h-full w-full overflow-hidden select-none">
+          {/* Ground: gradien biru langit + dot grid sebagai fallback dither */}
+          <div className="absolute inset-0 z-0 bg-[linear-gradient(170deg,#8FC0F2_0%,#7DD3FC_20%,#BAE6FD_46%,#DDEEFE_76%,#F2F9FF_100%)]" />
+          <div className="absolute inset-0 z-0 bg-[size:3px_3px] [background-image:radial-gradient(rgba(10,61,98,0.16)_1px,transparent_1px)]" />
+
+          {/* Dither: Bayer ordered-dither + posterise, grid dikunci ke piksel canvas */}
+          <DitheredHeroBackdrop
+            videoSrc="/videos/hero-sterly.mp4"
+            levels={4}
+            ditherScale={2}
+            zoom={1}
+            focusY={0.45}
+          />
+
+          {/* Halo lembut supaya teks tinta tetap terbaca di atas stipple */}
+          <div className="absolute inset-0 z-10 bg-[radial-gradient(ellipse_78%_62%_at_50%_38%,rgba(255,255,255,0.78)_0%,rgba(255,255,255,0.34)_52%,transparent_84%)]" />
+
+          {/* Transisi bawah ke badan halaman putih */}
+          <div className="absolute inset-x-0 bottom-0 z-10 h-20 sm:h-28 bg-gradient-to-t from-white via-white/75 to-transparent" />
         </div>
 
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

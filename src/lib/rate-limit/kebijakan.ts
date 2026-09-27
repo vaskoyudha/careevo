@@ -29,6 +29,7 @@ export const NAMA_KEBIJAKAN = [
   "studyChat",
   "verifyPublik",
   "pdfPublik",
+  "jalankanKode",
 ] as const;
 
 export type NamaKebijakan = (typeof NAMA_KEBIJAKAN)[number];
@@ -163,6 +164,34 @@ export const AMBANG: Record<NamaKebijakan, SpesifikasiKebijakan> = {
     failOpen: false,
     bucketPrincipal: true,
     label: "Berkas PDF publik",
+  },
+  // Kompilasi C++ memakan CPU dan hanya berguna sebentar, jadi ambangnya
+  // sengaja rendah: menahan program yang sengaja menguras mesin tanpa
+  // mengganggu orang yang sedang bereksperimen.
+  //
+  // `bucketPrincipal: true` **menambah** bucket per principal, bukan
+  // menggantikannya. `identifierUntuk` selalu menghitung IP lebih dulu dan
+  // menolak request begitu **salah satu** bucket habis, jadi `false` berarti
+  // "per IP saja", bukan "per principal saja". Yang dibeli flag ini adalah arah
+  // yang jarang disadari: satu akun yang berpindah-pindah IP tetap menabrak
+  // bucket-nya sendiri, karena alamat baru tidak memberi kuota baru.
+  //
+  // Yang mengikat lebih dulu tetap per IP, dan flag ini tidak menghapusnya:
+  // satu kelas di belakang satu NAT berbagi 20 kompilasi per 10 menit. Angka 20
+  // dipilih untuk kasus yang jadi target runner sekarang — demo lokal satu
+  // pengguna — dan belum pernah diukur untuk kelas yang sebenarnya. Kalau
+  // nanti satu alamat harus melayani banyak akun, angka ini harus dinaikkan
+  // berdasarkan pengukuran, bukan karena kelihatan kecil di sini.
+  //
+  // `failOpen: false` karena endpoint ini menjalankan biner: lebih baik menolak
+  // daripada membuka kompilator.
+  jalankanKode: {
+    limit: 20,
+    window: "10 m",
+    resetDetik: 600,
+    failOpen: false,
+    bucketPrincipal: true,
+    label: "Jalankan kode",
   },
 };
 

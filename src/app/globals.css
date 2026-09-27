@@ -66,6 +66,21 @@
   --max: 1280px;
   --page-pad: 24px;
   --section-gap: clamp(48px, 8vw, 64px);
+  /* The framed AI Mastery app's canvas, as measured on `:3790` — its `body` and
+     its `main` both compute to `rgb(248, 251, 253)`.
+
+     This is a *foreign* surface: it is not derivable from the tokens above,
+     because it belongs to another app's Tailwind theme. So it gets one measured
+     value, spelled once, that both the `/ai-mastery` shell band and the winged
+     bar resolve — the band used to be `#ffffff` (the `bg-white` every
+     `LearnerShell` gets) while the bar was already this `#f8fbfd`, and that
+     7-value gap is exactly the seam the learner saw where the page behind the
+     navbar met the chat below it.
+
+     Re-measure with `getComputedStyle(document.body).backgroundColor` on `:3790`
+     if the framed app is restyled, and change it HERE only. Do not re-spell it
+     at a call site. */
+  --ai-mastery-canvas: #f8fbfd;
 }
 
 /* ===== shadcn/ui theme bridge (Careevo oceanic light) ===== */
@@ -650,9 +665,21 @@ h6 {
    breakpoint where `.chrome` stops wrapping — measured, not guessed, and the
    same one `.learner-shell--overlay` uses. Below it the bar is two rows. The
    bar is flush with the top edge (as it is in vyns.ko), so this is just its
-   height: 64px including the 1px border on desktop, 85px on mobile. */
+   height: 64px including the 1px border on desktop, 85px on mobile.
+
+   The background is the framed app's own canvas, not the `bg-white` that
+   `LearnerShell` puts on every shell. Only the bar's footprint used to carry
+   the app's colour, which left a white band around and behind it — the wings
+   sat on white, the bar on the chat's `#f8fbfd`, and the join read as a seam
+   across the top of the page. One surface, separated only by the bar's own
+   1px edge and drop shadow, which is how the vyns.ko original works too: a
+   dark bar on a dark page, legible because of its outline, not its fill.
+
+   It also covers the letterbox below the frame, which shows whenever the
+   document is shorter than `100dvh` (mobile browser chrome collapsing). */
 .ai-mastery-shell {
   --app-chrome-h: 85px;
+  background: var(--ai-mastery-canvas);
 }
 
 @media (min-width: 769px) {
@@ -667,13 +694,12 @@ h6 {
      has to leave room for them. Without the `- 2 * var(--wing)` term they would
      hang off the viewport at narrow widths and the page would scroll sideways. */
   --wing: 30px;
-  /* Measured off the framed app, not guessed: its `body` computes to
-     `rgb(248, 251, 253)`. The bar sits directly on top of that surface, so
-     any darker fill reads as a grey band against the chat behind it. Flat,
-     not a gradient — a gradient can only be darker at one end. Re-measure
-     with `getComputedStyle(document.body).backgroundColor` on `:3790` if the
-     framed app is restyled. */
-  --wing-fill: #f8fbfd;
+  /* The bar's own fill. Same token as the shell band behind it, so the two
+     cannot drift apart and re-open the seam; the bar is then told from the page
+     by its 1px `--wing-edge` and its drop shadow, not by a tint. Flat, not a
+     gradient — a gradient can only be darker at one end, which is the
+     mismatch this replaced. */
+  --wing-fill: var(--ai-mastery-canvas);
   --wing-edge: rgba(10, 42, 58, 0.16);
   /* Flush to the top edge, like the vyns.ko original ("Attached Notch Bar
      touching the top edge"). A `margin-top` here would leave a band of page
@@ -2309,6 +2335,7 @@ h6 {
 .chrome-btn-brand:hover {
   color: #ffffff;
   border-color: var(--brand-border);
+  background: var(--brand-grad-hover);
 }
 
 .chrome-btn-white {

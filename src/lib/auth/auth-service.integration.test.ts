@@ -25,12 +25,14 @@ import {
   cabutSemuaSession,
   daftarPengguna,
   keluarSession,
+  masukAtauDaftarGoogle,
   masukPengguna,
   principalDariToken,
 } from "@/lib/auth/auth-service";
 import { buatSession } from "@/lib/auth/session-repository";
 import { verifyPassword } from "@/lib/auth/password";
 import { hashToken } from "@/lib/auth/token";
+import { usernameSchema } from "@/lib/validation/auth";
 
 let db: KoneksiDb = getDb();
 
@@ -284,5 +286,90 @@ describe("sessions — revoke per-device dan reset global", () => {
       .from(sessions)
       .where(eq(sessions.tokenHash, hashToken("token-yang-tidak-ada")));
     expect(baris).toBeUndefined();
+  });
+});
+
+describe("masukAtauDaftarGoogle — provisioning dari identitas Google", () => {
+  /**
+   * Invarian yang paling mudah diam-diam rusak: username hasil turunan Google
+   * harus selalu lolos `usernameSchema` (huruf kecil/angka/underscore, 3-20
+   * karakter). `users.username_normalized` punya unique index, dan kegagalan
+   * di sana muncul sebagai `db_error` yang tidak menjelaskan apa pun ke pengguna
+   * — jadi kebocoran ini harus tes, bukan hope.
+   */
+  const KASUS_NAMA = [
+    "Vasco Yudha Nodyatama Sera", // spasi
+    "ĄĆĘ ŁŃ", // di luar a-z
+    "ab", // terlalu pendek
+    "", // akun tanpa nama tampilan
+    "!!!___???", // semua karakter terlarang
+    "a".repeat(200), // jauh melebihi batas
+  ];
+
+  it("username turunan selalu valid menurut usernameSchema", async () => {
+    for (const [i, nama] of KASUS_NAMA.entries()) {
+      const hasil = await masukAtauDaftarGoogle({
+        email: `google-${i}@contoh.test`,
+        nama,
+      });
+      expect(hasil.ok, `nama=${JSON.stringify(nama)}`).toBe(true);
+      if (!hasil.ok) continue;
+      // `principal.username` adalah bentuk yang sudah ternormalisasi.
+      expect(
+        usernameSchema.safeParse(hasil.principal.username).success,
+        `username "${hasil.principal.username}" dari nama ${JSON.stringify(nama)}`,
+      ).toBe(true);
+    }
+  });
+
+  it("mendaftarkan akun baru sebagai learner, tanpa baris kredensial", async () => {
+    const hasil = await masukAtauDaftarGoogle({
+      email: "baru@contoh.test",
+      nama: "Rina Wati",
+    });
+    expect(hasil.ok).toBe(true);
+    if (!hasil.ok) return;
+
+    expect(hasil.principal.roles).toEqual(["user"]);
+    expect(hasil.principal.email).toBe("baru@contoh.test");
+
+    const kredensial = await db
+      .select()
+      .from(userCredentials)
+      .where(eq(userCredentials.userId, hasil.principal.userId));
+    // Akun Google **tidak** punya password. Baris kredensial kosong adalah
+    // kondisi yang benar: `masukPengguna` akan menolaknya, dan tidak ada
+    // password yang bisa ditebak atau dipaksa.
+    expect(kredensial).toHaveLength(0);
+  });
+
+  it("email yang sudah terdaftar masuk ke akun yang ada, bukan membuat duplikat", async () => {
+    await daftarPengguna({
+      nama: "Sudah Ada",
+      username: "sudahada",
+      email: "ganda@contoh.test",
+      password: "rahasia-panjang",
+    });
+
+    const hasil = await masukAtauDaftarGoogle({ email: "GANDA@contoh.test", nama: "Nama Baru" });
+    expect(hasil.ok).toBe(true);
+    if (!hasil.ok) return;
+
+    // Normalisasi: email yang beda kapital harus cocok ke akun yang sama.
+    expect(hasil.principal.email).toBe("ganda@contoh.test");
+    // Dan nama display tidak ditimpa oleh yang dikirim Google.
+    expect(hasil.principal.nama).toBe("Sudah Ada");
+  });
+
+  it("akun nonaktif ditolak walau Google menyatakan email-nya sah", async () => {
+    const hasil = await masukAtauDaftarGoogle({ email: "ditangguhkan@contoh.test" });
+    expect(hasil.ok).toBe(true);
+    if (!hasil.ok) return;
+
+    await db.update(users).set({ status: "suspended" }).where(eq(users.id, hasil.principal.userId));
+
+    const kedua = await masukAtauDaftarGoogle({ email: "ditangguhkan@contoh.test" });
+    expect(kedua.ok).toBe(false);
+    if (!kedua.ok) expect(kedua.alasan).toBe("nonaktif");
   });
 });
