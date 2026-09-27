@@ -3,10 +3,8 @@ import { getSession } from "@/lib/auth/session";
 import { LearnerShell } from "@/components/ui/learner-shell";
 import { BelajarHome, type KursusTerdaftar } from "@/components/features/learning/belajar-home";
 import { katalogBelajar } from "@/lib/courses/katalog";
-import { hitungProgres, irisModulSelesai } from "@/lib/courses/kurikulum";
-import { modulUntukSumber } from "@/lib/courses/modul-resolver";
 import { pastikanBackfill } from "@/lib/learning/backfill-lazy";
-import { listKursusTerdaftarDb, progresKursusDb } from "@/lib/learning/service";
+import { listProgresKursus } from "@/lib/learning/progres-kursus";
 import { tasks } from "@/lib/fixtures";
 
 export const metadata: Metadata = {
@@ -29,36 +27,21 @@ export default async function BelajarPage({
   // sebelum halaman membaca apa pun. Setelah itu daftar di bawah tidak lagi
   // menyentuh cookie.
   await pastikanBackfill(session);
-  const enrollments = await listKursusTerdaftarDb(session);
 
-  // Loop `for...of` yang ber-`await`, bukan `.flatMap()`: resolver modul kini
-  // async sehingga tidak bisa dipanggil dari callback sinkron.
-  const terdaftar: KursusTerdaftar[] = [];
-  for (const enrollment of enrollments) {
-    const kursus = katalog.find((item) => item.id === enrollment.courseId);
-    if (!kursus) continue;
-    const modul = await modulUntukSumber({
-      id: kursus.id,
-      title: kursus.title,
-      tags: kursus.tags,
-      duration_min: kursus.duration_min,
-      url: kursus.url,
-    });
-    // Progres dibaca dari service, bukan dari cookie: `progresKursusDb`
-    // memuat ulang enrollment milik principal dan menyaring modul yang
-    // benar-benar `completed` di database.
-    const { selesai: idSelesai } = await progresKursusDb(session, enrollment.courseId);
-    const selesai = irisModulSelesai(idSelesai, modul);
-    terdaftar.push({
-      id: kursus.id,
-      slug: kursus.slug,
-      title: kursus.title,
-      provider: kursus.provider,
-      progres: hitungProgres(selesai.length, modul.length),
-      selesai: selesai.length,
-      total: modul.length,
-    });
-  }
+  // Hitungan progresnya milik `listProgresKursus`, sama dengan halaman `/progres`:
+  // section "Pembelajaran saya" di bawah dan halaman progres tidak boleh
+  // menampilkan angka berbeda untuk enrollment yang sama.
+  const terdaftar: KursusTerdaftar[] = (await listProgresKursus(session, katalog)).map(
+    ({ entri, progres, selesai, total }) => ({
+      id: entri.id,
+      slug: entri.slug,
+      title: entri.title,
+      provider: entri.provider,
+      progres,
+      selesai,
+      total,
+    }),
+  );
 
   return (
     <LearnerShell session={session} queryAwal={queryAwal} overlayMain promoBars>

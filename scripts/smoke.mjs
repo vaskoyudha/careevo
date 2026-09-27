@@ -29,6 +29,9 @@ const routes = [
   "/onboarding/demo",
   "/belajar/fullstack-web-development-nextjs-15-react-19",
   "/belajar/r1",
+  "/progres",
+  // Rute lama masih hidup sebagai redirect ke /progres. Karena halamannya sudah
+  // streaming, redirect-nya in-band (meta refresh) dengan status 200, bukan 307.
   "/belajar/jalur",
   "/belajar/mastery",
   "/belajar/buku",
