@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useId } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Compass, ChevronDown } from "./icons";
@@ -21,6 +21,10 @@ export function ExploreMenu() {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const panelId = useId();
+  // Set when the panel was opened from the keyboard, so closing can hand focus
+  // back to the trigger. A pointer open leaves focus where the user put it.
+  const fokusDariKeyboard = useRef(false);
 
   const clearCloseTimeout = useCallback(() => {
     if (timeoutRef.current) {
@@ -43,11 +47,19 @@ export function ExploreMenu() {
     setPanelTop(Math.round(btn.getBoundingClientRect().bottom + 8));
   }, []);
 
-  const open = useCallback(() => {
-    clearCloseTimeout();
-    measurePanel();
-    setIsOpen(true);
-  }, [clearCloseTimeout, measurePanel]);
+  const open = useCallback(
+    (dariKeyboard = false) => {
+      clearCloseTimeout();
+      // Hovering an already keyboard-open panel must not discard the focus
+      // return path. A closed menu starts a fresh pointer-open state.
+      if (dariKeyboard || !isOpen) {
+        fokusDariKeyboard.current = dariKeyboard;
+      }
+      measurePanel();
+      setIsOpen(true);
+    },
+    [clearCloseTimeout, isOpen, measurePanel],
+  );
 
   const scheduleClose = useCallback(() => {
     clearCloseTimeout();
@@ -60,6 +72,17 @@ export function ExploreMenu() {
     clearCloseTimeout();
     setIsOpen(false);
   }, [clearCloseTimeout]);
+
+  // Escape/dismiss closes *and* hands focus back to the trigger, but only when
+  // the panel was opened from the keyboard — grabbing focus after a pointer
+  // dismissal would yank the caret off whatever the user clicked instead.
+  const tutupDanKembalikanFokus = useCallback(() => {
+    closeImmediately();
+    if (fokusDariKeyboard.current) {
+      buttonRef.current?.focus();
+      fokusDariKeyboard.current = false;
+    }
+  }, [closeImmediately]);
 
   // Clean up timer on unmount
   useEffect(() => {
@@ -84,8 +107,7 @@ export function ExploreMenu() {
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        closeImmediately();
-        buttonRef.current?.focus();
+        tutupDanKembalikanFokus();
       }
     };
 
@@ -95,7 +117,7 @@ export function ExploreMenu() {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isOpen, closeImmediately]);
+  }, [isOpen, closeImmediately, tutupDanKembalikanFokus]);
 
   // Re-anchor while open: the chrome is sticky and flips between `.is-top` and
   // `.is-scrolled`, so a box captured at open time goes stale.
@@ -110,7 +132,16 @@ export function ExploreMenu() {
     };
   }, [isOpen, measurePanel]);
 
-  const columnClass = "flex flex-col justify-start mb-6 min-w-[149px]";
+  // Move focus onto the first link when the panel was opened from the keyboard,
+  // so Tab walks the menu instead of the page underneath. A pointer open leaves
+  // focus on the trigger — no invisible focus jump under the cursor.
+  useEffect(() => {
+    if (!isOpen || !fokusDariKeyboard.current) return;
+    const pertama = panelRef.current?.querySelector<HTMLElement>("a[href]");
+    pertama?.focus();
+  }, [isOpen]);
+
+  const columnClass = "flex w-full min-w-0 flex-col justify-start mb-6 md:w-auto md:min-w-[149px]";
   const headingClass = "mb-2 text-base leading-7 font-normal text-[#0D0F12]";
   // Coursera: a { padding: 8px 0 } + li { padding: 0 0 4px } -> tinggi item
   // 20+16 = 36px, tapi jarak antar teks item = 24px (8+16). Pitch.item
@@ -125,7 +156,7 @@ export function ExploreMenu() {
     <div
       ref={containerRef}
       className="static"
-      onMouseEnter={open}
+      onMouseEnter={() => open(false)}
       onMouseLeave={scheduleClose}
     >
       {/* Explore trigger. Uses the same `.nav-item` system as its siblings so it
@@ -136,15 +167,18 @@ export function ExploreMenu() {
       <button
         ref={buttonRef}
         type="button"
-        onClick={() => {
+        onClick={(e) => {
           if (isOpen) {
             closeImmediately();
           } else {
-            open();
+            // `detail === 0` on a click means it came from the keyboard
+            // (Enter/Space) rather than a pointer, so the panel opens focused.
+            open(e.detail === 0);
           }
         }}
         aria-expanded={isOpen}
         aria-haspopup="dialog"
+        aria-controls={isOpen ? panelId : undefined}
         aria-label="Explore menu"
         className={`nav-item cursor-pointer ${isOpen ? "is-active" : ""}`}
       >
@@ -180,19 +214,21 @@ export function ExploreMenu() {
       {isOpen && panelTop !== null && createPortal(
         <div
           ref={panelRef}
+          id={panelId}
           role="dialog"
           aria-label="Explore catalog"
-          onMouseEnter={open}
+          onMouseEnter={() => open(false)}
           onMouseLeave={scheduleClose}
           style={{
             top: panelTop,
             maxHeight: `calc(100vh - ${panelTop}px - 16px)`,
           }}
-          className="explore-mega-menu fixed z-[80] overflow-y-auto rounded-2xl border border-gray-200 bg-white shadow-[0_25px_60px_-15px_rgba(0,0,0,0.2),0_10px_20px_-5px_rgba(0,0,0,0.08)] [-ms-overflow-style:none] [scrollbar-width:thin]"
+          className="explore-mega-menu fixed z-[80] overflow-y-auto overflow-x-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_25px_60px_-15px_rgba(0,0,0,0.2),0_10px_20px_-5px_rgba(0,0,0,0.08)] [-ms-overflow-style:none] [scrollbar-width:thin]"
         >
-          {/* Row: max-w 1200, space-between, 6 kolom, gap-x 24px.
-              Kolom diberi lebar min sepadat Coursera supaya tinggi baris rata. */}
-          <div className="mx-auto flex max-w-[1200px] flex-nowrap items-start justify-between gap-x-6 px-[32.5px] pt-4">
+          {/* Row: 4 columns side by side from `md` (max-w 1200, space-between,
+              gap-x 24px); a single shrinkable column below it, so the 320px
+              card no longer clips a 822px row. */}
+          <div className="mx-auto flex max-w-[1200px] flex-col items-start gap-y-1 px-4 pt-4 md:flex-row md:flex-nowrap md:justify-between md:gap-x-6 md:px-[32.5px]">
             {/* COLUMN 1: Explore roles */}
             <div className={columnClass}>
               <h3 className={headingClass}>
@@ -260,7 +296,7 @@ export function ExploreMenu() {
             </div>
 
             {/* COLUMN 3: Certificates & Degrees */}
-            <div className="flex min-w-[205px] flex-col">
+            <div className="flex w-full min-w-0 flex-col md:w-auto md:min-w-[205px]">
               {/* Group A: Earn a Professional Certificate */}
               <div>
                 <h3 className={headingClass}>
@@ -329,7 +365,7 @@ export function ExploreMenu() {
             </div>
 
             {/* COLUMN 4: Trending Skills & Certification Prep */}
-            <div className="flex min-w-[214px] flex-col">
+            <div className="flex w-full min-w-0 flex-col md:w-auto md:min-w-[214px]">
               {/* Group A: Explore trending skills */}
               <div>
                 <h3 className={headingClass}>Explore trending skills</h3>
@@ -364,7 +400,7 @@ export function ExploreMenu() {
 
           {/* Footer strip: padding 24px 0 16px, tanpa border atas, font 14px.
               Saudara dari row kolom, bukan anaknya. */}
-          <div className="px-[32.5px] pt-6 pb-4">
+          <div className="px-4 pt-6 pb-4 md:px-[32.5px]">
             <div className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-x-1.5 text-sm leading-5 text-[#0D0F12]">
               <span>Not sure where to begin?</span>
               <Link

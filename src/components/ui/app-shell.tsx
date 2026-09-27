@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { Menu } from "lucide-react";
+import { MoreVertical } from "lucide-react";
 import { DashboardSidebar } from "./dashboard-sidebar";
 import { AiMasteryNavbar } from "./ai-mastery-navbar";
 import type { SessionPayload } from "@/lib/auth/types";
@@ -61,10 +61,12 @@ export function AppShell({
     <button
       type="button"
       onClick={() => setMobileOpen((value) => !value)}
-      aria-label="Buka menu navigasi"
+      aria-label={mobileOpen ? "Tutup menu navigasi" : "Buka menu navigasi"}
+      aria-expanded={mobileOpen}
+      aria-controls="dashboard-mobile-navigation"
       className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] border border-white/80 bg-white/70 text-muted-foreground shadow-sm transition-colors hover:bg-white hover:text-foreground lg:hidden"
     >
-      <Menu className="h-[18px] w-[18px]" strokeWidth={1.5} />
+      <MoreVertical className="h-[18px] w-[18px]" strokeWidth={1.5} />
     </button>
   );
 
