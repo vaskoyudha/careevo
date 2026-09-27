@@ -6,11 +6,12 @@ import Link from "next/link";
 import { Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ResourceFixture } from "@/lib/fixtures";
+import { levelLabel } from "@/lib/onboarding/types";
 
 /**
  * Kartu katalog kursus — komponen bersama untuk semua halaman yang menampilkan
  * entri katalog (`/belajar`, `/jelajah`). Anatominya diambil verbatim dari kartu
- * `CourseraCourseCard` di belajar-home: sampul 16:9 dengan pill kredensial,
+ * `CourseraCourseCard` di belajar-home: sampul 4:3 dengan pill kredensial,
  * baris penyedia (logo + nama), judul tebal yang membiru saat hover, baris
  * rating, satu baris meta, lalu footer dengan pill topik dan status akses.
  *
@@ -215,12 +216,6 @@ export function courseMetaFor(resource: ResourceFixture): CourseMeta {
   };
 }
 
-export function levelLabel(level: string) {
-  if (level === "dasar") return "Pemula";
-  if (level === "menengah") return "Menengah";
-  return "Lanjutan";
-}
-
 /** Logo penyedia; jatuh ke inisial merek saat logo tidak ada atau gagal dimuat. */
 function ProviderMark({ logo, provider }: { logo?: string; provider: string }) {
   const [errored, setErrored] = useState(false);
@@ -334,7 +329,7 @@ export function CourseCardShell({
       <Link
         href={href}
         aria-label={`Lihat detail ${title}`}
-        className="relative block aspect-[16/9] w-full overflow-hidden bg-gray-100 hover:no-underline"
+        className="relative block aspect-[4/3] w-full overflow-hidden bg-gray-100 hover:no-underline"
       >
         <ThumbMedia src={thumbnail} alt={title} provider={provider} sizes={imageSizes} />
         {credentialType ? (
