@@ -324,6 +324,27 @@ export async function ambilAttestation(id: string): Promise<Attestation | null> 
 }
 
 /**
+ * Semua attestation `active` seorang user, terbaru lebih dulu.
+ *
+ * `status = 'active'` ada di **where**, bukan di filter pemanggil: `revoked` bukan
+ * kredensial, jadi menambahkannya di pemanggil berarti satu bug filter akan
+ * menampilkan sertifikat yang sudah dicabut sebagai yang masih berlaku.
+ *
+ * `payload_canonical` ikut terbaca apa adanya (string, bukan jsonb) supaya yang
+ * dipakai untuk merender adalah persis string yang ditandatangani — bukan
+ * bentuk yang mungkin berbeda urutan kuncinya.
+ */
+export async function listAttestationAktifUser(
+  userId: string,
+): Promise<Attestation[]> {
+  return getDb()
+    .select()
+    .from(attestations)
+    .where(and(eq(attestations.subjectUserId, userId), eq(attestations.status, "active")))
+    .orderBy(desc(attestations.issuedAt));
+}
+
+/**
  * Cabut attestation — compare-and-set `active` → `revoked` (dalam transaksi
  * pemanggil). Mengembalikan `null` bila sudah `revoked`/tidak ditemukan.
  */

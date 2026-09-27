@@ -24,7 +24,7 @@ import { getCourseById } from "@/lib/courses/store";
 import { hitungSkorKarya, type RubricCriterion } from "@/lib/scoring/karya";
 import { punyaRoleStaff } from "@/lib/auth/authorization";
 import type { SessionPrincipal } from "@/lib/auth/principal";
-import { kanonik, type AttestationPayload } from "@/lib/attestation/payload";
+import { kanonik, dariKanonik, type AttestationPayload } from "@/lib/attestation/payload";
 import { tandaTangan, tokenPublicBaru, type KeyVersion } from "@/lib/attestation/key";
 import { catatAudit } from "@/lib/auth/audit";
 import { ambilRolesAktif, cariUserById } from "@/lib/auth/identity-repository";
@@ -42,6 +42,7 @@ import {
   buatBadge,
   buatSubmission,
   cabutAttestation,
+  listAttestationAktifUser,
   listSubmissionMenunggu,
   listSubmissionUser,
   rekamReview,
@@ -293,6 +294,83 @@ export async function ambilKredensialCourse(
     if (token) return token;
   }
   return null;
+}
+
+/** Satu sertifikat yang bisa ditampilkan, diturunkan dari `payload_canonical`. */
+export interface SertifikatRingkas {
+  /** Token publik untuk `/verify/<token>`. */
+  token: string;
+  /** `task_title` dari payload yang ditandatangani. */
+  judul: string;
+  /** `track` dari payload — jalur yang sedang dikerjakan. */
+  track: string;
+  /** `level` dari payload. */
+  level: string;
+  /** `issued_at` dari payload (ISO). */
+  terbitPada: string;
+  /** `score` dari payload, 0–100. */
+  score: number;
+  /** `task_id` — `courseId` untuk kredensial kursus. */
+  taskId: string;
+}
+
+/**
+ * Ringkas attestation menjadi bentuk yang bisa dirender.
+ *
+ * **`dariKanonik`, bukan `JSON.parse` langsung.** `payload_canonical` yang rusak
+ * harus menjadi "sertifikat ini tidak bisa ditampilkan" (baris dilewati), bukan
+ * melempar dan menjatuhkan seluruh halaman dashboard.
+ */
+function keSertifikat(baris: Attestation): SertifikatRingkas | null {
+  const payload = dariKanonik(baris.payloadCanonical);
+  if (!payload) return null;
+  return {
+    token: baris.publicToken,
+    judul: payload.task_title,
+    track: payload.track,
+    level: payload.level,
+    terbitPada: payload.issued_at,
+    score: payload.score,
+    taskId: payload.task_id,
+  };
+}
+
+/**
+ * Semua sertifikat **aktif** milik seorang user, terbaru lebih dulu.
+ *
+ * Yang dikunci:
+ *
+ * - **Hanya `active`.** `revoked` bukan kredensial, jadi tidak pernah muncul
+ *   sebagai sertifikat yang dimiliki peserta — termasuk di profil publik yang
+ *   dibaca perekrut.
+ * - **Tidak ada parameter user dari pemanggil.** Fungsi ini selalu milik
+ *   principal yang masuk, jadi tidak ada halaman yang bisa meminta daftar
+ *   sertifikat orang lain. Untuk profil publik (`/p/[username]`) ada varian
+ *   eksplisit di bawah yang memang menerima `userId`.
+ * - **Baris dengan payload rusak dilewati, bukan menggagalkan seluruh daftar.**
+ *   Satu kredensial rusak tidak boleh membuat peserta kehilangan tampilan
+ *   sertifikat lain yang sah.
+ */
+export async function listSertifikatDb(
+  principal: SessionPrincipal,
+): Promise<SertifikatRingkas[]> {
+  const baris = await listAttestationAktifUser(principal.userId);
+  return baris.map(keSertifikat).filter((s): s is SertifikatRingkas => s !== null);
+}
+
+/**
+ * Varian untuk permukaan publik: daftar sertifikat aktif **user yang sedang
+ * dilihat**, bukan milik pemanggil.
+ *
+ * Ada sebagai fungsi terpisah, bukan parameter opsional di `listSertifikatDb`,
+ * supaya tidak ada satu fungsi pun yang bisa dipanggil dengan `userId` dari
+ * input klien. `listSertifikatUserId` hanya dibaca dari halaman profil publik,
+ * yang `userId`-nya berasal dari **username** di URL — jadi yang ditampilkan di
+ * sana memang kredensial milik orang itu, bukan milik yang sedang masuk.
+ */
+export async function listSertifikatUserId(userId: string): Promise<SertifikatRingkas[]> {
+  const baris = await listAttestationAktifUser(userId);
+  return baris.map(keSertifikat).filter((s): s is SertifikatRingkas => s !== null);
 }
 
 /**

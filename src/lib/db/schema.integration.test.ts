@@ -49,6 +49,7 @@ const TABEL_WAJIB = [
   "courses",
   "email_verification_tokens",
   "enrollments",
+  "integrity_violations",
   "learning_events",
   "learning_runs",
   "module_progress",
@@ -172,6 +173,28 @@ const KOLOM_WAJIB: Record<string, string[]> = {
     "enrolled_at",
     "completed_at",
     "completion_path",
+  ],
+  /**
+   * `penalty` dan `status` ikut dipatok karena keduanya adalah **kontrak
+   * 상품**, bukan detail implementasi: `penalty` membuat bobot lama tidak ikut
+   * ditulis ulang saat katalog berubah, dan `status` membuat "sudah dipulihkan"
+   * bisa dibedakan dari "tidak pernah tercatat". Menukar salah satunya berarti
+   * skor bisa dihitung ulang dengan angka berbeda tanpa ada yang gagal.
+   */
+  integrity_violations: [
+    "id",
+    "user_id",
+    "course_id",
+    "enrollment_id",
+    "kind",
+    "penalty",
+    "reason",
+    "reviewer_user_id",
+    "evidence_redacted",
+    "status",
+    "created_at",
+    "expunged_at",
+    "expunged_reason",
   ],
   module_progress: [
     "enrollment_id",

@@ -11,6 +11,7 @@ import { progresKursusDb } from "@/lib/learning/service";
 import { getCourseById } from "@/lib/courses/store";
 import { kebijakanDefault } from "@/lib/courses/kebijakan";
 import { kelayakanKursusSubmission, ambilKredensialCourse } from "@/lib/review/service";
+import { ringkasanPelanggaranCourseDb } from "@/lib/integritas/service";
 import { tasks } from "@/lib/fixtures";
 import { selaraskanKursusAi } from "@/lib/learning/tutor-ai-kursus";
 
@@ -122,6 +123,19 @@ export default async function DetailKursusPage({
     ? await ambilKredensialCourse(session, entri.id)
     : null;
 
+  /**
+   * Catatan integritas milik peserta **pada course ini saja**.
+   *
+   * Pembacaan diambil dari `userId`/`courseId`, bukan dari seluruh daftar akun,
+   * jadi catatan dari course lain tidak mungkin bocor ke halaman ini. `enrollment`
+   * menjadi syarat membaca: course yang belum diikuti tidak punya catatan yang
+   * bisa ditampilkan, dan tabel kosong untuk course yang belum diikuti akan
+   * terlihat seperti "sudah diperiksa dan bersih" — klaim yang tidak benar.
+   */
+  const catatanIntegritas = enrollment
+    ? await ringkasanPelanggaranCourseDb(session.userId, entri.id)
+    : null;
+
   return (
     <LearnerShell session={session} overlayMain>
       <DetailKursus
@@ -165,6 +179,7 @@ export default async function DetailKursusPage({
         // disunting kebijakannya jatuh ke default aman (`aturan_pengawasan:
         // "wajib"`) supaya gerbang tidak diam-diam terbuka.
         kebijakan={kursusAsli?.kebijakan ?? kebijakanDefault()}
+        catatanIntegritas={catatanIntegritas}
       />
     </LearnerShell>
   );

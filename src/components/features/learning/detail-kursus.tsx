@@ -24,6 +24,7 @@ import { KuisView } from "./kuis-view";
 import { KursusAiPanel } from "./kursus-ai-panel";
 import { KursusSubNav } from "./kursus-subnav";
 import { SertifikatPanel } from "./sertifikat-panel";
+import { TabelPelanggaran } from "./tabel-pelanggaran";
 import type { KebijakanCourse, TipeMateri } from "@/types/course";
 
 const LABEL_TIPE: Record<TipeMateri, string> = {
@@ -75,6 +76,26 @@ export interface RingkasanSertifikat {
   token: string | null;
 }
 
+/**
+ * Satu baris tabel catatan integritas, dalam bentuk yang bisa dikirim ke client.
+ *
+ * Sengaja dideklarasikan ulang di sini dan bukan diimpor dari
+ * `@/lib/integritas/service`: berkas itu **server-only** (menarik `@/lib/db/client`
+ * → `node:net`), dan `detail-kursus.tsx` adalah client component. Bentuknya dijaga
+ * oleh `service.test.ts` — kalau service berubah, TypeScript akan complain di
+ * props halaman yang mengirimnya.
+ */
+export interface BarisPelanggaran {
+  jenis: string;
+  tingkat: string;
+  bobot: number;
+  label: string;
+  detail: string;
+  jumlah: number;
+  jumlahAktif: number;
+  jumlahDipulihkan: number;
+}
+
 export interface DetailKursusData {
   id: string;
   slug: string;
@@ -118,6 +139,7 @@ export function DetailKursus({
   aiCourseId,
   proyek,
   sertifikat,
+  catatanIntegritas,
 }: {
   kursus: DetailKursusData;
   modul: ModulKursus[];
@@ -135,6 +157,13 @@ export function DetailKursus({
   proyek: RingkasanProject;
   /** Status kotak sertifikat — sumbernya satu pembacaan server yang sama dengan `proyek`. */
   sertifikat: RingkasanSertifikat;
+  /**
+   * Catatan integritas peserta pada course ini, atau `null` bila peserta belum
+   * terdaftar. `null` bukan "kosong": course yang belum diikuti tidak punya
+   * catatan untuk ditampilkan, dan menampilkannya sebagai tabel 0 akan terlihat
+   * seperti "sudah diperiksa dan bersih".
+   */
+  catatanIntegritas?: BarisPelanggaran[] | null;
 }) {
   return (
     <CourseSessionProvider courseId={kursus.id} kebijakan={kebijakan}>
@@ -148,6 +177,7 @@ export function DetailKursus({
         aiCourseId={aiCourseId ?? kursus.id}
         proyek={proyek}
         sertifikat={sertifikat}
+        catatanIntegritas={catatanIntegritas ?? null}
       />
     </CourseSessionProvider>
   );
@@ -170,6 +200,7 @@ function RuangBelajar({
   aiCourseId,
   proyek,
   sertifikat,
+  catatanIntegritas,
 }: {
   kursus: DetailKursusData;
   modul: ModulKursus[];
@@ -180,6 +211,7 @@ function RuangBelajar({
   aiCourseId: string;
   proyek: RingkasanProject;
   sertifikat: RingkasanSertifikat;
+  catatanIntegritas: BarisPelanggaran[] | null;
 }) {
   const [selesai, setSelesai] = useState<string[]>(() =>
     irisModulSelesai(selesaiAwal, modul),
@@ -643,6 +675,15 @@ function RuangBelajar({
               selesai={selesaiValid.length}
               total={modul.length}
             />
+
+            {/* Tabel catatan integritas hanya untuk peserta yang sudah
+                terdaftar. Untuk course yang belum diikuti, tabel kosong akan
+                terbaca sebagai "sudah diperiksa dan bersih" — klaim yang
+                memang belum pernah dibuat, karena tidak ada run yang pernah
+                dijalankan. */}
+            {catatanIntegritas ? (
+              <TabelPelanggaran baris={catatanIntegritas} />
+            ) : null}
 
             <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_2px_12px_rgba(0,0,0,0.08)]">
               {sudahDaftar ? (

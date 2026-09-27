@@ -6,6 +6,9 @@ import { AppShell } from "@/components/ui/app-shell";
 import { PageHead } from "@/components/ui/page-head";
 import { PeringatanIntegritas } from "@/components/features/performa/performa-integritas";
 import { listEnrollmentStaf, listEventRun } from "@/lib/learning/repository";
+import { FormPelanggaran } from "@/components/features/performa/form-pelanggaran";
+import { listSemuaPelanggaran, skorIntegritasDb } from "@/lib/integritas/service";
+import { KATALOG_PELANGGARAN } from "@/lib/integritas/katalog";
 import {
   LABEL_KEJADIAN,
   gabungPersetujuan,
@@ -68,6 +71,34 @@ export default async function IntegritasDetailPage({
   const daftarPersetujuan = (ringkas?.daftar ?? []).map((s) => s.persetujuan);
   const izin = gabungPersetujuan(daftarPersetujuan);
 
+  /**
+   * Catatan integritas yang sudah diputuskan, plus skor yang dihasirkan dari
+   * sana.
+   *
+   * `userId` bisa `undefined` bila tidak ada run milik pemilik (halaman sudah
+   * `notFound()` di atas kalau begitu, tapi TypeScript tidak mengetahuinya), jadi
+   * keduanya dijaga secara terpisah. Membaca `integrity_violations` **hanya**
+   * di sini: halaman ini adalah satu-satunya tempat staf melihat dan menulis
+   * catatan, dan angka skor di halaman ini berasal dari hitungan yang sama
+   * dengan dashboard peserta — bukan hitungan kedua.
+   */
+  const catatan = userId ? await listSemuaPelanggaran(userId) : [];
+  const skor = userId ? await skorIntegritasDb(userId) : null;
+
+  /**
+   * Course yang bisa dipilih di form pencatatan: **hanya** enrollment milik
+   * peserta ini. `catatPelanggaranDb` memeriksa kepemilikan enrollment lagi di
+   * server, jadi daftar di sini hanya supaya form tidak menawarkan course yang
+   * pasti ditolak.
+   */
+  const opsiCourse = Array.from(
+    new Set(
+      enrollments
+        .filter((b) => b.user.userId === userId)
+        .map((b) => b.enrollment.courseId),
+    ),
+  ).map((courseId) => ({ courseId, slug: null }));
+
   return (
     <AppShell session={session} current="/performa/integritas">
       <PageHead
@@ -83,6 +114,87 @@ export default async function IntegritasDetailPage({
 
       <div className="space-y-4">
         <PeringatanIntegritas />
+
+        {/*
+          Skor kejujuran dibaca **di sini** juga, dari fungsi yang sama dengan
+          dashboard peserta. Dua tampilan angka yang sama dari dua hitungan
+          berbeda akan menyimpang diam-diam — dan justru两者 yang dipakai
+          peserta, jadi perbedaan sekecil apa pun adalah kebohongan.
+        */}
+        {skor ? (
+          <section className="card" aria-labelledby="integritas-skor">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="card-title" id="integritas-skor">
+                Skor kejujuran
+              </h2>
+              <span className="text-2xl font-bold tabular-nums">
+                {skor.skor}
+                <span className="text-sm font-normal text-muted-foreground">/100</span>
+              </span>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {skor.jumlahAktif} catatan aktif ·{" "}
+              {skor.perCourse.length > 0
+                ? skor.perCourse
+                    .map((r) => `${r.courseId} −${r.penaltiDiterapkan}`)
+                    .join(", ")
+                : "tidak ada course yang memotong skor"}
+            </p>
+          </section>
+        ) : null}
+
+        <section className="card" aria-labelledby="integritas-catatan">
+          <h2 className="card-title" id="integritas-catatan">
+            Catatan yang sudah diputuskan
+          </h2>
+          <p className="mt-1 mb-3 text-sm text-muted-foreground">
+            Yang tampil di sini adalah keputusan manusia, bukan rekaman
+            otomatis. Catatan mentah di bawah tetap konteks — tidak ada satu pun
+            yang otomatis menurunkan skor.
+          </p>
+          {catatan.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Belum ada catatan untuk peserta ini. Skornya masih 100; itu berarti
+              tidak ada yang tercatat, bukan berarti sudah diperiksa semua.
+            </p>
+          ) : (
+            <ul className="list-app">
+              {catatan.map((c) => {
+                const definisi = KATALOG_PELANGGARAN[c.kind as keyof typeof KATALOG_PELANGGARAN];
+                return (
+                  <li className="list-app-row" key={c.id}>
+                    <div className="min-w-0">
+                      <span className="row-title">
+                        {definisi?.label ?? c.kind}
+                      </span>
+                      <span className="row-meta">{c.reason}</span>
+                      <span className="row-meta">
+                        {c.courseId} · {c.penalty} poin ·{" "}
+                        {c.status === "expunged"
+                          ? `dipulihkan${c.expungedReason ? `: ${c.expungedReason}` : ""}`
+                          : "berlaku"}{" "}
+                        · {c.createdAt.toISOString().slice(0, 10)}
+                      </span>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+
+        {userId ? (
+          <section className="card" aria-labelledby="integritas-form">
+            <h2 className="card-title" id="integritas-form">
+              Catat catatan baru
+            </h2>
+            <p className="mt-1 mb-3 text-sm text-muted-foreground">
+              Menulis di sini akan langsung memotong skor kejujuran peserta di
+              dashboard. Besaran penalti ditentukan jenis, bukan pilihanmu.
+            </p>
+            <FormPelanggaran userId={userId} course={opsiCourse} />
+          </section>
+        ) : null}
 
         <section className="card" aria-labelledby="integritas-ringkas">
           <h2 className="card-title" id="integritas-ringkas">

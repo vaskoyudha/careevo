@@ -26,6 +26,12 @@
  *   Menandai ulang modul informal membatalkannya; menandai modul yang sudah
  *   terverifikasi dengan jalur informal **tidak** menghapus bukti terverifikasi
  *   itu — peningkatan informal → terverifikasi sebaliknya selalu boleh.
+ * - **Completion `terverifikasi` adalah satu-satunya jalan pemulihan skor.**
+ *   `selesaikanKursusDb` memanggil `pulihkanPelanggaranSetelahUlang` setelah
+ *   `course_completions` terekam, sehingga pelanggaran integritas yang tercatat
+ *   sebelumnya berhenti memotong skor. Jalur informal tidak memulihkan apa pun:
+ *   menandai modul secara manual bukan bukti integritas, dan kalau boleh
+ *   memulihkan, penalti bisa dihapus hanya dengan menekan tombol.
  *
  * Nama fungsi bisnis berbahasa Indonesia mengikuti idiom repo
  * (`daftarPengguna`, `tandaiModul`, `selesaikanKursusDb`); tipe dan helper
@@ -45,6 +51,7 @@ import {
   type HasilEnrollment,
 } from "@/lib/learning/repository";
 import { modulUntuk } from "@/lib/courses/modul-resolver";
+import { pulihkanPelanggaranSetelahUlang } from "@/lib/integritas/service";
 import type { ModulKursus } from "@/lib/courses/kurikulum";
 import type { JalurPenyelesaian, CourseCompletion } from "@/lib/db/schema";
 import type { SessionPrincipal } from "@/lib/auth/principal";
@@ -391,5 +398,18 @@ export async function selesaikanKursusDb(input: {
     completionPath,
     policyVersion: input.policyVersion,
   });
+
+  // Pemulihan skor kejujuran: menyelesaikan course_clean adalah jalan pulang
+  // dari pelanggaran yang tercatat **sebelum** course itu selesai. Hook-nya di
+  // sini, bukan di action, karena yang memicu adalah `course_completions` yang
+  // sah — bukan permintaan dari mana pun.
+  //
+  // Hanya jalur `terverifikasi` yang memulihkan. Jalur informal (modul ditandai
+  // manual) bukan bukti apa pun tentang integritas, jadi memulihkan skor dari
+  // sana akan membuat peserta bisa menghapus penalti hanya dengan menekan tombol.
+  if (completionPath === "terverifikasi") {
+    await pulihkanPelanggaranSetelahUlang(userId, input.courseId, completion.completedAt);
+  }
+
   return { selesai: true, completion, baru };
 }
