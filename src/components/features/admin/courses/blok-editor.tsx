@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactElement } from "react";
 import { ChevronDown, ChevronUp, Link2, Link2Off, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import {
   blokKosong,
   daftarSection,
   gabungSegmenSejenis,
+  ringkasBlok,
   segmenKeTeks,
   tautanSah,
 } from "@/lib/courses/blok";
@@ -56,12 +57,14 @@ const LABEL_TIPE: Record<TipeBlok, string> = {
 };
 
 /**
- * Satu-satunya penjaga kelengkapan, dan itu disengaja.
+ * Tipe yang boleh dipilih Percaya.
  *
- * `switch (blok.tipe)` di `IsiBlok` **tidak** diperiksa exhaustif oleh `tsc`
- * — fungsi tanpa tipe balik eksplisit tetap hijau saat satu casing hilang.
- * Jadi tipe yang masuk daftar ini tanpa punya `case`-nya akan tampil kosong
- * dan tidak bisa disunting: data rusak yang tidak ada yang mengeluh.
+ * Daftar ini sendiri tidak dijaga apa pun; penjaganya ada di dua `switch` yang
+ * menerima daftar tambah yang sama — `IsiBlok` di berkas ini dan `BlokView` di
+ * `halaman-view.tsx` — lewat tipe balik `ReactElement` yang membuat `TipeBlok`
+ * tanpa `case` menjadi error `tsc`. Karena itu harus ada di kedua tempat:
+ * satu `case` di sini saja berarti blok bisa disunting tapi tidak pernah
+ * terlihat peserta, dan tidak ada yang mengeluh.
  */
 const TIPE_BISA_DITAMBAH: TipeBlok[] = [
   "paragraf",
@@ -108,7 +111,7 @@ export function BlokEditor({
               {LABEL_TIPE[item.tipe]}
             </span>
             <span className="min-w-0 flex-1 truncate text-xs text-gray-400">
-              {segmenKeTeks(item.segmen) || (item.tipe === "gambar" ? item.alt : "")}
+              {ringkasBlok(item)}
             </span>
             <button
               type="button"
@@ -180,7 +183,17 @@ export function BlokEditor({
   );
 }
 
-/** Isi satu blok — bentuknya berbeda per tipe. */
+/**
+ * Isi satu blok — bentuknya berbeda per tipe.
+ *
+ * Tipe balik `ReactElement` itu **wajib**, bukan gaya, dan bukan hanya di sini:
+ * `BlokView` di `halaman-view.tsx` punya penjaga yang sama. Tanpa tipe balik
+ * eksplisit, jalur yang jatuh keluar dari `switch` diserap `tsc` sebagai
+ * `undefined` yang sah, sehingga `TipeBlok` baru yang belum punya `case` tidak
+ * menghasilkan error apa pun. Yang paling diam-diam rusak adalah `kode`: kalau
+ * jenis itu masuk daftar tambah di bawah tanpa `case` di kedua switch, ahlinya
+ * bisa menyuntingnya sementara pesertanya tidak melihat apa pun.
+ */
 function IsiBlok({
   blok,
   onChange,
@@ -195,7 +208,7 @@ function IsiBlok({
   modulId: string;
   subjekUnggah: string;
   semuaBlok: BlokHalaman[];
-}) {
+}): ReactElement {
   switch (blok.tipe) {
     case "paragraf":
     case "kutipan":
