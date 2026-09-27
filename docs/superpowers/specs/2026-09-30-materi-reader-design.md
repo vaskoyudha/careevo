@@ -41,11 +41,11 @@ tempatnya; yang berubah hanya rumah bagi komponennya.
 | Yang dipakai ulang | Lokasi | Peran di reader |
 |---|---|---|
 | `putuskanAkses` / `boleh()` | `src/lib/learning/akses.ts` | Gerbang `materi`, `kuis`, `bantuan_akademik` |
-| `CourseSessionGate` / `Indicator` / `Prompt` | `course-session.tsx` | Gerbang, indikator, ajakan sesi |
+| `CourseSessionGate` / `Prompt` | `course-session.tsx` | Gerbang (`boleh(...) === false`) dan ajakan memulai sesi |
+| `KejadianPanel` | `kejadian-panel.tsx` | **Satu-satunya** permukaan status sesi: kepala ringkas + catatan yang bisa dibuka (§3.3a) |
 | `HalamanView` | `halaman-view.tsx` | Prosa + pager `?halaman=` |
 | `MateriView` | `materi-view.tsx` | Lampiran video/PDF |
 | `KuisView` | `kuis-view.tsx` | Asesmen (dinilai server) |
-| `KejadianPanel` | `kejadian-panel.tsx` | Penjelasan + pelaporan kejadian |
 | `selesaikanMateriAction` | `src/actions/learning.ts:228` | Satu-satunya jalur penyelesaian terverifikasi |
 | `tandaiModulAction` | `src/actions/enrollment.ts:169` | Jalur penyelesaian informal |
 | `modulUntukSumber` | `modul-resolver.ts` | Resolver modul tunggal |
@@ -89,13 +89,75 @@ src/app/(focus)/belajar/[slug]/materi/[modulId]/page.tsx ← hanya pane modul
   drawer adalah lembar `fixed`, jadi masalahnya khusus `xl` ke atas. `h-dvh
   overflow-hidden` memindahkan gulir ke baris; rantai `min-h-0` di bawahnya wajib
   utuh supaya kolom-kolom flex benar-benar bisa menyusut.
-- Bar fokus: `sticky top-0`, `border-b`, memuat **← Silabus · judul kursus · pil
-  sesi · tombol tutor · "Tandai selesai"**. Karena bar ini di `top-0` (bukan di bawah
+- **Latar halaman biru, kartu putih.** Shell reader memakai `.reader-shell`
+  (`--reader-canvas`), dan semua isinya — kartu materi, rail, strip sesi,
+  drawer tutor — tetap `--card` putih di atasnya. Bar fokus juga putih
+  (`--wing-fill: var(--card)`): memberi bar warna kanvas yang sama dengannya
+  menggabungkan bar dan halaman jadi satu bidang, dan bar-nya sendiri berhenti
+  terbaca sebagai bar.
+- Bar fokus: `sticky top-0`, `border-b`, memuat **← Silabus · judul kursus · tombol
+  tutor · "Tandai selesai"**. Karena bar ini di `top-0` (bukan di bawah
   navbar mengambang), ia **tidak** membutuhkan offset `--chrome-h` dan tidak boleh
   memperkenalkan `-mt-[Npx]` — `chrome-offset.test.ts` akan gagal kalau begitu.
-- Rail kiri: kolom `w-72` di `lg:`, berisi **seluruh** modul kursus beserta
-  sub-itemnya (halaman, lampiran, kuis) dan tanda centang per modul. Di bawah `lg`
-  rail runtuh menjadi panel "Daftar modul" yang bisa dibuka.
+- **Tidak ada permukaan sesi di bar fokus.** Bar `sticky`, jadi apa pun yang
+  tinggal di dalamnya ikut mengambang sepanjang modul: kartu amber setinggi
+  beberapa baris menutupi judul modul tepat saat peserta membacanya. Yang boleh
+  tinggal di bar hanya baris **satu kalimat** yang menyertain aksi di bar itu
+  sendiri — penolakan completion dari server (`pesan`) dan alasan tutor ditolak.
+- **`CourseSessionPrompt` (kartu verifikasi kuning) duduk di kolom baca, tepat di
+  atas kartu materi** — bukan di dalam bar fokus, dan bukan di panel terpisah di
+  shell. Jaraknya dari `space-y-6` pembungkus kolom baca, **bukan** `mb` pada
+  elemennya: course `opsional` membuat komponen itu mengembalikan `null`, dan
+  `mb` yang menempel padanya akan menyisakan rongga kosong di atas kartu pertama.
+- **Status sesi yang sedang berjalan tidak di bar fokus**, melainkan di strip sesi
+  `KejadianPanel` di atas pane (§3.3a). Bar ini `sticky`, dan apa pun yang tinggal di
+  dalamnya ikut mengambang sepanjang modul. `CourseSessionPrompt` menyembunyikan
+  dirinya begitu sesi `aktif`, jadi keduanya tidak pernah tampil bersamaan.
+- **Pemicu silabus + progres di ujung kiri bar fokus** (`reader-silabus.tsx`,
+  `ReaderSilabusLeading`), mengikuti referensi: ikon menu, lalu nama kursus dengan
+  bit progres di bawahnya — satu bit per modul, `aria-hidden`, dengan kalimat
+  `sr-only` yang menyebut angkanya. Bar fokus adalah satu-satunya bagian layar
+  yang selalu terlihat, jadi peta "di mana saya, sisa berapa" tinggal di sana.
+- **Daftar modul hidup di panel silabus setinggi layar**, bukan di kolom rail.
+  Panelnya `position: fixed` setinggi `100dvh`, menutupi bar fokus sekaligus, dan
+  dibuka dari tombol paling kiri bar. Ia memuat **seluruh** modul kursus beserta
+  sub-itemnya (halaman, lampiran, kuis) dan tanda centang per modul, plus kepala
+  yang mengulang judul/penyedia/progres dan CTA ke modul berikutnya yang belum
+  selesai.
+- **Tidak ada rail permanen lagi.** Dulu ada kolom rail `lg:` **dan** panel bawah
+  `lg`; keduanya digantikan satu panel. Dua daftar modul di satu layar adalah
+  penyimpangan yang harus dijaga sinkron tanpa alasan — dan itulah yang dihapus.
+  Daftarnya tetap komponen `MateriRail` yang sama, jadi tidak ada salinan kedua
+  dari komponennya; yang dihapus hanya rumah keduanya.
+- **Panelnya `portal` ke `<body>`**, bukan anak bar: bar fokus ber-`z-index: 30`,
+  jadi sebagai anak bar `z-index` panelnya hanya berlaku di dalam konteks itu dan
+  ia tidak akan pernah bisa menutupi bar yang melahirkannya. Ia diparkir di
+  `z-index: 90` — di atas scrim drawer tutor (`z-30`) dan dock-nya (`z-40`), di
+  bawah `.skip-link` (100). Perilaku papan ketiknya mengikuti
+  `mobile-nav-drawer.tsx`: Escape menutup, Tab terjerat, `overflow` bodi dikunci,
+  fokus kembali ke tombol pemicu.
+
+### 3.1a Panel silabus — satu daftar modul, bukan dua
+
+Panelnya menggantikan rail, jadi ia harus membawa seluruh yang dulu dibawa rail
+tanpa menambah daftar kedua:
+
+- **Satu sumber daftar.** Panel merender `MateriRail`, komponen yang sama yang
+  dulu dipakai rail — bukan salinan kedua yang bisa menyimpang.
+- **Status selesai tetap terbaca.** Tiap baris menandai modulnya sendiri; modul
+  yang sedang dibuka ditandai `aria-current="page"`.
+- **Konteknya tidak hilang saat panel menutupi bar.** Kepala panel mengulang
+  judul kursus, penyedia, dan progresnya (bit versi `is-besar`, dibaca dari jarak
+  layar penuh), karena panelnya menutupi bar yang memuat salinan kecilnya.
+- **Fokusnya dikembalikan.** Saat panel ditutup — lewat Escape, scrim, atau CTA —
+  fokus kembali ke tombol pemicu di bar, supaya pembaca layar tidak kehilangan
+  tempatnya. Panelnya juga tertutup otomatis saat berpindah modul, karena shell
+  hidup di `layout.tsx` dan tidak di-remount.
+
+Status buka/tutupnya hidup di shell (`materi-shell.tsx`), bukan di panelnya:
+portal hidup di luar bar, jadi ia tidak bisa menyimpan state-nya sendiri. Karena
+shell hidup di `layout.tsx`, keadaan itu **bertahan saat berpindah modul** — tapi
+tidak bertahan selepas muat ulang halaman.
 - Pane utama: satu modul — halaman (dengan pager), lalu lampiran, lalu kuis, masing
   masing di belakang gerbangnya sendiri. **Tutor AI tidak di sini** — ia pindah ke
   drawer (§3.7).
@@ -168,6 +230,40 @@ menyimpang dari mesin akses.
 `belajar/[slug]/page.tsx`, dan hanya untuk peserta yang **sudah terdaftar** — sama
 seperti sekarang (`detail-kursus.tsx:785`). Panel tutor tidak lagi dirender inline di
 pane modul; ia menjadi drawer (§3.7).
+
+### 3.3a Strip sesi dan catatan kejadian
+
+`KejadianPanel` adalah **satu-satunya permukaan yang menyatakan keadaan sesi di
+reader**. Ia satu komponen dengan dua bagian:
+
+- **Kepala (selalu terlihat)** — tombol disclosure `aria-expanded`/`aria-controls`,
+  berisi ikon keadaan (titik berdenyut `status-pulse` hanya saat sesi berjalan),
+  judul (`Sesi terverifikasi aktif` / `… berakhir`), dan ringkasan satu baris:
+  jumlah catatan, jumlah celah pengawasan, dan `LABEL_ATURAN_BANTUAN[kebijakan]`.
+  Tombol "Akhiri sesi" ada **di luar** tombol disclosure — `button` bersarang tidak
+  sah.
+- **Isi (tertutup secara default)** — penjelasan apa yang dicatat, `fieldset`
+  pelaporan kamera, tautan `/pengaturan`, dan daftar "Catatan terakhir". Dipasang
+  dengan `hidden`, **bukan** render bersyarat: `aria-controls` yang menunjuk id yang
+  tidak ada melanggar ARIA, dan `hidden` sekaligus mengeluarkan radio di dalamnya
+  dari urutan tab.
+
+Bentuk lamanya — panel ~390px yang selalu terbuka, di atas pane — adalah keluhan
+yang memicu desain ini: isi modul terdorong ke bawah lipatan dan tidak ada cara
+menutupnya. Yang dijaga oleh desain baru: ringkasannya **selalu** terbaca tanpa satu
+klik pun (status, hitungan celah, aturan bantuan), sementara sisanya atas permintaan
+peserta.
+
+Aturan copy yang tidak boleh dilanggar di sini:
+
+- Jumlah ditulis apa adanya, **termasuk nol** — "tidak ada celah" berbeda artinya dari
+  "belum ada yang dicatat".
+- Kata yang dipakai adalah **"catatan"** untuk total, sedangkan "kejadian" adalah nama
+  salah satu klasifikasi. `ringkasanKejadian.kejadian` berarti "yang bukan celah", jadi
+  mencetaknya sebagai "N kejadian" berdampingan dengan "M celah pengawasan" terbaca
+  seperti dua total yang berbeda.
+- Kamera **tidak** diklaim sedang dipantau: panel ini mencatat apa yang dilaporkan
+  peserta, bukan gambar.
 
 ### 3.4 Penyelesaian modul
 
@@ -379,9 +475,11 @@ tutor.
 - `src/app/(focus)/belajar/[slug]/materi/layout.tsx` — shell reader: rail, bar fokus,
   drawer, dan `CourseSessionProvider` (bertahan lintas modul).
 - `src/app/(focus)/belajar/[slug]/materi/[modulId]/page.tsx` — hanya pane modul.
-- `src/components/features/learning/materi-rail.tsx` — daftar seluruh modul + sub-item.
-- `src/components/features/learning/materi-focus-bar.tsx` — bar fokus (judul, pil sesi,
-  tombol tutor, selesai).
+- `src/components/features/learning/materi-rail.tsx` — daftar seluruh modul + sub-item;
+  bentuk `ringkas` (ciut) dengan slot `aksi` untuk tombol ciut/bentang.
+- `src/components/features/learning/materi-focus-bar.tsx` — bar fokus (judul, tombol
+  tutor, selesai) + baris penolakan satu kalimat. Kartu verifikasi kuning **bukan**
+  tetangganya: ia milik `materi-shell.tsx`, di kolom baca.
 - `src/components/features/learning/materi-pane.tsx` — isi satu modul (halaman →
   lampiran → kuis), tiap bagian di belakang gerbangnya.
 - `src/components/features/learning/tutor-drawer.tsx` — drawer kanan: tombol toggle,
@@ -393,7 +491,18 @@ tutor.
 **Diubah**
 
 - `detail-kursus.tsx` — menjadi silabus; buang akordeon dan impor mati.
-- `course-session.tsx` — prop opsional `buktiAwal`/`runIdAwal`/`kejadianAwal`.
+- `course-session.tsx` — prop opsional `buktiAwal`/`runIdAwal`/`kejadianAwal`;
+  `CourseSessionIndicator` **tidak lagi dipakai reader** (hanya silabus), jadi
+  ia tidak boleh diimpor ulang dari `materi-focus-bar.tsx`.
+- `kejadian-panel.tsx` — dari panel terbuka menjadi strip dua bagian (§3.3a);
+  `IsiPanelKejadian` diekspor supaya bisa dirender tanpa klik (lingkungan tes `node`,
+  tanpa jsdom).
+- `materi-shell.tsx` — rail dihapus; state `silabusBuka` + `ReaderPanelSilabus`
+  (§3.1a), `CourseSessionPrompt` di kolom baca (§3.3a).
+- `reader-silabus.tsx` — **baru**: `ReaderSilabusLeading` (pemicu + bit progres)
+  dan `ReaderPanelSilabus` / `IsiPanelSilabus` (panel setinggi layar).
+- `src/app/globals.css` — `.reader-shell` (kanvas biru), `.reader-bar` (sayap
+  putih), `.reader-silabus*` (pemicu + progres), `.reader-panel*` (panel).
 - `kursus-subnav.tsx` — target CTA ke reader.
 - `src/lib/learning/tutor-ai.ts` — helper `urlFrameTutorEmbed` (murni), di samping
   `urlFrameAiMastery`.
@@ -441,17 +550,53 @@ tutor.
 7. `urlFrameTutorEmbed` — id kursus yang memuat `&`/spasi ter-encode; `baseUrl`
    tidak valid **melempar**; tanpa `course` hasilnya tetap rute embed polos.
    (Murni, di `tutor-ai.test.ts`.)
+8. **Strip sesi (§3.3a)** di `kejadian-panel.test.ts`: ringkasan (status, hitungan
+   catatan, celah, aturan bantuan) terbaca **tanpa klik**; isi `hidden` secara
+   default dan `aria-expanded="false"`; `aria-controls` menunjuk id yang ada;
+   panel **tidak dirender** saat status bukan `aktif` **dan** tidak ada celah;
+   sesi berakhir tanpa celah tetap menyembunyikan tombol "Akhiri sesi".
+9. **Bar fokus bukan rumah permukaan sesi** di `materi-focus-bar.test.ts`: sumber
+   bar fokus — komentarnya dibuang lebih dulu, karena komentar yang *menyebut*
+   `CourseSessionIndicator` bukan pelanggaran — tidak boleh menyebut
+   `CourseSessionIndicator`, `CourseSessionPrompt`, maupun `useCourseSession`.
+10. **Kartu verifikasi di atas kartu materi** di `materi-shell.test.ts`: diuji lewat
+   **urutan** di HTML (kehadiran saja tidak membuktikan siapa di atas siapa) plus
+   scoping ke `<main>`, supaya memindahkannya kembali ke dalam `<header>` — di mana
+   urutannya masih "di atas" markup modul — tetap membuat test merah.
+11. **Panel silabus menutupi bar dan dock tutor** di `reader-silabus.test.ts`:
+   `z-index` panelnya di atas 40 (dock tutor) dan di bawah 100 (`.skip-link`),
+   `position: fixed`, `height: 100dvh`, dan scrimnya di bawah panelnya sendiri.
+   Turun di bawah 30 membuat panel terbuka *di belakang* bar yang memicunya, dan
+   tak satu pun dari `typecheck`/`lint`/`vitest` melihat `z-index`.
+12. **Panelnya `portal` ke `<body>`, bukan anak bar** di `reader-silabus.test.ts`:
+   assertion pada **target portal**-nya (`createPortal(…, document.body,)`), bukan
+   pada kehadiran string `document.body` — berkasnya juga menyentuh
+   `document.body.style`, jadi versi lemahnya tetap hijau walaupun target portalnya
+   dihapus. Dibuktikan dengan menggantinya lalu mengembalikannya.
+13. **Panel tidak dirender saat tertutup** di `reader-silabus.test.ts` (cabang
+   `return null`), dan **pemicunya** di `materi-focus-bar.test.ts`: nama aksesibel,
+   `aria-expanded`/`aria-controls` yang sejalan, satu bit per modul, id basi
+   disaring, dan kalimat `sr-only` yang menyebut progresnya.
+14. **Isi panel benar** di `reader-silabus.test.ts`: `IsiPanelSilabus` dirender
+   langsung (portal tidak bisa di lingkungan `node`), dan yang diperiksa adalah
+   seluruh kurikulum termuat, `aria-current` hanya pada modul aktif, kepala
+   mengulang judul/penyedia/progres, CTA menunjuk modul berikutnya yang belum
+   selesai (dan "Ulas modul" saat 100%), plus nama dialog dan tombol tutupnya.
 
 ## 7. Risiko
 
 | Risiko | Mitigasi |
 |---|---|
 | Sesi hilang saat navigasi silabus → reader | Shell di `layout.tsx` (§3.1) + seed `bukti` dari `cariRunAktif` (§3.2); test #3 |
+| **Info sesi jadi tidak terjangkau** karena sekarang dilipat | Ringkasan wajib tetap terbaca tanpa klik, dan isi dipasang `hidden` (bukan di-unmount) supaya `aria-controls` tetap sah; test #8 |
+| **Dua permukaan mengucapkan keadaan yang sama** (regresi: indikator di bar + strip di atas pane) | Satu strip saja (§3.3a); test #9 mengunci bar fokus |
 | Percakapan hilang saat pindah modul | Shell di `layout.tsx`; drawer tidak pernah di-unmount (§3.1, §3.7) |
 | Giliran terputus karena iframe dimuat ulang | Drawer disembunyikan CSS, bukan di-unmount (§3.7) |
 | Tanda centang basi di rail | `revalidatePath` route reader (§3.6) |
 | Gerbang diam-diam lebih lemah | Mesin akses tidak disentuh; test #4 mengunci jalur |
 | Rail + pane berdesakan di mobile | Rail runtuh jadi panel di bawah `lg`; drawer jadi sheet di bawah `xl` |
+| **Rail ciut jadi jalan buntu** (tombolnya ikut menghilang bersama lebar) | Tombolnya hidup **di dalam** panel rail, di slot `aksi` `MateriRail`; test #12 |
+| **Rail ciut berhenti jadi peta kemajuan** (mis. menyaring modul atau membuang status selesai) | Bentuk ciut memuat daftar yang sama; yang dibuang hanya meta, dan "selesai" tetap terbaca lewat `sr-only`; test #13 |
 | Dua sumber "modul" (silabus vs reader) menyimpang | Keduanya membaca `modulUntukSumber` yang sama |
 | Tutor AI diam-diam jadi gerbang per modul | §3.7 mengunci aturannya di kursus; test #6 |
 | Copy tutor mengklaim tahu modul aktif | Kontrak hanya kirim `courseId`; copy menyebut kursus (§3.7) |

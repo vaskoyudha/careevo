@@ -12,6 +12,7 @@ import {
 import { bacaCache } from "@/lib/career-ops/job-cache";
 import { katalogBelajar } from "@/lib/courses/katalog";
 import { hitungJumlahKursus } from "@/lib/jobs/hitung-kursus";
+import { kunciHariIni } from "@/lib/jobs/faset-inbox";
 
 export const metadata: Metadata = { title: "Lowongan Ditemukan" };
 
@@ -50,7 +51,9 @@ export default async function LokerInboxPage() {
     await bacaCache().catch(() => ({}) as Record<string, never>),
   );
 
-  const hariIni = new Date().toISOString().slice(0, 10);
+  // "Hari ini" harus memakai hari lokal host, bukan hari UTC — mesin career-ops
+  // menstempel `first_seen` dengan `localToday()` (lihat `kunciHariIni`).
+  const hariIni = kunciHariIni();
 
   return (
     <AppShell

@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
-import { useCourseSession } from "./course-session";
-import { MateriRail } from "./materi-rail";
+import { useCourseSession, CourseSessionPrompt } from "./course-session";
 import { MateriFocusBar } from "./materi-focus-bar";
+import { ReaderPanelSilabus } from "./reader-silabus";
 import { TutorDrawer } from "./tutor-drawer";
 import { KejadianPanel } from "./kejadian-panel";
 import { useSelesaikanModul } from "./selesaikan-modul";
@@ -12,43 +12,7 @@ import type { ModulKursus } from "@/lib/courses/kurikulum";
 import type { KebijakanCourse } from "@/types/course";
 
 /**
- * Panel "Daftar modul" — pengganti rail di bawah `lg` (spec §3.1).
- *
- * Diekspor supaya bisa diuji **sendiri**: repo ini lingkungan `node` tanpa
- * jsdom, jadi `renderToStaticMarkup` tidak menjalankan efek maupun klik, dan
- * panel yang hanya muncul dari state `useState` di shell tidak pernah bisa
- * di-render oleh test. Memisahkannya membuat dua properti yang justru paling
- * mudah rusak bisa diperiksa dari HTML: penanda `id="panel-modul"` yang
- * dirujuk `aria-controls` tombol, dan kehadiran `lg:hidden` — yang menjaga
- * bahwa panel ini tidak pernah ikut tampil di `lg` ke atas, di samping rail
- * permanen (dua daftar modul sekaligus).
- *
- * Panjang tubuh panel dijaga `min-h-0 overflow-y-auto` supaya ia menggulir
- * sendiri dan tidak menggelembungkan baris flex yang membatasi tinggi shell.
- */
-export function PanelModulMobile({
-  slug,
-  modul,
-  modulAktif,
-  selesai,
-}: {
-  slug: string;
-  modul: ModulKursus[];
-  modulAktif: string;
-  selesai: string[];
-}) {
-  return (
-    <div
-      id="panel-modul"
-      className="min-h-0 w-full shrink-0 overflow-y-auto border-r border-gray-200 bg-white p-3 lg:hidden"
-    >
-      <MateriRail slug={slug} modul={modul} modulAktif={modulAktif} selesai={selesai} />
-    </div>
-  );
-}
-
-/**
- * Shell reader — bar fokus + rail (panel "Daftar modul" di bawah `lg`) + drawer,
+ * Shell reader — bar fokus (dengan pemicu silabus + progres) + pane + drawer,
  * membungkus pane modul.
  *
  * Ini **komponen klien** karena satu alasan: ia harus tahu modul mana yang aktif,
@@ -62,6 +26,15 @@ export function PanelModulMobile({
  * modul: `TutorDrawer` dan `CourseSessionProvider` di atasnya bertahan, sehingga
  * percakapan tutor dan sesi terverifikasi tidak hilang.
  *
+ * ## Silabus: satu panel, bukan rail + panel
+ *
+ * Daftar modul reader sekarang hidup **hanya** di panel silabus setinggi layar
+ * (`ReaderPanelSilabus`), dibuka dari tombol paling kiri bar. Dulu ada kolom rail
+ * `lg` **dan** panel bawah `lg`; keduanya digantikan satu panel karena dua daftar
+ * modul di satu layar adalah penyimpangan yang harus dijaga sinkron tanpa alasan.
+ * Panelnya `portal` ke `<body>`, jadi status buka/tutupnya hidup di sini — portal
+ * tidak bisa menyimpan state-nya sendiri di dalam bar.
+ *
  * `KejadianPanel` dirender di sini — panel itu satu-satunya tempat peserta bisa
  * melihat apa yang sudah tercatat selama sesi (spec §2), dan ia menyembunyikan
  * dirinya sendiri saat tidak relevan (`kejadian-panel.tsx:76`).
@@ -69,6 +42,7 @@ export function PanelModulMobile({
 export function MateriShell({
   slug,
   kursusJudul,
+  kursusPenyedia,
   kursusId,
   kebijakan,
   modul,
@@ -78,6 +52,8 @@ export function MateriShell({
 }: {
   slug: string;
   kursusJudul: string;
+  /** Penyedia kursus — diulang di kepala panel silabus. */
+  kursusPenyedia: string;
   kursusId: string;
   kebijakan: KebijakanCourse;
   modul: ModulKursus[];
@@ -90,20 +66,15 @@ export function MateriShell({
   const [drawerBuka, setDrawerBuka] = useState(false);
 
   /**
-   * Panel "Daftar modul" untuk layar sempit — tertutup secara default.
+   * Panel silabus setinggi layar sedang terbuka.
    *
-   * Spec §3.1: "Di bawah `lg` rail runtuh menjadi panel 'Daftar modul' yang bisa
-   * dibuka." Tanpa state ini tidak ada peta modul sama sekali di ponsel, dan
-   * justru di sana peta itu paling dibutuhkan — melompat antar modul tanpa
-   * kembali ke silabus.
-   *
-   * Statusnya hidup di shell (bukan di dalam bar) karena panelnya sendiri
-   * dirender di sini, di kolom flex di bawah bar; bar hanya memegang tombolnya,
-   * seperti ia memegang tombol drawer.
+   * Statusnya hidup di shell (bukan di dalam bar) karena panelnya `portal` ke
+   * `<body>` dan dirender di sini, di luar bar; bar hanya memegang tombolnya dan
+   * melaporkan keadaan itu lewat `aria-expanded`.
    */
-  const [modulBuka, setModulBuka] = useState(false);
-  const tombolModulRef = useRef<HTMLButtonElement>(null);
-  const bukaSebelumnya = useRef(false);
+  const [silabusBuka, setSilabusBuka] = useState(false);
+  const tombolSilabusRef = useRef<HTMLButtonElement>(null);
+  const silabusSebelumnya = useRef(false);
 
   /**
    * Pathname dibaca lebih dulu, sebelum cabang "kurikulum kosong" di bawah:
@@ -116,58 +87,44 @@ export function MateriShell({
   const pathname = usePathname();
 
   /**
-   * Panel "Daftar modul" tertutup saat pindah modul.
+   * Panel silabus tertutup saat pindah modul.
    *
-   * Alasan state ini tidak bisa dibiarkan: panel menggantikan rail di bawah `lg`
-   * — ia muncul di kolom yang sama dengan daftar modul desktop. Kalau ia tetap
-   * terbuka setelah tautan modul ditekan, peserta mendarat di modul baru dengan
-   * panel yang masih menutupi pane-nya, dan di ponsel itu berarti modul yang
-   * baru saja dipilih **tidak terlihat**. Shell hidup di `layout.tsx` dan
-   * **tidak di-remount** saat berpindah modul (justru itu jaminan utamanya), jadi
-   * state ini juga tidak di-reset sendiri.
+   * Alasan state ini tidak bisa dibiarkan: panelnya menutupi seluruh layar. Kalau
+   * ia tetap terbuka setelah tautan modul ditekan, peserta mendarat di modul baru
+   * dengan panel yang masih menutupi pane-nya — modul yang baru saja dipilih
+   * **tidak terlihat**. Shell hidup di `layout.tsx` dan **tidak di-remount** saat
+   * berpindah modul (justru itu jaminan utamanya), jadi state ini juga tidak
+   * di-reset sendiri.
    *
    * Reset-nya dilakukan **saat render**, bukan di dalam effect — pola "sesuaikan
    * state saat prop berubah" yang didokumentasikan React. Memanggil `setState`
    * sinkron di dalam effect memicu render berantai dan ditolak lint
    * (`react-hooks/set-state-in-effect`); di sini cukup bandingkan `pathname`
-   * dengan nilai render sebelumnya, dan turunkan `modulBuka` ke `false` hanya
+   * dengan nilai render sebelumnya, dan turunkan `silabusBuka` ke `false` hanya
    * bila ia sedang terbuka. Navigasi lewat keyboard, `router.push`, atau tombol
-   * kembali peramban sama-sama menutupnya, tanpa bergantung pada rail memberi
-   * tahu shell.
+   * kembali peramban sama-sama menutupnya.
    */
   const [pathnameSebelumnya, setPathnameSebelumnya] = useState(pathname);
   if (pathnameSebelumnya !== pathname) {
     setPathnameSebelumnya(pathname);
-    if (modulBuka) setModulBuka(false);
+    if (silabusBuka) setSilabusBuka(false);
   }
 
   /**
-   * Fokus kembali ke tombol panel setelah panel tertutup.
+   * Fokus kembali ke tombol silabus setelah panel tertutup.
    *
-   * Hanya menutup panel belum cukup: saat panel dibongkar, fokus yang tadinya
-   * ada di dalam panel jatuh ke `document.body`, dan pembaca layar kehilangan
+   * Hanya menutup panel belum cukup: saat panel dibongkar, fokus yang tadinya ada
+   * di dalam panel jatuh ke `document.body`, dan pembaca layar kehilangan
    * tempatnya. Effect ini mendeteksi transisi terbuka → tertutup (bukan kondisi
-   * `!modulBuka` semata, yang juga terjadi saat mount) lalu mengembalikan fokus
+   * `!silabusBuka` semata, yang juga terjadi saat mount) lalu mengembalikan fokus
    * ke tombol yang membuka panel. Ia tidak memanggil `setState`, jadi tidak
    * menyalahi aturan lint di atas.
    */
   useEffect(() => {
-    const baruTertutup = bukaSebelumnya.current && !modulBuka;
-    bukaSebelumnya.current = modulBuka;
-    if (baruTertutup) tombolModulRef.current?.focus();
-  }, [modulBuka]);
-
-  useEffect(() => {
-    if (!modulBuka) return;
-    const padaTombol = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setModulBuka(false);
-        tombolModulRef.current?.focus();
-      }
-    };
-    document.addEventListener("keydown", padaTombol);
-    return () => document.removeEventListener("keydown", padaTombol);
-  }, [modulBuka]);
+    const baruTertutup = silabusSebelumnya.current && !silabusBuka;
+    silabusSebelumnya.current = silabusBuka;
+    if (baruTertutup) tombolSilabusRef.current?.focus();
+  }, [silabusBuka]);
 
   /**
    * Modul aktif, dari segmen terakhir pathname.
@@ -239,26 +196,26 @@ export function MateriShell({
      * Shell **terbatas tinggi** (`h-dvh overflow-hidden`), bukan `min-h-dvh`.
      *
      * Dengan `min-h-dvh` tidak ada yang membatasi baris flex di bawah bar fokus:
-     * saat modul lebih tinggi dari viewport, baris itu tumbuh setinggi isi, rail
-     * dan `main` ikut setinggi modul, dan `overflow-y-auto` keduanya menjadi
-     * hampa — yang menggulir justru dokumen. Akibatnya `TutorDrawer` yang
-     * ter-dock di `xl` (saudara flex di baris yang sama) juga setinggi modul,
-     * akar `h-dvh` aplikasi AI Mastery di dalam iframe menjadi setinggi itu, dan
-     * daftar pesannya tidak pernah menggulir: composer tutor berakhir ribuan
-     * piksel di bawah, tidak terjangkau selama membaca bagian atas modul.
-     * Di bawah `xl` drawer adalah lembar `fixed`, jadi masalah ini khusus `xl`
-     * ke atas.
+     * saat modul lebih tinggi dari viewport, baris itu tumbuh setinggi isi, dan
+     * `overflow-y-auto` pada `main` menjadi hampa — yang menggulir justru
+     * dokumen. Akibatnya `TutorDrawer` yang ter-dock di `xl` (saudara flex di
+     * baris yang sama) juga setinggi modul, akar `h-dvh` aplikasi AI Mastery di
+     * dalam iframe menjadi setinggi itu, dan daftar pesannya tidak pernah
+     * menggulir: composer tutor berakhir ribuan piksel di bawah, tidak terjangkau
+     * selama membaca bagian atas modul. Di bawah `xl` drawer adalah lembar
+     * `fixed`, jadi masalah ini khusus `xl` ke atas.
      *
      * `h-dvh overflow-hidden` membuat **baris** yang memiliki gulirnya, bukan
      * dokumen — pola yang sudah dipakai reader ter-dock repo ini
      * (`book-reader.tsx:31`). Rantai `min-h-0` di bawah wajib utuh: tanpa itu
      * kolom-kolom flex menolak menyusut di bawah tinggi isinya.
      */
-    <div className="flex h-dvh flex-col overflow-hidden bg-white">
+    <div className="reader-shell flex h-dvh flex-col overflow-hidden">
       <MateriFocusBar
         slug={slug}
         kursusJudul={kursusJudul}
-        modul={modulAktif}
+        modulSemua={modul}
+        selesai={selesai}
         sudah={sudah}
         onTandai={() => jalankan(sudah)}
         pending={pending}
@@ -266,49 +223,37 @@ export function MateriShell({
         onToggleDrawer={() => setDrawerBuka((v) => !v)}
         aksesTutor={keputusanTutor}
         pesan={pesan}
-        modulBuka={modulBuka}
-        onToggleModul={() => setModulBuka((v) => !v)}
-        tombolModulRef={tombolModulRef}
+        silabusBuka={silabusBuka}
+        onToggleSilabus={() => setSilabusBuka((v) => !v)}
+        tombolSilabusRef={tombolSilabusRef}
       />
 
-      {/* Panel kejadian: penjelasan + pelaporan selama sesi berjalan. Menyembunyikan
-          dirinya sendiri saat status bukan `aktif` dan tanpa celah. */}
+      {/* Strip sesi (status + catatan yang bisa dibuka). Menyembunyikan dirinya
+          sendiri saat status bukan `aktif` dan tanpa celah, jadi jarak di
+          bawahnya tidak menyisakan rongga kosong di kursus `opsional`. */}
       <div className="px-3 pt-3 sm:px-5">
         <KejadianPanel />
       </div>
 
       <div className="flex min-h-0 flex-1">
-        {/* Rail tersembunyi di bawah `lg`: pada layar sempit ia akan memakan
-            separuh lebar dan menyisakan kolom baca yang tidak terbaca. Yang
-            menggantikannya di sana adalah panel "Daftar modul" di bawah, dengan
-            `MateriRail` yang **sama** — bukan daftar kedua yang bisa menyimpang. */}
-        <div className="hidden w-72 shrink-0 overflow-y-auto border-r border-gray-200 p-3 lg:block">
-          <MateriRail slug={slug} modul={modul} modulAktif={modulAktif.id} selesai={selesai} />
-        </div>
-
-        {/**
-         * Panel "Daftar modul" (spec §3.1) — pengganti rail di bawah `lg`.
-         *
-         * Murni `lg:hidden` + dirender hanya saat terbuka (`modulBuka && …`), jadi
-         * di `lg` ke atas markup ini tidak ada sama sekali dan kolom desktop
-         * tidak berubah satu byte pun. Karena itu ia **bukan** portal dan bukan
-         * dialog bermodal: ia cuma disclosure yang mengalir bersama kolom rail
-         * dan pane, sehingga tidak perlu memerangkap fokus, tidak perlu menutup
-         * gulir dokumen, dan tidak menambah kode yang harus dijaga sinkron dengan
-         * portal.
-         *
-         * Konsekuensi yang diterima: pane di bawahnya **tetap bisa disentuh**
-         * saat panel terbuka. Itu disengaja — dan justru alasan `Escape` dan
-         * penutupan saat navigasi ada. Sebuah overlay bermodal untuk daftar
-         * navigasi juga akan menghalangi peserta melihat modul yang baru saja
-         * dipilihnya sebelum panel ditutup.
-         */}
-        {modulBuka ? (
-          <PanelModulMobile slug={slug} modul={modul} modulAktif={modulAktif.id} selesai={selesai} />
-        ) : null}
-
         <main className="min-w-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
-          <div className="mx-auto w-full max-w-3xl">{children}</div>
+          <div className="mx-auto w-full max-w-3xl space-y-6">
+            {/* Ajakan memulai sesi, tepat di atas kartu materi.
+                Dulu ia tinggal di bar fokus yang `sticky`, dan di situ kartu
+                amber setinggi beberapa baris menutupi judul modul selama
+                seluruh halaman digulir — persis saat peserta membacanya.
+                `CourseSessionPrompt` sudah menyembunyikan dirinya saat sesi
+                berjalan, jadi ia tidak pernah menumpuk dengan `KejadianPanel`
+                di atas: keduanya tidak tampil bersamaan.
+
+                Jaraknya dari `space-y-6` pembungkus ini, **bukan** `mb` pada
+                elemennya sendiri: course `opsional` membuat komponen ini
+                mengembalikan `null`, dan `mb` yang menempel padanya akan
+                menyisakan rongga kosong di atas kartu pertama. `space-y-6`
+                hanya memberi jarak ke saudara yang benar-benar dirender. */}
+            <CourseSessionPrompt />
+            {children}
+          </div>
         </main>
 
         <TutorDrawer
@@ -318,6 +263,21 @@ export function MateriShell({
           boleh={keputusanTutor.tipe === "bebas"}
         />
       </div>
+
+      {/* Panel silabus: daftar modul reader, satu-satunya sekarang. Portal ke
+          `<body>`, jadi ia hidup di luar pohon bar dan tidak ikut tata letak
+          baris flex di atas. */}
+      <ReaderPanelSilabus
+        slug={slug}
+        kursusJudul={kursusJudul}
+        kursusPenyedia={kursusPenyedia}
+        modul={modul}
+        modulAktif={modulAktif.id}
+        selesai={selesai}
+        buka={silabusBuka}
+        onTutup={() => setSilabusBuka(false)}
+        tombolRef={tombolSilabusRef}
+      />
     </div>
   );
 }

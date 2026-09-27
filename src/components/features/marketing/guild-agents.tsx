@@ -63,8 +63,13 @@ const CARDS: AgentCard[] = [
     icon: Compass,
     tone: "emerald",
     name: "pencari lowongan",
-    description: "Pindai papan lowongan publik tiap hari; hasilnya masuk ke inbox kamu.",
-    status: "running",
+    // Bukan "tiap hari": tidak ada penjadwal, cron, maupun scan saat halaman
+    // dimuat — scan hanya berjalan saat pengguna menekan "Pindai lowongan baru"
+    // (`inbox-list.tsx`). Badge-nya pun `idle`, bukan `running`, karena agen ini
+    // memang menganggur sampai diminta; "running" menyiratkan proses latar yang
+    // tidak ada.
+    description: "Pindai papan lowongan publik saat kamu minta; hasilnya masuk ke inbox kamu.",
+    status: "idle",
   },
   {
     position: "left-[17%] top-[2%] rotate-2",

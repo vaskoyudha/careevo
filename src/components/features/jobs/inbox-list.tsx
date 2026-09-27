@@ -24,6 +24,7 @@ import {
   type VerdictLoker,
 } from "@/components/features/jobs/cari-lowongan-ui";
 import {
+  KepalaCariLoker,
   KosongLoker,
   PanelCariLoker,
   RingkasanLoker,
@@ -120,6 +121,37 @@ export function InboxList({
 
   return (
     <div className="relative flex-1 flex flex-col w-full min-h-0">
+      {/*
+        Header + tombol pindai, SELALU terlihat.
+
+        Tombol ini dulu hanya dirender di dalam empty-state, sehingga ia hanya
+        bisa dijangkau saat inbox benar-benar kosong dan belum pernah ada
+        riwayat scan. Begitu sebuah scan berhasil menambahkan baris, tombolnya
+        hilang dan tidak ada lagi cara memicu scan dari UI — lowongan berhenti
+        bertambah selamanya. Satu-satunya pemanggil `jalankanScanAction` di
+        seluruh aplikasi ada di sini, jadi gate itu mematikan seluruh fitur,
+        bukan hanya tombolnya.
+
+        Karena itu tombol pindai berdiri sendiri di header dan empty-state di
+        bawah tidak mengulanginya (dua tombol untuk satu aksi adalah tombol
+        yang cepat atau lambat berbeda perilaku).
+      */}
+      <KepalaCariLoker
+        aksi={
+          <Button
+            type="button"
+            variant="brand"
+            size="pill"
+            disabled={pending}
+            onClick={pindai}
+            className="gap-2 shadow-sm font-semibold text-sm"
+          >
+            <RefreshCw className={cn("size-4", pending && "animate-spin")} />
+            {pending ? "Memindai…" : "Pindai lowongan baru"}
+          </Button>
+        }
+      />
+
       {/* Background Decorative Soft Sky-Blue Waves matching the design */}
       <svg
         className="pointer-events-none absolute -top-8 -right-8 w-[580px] max-w-none text-[#e0f0fe]/70 -z-10 select-none hidden lg:block"
@@ -222,22 +254,11 @@ export function InboxList({
           */}
           {kosong ? (
             !adaRiwayat && antrean.length === 0 ? (
+              // Tombol pindai sudah ada di header dan selalu terlihat, jadi
+              // empty-state ini menjelaskan saja — tidak mengulang aksinya.
               <KosongLoker
                 judul="Belum pernah dipindai"
                 className="flex-1 flex flex-col items-center justify-center m-0 mt-0 py-8"
-                aksi={
-                  <Button
-                    type="button"
-                    variant="brand"
-                    size="pill"
-                    disabled={pending}
-                    onClick={pindai}
-                    className="gap-2 shadow-sm font-semibold text-sm"
-                  >
-                    <RefreshCw className={cn("size-4", pending && "animate-spin")} />
-                    {pending ? "Memindai…" : "Pindai lowongan baru"}
-                  </Button>
-                }
               >
                 {KOSONG_BELUM_PINDAI}
               </KosongLoker>

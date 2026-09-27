@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { RiLoader4Line, RiShieldCrossLine } from "@remixicon/react";
 import { mulaiSesiAction, catatKejadianAction, akhiriSesiAction } from "@/actions/learning";
 import {
   klasifikasiKejadian,
@@ -439,22 +440,41 @@ export function CourseSessionGate({ pesan }: { pesan: string }) {
   const { mulai, status, error } = useCourseSession();
   return (
     <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-      <p className="text-sm text-amber-900">{pesan}</p>
-      <p className="mt-2 text-xs text-amber-800">
-        Sesi ini mencatat kejadian integritas (pindah tab dan fokus yang hilang) selama berjalan.
-        Permintaan akses kamera belum aktif; setelah tersedia, sesi terverifikasi juga memerlukan
-        persetujuan kameramu. Tanpa sesi, lampiran kegiatan ini tidak dihitung sebagai bukti
-        kompetensi terverifikasi.
+      <div className="flex items-start gap-2.5">
+        <span
+          aria-hidden="true"
+          className="mt-px grid size-7 shrink-0 place-items-center rounded-full bg-amber-100 text-amber-700"
+        >
+          <RiShieldCrossLine className="size-4" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-[13px] font-semibold text-amber-900">Sesi terverifikasi diperlukan</p>
+          {/* Pesan gerbang apa adanya dari `putuskanAkses` — versi yang
+              diparafrase di klien akan berbeda ucapan dari penolakan server
+              untuk keadaan yang sama. */}
+          <p className="mt-1 text-[12.5px] leading-relaxed text-amber-900">{pesan}</p>
+        </div>
+      </div>
+      <p className="mt-2.5 text-[11.5px] leading-relaxed text-amber-800">
+        Sesi mencatat pindah tab dan fokus yang hilang selama berjalan. Permintaan akses kamera
+        belum aktif. Tanpa sesi, lampiran ini tidak dihitung sebagai bukti kompetensi terverifikasi.
       </p>
       <button
         type="button"
         onClick={() => void mulai()}
         disabled={status === "menyiapkan"}
-        className="mt-3 cursor-pointer rounded-full bg-[#0056D2] px-4 py-2 text-xs font-semibold text-white disabled:opacity-60"
+        className="mt-3 inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg bg-[#0056D2] px-3.5 text-[12.5px] font-semibold text-white transition-colors hover:bg-[#00419e] active:scale-[0.97] disabled:opacity-60"
       >
+        {status === "menyiapkan" ? (
+          <RiLoader4Line className="size-3.5 animate-spin" aria-hidden="true" />
+        ) : null}
         {status === "menyiapkan" ? "Menyiapkan sesi…" : "Mulai sesi terverifikasi"}
       </button>
-      {error ? <p className="mt-2 text-xs text-red-700">{error}</p> : null}
+      {error ? (
+        <p role="alert" className="mt-2 text-[11.5px] text-red-700">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -466,27 +486,37 @@ export function CourseSessionGate({ pesan }: { pesan: string }) {
  * pencatatan kejadian. Jangan menulis "kamera aktif" sebelum kamera benar-benar
  * diminta (itu di Task 8): indikator yang mengklaim lebih dari yang dilakukan
  * kode adalah bohong, dan peserta berhak tahu persis apa yang dipantau.
+ *
+ * Catatan rumahnya: di **reader** komponen ini tidak dipakai lagi —
+ * `KejadianPanel` sudah menggabungkan status, aturan bantuan, tombol akhiri, dan
+ * catatan yang bisa dibuka menjadi satu strip, dan menaruh keduanya berarti satu
+ * layar mengatakan keadaan yang sama dua kali. Ia tetap dipakai di **silabus**,
+ * yang tidak punya panel kejadian. Jangan menambahkannya kembali ke
+ * `materi-focus-bar.tsx`.
  */
 export function CourseSessionIndicator() {
   const { status, akhiri, kebijakan } = useCourseSession();
   if (status !== "aktif") return null;
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
-      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-800">
-        <span aria-hidden="true" className="size-2 rounded-full bg-emerald-500" />
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5">
+      <span className="inline-flex items-center gap-2 text-[12.5px] font-semibold text-emerald-800">
+        <span aria-hidden="true" className="status-pulse size-2 rounded-full bg-emerald-500" />
         Sesi terverifikasi aktif
       </span>
-      <span className="text-xs text-emerald-700">
+      <span className="min-w-0 flex-1 text-[11.5px] leading-snug text-emerald-700">
         Pencatatan kejadian aktif (pindah tab dan fokus yang hilang). Aturan bantuan:{" "}
         {LABEL_ATURAN_BANTUAN[kebijakan.aturan_bantuan]}.
       </span>
-      <a href="/pengaturan" className="text-xs font-medium text-emerald-900 underline">
+      <a
+        href="/pengaturan"
+        className="shrink-0 text-[11.5px] font-medium text-emerald-900 underline underline-offset-2"
+      >
         Cara kerja pencatatan
       </a>
       <button
         type="button"
         onClick={() => void akhiri()}
-        className="ml-auto cursor-pointer text-xs font-semibold text-emerald-900 underline"
+        className="shrink-0 cursor-pointer rounded-lg px-2 py-1 text-[11.5px] font-semibold text-emerald-900 transition-colors hover:bg-emerald-100 active:scale-[0.97]"
       >
         Akhiri sesi
       </button>
@@ -512,6 +542,11 @@ export function CourseSessionIndicator() {
  * Copy hanya menyebut pencatatan kejadian: kamera memang belum diminta di sini.
  * Menulis "kamera aktif" sebelum `getUserMedia` benar-benar dipanggil adalah
  * indikator yang berbohong tentang apa yang dipantau.
+ *
+ * Bentuknya **strip mendatar**, bukan kartu bertumpuk: di reader ia tinggal di
+ * dalam bar fokus yang lengket, dan kartu amber setinggi empat baris di sana
+ * mendorong judul modul keluar dari layar. Kalimat penjelasannya tetap lengkap
+ * dan terbaca — hanya susunannya yang mendatar.
  */
 export function CourseSessionPrompt() {
   const { status, error, kebijakan, mulai } = useCourseSession();
@@ -523,24 +558,38 @@ export function CourseSessionPrompt() {
   // indikator — keduanya tidak pernah tampil bersamaan.
   if (status === "aktif") return null;
   return (
-    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-      <p className="text-sm font-semibold text-amber-900">
-        Course ini mewajibkan sesi terverifikasi untuk menyelesaikan materi.
-      </p>
-      <p className="mt-1.5 text-xs text-amber-800">
-        Sesi ini mencatat kejadian integritas (pindah tab dan fokus yang hilang) selama berjalan.
-        Permintaan akses kamera belum aktif; setelah tersedia, sesi terverifikasi juga memerlukan
-        persetujuan kameramu.
-      </p>
-      <button
-        type="button"
-        onClick={() => void mulai()}
-        disabled={status === "menyiapkan"}
-        className="mt-3 cursor-pointer rounded-full bg-[#0056D2] px-4 py-2 text-xs font-semibold text-white disabled:opacity-60"
-      >
-        {status === "menyiapkan" ? "Menyiapkan sesi…" : "Mulai sesi terverifikasi"}
-      </button>
-      {error ? <p className="mt-2 text-xs text-red-700">{error}</p> : null}
+    <div className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <span
+          aria-hidden="true"
+          className="grid size-7 shrink-0 place-items-center rounded-full bg-amber-100 text-amber-700"
+        >
+          <RiShieldCrossLine className="size-4" />
+        </span>
+        <p className="min-w-0 flex-1 text-[12.5px] leading-snug text-amber-900">
+          <strong className="font-semibold text-amber-900">
+            Course ini mewajibkan sesi terverifikasi
+          </strong>{" "}
+          untuk menyelesaikan materi. Sesi mencatat pindah tab dan fokus yang hilang; kamera belum
+          diminta di sini.
+        </p>
+        <button
+          type="button"
+          onClick={() => void mulai()}
+          disabled={status === "menyiapkan"}
+          className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-[#0056D2] px-3 text-[12.5px] font-semibold text-white transition-colors hover:bg-[#00419e] active:scale-[0.97] disabled:opacity-60"
+        >
+          {status === "menyiapkan" ? (
+            <RiLoader4Line className="size-3.5 animate-spin" aria-hidden="true" />
+          ) : null}
+          {status === "menyiapkan" ? "Menyiapkan sesi…" : "Mulai sesi terverifikasi"}
+        </button>
+      </div>
+      {error ? (
+        <p role="alert" className="mt-2 text-[11.5px] text-red-700">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

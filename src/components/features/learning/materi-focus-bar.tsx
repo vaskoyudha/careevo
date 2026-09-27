@@ -1,12 +1,20 @@
 "use client";
 
 import type { RefObject } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, Check, LayoutList, Loader2, PanelRightClose, PanelRightOpen, Sparkles } from "lucide-react";
+import {
+  RiCheckLine,
+  RiErrorWarningLine,
+  RiLayoutRight2Fill,
+  RiLayoutRight2Line,
+  RiLoader4Line,
+  RiSparkling2Fill,
+} from "@remixicon/react";
 import { cn } from "@/lib/utils";
-import { CourseSessionIndicator, CourseSessionPrompt } from "./course-session";
 import type { KeputusanAkses } from "@/lib/learning/akses";
 import type { ModulKursus } from "@/lib/courses/kurikulum";
+import { ReaderSilabusLeading } from "./reader-silabus";
 
 /**
  * Bar fokus reader — satu baris, `sticky top-0`.
@@ -15,6 +23,11 @@ import type { ModulKursus } from "@/lib/courses/kurikulum";
  * `.chrome` sama sekali. Karena itu bar ini tidak butuh offset `--chrome-h`, dan
  * tidak boleh memperkenalkan `-mt-[Npx]` (`chrome-offset.test.ts` menyapu semua
  * `.tsx` dan akan gagal).
+ *
+ * Ujung kirinya adalah **pemicu silabus + progres** (`ReaderSilabusLeading`),
+ * mengikuti referensi: ikon menu, lalu nama kursus dengan bit progres di
+ * bawahnya. Itu permukaan "di mana saya, sisa berapa" milik reader, dan ia
+ * hidup di bar karena bar inilah satu-satunya bagian layar yang selalu terlihat.
  *
  * Tombol tutor mengikuti `aksesTutor` — keputusan `boleh("bantuan_akademik")`,
  * jadi `aturan_bantuan` dihormati lewat satu mesin keputusan, bukan salinan
@@ -28,11 +41,18 @@ import type { ModulKursus } from "@/lib/courses/kurikulum";
  * adanya** — ia datang dari mesin akses server, dan memparafrase copy gerbang di
  * klien adalah cara paling mudah membuat dua permukaan berbeda ucapan untuk
  * penolakan yang sama.
+ *
+ * Bar ini **tidak** memuat ajakan memulai sesi (`CourseSessionPrompt`); itu
+ * duduk di kolom baca, tepat di atas kartu materi. `sticky` di sini bukan
+ * detail: apa pun yang tinggal di bar ikut mengambang sepanjang modul, dan
+ * kartu amber setinggi beberapa baris menutupi judul modul tepat saat peserta
+ * membacanya. Lihat catatan render di bawah.
  */
 export function MateriFocusBar({
   slug,
   kursusJudul,
-  modul,
+  modulSemua,
+  selesai,
   sudah,
   onTandai,
   pending,
@@ -40,13 +60,25 @@ export function MateriFocusBar({
   onToggleDrawer,
   aksesTutor,
   pesan,
-  modulBuka,
-  onToggleModul,
-  tombolModulRef,
+  silabusBuka,
+  onToggleSilabus,
+  tombolSilabusRef,
 }: {
   slug: string;
   kursusJudul: string;
-  modul: ModulKursus;
+  /**
+   * Seluruh kurikulum, untuk bit progres di kiri bar dan daftar panel silabus.
+   *
+   * Satu-satunya kurikulum yang dioper ke bar. Dulu ada prop `modul` (modul
+   * aktif) di sampingnya, khusus untuk blok judul di tengah bar; blok itu sudah
+   * dihapus — judul kursusnya diulang persis oleh pemicu silabus, dan nama
+   * modul punya rumahnya sendiri di kolom baca — jadi prop-nya ikut hilang
+   * ketimbang tinggal sebagai parameter mati yang membuat pembaca berikutnya
+   * mengira bar masih merender judul modul.
+   */
+  modulSemua: ModulKursus[];
+  /** Id modul yang sudah selesai; dari server, bukan dihitung di sini. */
+  selesai: string[];
   sudah: boolean;
   onTandai: () => void;
   pending: boolean;
@@ -57,78 +89,83 @@ export function MateriFocusBar({
   /** Penolakan penyelesaian dari server; `null`/`undefined` saat tidak ada. */
   pesan?: string | null;
   /**
-   * Panel "Daftar modul" (bawah `lg`) sedang terbuka.
+   * Panel silabus setinggi layar sedang terbuka.
    *
-   * Statusnya **milik shell**, bukan bar: panelnya sendiri hidup di kolom flex
-   * shell, di bawah bar, dan hanya di sana ia bisa menggantikan rail `lg` yang
-   * tersembunyi. Bar hanya memegang tombolnya — tempat yang wajar, karena bar
-   * sudah memiliki seluruh kendali per halaman (tutor, "Tandai selesai").
+   * Statusnya **milik shell**, bukan bar: panelnya `portal` ke `<body>` dan hidup
+   * di luar bar, jadi ia tidak bisa menyimpan state-nya sendiri di sini. Bar hanya
+   * memegang tombolnya dan melaporkan keadaan itu lewat `aria-expanded`.
    *
    * Opsional (default `false`) mengikuti pola `pesan`: test sibling yang
    * merender bar **sendirian**, tanpa shell, tidak perlu menyediakan state yang
    * bukan miliknya.
    */
-  modulBuka?: boolean;
-  /** Buka/tutup panel; di shell asli diisi setter state-nya. */
-  onToggleModul?: () => void;
+  silabusBuka?: boolean;
+  /** Buka/tutup panel silabus; di shell asli diisi setter state-nya. */
+  onToggleSilabus?: () => void;
   /**
-   * Ref tombol modul — shell memakainya untuk mengembalikan fokus saat `Escape`
-   * menutup panel. Tanpa itu fokus bisa tertinggal di dalam panel yang sudah
-   * tidak ada, dan pembaca layar kehilangan tempatnya.
+   * Ref tombol silabus — shell memakainya untuk mengembalikan fokus saat panel
+   * ditutup. Tanpa itu fokus bisa tertinggal di dalam panel yang sudah tidak ada,
+   * dan pembaca layar kehilangan tempatnya.
    */
-  tombolModulRef?: RefObject<HTMLButtonElement | null>;
+  tombolSilabusRef?: RefObject<HTMLButtonElement | null>;
 }) {
   const bolehTutor = aksesTutor.tipe === "bebas";
 
   return (
-    <header className="sticky top-0 z-30 border-b border-gray-200 bg-white/95 backdrop-blur-md">
-      <div className="flex w-full items-center gap-3 px-3 py-2.5 sm:px-5">
-        <Link
-          href={`/belajar/${slug}`}
-          // Nama aksesibel yang **tidak bergantung breakpoint**: di bawah `sm`
-          // span labelnya `display: none` dan ikonnya `aria-hidden`, sehingga
-          // tanpa `aria-label` ini satu-satunya jalan keluar dari reader
-          // diumumkan sebagai "link" tanpa nama. Label visualnya tetap seperti
-          // semula bagi pengguna awas.
-          aria-label="Silabus"
-          className="inline-flex shrink-0 items-center gap-1.5 text-[13px] text-gray-600 transition-colors hover:text-gray-900"
-        >
-          <ArrowLeft className="size-4" strokeWidth={1.8} aria-hidden="true" />
-          <span className="hidden sm:inline">Silabus</span>
+    <header className="reader-bar">
+      <div className="flex w-full items-center gap-3 py-2.5">
+        {/* Blok logo, paling kiri, dan **ia tautan keluarnya** — bukan hiasan.
+            Bar ini tidak punya lagi tautan "← Silabus" bertuliskan teks: label
+            itu satu-satunya teks navigasi di bar, dan yang dibaca peserta di
+            sini adalah judul modulnya. Mark Careevo mengambil tempatnya di
+            ujung kiri (blok merek paling kiri, seperti referensi), jadi jalan
+            kembali ke halaman kursus tetap ada tanpa satu kata pun.
+
+            `aria-label` wajib dan **tidak** opsional: di bawah `sm` kata
+            "Careevo" disembunyikan CSS, jadi tanpa nama aksesibel tautan ini —
+            satu-satunya jalan keluar dari reader — diumumkan sebagai "link"
+            tanpa keterangan. Nama itu juga menyebut tujuannya, bukan mereknya:
+            yang perlu didengar pengguna keyboard adalah "kembali ke halaman
+            kursus", bukan "Careevo". */}
+        <Link href={`/belajar/${slug}`} aria-label="Kembali ke halaman kursus" className="reader-brand">
+          <Image
+            src="/careevo-mark.png"
+            alt=""
+            width={256}
+            height={235}
+            aria-hidden="true"
+            className="reader-brand-mark"
+          />
+          <span className="reader-brand-nama">Careevo</span>
         </Link>
 
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-semibold text-gray-900">{kursusJudul}</p>
-          <p className="truncate text-[11px] text-gray-500">{modul.judul}</p>
-        </div>
+        {/* Pemicu silabus + progres. Ia tetap di kiri, tepat setelah blok merek:
+            yang dibaca di sini adalah "berapa modul lagi", dan bar ini
+            satu-satunya bagian layar yang selalu terlihat. Panel yang
+            dibukanya hidup di shell (`reader-silabus.tsx`) karena `portal` ke
+            `<body>` tidak bisa jadi anak bar.
+
+            Judul kursusnya ikut di sini (`reader-silabus-judul`), jadi bar tidak
+            perlu blok judul kedua di tengah: blok itu mengulang judul kursus
+            yang sama persis, dan yang benar-benar baru di dalamnya hanyalah
+            nama modul. Nama modul sudah punya rumahnya sendiri di kolom baca
+            (`MateriPane`, sebagai `<h2>` modulnya) — satu judul, satu tempat. */}
+        <ReaderSilabusLeading
+          kursusJudul={kursusJudul}
+          modul={modulSemua}
+          selesai={selesai}
+          buka={silabusBuka ?? false}
+          onToggle={onToggleSilabus}
+          tombolRef={tombolSilabusRef}
+        />
+
+        {/* Ruang kosong yang menyerap lebar: mendorong tombol aksi ke kanan
+            tanpa menambahkan apa pun ke bar. Tanpa ini, `justify-between` tidak
+            punya apa pun untuk memisahkan dan tombolnya menempel ke pemicu
+            silabus. */}
+        <div className="min-w-0 flex-1" aria-hidden="true" />
 
         <div className="flex shrink-0 items-center gap-2">
-          {/* Panel "Daftar modul" (spec §3.1). Hanya di bawah `lg`: di `lg` ke
-              atas rail `w-72` sudah tampil permanen sebagai kolom, jadi tombol
-              ini tidak punya pekerjaan — dan `lg:hidden` di sini, bukan sebuah
-              cabang render, supaya penambahan ini **tidak menyentuh** kolom
-              desktop sama sekali.
-
-              `aria-label` eksplisit karena label visualnya tidak ada: ikonnya
-              `aria-hidden` dan tidak ada teks di sebelahnya, jadi tanpa ini
-              tombol diumumkan sebagai "tombol" tanpa nama — satu-satunya jalan
-              ke peta modul di ponsel, tanpa nama. `aria-controls` menunjuk
-              panelnya (`id="panel-modul"`), tapi hanya saat terbuka: elemen
-              `aria-controls` yang menunjuk id tidak ada melanggar ARIA, dan
-              panelnya sengaja tidak dirender saat tertutup. */}
-          <button
-            type="button"
-            ref={tombolModulRef}
-            onClick={onToggleModul}
-            aria-expanded={modulBuka ?? false}
-            aria-controls={modulBuka ? "panel-modul" : undefined}
-            aria-label="Daftar modul"
-            title="Daftar modul"
-            className="inline-flex size-9 cursor-pointer items-center justify-center rounded-lg border border-gray-300 text-gray-700 transition-colors hover:bg-gray-50 lg:hidden"
-          >
-            <LayoutList className="size-4" strokeWidth={1.9} aria-hidden="true" />
-          </button>
-
           <button
             type="button"
             onClick={onToggleDrawer}
@@ -145,9 +182,9 @@ export function MateriFocusBar({
             )}
           >
             {drawerBuka ? (
-              <PanelRightClose className="size-4" strokeWidth={1.9} aria-hidden="true" />
+              <RiLayoutRight2Fill className="size-4" aria-hidden="true" />
             ) : (
-              <PanelRightOpen className="size-4" strokeWidth={1.9} aria-hidden="true" />
+              <RiLayoutRight2Line className="size-4" aria-hidden="true" />
             )}
           </button>
 
@@ -164,26 +201,31 @@ export function MateriFocusBar({
             )}
           >
             {pending ? (
-              <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+              <RiLoader4Line className="size-3.5 animate-spin" aria-hidden="true" />
             ) : (
-              <Check className="size-3.5" strokeWidth={2.4} aria-hidden="true" />
+              <RiCheckLine className="size-3.5" aria-hidden="true" />
             )}
             {sudah ? "Selesai" : "Tandai selesai"}
           </button>
         </div>
       </div>
 
-      {/* Ajakan/indikator sesi hidup di bar yang sama supaya peserta selalu punya
-          satu titik masuk untuk memulai sesi — termasuk di kursus yang modulnya
-          tidak punya lampiran, di mana `CourseSessionGate` tidak pernah tampil. */}
-      <div className="px-3 pb-2.5 sm:px-5">
-        <CourseSessionPrompt />
-        <CourseSessionIndicator />
-      </div>
+      {/* Ajakan memulai sesi **tidak** di bar ini, tapi di kolom baca di atas
+          kartu materi (`materi-shell.tsx`).
 
+          Alasannya bentuk, bukan isi: bar fokus `sticky`, jadi apa pun yang
+          tinggal di dalamnya ikut mengambang sepanjang modul — dan kartu amber
+          setinggi beberapa baris di sana menutupi judul modul tepat saat
+          peserta sedang membacanya. Di kolom baca ia berada tepat di atas kartu
+          yang harus dijawab, jadi posisinya sudah menjelaskan diri.
+
+          Yang tetap di sini hanya dua baris **satu kalimat**: penolakan
+          completion dari server dan alasan tutor ditolak. Keduanya menyertain
+          aksi di bar itu sendiri, jadi harus terlihat di tempat tombolnya
+          ditekan. */}
       {!bolehTutor && aksesTutor.tipe === "ditolak" ? (
         <p className="flex items-center gap-1.5 border-t border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] text-amber-900 sm:px-5">
-          <Sparkles className="size-3 shrink-0" aria-hidden="true" />
+          <RiSparkling2Fill className="size-3 shrink-0" aria-hidden="true" />
           {aksesTutor.pesan}
         </p>
       ) : null}
@@ -200,7 +242,7 @@ export function MateriFocusBar({
           role="status"
           className="flex items-start gap-1.5 border-t border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] leading-snug text-amber-900 sm:px-5"
         >
-          <AlertTriangle className="mt-px size-3 shrink-0" aria-hidden="true" />
+          <RiErrorWarningLine className="mt-px size-3 shrink-0" aria-hidden="true" />
           {pesan}
         </p>
       ) : null}

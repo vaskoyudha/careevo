@@ -85,6 +85,13 @@
      if the framed app is restyled, and change it HERE only. Do not re-spell it
      at a call site. */
   --ai-mastery-canvas: #f8fbfd;
+
+  /* Canvas reader — latar **halaman** modul (`/belajar/[slug]/materi/[id]`),
+     bukan warna bar fokus. Yang biru adalah halaman di belakang bar dan di
+     belakang kartu-kartu materi; bar fokus dan kartu di dalamnya tetap
+     `--card` putih dan mengambang di atasnya. Dieja sekali di sini supaya
+     shell reader (`.reader-shell`) dan isinya tidak bisa menyimpang. */
+  --reader-canvas: #e8f0f4;
 }
 
 /* ===== shadcn/ui theme bridge (Careevo oceanic light) ===== */
@@ -885,6 +892,606 @@ h6 {
     var(--wing-edge) calc(var(--wing) - 0.5px),
     var(--wing-fill) var(--wing)
   );
+}
+
+/* ===== Reader page (blue canvas) + reader bar (winged, white) =====
+   `/belajar/[slug]/materi/[id]`.
+
+   Two surfaces, two colours, and the split is the whole point:
+
+   - **The page is blue** (`.reader-shell` → `--reader-canvas`). It is the only
+     tinted ground in the reader, so the white cards on it — the module article,
+     the rail, the session strip, the tutor drawer — read as objects floating
+     on a surface instead of as one undifferentiated white sheet.
+   - **The bar is white** (`--wing-fill: var(--card)`). It was `--reader-canvas`
+     before, which merged bar and page into one field and left the bar looking
+     like a tint rather than a bar. `--wing-fill` is what the wings paint too,
+     so bar and wings stay one silhouette and the 1px `--wing-edge` is the only
+     thing separating either of them from the blue page.
+
+   The reader is the *fourth* surface to use the wing, and it deliberately
+   re-uses the recipe above rather than growing its own: two wings, one
+   silhouette, one set of numbers. What is different from `.chrome.is-winged` is
+   only that it is the page's whole top edge — there is no `.chrome` above it,
+   so it is not "under" anything and it publishes no `--chrome-h`.
+
+   It is applied as a second class on a plain `<header>`, not by adding
+   `.chrome`: `.chrome` carries the two-state morph (`.is-top` / `.is-scrolled`)
+   and the glass `::before` that the winged bar must not inherit. Selecting
+   `.chrome.is-winged` for the shared geometry keeps the two in lockstep —
+   change a wing number once, both bars move.
+
+   **Wider, but not full-bleed.** The cap is `--reader-bar-max` (1680px), up from
+   `--max` (1280px), so the bar reads noticeably wider on a big screen without
+   being edge-to-edge. Full-bleed was tried and reverted: the wings must sit
+   *outside* the bar's box to be visible at all, and at `width: 100%` there is no
+   room left for that — they were clipped by the viewport and the silhouette
+   flattened into a plain rounded rectangle.
+
+   The geometry keeps the invariant that makes the wings work at every size:
+   the bar is `100% - 2*--page-pad - 2*--wing` at its widest, so the wings, which
+   hang `--wing` beyond each edge, always land inside the viewport with the page
+   padding to spare. That is why the cap is a `min()` and not a fixed width — the
+   wings can never be pushed off-screen, at 1280px or at 2560px. */
+.reader-bar {
+  --wing: 30px;
+  --wing-fill: var(--card);
+  --wing-edge: rgba(10, 42, 58, 0.16);
+  --reader-bar-max: 1680px;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  width: min(var(--reader-bar-max), calc(100% - 2 * var(--page-pad) - 2 * var(--wing)));
+  margin: 0 auto;
+  padding: 0 1.15rem;
+  min-height: 4rem;
+  border: 1px solid var(--wing-edge);
+  border-top: none;
+  border-bottom-left-radius: 32px;
+  border-bottom-right-radius: 32px;
+  background: var(--wing-fill);
+  box-shadow: 0 12px 28px -14px rgba(10, 42, 58, 0.4);
+}
+
+@media (min-width: 769px) {
+  .reader-bar {
+    --wing: 44px;
+    border-bottom-left-radius: 36px;
+    border-bottom-right-radius: 36px;
+    padding: 0 1.25rem;
+  }
+}
+
+.reader-bar::before,
+.reader-bar::after {
+  content: "";
+  position: absolute;
+  top: -1px;
+  width: var(--wing);
+  height: var(--wing);
+  pointer-events: none;
+}
+
+/* Parked just outside the bar, one at each top corner — the fillet that makes
+   the page's top edge curve into the sides. They need the gutter the `min()`
+   above guarantees; pull the bar to `width: 100%` and these are half off-screen. */
+.reader-bar::before {
+  left: calc(-1 * var(--wing));
+  background: radial-gradient(
+    circle at 0 100%,
+    transparent calc(var(--wing) - 1.5px),
+    var(--wing-edge) calc(var(--wing) - 1px),
+    var(--wing-edge) calc(var(--wing) - 0.5px),
+    var(--wing-fill) var(--wing)
+  );
+}
+
+.reader-bar::after {
+  right: calc(-1 * var(--wing));
+  background: radial-gradient(
+    circle at 100% 100%,
+    transparent calc(var(--wing) - 1.5px),
+    var(--wing-edge) calc(var(--wing) - 1px),
+    var(--wing-edge) calc(var(--wing) - 0.5px),
+    var(--wing-fill) var(--wing)
+  );
+}
+
+/* The brand block: mark + wordmark, the reference's leftmost element — and the
+   reader's exit. It replaces a text "← Silabus" link, so it carries no arrow and
+   no label; the `aria-label` on the `<Link>` is what names it, because the
+   wordmark is `display: none` below `sm` and the mark itself is decorative. */
+.reader-brand {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  border-radius: 12px;
+  color: var(--ocean-deep);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+  transition: opacity 180ms ease-out;
+}
+
+.reader-brand:hover {
+  opacity: 0.72;
+}
+
+/* 28px: the mark is the reader's exit control, so it has to read as a control at
+   a glance rather than as a favicon. `object-contain` because the asset is
+   256×235 (not square) and stretching it would distort the glyph. */
+.reader-brand-mark {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  object-fit: contain;
+}
+
+@media (max-width: 767px) {
+  .reader-brand-nama {
+    display: none;
+  }
+}
+
+/* ===== Reader syllabus: trigger + progress in the bar, panel over everything =====
+   `/belajar/[slug]/materi/[modulId]` only — the **module reader**, not the course
+   preview at `/belajar/[slug]`. Two surfaces, one state:
+
+   - **The trigger and progress live in `.reader-bar`** (`.reader-silabus`),
+     leftmost, before the "Silabus" link. The bar is the reader's whole top edge
+     and the only thing always on screen, so the map of "where am I, how much is
+     left" belongs there — that is the Coursera placement the reference shows.
+   - **The panel is `position: fixed` at full viewport height** and covers the
+     bar. The bar is `z-index: 30` and the tutor drawer's dock sits at `z-40`, so
+     the panel is portalled to `<body>` and parked at `z-index: 90` — above the
+     drawer's scrim (`z-30`) and dock (`z-40`), below `.skip-link` (100). If the
+     panel were a child of the bar its `z-index` would only rank inside the bar's
+     stacking context and it could never cover the bar that spawned it.
+
+   There is deliberately **no permanent rail column** any more: the panel is the
+   module list. Two module lists on one screen (a docked rail plus an overlay
+   with the same rows) is the drift this repo's single-source rules exist to
+   prevent, and it is what the correction asked to remove. The panel still
+   renders `MateriRail` — the one module-list component — so there is no second
+   copy of the list itself. */
+
+/* One grouped control: the icon chip, the course title and the progress bits all
+   live inside this single `<button>` (`.reader-silabus-tombol`), so the hover
+   state covers the whole cluster and any click anywhere in it opens the panel.
+   The wrapper keeps `align-items: center` so the chip, the title and the bits
+   share one centre line. */
+.reader-silabus {
+  display: flex;
+  align-items: center;
+  /* `0 1 auto`, not `0 0 auto`: the block must be allowed to *shrink* so the
+     title ellipsises on a narrow desktop instead of pushing the right-hand
+     buttons past the bar's edge. It still refuses to grow, so a short course
+     name does not stretch the block and shove the actions to the far right. */
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* The whole cluster. `cursor: pointer` and the hover fill belong here rather than
+   on the chip, because the chip is no longer the only clickable part — the title
+   and the bits are hit targets too. The inner gap replaces the wrapper's, which
+   would otherwise also space this button from the `sr-only` progress line. */
+.reader-silabus-tombol {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  padding: 0.2rem 0.5rem 0.2rem 0.2rem;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--ocean-deep);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 180ms ease-out,
+    transform 180ms ease-out;
+}
+
+.reader-silabus-tombol:hover {
+  background: var(--muted);
+}
+
+.reader-silabus-tombol:active {
+  transform: scale(0.99);
+}
+
+/* The chip keeps its box so the cluster still reads as "menu icon, then title" —
+   the reference's shape — but it is now decoration on a larger control, so it
+   loses its own hover (the cluster's fill covers it) and never takes the click. */
+.reader-silabus-ikon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--card);
+}
+
+.reader-silabus-tombol:focus-visible,
+.reader-panel-toggle:focus-visible,
+.reader-panel-cta:focus-visible {
+  outline: 2px solid var(--ocean-mid);
+  outline-offset: 2px;
+}
+
+/* The course identity beside the toggle. `min-width: 0` is load-bearing: the
+   title is arbitrary-length user data and a flex item defaults to
+   `min-width: auto`, so without it a long title pushes the bar's row wider than
+   the viewport instead of ellipsising.
+
+   The cap is generous now (`30rem`) because the bar can be 1680px wide and this
+   title is the bar's primary label — at the old `13rem` it truncated almost
+   every real course name ("Backend C# dan ASP.NET Core un…"), which reads as a
+   broken title rather than a long one. `.reader-silabus` may shrink (`0 1 auto`)
+   so the cap never overflows a narrow desktop: the title ellipsises first,
+   which is the designed behaviour below `--reader-bar-max`. */
+/* The title and the bits, stacked, inside the cluster button. `min-width: 0` is
+   load-bearing: the title is arbitrary-length user data and a flex item defaults
+   to `min-width: auto`, so without it a long title pushes the cluster wider than
+   the bar instead of ellipsising.
+
+   The cap that used to live here (`max-width`) is gone: the cluster button is now
+   the flex item that absorbs the row's spare space, so capping this column *and*
+   letting the button grow only left dead space inside the cluster. The width is
+   governed in one place — `.reader-silabus` shrinks (`0 1 auto`) and the title
+   ellipsises — instead of two caps that have to be kept in agreement. */
+.reader-silabus-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  min-width: 0;
+}
+
+.reader-silabus-judul {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* Sized to read as the bar's own label, not as a caption. At the old
+     `0.74rem` it carried less weight than the progress bits below it, which is
+     backwards: the title names the surface, the bits only annotate it. */
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ocean-deep);
+}
+
+/* Progress, one bit per module. Segments rather than one continuous bar because
+   the question this answers is "how many modules are left" — a continuous bar
+   moves a little and says nothing, a segment lights up whole.
+
+   The track is a **fixed width** and the bits share it equally (`flex: 1 1 0`),
+   rather than each bit being a fixed 12px. Two reasons, one visual and one
+   structural: the reference reads as a row of long bars, and a 12px tick beside
+   a 14.4px title reads as a row of dots; and a fixed-width track stops the bar's
+   layout from shifting with the module count, which is what made a 2-module
+   course and a 12-module course render visibly different bars. */
+.reader-silabus-segmen {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 13rem;
+  max-width: 100%;
+  height: 6px;
+}
+
+.reader-silabus-bit {
+  flex: 1 1 0;
+  /* A floor so a 12-module course still shows twelve distinguishable bits
+     instead of twelve hairlines; the track is what gives way past that. */
+  min-width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(10, 61, 98, 0.16);
+  transition: background-color 220ms ease-out;
+}
+
+.reader-silabus-bit.is-terisi {
+  background: var(--leaf);
+}
+
+/* Expanded: the same bits, read at panel distance. Its own track width — the
+   panel is wider than the bar, so sharing the bar's `13rem` would leave the
+   large variant no larger than the small one. */
+.reader-silabus-segmen.is-besar {
+  gap: 5px;
+  width: 100%;
+  height: 8px;
+}
+
+/* The large variant shares the track the same way, so only the height and the
+   floor change here — a fixed `width` would fight `flex: 1 1 0` and win, putting
+   the original tick-mark row back in the panel. */
+.reader-silabus-segmen.is-besar .reader-silabus-bit {
+  min-width: 10px;
+  height: 7px;
+}
+
+/* Below 769px only the toggle survives. The bar already carries the brand block
+   and the tutor button there, and the course title plus its progress bits next
+   to them does not fit on one row — the door stays, the wording goes.
+   The tap target grows to 44px at the same time, since a 36px target is under
+   the floor once the label is gone and the button is all that remains. */
+/* Below 769px only the chip survives, so the cluster button is just the icon.
+   The bar already carries the brand block and the tutor button there, and the
+   course title plus its progress bits next to them does not fit on one row — the
+   door stays, the wording goes. The tap target grows to 44px at the same time,
+   since a 36px chip is under the floor once it is the whole button. */
+@media (max-width: 768px) {
+  .reader-silabus-info {
+    display: none;
+  }
+  .reader-silabus-tombol {
+    padding: 0;
+  }
+  .reader-silabus-ikon {
+    width: 44px;
+    height: 44px;
+    flex-basis: 44px;
+  }
+}
+
+.reader-panel-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 89;
+  border: 0;
+  background: rgba(10, 42, 58, 0.32);
+  backdrop-filter: blur(2px);
+  cursor: pointer;
+  animation: reader-scrim-masuk 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Fase menutup. Dipakai lewat `data-menutup`, bukan kelas terpisah, supaya
+   penanda "panelnya sedang keluar" hanya ada **satu** dan tidak bisa berbeda
+   antara scrim dan panelnya — keduanya membaca keadaan yang sama dari React. */
+.reader-panel-scrim[data-menutup],
+.reader-panel[data-menutup] {
+  animation: reader-panel-keluar 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.reader-panel-scrim[data-menutup] {
+  animation-name: reader-scrim-keluar;
+}
+
+/* `translateX(-100%)` is enough again, and it is only enough because the panel's
+   left edge is pinned to 0: shifting it by its own width lands its right edge
+   exactly at 0. If the left edge is ever inset again, this must become
+   `calc(-100% - <inset>)` or the exit leaves a slice of panel on screen — that
+   bug is real and was measured at 16px, not theoretical.
+
+   The exit keyframe is the exact reverse of the entrance, which is what makes it
+   retarget cleanly when a participant reopens mid-exit. */
+@keyframes reader-panel-masuk {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes reader-panel-keluar {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes reader-scrim-masuk {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes reader-scrim-keluar {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* The panel is **detached top and bottom only**; its left edge stays flush with
+   the screen. It used to be `inset: 0 auto 0 0` at `height: 100dvh`, i.e. flush
+   with the top, bottom *and* left edges at once, which is why it read as welded
+   to the viewport — and padding *inside* the panel cannot fix an outer edge
+   pinned to 0, which is why the earlier attempt at this changed nothing visible.
+   The fix is the outer inset, not the interior padding.
+
+   The left edge is deliberately **not** inset: this is a docked sidebar, so it
+   belongs on the edge it docks to, and a gap there would make it read as a
+   floating card that happens to be near the left. Because left stays at 0 the
+   slide distance needs no correction — `translateX(-100%)` already carries it
+   fully off-screen — so the keyframes below are plain percentages. */
+.reader-panel {
+  --reader-panel-inset-y: 1rem;
+  position: fixed;
+  z-index: 90;
+  /* `top`/`bottom` come from the height below so it can be measured against
+     `dvh`; `left: 0` docks it. */
+  inset: var(--reader-panel-inset-y) auto auto 0;
+  display: flex;
+  width: min(23rem, calc(100vw - 2rem));
+  /* Still measured in `dvh`, not from a bottom inset: mobile browsers shrink the
+     visual viewport as their own chrome collapses, and a panel pinned by `bottom`
+     resolves against the layout viewport instead, keeping its foot under the
+     browser UI where it cannot be reached. Subtracting the insets keeps it off
+     both horizontal screen edges while preserving that. */
+  height: calc(100dvh - 2 * var(--reader-panel-inset-y));
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--card);
+  box-shadow: 0 24px 60px -24px rgba(10, 42, 58, 0.45);
+  /* Flush with the left edge again, so only the two right corners are free to
+     round — rounding all four leaves the left pair sitting inside the screen
+     edge, which reads as a mistake rather than a shape. Same rule as
+     `.mobile-nav-drawer`. (This was briefly `1.25rem` while the left edge was
+     also inset; that experiment is reverted along with the inset.) */
+  border-radius: 0 1.25rem 1.25rem 0;
+  /* `animation`, not `transition`: the panel is mounted and unmounted by React,
+     so nothing "changes" to transition from in either direction — the panel
+     simply appears. A keyframe animation runs on mount without needing a prior
+     state, and its `animationend` is the signal that the exit is finished and
+     the element can be released. */
+  animation: reader-panel-masuk 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* The head owns the sidebar's **top** breathing room.
+   The panel is `inset: 0 auto 0 0` and `100dvh` tall, so it is flush with both
+   screen edges and this padding is the only space above the title — at the old
+   `1rem` the course title started 16px from the top of the viewport and read as
+   if it had been cropped rather than placed. `1.5rem` gives the block a top
+   margin without moving the close button off the title's optical line (both are
+   in the same flex row, so they move together). */
+.reader-panel-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1.5rem 1rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Judul left, close button right. `justify-content: space-between` pins the
+   button to the panel's right edge using the row's own width — the same
+   mechanism `.mobile-nav-drawer-head` uses, so the two surfaces agree. `center`
+   keeps the icon on the title's optical centre line when the title wraps to two
+   or three lines. */
+.reader-panel-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+/* A bare icon, no card. The box this used to be — 1px border, `--card` fill,
+   a 12px radius — read as a button *inside* a header that already has a fill,
+   which is one container too many at the top of a panel. Without the chrome the
+   affordance has to come from the glyph, so the colour carries the states:
+   `--ocean-deep` at rest (the icon has to read as a control with no box behind
+   it, and `--text-secondary` grey made it look disabled), `--ocean-mid` on
+   hover/focus. Only the colour transitions — a background fade would put the
+   card back. */
+.reader-panel-toggle {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ocean-deep);
+  cursor: pointer;
+  transition: color 180ms ease-out;
+}
+
+.reader-panel-toggle:hover,
+.reader-panel-toggle:focus-visible {
+  color: var(--ocean-mid);
+}
+
+/* `min-width: 0` so a long course title shrinks and wraps inside the row
+   instead of overflowing it; `flex: 1 1 auto` claims the space the 44px button
+   does not use, so the title is what absorbs a narrow panel, not the button.
+
+   `margin: 0` is load-bearing, not tidying: the base sheet gives every `<p>` a
+   `1rem` bottom margin, and as a flex child that margin joins the item's box —
+   the row measured 58px instead of 42px and `align-items: center` centred the
+   button against the taller box, sitting the X 8px below the title's optical
+   line. Zeroing it is what makes the two share a centre. The block gaps in this
+   head come from its own `gap`, so no margin is needed here. */
+.reader-panel-judul {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--text);
+}
+
+.reader-panel-penyedia {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.reader-panel-progres {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.reader-panel-body {
+  flex: 1 1 auto;
+  /* `min-height: 0` so the list scrolls inside the panel instead of inflating
+     the flex column past `100dvh` — a flex item's default `min-height: auto`
+     refuses to shrink below its content. */
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.85rem 0.75rem;
+}
+
+/* The foot owns the sidebar's **bottom** breathing room, and it is the reason
+   the bottom padding is the larger one: the panel is `100dvh` tall, so on a
+   phone this edge sits hard against the browser's own bottom bar. `1.5rem`
+   lifts the CTA up off that edge instead of leaving it flush with the screen
+   chrome. The top side of this block stays tighter (`0.75rem`) because it
+   follows the body's divider, where extra space would read as a gap rather
+   than as margin. */
+.reader-panel-foot {
+  flex: 0 0 auto;
+  padding: 0.75rem 1rem 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+/* The panel's foot CTA is a filled primary button, so it takes the same blue
+   ramp as the navbar `Daftar` button, `.grad-btn` and `.btn-primary` — resolved
+   from the `--brand-*` tokens rather than re-spelling the hexes, which is the
+   rule DESIGN.md states for primary actions. It used to be flat `--primary`
+   (`#0a3d62`), the one filled CTA in the app that did not match the others.
+   The pale `#bfdbfe` tail is deliberately kept: per DESIGN.md it is the brand
+   and is *not* AA-safe for the white label — if contrast ever has to pass, the
+   label or a text shadow changes, never the ramp. Flat `#0056D2`/`--primary`
+   remains correct for inline links and focus rings; only filled buttons take
+   the ramp. */
+.reader-panel-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border-radius: 999px;
+  border: 1px solid var(--brand-border);
+  background: var(--brand-grad);
+  color: #fff;
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: var(--brand-shadow);
+  transition: background 180ms ease-out;
+}
+
+.reader-panel-cta:hover {
+  background: var(--brand-grad-hover);
+  border-color: var(--brand-border-hover);
+  color: #fff;
 }
 
 .chrome-brand {

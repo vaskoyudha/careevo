@@ -8,6 +8,7 @@ import {
   KOTA_LAINNYA,
   KOTA_REMOTE,
   kotaDariLokasi,
+  kunciHariIni,
   type BarisFaset,
   kategoriUntukPeran,
   labelUrutan,
@@ -207,6 +208,40 @@ describe("hitungBarisHariIni", () => {
       baris({ url: "d" }),
     ];
     expect(hitungBarisHariIni(barisHariIni, "2026-09-28")).toBe(2);
+  });
+});
+
+describe("kunciHariIni", () => {
+  /**
+   * Inilah bug yang pernah dikirim: halaman memakai
+   * `new Date().toISOString().slice(0, 10)` — hari **UTC** — sedangkan mesin
+   * career-ops menstempel `first_seen` dengan hari **lokal** host
+   * (`engine/lib/local-today.mjs`). Pada 00:40 WIB keduanya berbeda satu hari,
+   * jadi "Lowongan baru hari ini" membaca nol selama ~7 jam pertama setiap hari
+   * WIB.
+   *
+   * 2026-09-30T17:40:00Z adalah 2026-10-01 00:40 WIB — instan yang nyata
+   * memicu bug ini. Yang diuji adalah *sifat*-nya (hari lokal ≠ hari UTC pada
+   * rentang itu), bukan angka yang kebetulan.
+   */
+  const DINI_HARI_WIB = new Date("2026-09-30T17:40:00.000Z");
+
+  it("memakai hari lokal, bukan hari UTC, untuk dini hari WIB", () => {
+    expect(DINI_HARI_WIB.toISOString().slice(0, 10)).toBe("2026-09-30");
+    expect(kunciHariIni(DINI_HARI_WIB)).toBe("2026-10-01");
+  });
+
+  it("sepakat dengan hari UTC saat tengah hari, jadi ini bukan offset yang salah", () => {
+    const tengahHari = new Date("2026-10-01T05:00:00.000Z"); // 12:00 WIB
+    expect(kunciHariIni(tengahHari)).toBe(tengahHari.toISOString().slice(0, 10));
+  });
+
+  it("menghitung baris yang distempel mesin pada hari lokal yang sama", () => {
+    // Stempel mesin `localToday()` di 00:40 WIB adalah 2026-10-01, dan itulah
+    // yang harus dibaca halaman — bukan 2026-09-30 milik UTC.
+    const barisMesin = [baris({ url: "a", firstSeen: "2026-10-01" })];
+    expect(hitungBarisHariIni(barisMesin, kunciHariIni(DINI_HARI_WIB))).toBe(1);
+    expect(hitungBarisHariIni(barisMesin, DINI_HARI_WIB.toISOString().slice(0, 10))).toBe(0);
   });
 });
 

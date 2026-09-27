@@ -7,6 +7,19 @@ const nextConfig: NextConfig = {
   // `src/lib/security/headers.ts`.
   headers: aturanKeamanan,
 
+  // Origin tambahan yang boleh membaca resource dev (HMR, RSC payload).
+  //
+  // Next 16 memblokir resource dev dari origin yang tidak dikenal, dan
+  // blokirnya **diam-diam**: halaman tetap 200 dan ter-render, tetapi HMR dan
+  // navigasi lunak tidak pernah tersambung — sehingga perubahan kode tidak
+  // pernah muncul di peramban dan gejalanya terbaca sebagai "edit-ku tidak
+  // berefek", bukan sebagai galat. `localhost` dan `127.0.0.1` adalah alamat
+  // yang sama tetapi **origin yang berbeda**, jadi membuka dev server lewat
+  // `127.0.0.1:3000` kena blokir ini.
+  //
+  // Hanya berpengaruh di development; di production nilainya diabaikan.
+  allowedDevOrigins: ["127.0.0.1", "localhost"],
+
   // `x-powered-by: Next.js` tidak menambah kemampuan apa pun bagi pengguna dan
   // hanya membantu pemindaian versi. Docs Next 16: `poweredByHeader: false`.
   poweredByHeader: false,

@@ -1,10 +1,31 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { CourseSessionProvider } from "./course-session";
 import { MateriFocusBar } from "./materi-focus-bar";
 import { kebijakanDefault, PESAN_POLICY } from "@/lib/courses/kebijakan";
 import type { ModulKursus } from "@/lib/courses/kurikulum";
+
+/** Tiga tingkat: `src/components/features/learning` → akar repo. */
+const ROOT = path.resolve(__dirname, "../../../..");
+const BERKAS_BAR = path.join(ROOT, "src/components/features/learning/materi-focus-bar.tsx");
+
+/**
+ * Sumber tanpa komentar — untuk pemeriksaan **struktur**.
+ *
+ * Berkas itu sendiri menjelaskan kenapa `CourseSessionIndicator` **tidak** ada
+ * di sana, jadi menguji teks mentah akan membuat assertion ini gagal justru
+ * karena dokumentasinya benar — dan menghapus komentarnya agar hijau berarti
+ * membuang alasan keputusannya. Sama seperti `tanpaKomentar` di
+ * `materi-shell.test.ts`.
+ */
+function tanpaKomentar(berkas: string): string {
+  return readFileSync(berkas, "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|\s)\/\/.*$/gm, "$1");
+}
 
 /**
  * Bar fokus — diuji lewat HTML hasil render.
@@ -16,14 +37,16 @@ import type { ModulKursus } from "@/lib/courses/kurikulum";
  *    yang diam-diam menambahkan gerbang per checkpoint.
  * 2. Tombol `tanpa_ai` tetap **dirender** meski nonaktif, dengan alasan dari
  *    `putuskanAkses` — peserta berhak tahu fitur itu ada dan kenapa mati.
- * 3. Tombol "Daftar modul" (`lg:hidden`) ada dengan nama aksesibel dan
- *    `aria-expanded` yang sejalan dengan panelnya (spec §3.1). Tombol itu
- *    satu-satunya jalan ke peta modul di ponsel; tanpa nama aksesibel ia
- *    diumumkan sebagai tombol tak bernama, dan tanpa `aria-expanded` yang
- *    pernah berubah panelnya ada tapi statusnya tidak bisa dipercaya.
+ * 3. Pemicu silabus + progres di kiri bar ada dengan nama aksesibel dan
+ *    `aria-expanded` yang sejalan dengan panelnya. Tombol itu satu-satunya jalan
+ *    ke peta modul; tanpa nama aksesibel ia diumumkan sebagai tombol tak
+ *    bernama, dan tanpa `aria-expanded` yang pernah berubah panelnya ada tapi
+ *    statusnya tidak bisa dipercaya. Bitnya satu per modul, dan id basi tidak
+ *    boleh menggelembungkan angka — aturan yang sama dengan
+ *    `irisModulSelesai` di `listProgresKursus()`.
  */
 
-const MODUL: ModulKursus = {
+const MODUL_AKTIF: ModulKursus = {
   id: "crs-1-m2",
   judul: "Mendalami React",
   ringkasan: "r",
@@ -32,10 +55,17 @@ const MODUL: ModulKursus = {
   checkpoint: { batas_waktu_menit: 30, mode: "kuis" },
 };
 
+/** Seluruh kurikulum — bit progres dihitung dari sini, bukan dari modul aktif. */
+const KURIKULUM: ModulKursus[] = [
+  { id: "crs-1-m1", judul: "Orientasi", ringkasan: "r", durasi_min: 10, url: "https://contoh.test" },
+  MODUL_AKTIF,
+  { id: "crs-1-m3", judul: "Penutup", ringkasan: "r", durasi_min: 10, url: "https://contoh.test" },
+];
+
 function render(
   aksesTutor: Parameters<typeof MateriFocusBar>[0]["aksesTutor"],
   pesan?: string | null,
-  modul?: { buka: boolean },
+  silabus?: { buka: boolean; selesai?: string[] },
 ) {
   // `children` dioper lewat properti, bukan argumen ketiga `createElement`:
   // di React 19 types `children` adalah properti wajib `CourseSessionProvider`,
@@ -49,7 +79,8 @@ function render(
     children: createElement(MateriFocusBar, {
       slug: "kursus-uji",
       kursusJudul: "Kursus Uji",
-      modul: MODUL,
+      modulSemua: KURIKULUM,
+      selesai: silabus?.selesai ?? [],
       sudah: false,
       onTandai: () => {},
       pending: false,
@@ -57,10 +88,10 @@ function render(
       onToggleDrawer: () => {},
       aksesTutor,
       pesan,
-      // Panel modul: statusnya milik shell, tapi **tombolnya** milik bar — dan
+      // Panel silabus: statusnya milik shell, tapi **tombolnya** milik bar — dan
       // `aria-expanded` yang tidak pernah berubah adalah bug yang tepat di sini.
-      modulBuka: modul?.buka ?? false,
-      onToggleModul: () => {},
+      silabusBuka: silabus?.buka ?? false,
+      onToggleSilabus: () => {},
     }),
   };
   return renderToStaticMarkup(createElement(CourseSessionProvider, isi));
@@ -101,12 +132,14 @@ describe("MateriFocusBar", () => {
     expect(html).toContain('href="/belajar/kursus-uji"');
   });
 
-  it("memberi tautan silabus nama aksesibel yang tidak bergantung breakpoint", () => {
-    // Label visualnya (`<span className="hidden sm:inline">`) hilang di bawah
-    // `sm` dan ikonnya `aria-hidden`, jadi tanpa `aria-label` tautan ini —
-    // satu-satunya jalan keluar dari reader — diumumkan tanpa nama di ponsel.
-    // Dikunci dari atribut hasil render, satu-satunya yang bisa dilihat tanpa
-    // jsdom (repo tidak punya lingkungan peramban).
+  it("memberi blok merek nama aksesibel yang tidak bergantung breakpoint", () => {
+    // Blok merek di ujung kiri **adalah** jalan keluar dari reader: tautan
+    // "← Silabus" bertuliskan teks sudah dihapus, jadi tidak ada lagi label
+    // navigasi yang terbaca di bar. Di bawah `sm` kata "Careevo" disembunyikan
+    // CSS dan mark-nya `aria-hidden`, sehingga tanpa `aria-label` tautan ini —
+    // satu-satunya jalan kembali ke halaman kursus — diumumkan tanpa nama.
+    // Nama itu menyebut **tujuannya**, bukan mereknya: yang perlu didengar
+    // pengguna keyboard adalah "kembali ke halaman kursus".
     //
     // Tag-nya diambil utuh lalu diperiksa, bukan dicocokkan dengan satu regex
     // berurutan: urutan atribut hasil render bukan kontrak, dan pola
@@ -115,9 +148,34 @@ describe("MateriFocusBar", () => {
     const html = render({ tipe: "bebas" });
     const tautan = html.match(/<a [^>]*href="\/belajar\/kursus-uji"[^>]*>/)?.[0];
     expect(tautan).toBeDefined();
-    expect(tautan).toContain('aria-label="Silabus"');
-    // Label visualnya tetap ada, tidak digantikan oleh `aria-label`.
-    expect(html).toContain('<span class="hidden sm:inline">Silabus</span>');
+    expect(tautan).toContain('aria-label="Kembali ke halaman kursus"');
+    // Mark-nya dekoratif: nama sudah dibawa `aria-label`, dan `alt` yang terisi
+    // akan membuat pembaca layar menyebut merek dua kali.
+    expect(tautan).toContain('class="reader-brand"');
+    expect(html).toMatch(/reader-brand-mark/);
+  });
+
+  it("tidak menyisakan label 'Silabus' bertuliskan teks di bar", () => {
+    // Yang diminta dibuang: ikon panah balik **dan** kata "Silabus" di bar ini.
+    // Diuji pada teks yang benar-benar terbaca (`teks()` membuang tag), bukan
+    // seluruh HTML: nama panel dan `aria-controls` sengaja tetap memuat kata
+    // "silabus" di atribut, jadi assertion atas HTML mentah akan hijau justru
+    // karena atribut yang memang harus ada. Tombol pemicunya tetap ada — yang
+    // hilang hanya tautan berlabel teks.
+    const html = render({ tipe: "bebas" });
+    expect(teks(html)).not.toContain("Silabus");
+    // Pintunya tetap ada: tombol silabus dan tautan keluarnya.
+    expect(html).toContain("data-silabus-toggle");
+    expect(html).not.toContain("RiArrowLeftLine");
+    expect(html).not.toContain('aria-label="Silabus"');
+  });
+
+  it("menaruh blok merek di paling kiri, sebelum pemicu silabus", () => {
+    // Referensinya adalah blok merek di ujung kiri; urutan DOM itu yang
+    // menentukannya, dan tidak ada tes lain yang melihat urutan ini.
+    const html = render({ tipe: "bebas" });
+    expect(html.indexOf("reader-brand")).toBeLessThan(html.indexOf("data-silabus-toggle"));
+    expect(html.indexOf("reader-brand")).toBeGreaterThan(-1);
   });
 
   it("tombol tutor aktif saat kebijakan mengizinkan", () => {
@@ -192,45 +250,81 @@ describe("MateriFocusBar", () => {
   });
 });
 
+describe("MateriFocusBar — tidak jadi rumah permukaan sesi", () => {
+  it("tidak merender indikator sesi maupun ajakan sesi", () => {
+    /**
+     * Reader hanya boleh punya **satu** permukaan yang menyatakan keadaan sesi.
+     * Sebelumnya bar ini membawa `CourseSessionIndicator` ("Sesi terverifikasi
+     * aktif") sementara `KejadianPanel` di bawahnya membawa panel catatan —
+     * dua judul berbeda untuk satu keadaan, dalam satu layar, ditambah panel
+     * ~390px yang tidak bisa ditutup.
+     *
+     *Ajakan memulai sesi (`CourseSessionPrompt`) dipindahkan ke kolom baca di
+     * atas kartu materi. Alasannya bentuk, bukan isi: bar fokus `sticky`, jadi
+     * kartu amber setinggi beberapa baris di sana menutupi judul modul selama
+     * seluruh halaman digulir — persis saat peserta membacanya. Kedua
+     * pemindahan itu dikunci di sini sekaligus, karena alasan yang sama akan
+     * dipakai untuk memamerkannya lagi lewat perubahan berikutnya.
+     *
+     * Diperiksa dari sumber, bukan render: indikator hanya muncul saat
+     * `status === "aktif"`, dan ajakan hanya saat kebijakan mewajibkan sesi —
+     * memeriksa ketidakhadirannya lewat HTML hanya membuktikan keadaan satu
+     * render. Yang dijaga adalah pengawatan impornya.
+     */
+    const sumber = tanpaKomentar(BERKAS_BAR);
+    expect(sumber).not.toContain("CourseSessionIndicator");
+    expect(sumber).not.toContain("CourseSessionPrompt");
+    // Bar juga tidak boleh menarik `useCourseSession` cuma untuk hal yang sudah
+    // pindah: tanpa konteks sesi, satu-satunya hook di bar ini hilang dan
+    // import-nya menjadi sisa yang tidak dikunci di tempat lain.
+    expect(sumber).not.toContain("useCourseSession");
+  });
+});
+
 /**
- * Tombol "Daftar modul" — spec §3.1.
+ * Pemicu silabus di kiri bar.
  *
- * Di bawah `lg` rail `w-72` disembunyikan, jadi tombol ini satu-satunya jalan
- * peserta ponsel membuka peta modul. Yang diuji sengaja hanya properti yang
- * memang dimiliki **bar**: nama aksesibel, `aria-expanded` yang mengikuti
- * status, rujukan panelnya, dan `lg:hidden` yang menjaga tombolnya tidak ikut
- * tampil di layar yang sudah punya rail permanen. Penutupan saat navigasi dan
- * `Escape` hidup di shell dan diuji di `materi-shell.test.ts`.
+ * Yang diuji hanya properti yang memang dimiliki **bar**: nama aksesibel,
+ * `aria-expanded` yang mengikuti status, rujukan panelnya, bit progres satu per
+ * modul, dan penyaringan id basi. Perilaku panelnya sendiri (portal, jebakan
+ * fokus, penutupan saat navigasi) hidup di shell dan diuji di
+ * `materi-shell.test.ts` serta `reader-silabus.test.ts`.
  */
-describe("MateriFocusBar — tombol daftar modul", () => {
-  it("memberi tombol itu nama aksesibel meski tidak ada teks label", () => {
+describe("MateriFocusBar — pemicu silabus", () => {
+  it("memberi tombol itu nama aksesibel", () => {
     const html = render({ tipe: "bebas" });
-    const tombolnya = tombol(html, 'class="[^"]*lg:hidden');
-    // Nama aksesibelnya wajib eksplisit: ikonnya `aria-hidden` dan tidak ada
-    // teks di sebelahnya, jadi tanpa `aria-label` tombol itu diumumkan tanpa
-    // nama — satu-satunya jalan ke peta modul di ponsel, tanpa nama.
-    expect(tombolnya).toContain('aria-label="Daftar modul"');
-    // Hanya muncul di bawah `lg`; di layar lebar ia akan menjadi tombol kedua
-    // untuk sesuatu yang sudah terlihat.
-    expect(tombolnya).toContain("lg:hidden");
+    const tombolnya = tombol(html, "data-silabus-toggle");
+    // Nama aksesibelnya wajib eksplisit: ikonnya `aria-hidden`, dan di bawah
+    // 769px label kursusnya disembunyikan CSS — tanpa `aria-label` tombol itu
+    // diumumkan tanpa nama, padahal ia satu-satunya jalan ke peta modul.
+    expect(tombolnya).toContain('aria-label="Buka silabus kursus"');
+    expect(tombolnya).toContain('aria-controls="reader-panel-silabus"');
   });
 
-  it("menutup panel — `aria-expanded` false, `aria-controls` tidak menunjuk apa pun", () => {
-    // `aria-controls` yang menunjuk id tidak ada melanggar ARIA, dan itulah
-    // keadaan default: panelnya sengaja tidak dirender saat tertutup. Karena
-    // itu atributnya hanya dipasang saat terbuka.
+  it("menutup panel — `aria-expanded` false", () => {
     const html = render({ tipe: "bebas" }, null, { buka: false });
-    const tombolnya = tombol(html, 'class="[^"]*lg:hidden');
+    const tombolnya = tombol(html, "data-silabus-toggle");
     expect(tombolnya).toContain('aria-expanded="false"');
-    expect(tombolnya).not.toContain("aria-controls");
   });
 
-  it("membuka panel — `aria-expanded` true dan `aria-controls` menunjuk `panel-modul`", () => {
-    // Rujukan ini yang mengikat tombol ke panelnya; id panel itu sendiri
-    // dikunci di `materi-shell.test.ts`, tempat `PanelModulMobile` dirender.
+  it("membuka panel — `aria-expanded` true dan label menyebut tujuan", () => {
     const html = render({ tipe: "bebas" }, null, { buka: true });
-    const tombolnya = tombol(html, 'class="[^"]*lg:hidden');
+    const tombolnya = tombol(html, "data-silabus-toggle");
     expect(tombolnya).toContain('aria-expanded="true"');
-    expect(tombolnya).toContain('aria-controls="panel-modul"');
+    expect(tombolnya).toContain('aria-label="Tutup silabus kursus"');
+  });
+
+  it("menyalakan satu bit per modul, dan menyaring id basi", () => {
+    // `crs-1-m9` tidak ada di kurikulum saat ini. Kalau ia ikut dihitung, bar
+    // mengklaim lebih banyak modul selesai daripada yang bisa dibuka peserta —
+    // aturan yang sama dengan `irisModulSelesai` di `listProgresKursus()`.
+    const html = render({ tipe: "bebas" }, null, { buka: false, selesai: ["crs-1-m1", "crs-1-m9"] });
+    expect(html.match(/reader-silabus-bit/g) ?? []).toHaveLength(KURIKULUM.length);
+    expect(html.match(/reader-silabus-bit is-terisi/g) ?? []).toHaveLength(1);
+  });
+
+  it("menyebut progresnya untuk pembaca layar, karena segmennya aria-hidden", () => {
+    const html = render({ tipe: "bebas" }, null, { buka: false, selesai: ["crs-1-m1"] });
+    expect(html).toContain("Progres kursus 1 dari 3 modul, 33 persen");
   });
 });

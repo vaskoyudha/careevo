@@ -111,6 +111,7 @@ export default async function MateriLayout({
       <MateriShell
         slug={entri.slug}
         kursusJudul={entri.title}
+        kursusPenyedia={entri.provider}
         kursusId={entri.id}
         kebijakan={kebijakan}
         modul={modul}

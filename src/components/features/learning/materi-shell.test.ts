@@ -16,9 +16,13 @@ import type { ModulKursus } from "@/lib/courses/kurikulum";
  *    shell ke halaman, seluruh alasan task ini ada (sesi dan percakapan tutor
  *    tidak hilang saat berpindah modul) hilang tanpa satu pun tes lain gagal.
  * 2. **Perilaku render**: yang bisa dibuktikan dari HTML adalah modul aktif
- *    diturunkan dari pathname, rail tetap memuat semua modul, pane masuk ke
- *    kolom baca, dan drawer hidup sebagai **saudara flex** — bukan overlay yang
- *    menutupi pane.
+ *    diturunkan dari pathname, pane masuk ke kolom baca, dan drawer hidup
+ *    sebagai **saudara flex** — bukan overlay yang menutupi pane.
+ *
+ * Daftar modul tidak lagi punya kolom rail: ia hidup di panel silabus
+ * (`reader-silabus.tsx`), yang `portal` ke `<body>` dan karenanya tidak muncul
+ * di `renderToStaticMarkup` saat tertutup. Yang dijaga di sini hanyalah
+ * pengawatan prop-nya ke bar; panelnya sendiri diuji di `reader-silabus.test.ts`.
  *
  * Yang **tidak** diuji di sini: efek, CSS, dan perilaku navigasi. Lingkungan
  * test repo ini `node` tanpa jsdom, jadi `usePathname` dipalsukan; menguji
@@ -95,13 +99,13 @@ describe("struktur reader — shell tinggal di layout", () => {
     expect(sumber).toMatch(/pesan=\{pesan\}/);
   });
 
-  it("panel modul (bawah `lg`) ditutup saat pindah modul, dan fokusnya dikembalikan", () => {
+  it("panel silabus ditutup saat pindah modul, dan fokusnya dikembalikan", () => {
     /**
      * Keadaan yang dijaga: shell hidup di `layout.tsx` dan **tidak di-remount**
      * saat berpindah modul — justru itu jaminan utama branch ini. Konsekuensinya
-     * state `modulBuka` juga tidak di-reset sendiri, jadi panel "Daftar modul"
-     * yang terbuka akan menutupi pane modul yang baru dipilih — di ponsel,
-     * modulnya benar-benar tidak terlihat. Penutupannya harus eksplisit.
+     * state `silabusBuka` juga tidak di-reset sendiri, jadi panel silabus yang
+     * terbuka akan menutupi pane modul yang baru dipilih — modulnya benar-benar
+     * tidak terlihat. Penutupannya harus eksplisit.
      *
      * Kenapa diperiksa dari sumber, bukan dari render: repo ini lingkungan
      * `node` tanpa jsdom, jadi efek **tidak berjalan** di `renderToStaticMarkup`.
@@ -121,12 +125,12 @@ describe("struktur reader — shell tinggal di layout", () => {
     // sebagai pemicunya. Assertion-nya sempit: cabang reset membandingkan
     // pathname, lalu menutup panel hanya bila sedang terbuka.
     expect(sumber).toMatch(/pathnameSebelumnya !== pathname/);
-    expect(sumber).toMatch(/if \(modulBuka\) setModulBuka\(false\)/);
-    // Fokus kembali setelah transisi terbuka → tertutup, dan `Escape` menangani
-    // penutupan yang bukan navigasi (hanya hidup selama panel terbuka).
-    expect(sumber).toMatch(/baruTertutup = bukaSebelumnya\.current && !modulBuka/);
-    expect(sumber).toMatch(/tombolModulRef\.current\?\.focus\(\)/);
-    expect(sumber).toMatch(/e\.key === "Escape"\) \{[\s\S]*?setModulBuka\(false\)/);
+    expect(sumber).toMatch(/if \(silabusBuka\) setSilabusBuka\(false\)/);
+    // Fokus kembali setelah transisi terbuka → tertutup. `Escape` sendiri hidup
+    // di `reader-silabus.tsx` (panelnya), jadi di sini hanya pengembalian fokus
+    // milik shell yang bisa dijaga.
+    expect(sumber).toMatch(/baruTertutup = silabusSebelumnya\.current && !silabusBuka/);
+    expect(sumber).toMatch(/tombolSilabusRef\.current\?\.focus\(\)/);
   });
 });
 
@@ -145,7 +149,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 const { CourseSessionProvider } = await import("./course-session");
-const { MateriShell, PanelModulMobile } = await import("./materi-shell");
+const { MateriShell } = await import("./materi-shell");
 const { kebijakanDefault } = await import("@/lib/courses/kebijakan");
 
 const MODUL: ModulKursus[] = [
@@ -164,6 +168,7 @@ function render(over: { selesai?: string[] } = {}) {
   const isiShell = {
     slug: "kursus-uji",
     kursusJudul: "Kursus Uji",
+    kursusPenyedia: "Careevo",
     kursusId: "crs-1",
     kebijakan: kebijakanDefault(),
     modul: MODUL,
@@ -204,34 +209,45 @@ function barFokus(html: string): string {
   return potongan(html, "<header", "</header>");
 }
 
-/** Rail daftar modul — `<nav aria-label="Daftar modul">`. */
-function railModul(html: string): string {
-  return potongan(html, '<nav aria-label="Daftar modul"', "</nav>");
-}
-
 describe("MateriShell", () => {
+  /**
+   * Modul mana yang aktif, dibaca dari **tombol penyelesaian di bar**.
+   *
+   * Dulu properti ini diamati lewat judul modul di bar (`>Mendalami React<`).
+   * Blok judul itu sudah dihapus dari bar — judul kursusnya mengulang pemicu
+   * silabus, dan nama modul punya rumahnya sendiri di panel silabus — jadi
+   * pengamatan itu ikut hilang bersama elemennya.
+   *
+   * Sinyal penggantinya berasal dari nilai yang sama: `sudah` di bar adalah
+   * `selesai.includes(modulAktif.id)`, jadi tombolnya berubah mengikuti modul
+   * yang **benar-benar diresolusi** dari pathname. Itu justru lebih tepat
+   * daripada mencocokkan judul: sebuah teks bisa muncul dari tempat lain di
+   * dokumen, sedangkan `aria-pressed` di bar hanya bisa benar kalau modulnya
+   * benar.
+   *
+   * Caranya: tandai **satu** modul selesai, lalu tuntut bar berbunyi `Selesai`
+   * untuk modul itu. Arah sebaliknya diuji juga — tanpa assertion negatifnya,
+   * bar yang selalu berbunyi `Selesai` akan lolos.
+   */
+  function labelTombolSelesai(html: string): string {
+    return barFokus(html).includes(">Selesai</button>") ? "Selesai" : "Tandai selesai";
+  }
+
   it("memilih modul aktif dari segmen terakhir pathname", () => {
     pathname.nilai = "/belajar/kursus-uji/materi/crs-1-m2";
-    const html = render();
-    // Judul bar adalah modul yang cocok dengan pathname, bukan modul pertama —
-    // dan `aria-current` menunjuk baris rail yang sama, jadi keduanya tidak bisa
-    // menyimpang.
-    //
-    // Judulnya diperiksa **di dalam bar**: rail memuat "Mendalami React" apa pun
-    // modul yang aktif, jadi `toContain` seluruh-dokumen tetap hijau walau bar
-    // menampilkan modul lain.
-    expect(barFokus(html)).toContain("Mendalami React");
-    const barisAktif = html.match(/<a [^>]*aria-current="page"[^>]*>/)?.[0];
-    expect(barisAktif).toBeDefined();
-    expect(barisAktif).toContain('href="/belajar/kursus-uji/materi/crs-1-m2"');
+    // Hanya m2 yang selesai. Kalau shell jatuh ke modul pertama (m1), tombolnya
+    // berbunyi "Tandai selesai" dan test ini merah.
+    expect(labelTombolSelesai(render({ selesai: ["crs-1-m2"] }))).toBe("Selesai");
+    // Arah sebaliknya: yang selesai modul **lain**, jadi bar tidak boleh
+    // mengklaim modul aktif sudah selesai.
+    expect(labelTombolSelesai(render({ selesai: ["crs-1-m1"] }))).toBe("Tandai selesai");
   });
 
   it("mendekode id modul yang ter-encode di URL", () => {
     // Tanpa `decodeURIComponent`, segmen ini tidak cocok dengan modul mana pun
-    // dan bar jatuh ke modul pertama diam-diam — judul yang salah, tanpa error.
-    // Diperiksa di dalam bar: rail memuat "Modul Berspasi" apa pun yang aktif.
+    // dan shell jatuh ke modul pertama diam-diam — modul yang salah, tanpa error.
     pathname.nilai = "/belajar/kursus-uji/materi/crs-1%20m3";
-    expect(barFokus(render())).toContain("Modul Berspasi");
+    expect(labelTombolSelesai(render({ selesai: ["crs-1 m3"] }))).toBe("Selesai");
   });
 
   it("tidak melempar saat segmen pathname rusak", () => {
@@ -240,32 +256,29 @@ describe("MateriShell", () => {
     // URL yang sama sudah ditolak router lebih dulu. `decodeURIComponent("%")`
     // melempar `URIError`, dan galat saat render menggusur **seluruh** reader.
     // Yang benar: segmen dipakai mentah → tidak cocok → jatuh ke modul pertama,
-    // bar tetap punya judul.
+    // dan bar tetap punya modul.
     pathname.nilai = "/belajar/kursus-uji/materi/%";
-    expect(barFokus(render())).toContain("Orientasi");
+    expect(labelTombolSelesai(render({ selesai: ["crs-1-m1"] }))).toBe("Selesai");
   });
 
   it("jatuh ke modul pertama saat segmen pathname tidak cocok", () => {
-    // Id basi (tautan lama) tetap merender bar dengan judul, bukan bar tanpa
+    // Id basi (tautan lama) tetap merender bar dengan modul, bukan bar tanpa
     // modul; `page.tsx` yang memutuskan 404 untuk id yang benar-benar tidak ada.
-    // Diperiksa di dalam bar: rail selalu memuat "Orientasi".
     pathname.nilai = "/belajar/kursus-uji/materi/id-yang-sudah-tidak-ada";
-    expect(barFokus(render())).toContain("Orientasi");
+    expect(labelTombolSelesai(render({ selesai: ["crs-1-m1"] }))).toBe("Selesai");
   });
 
-  it("merender rail, pane, dan drawer sebagai saudara di satu baris flex", () => {
+  it("merender pane dan drawer sebagai saudara di satu baris flex", () => {
     pathname.nilai = "/belajar/kursus-uji/materi/crs-1-m1";
     const html = render();
     // Baris flex di bawah bar fokus wajib punya rantai `min-h-0`: tanpa itu
     // kolom-kolom flex menolak menyusut di bawah tinggi isinya.
     expect(html).toContain('<div class="flex min-h-0 flex-1">');
-    // Rail tetap memuat modul lain — peta kemajuan yang menetap.
-    expect(html).toContain('href="/belajar/kursus-uji/materi/crs-1-m2"');
     // Pane masuk ke kolom baca.
     expect(html).toContain('<main class="min-w-0 flex-1');
     expect(html).toContain("Isi modul.");
-    // Drawer adalah `<aside>` **saudara** rail dan main di dalam satu baris flex,
-    // bukan portal/overlay: itu yang membuat docking `xl` Task 6 bekerja — ia
+    // Drawer adalah `<aside>` **saudara** main di dalam satu baris flex, bukan
+    // portal/overlay: itu yang membuat docking `xl` Task 6 bekerja — ia
     // menggeser pane, bukan menutupinya.
     expect(html).toMatch(/<aside id="drawer-tutor"[^>]*class="[^"]*\bhidden\b/);
   });
@@ -280,8 +293,40 @@ describe("MateriShell", () => {
     // atas modul. `h-dvh overflow-hidden` memindahkan gulir ke baris, pola yang
     // sudah dipakai reader ter-dock repo ini (`book-reader.tsx:31`).
     const html = render();
-    expect(html).toContain('<div class="flex h-dvh flex-col overflow-hidden bg-white">');
+    expect(html).toContain('<div class="reader-shell flex h-dvh flex-col overflow-hidden">');
     expect(html).not.toContain("min-h-dvh");
+  });
+
+  it("menaruh ajakan sesi di atas kartu materi, bukan di bar fokus", () => {
+    /**
+     * Permintaan yang sebenarnya: kartu verifikasi kuning harus **di atas
+     * kartu materi**, bukan di dalam bar fokus.
+     *
+     * Alasannya bentuk, bukan isi — bar fokus `sticky`, jadi apa pun yang
+     * tinggal di dalamnya ikut mengambang sepanjang modul, dan kartu amber
+     * setinggi beberapa baris menutupi judul modul tepat saat peserta
+     * membacanya.
+     *
+     * Diperiksa lewat **urutan di HTML**, bukan `toContain`: kedua komponen
+     * ada di dokumen yang sama dalam keadaan seed `wajib`, jadi keberadaan
+     * saja tidak membuktikan siapa yang di atas siapa. Yang dijaga adalah
+     * urutan render — kartu sesi mendahului isi modul.
+     */
+    pathname.nilai = "/belajar/kursus-uji/materi/crs-1-m1";
+    const html = render();
+    const kartuSesi = html.indexOf("Course ini mewajibkan sesi terverifikasi");
+    const isiModul = html.indexOf("Isi modul.");
+    // Penanda yang hilang membuat test merah, bukan lulus diam-diam.
+    expect(kartuSesi, "kartu ajakan sesi tidak dirender").toBeGreaterThanOrEqual(0);
+    expect(isiModul, "isi modul tidak dirender").toBeGreaterThanOrEqual(0);
+    expect(kartuSesi).toBeLessThan(isiModul);
+
+    // Keduanya harus berada di kolom baca (`<main>`) — kalau kartu sesi
+    // kembali ke dalam `<header>`, urutannya masih "di atas" markup modul dan
+    // assertion di atas tetap hijau tanpa perubahan yang diklaimnya.
+    const main = potongan(html, "<main", "</main>");
+    expect(main).toContain("Course ini mewajibkan sesi terverifikasi");
+    expect(barFokus(html)).not.toContain("Course ini mewajibkan sesi terverifikasi");
   });
 
   it("menyembunyikan drawer sampai tombol tutor ditekan", () => {
@@ -289,81 +334,25 @@ describe("MateriShell", () => {
     const html = render();
     // `aria-expanded="false"` pada tombol dan `hidden` pada `<aside>` harus
     // sejalan; kalau tidak, tombol mengaku tertutup sementara panelnya terbuka.
-    // Di-scope ke tombol drawer: sejak tombol "Daftar modul" ada, bar
-    // merender **dua** `aria-expanded="false"`, dan assertion seluruh-dokumen
-    // tidak lagi membuktikan tombol mana yang dibicarakan.
+    // Di-scope ke tombol drawer: bar merender **dua** `aria-expanded="false"`
+    // (drawer dan pemicu silabus), dan assertion seluruh-dokumen tidak lagi
+    // membuktikan tombol mana yang dibicarakan.
     const tombol = html.match(/<button [^>]*aria-controls="drawer-tutor"[^>]*>/)?.[0];
     expect(tombol).toBeDefined();
     expect(tombol).toContain('aria-expanded="false"');
     expect(html).toMatch(/<aside id="drawer-tutor"[^>]*class="[^"]*\bhidden\b/);
-    // Panel modul **tidak** dirender saat tertutup — bukan hanya disembunyikan
-    // dengan kelas. Daftar modulnya tidak boleh ada dua kali di layar `lg`, dan
-    // di bawah `lg` panelnya hanya ada kalau dibuka.
-    expect(html).not.toContain('id="panel-modul"');
+    // Panel silabus **tidak** dirender saat tertutup — bukan hanya disembunyikan
+    // dengan kelas. Ia `portal` ke `<body>`, jadi daftar modulnya benar-benar
+    // tidak ada sampai dibuka; tidak ada panel tersembunyi yang bisa dijangkau
+    // Tab.
+    expect(html).not.toContain('id="reader-panel-silabus"');
   });
 
   it("menandai modul yang sudah selesai dari prop `selesai`", () => {
     pathname.nilai = "/belajar/kursus-uji/materi/crs-1-m1";
-    const html = render({ selesai: ["crs-1-m1"] });
-    // Dua pengawatan terpisah, jadi keduanya diperiksa di tempatnya masing-masing:
-    // `Selesai` seluruh-dokumen sudah terpenuhi oleh rail sendirian, sehingga
-    // menjatuhkan `sudah` dari bar tidak akan terlihat.
-    expect(railModul(html)).toContain("Selesai");
-    expect(barFokus(html)).toContain("Selesai");
-  });
-});
-
-/**
- * Panel "Daftar modul" — pengganti rail di bawah `lg` (spec §3.1).
- *
- * `PanelModulMobile` dirender **langsung**, bukan lewat `MateriShell`: ia hanya
- * muncul dari state `useState`, dan di lingkungan `node` tanpa jsdom
- * `renderToStaticMarkup` tidak menjalankan efek maupun klik, jadi tidak ada cara
- * membuka panelnya dari luar. Merendernya langsung justru yang membuat properti
- * yang paling mudah rusak bisa diperiksa: panel memuat `MateriRail` **yang
- * sama**, punya id yang dirujuk `aria-controls` tombol, dan membawa `lg:hidden`
- * yang mencegahnya tampil di samping rail permanen.
- */
-describe("PanelModulMobile", () => {
-  it("memakai ulang MateriRail — bukan daftar modul kedua", () => {
-    const html = renderToStaticMarkup(
-      createElement(PanelModulMobile, {
-        slug: "kursus-uji",
-        modul: MODUL,
-        modulAktif: "crs-1-m1",
-        selesai: [],
-      }),
-    );
-    // Semua modul, dengan tautan reader-nya, dari komponen rail yang sama.
-    expect(html).toContain('nav aria-label="Daftar modul"');
-    expect(html).toContain('href="/belajar/kursus-uji/materi/crs-1-m1"');
-    expect(html).toContain('href="/belajar/kursus-uji/materi/crs-1-m2"');
-    // Id berspasi sengaja tidak di-encode di sini: yang dikunci adalah "panel
-    // ini merender rail yang sama", bukan aturan encoding tautan rail (yang
-    // sudah punya test sendiri di `materi-rail.test.ts`).
-    expect(html.match(/<a /g) ?? []).toHaveLength(MODUL.length);
-  });
-
-  it("membawa id yang dirujuk `aria-controls` tombol, dan hanya di bawah `lg`", () => {
-    const html = renderToStaticMarkup(
-      createElement(PanelModulMobile, {
-        slug: "kursus-uji",
-        modul: MODUL,
-        modulAktif: "crs-1-m1",
-        selesai: [],
-      }),
-    );
-    // `MateriFocusBar` memasang `aria-controls="panel-modul"`; rujukan yang
-    // menunjuk id tidak ada tidak menjaga apa pun.
-    expect(html).toContain('id="panel-modul"');
-    // Di `lg` ke atas rail `w-72` sudah permanen, jadi tanpa `lg:hidden` panel
-    // ini muncul sebagai daftar modul **kedua** — di dokumen yang sama.
-    const pembungkus = html.match(/<div id="panel-modul"[^>]*>/)?.[0];
-    expect(pembungkus).toBeDefined();
-    expect(pembungkus).toContain("lg:hidden");
-    // Ia menggulir sendiri dan dibatasi tinggi: tanpa itu ia menggelembungkan
-    // baris flex yang membatasi tinggi shell.
-    expect(pembungkus).toContain("overflow-y-auto");
-    expect(pembungkus).toContain("min-h-0");
+    // Daftar modulnya hidup di panel (`portal`, tidak ada saat tertutup), jadi
+    // satu-satunya tempat status "selesai" bisa dilihat tanpa membuka panel
+    // adalah tombol "Tandai selesai" di bar — dan itulah yang dijaga di sini.
+    expect(barFokus(render({ selesai: ["crs-1-m1"] }))).toContain("Selesai");
   });
 });

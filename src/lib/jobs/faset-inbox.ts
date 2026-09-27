@@ -32,6 +32,7 @@
  */
 
 import type { InboxJob } from "@/lib/career-ops";
+import { kunciHari } from "@/lib/learning/kehadiran";
 
 /** The bucket a title we do not specifically recognize falls into. */
 export const KATEGORI_LAINNYA = "Teknologi";
@@ -356,11 +357,38 @@ export function daftarPerusahaan(baris: BarisFaset[]): string[] {
 /**
  * Rows the engine first recorded today, in the posting's own `firstSeen` date.
  *
- * "Hari ini" is read in the server's local day and compared as a string, because
+ * "Hari ini" is read in the host's local day and compared as a string, because
  * `firstSeen` is a `YYYY-MM-DD` label rather than an instant: there is no time
  * component to convert, and treating one as a timezone would move a posting
  * across the day boundary for no reason.
+ *
+ * The day passed in must come from `kunciHariIni` — see that function for why a
+ * UTC slice makes this counter read 0 for the first hours of every WIB day.
  */
 export function hitungBarisHariIni(baris: BarisFaset[], hariIni: string): number {
   return baris.filter((b) => b.firstSeen === hariIni).length;
+}
+
+/**
+ * Today's date as the engine stamps it, for comparing against `firstSeen`.
+ *
+ * **Not `new Date().toISOString().slice(0, 10)`.** That is the UTC day, and the
+ * engine stamps `first_seen` with the *host's* local day (`engine/lib/local-today.mjs`,
+ * whose own comment records that using UTC was wrong in both directions). At
+ * 00:40 WIB the UTC slice still says yesterday, so the page compared postings
+ * against a day that had not started yet and "Lowongan baru hari ini" read `0`
+ * for the first seven hours of every WIB day — the exact window in which a user
+ * checks whether a scan brought anything.
+ *
+ * `kunciHari` is the repo's canonical "what calendar day is it for this person"
+ * helper (`src/lib/learning/kehadiran.ts`), already used for attendance and
+ * streaks, and it resolves to `Asia/Jakarta` — the same answer the engine's
+ * `localToday()` produces on a WIB host. Reusing it keeps one definition of a
+ * learner-facing day instead of a second one that could drift.
+ *
+ * `now` is injectable so the day boundary can be tested without waiting for
+ * midnight; the default is pure and needs no clock mock.
+ */
+export function kunciHariIni(now: Date = new Date()): string {
+  return kunciHari(now);
 }

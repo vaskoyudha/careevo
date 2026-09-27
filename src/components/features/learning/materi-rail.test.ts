@@ -86,4 +86,50 @@ describe("MateriRail", () => {
     expect(html).toContain("1 halaman");
     expect(html).toContain("1 kuis");
   });
+
+  it("membuang baris meta di bentuk ciut, tapi tetap memuat semua modul", () => {
+    /**
+     * Bentuk ciut bukan daftar lain: ia daftar yang **sama**, hanya tanpa baris
+     * meta. Kalau `ringkas` sampai menyaring modul, rail ciut berhenti menjadi
+     * peta kemajuan — dan itu satu-satunya alasan rail ini ada.
+     */
+    const html = renderToStaticMarkup(
+      createElement(MateriRail, {
+        slug: "kursus-uji",
+        modul: KURIKULUM,
+        modulAktif: "crs-1-m1",
+        selesai: [],
+        ringkas: true,
+      }),
+    );
+    expect(html).toContain("Orientasi");
+    expect(html).toContain("Mendalami React");
+    expect(html).toContain("Penutup");
+    expect(html).toContain('href="/belajar/kursus-uji/materi/crs-1-m2"');
+    expect(html.match(/aria-current="page"/g) ?? []).toHaveLength(1);
+    // Meta yang dibuang: di 104px ia jadi dua baris 10px yang tidak terbaca.
+    expect(html).not.toContain("1 halaman");
+    expect(html).not.toContain(" mnt");
+    // Judul panel ikut hilang (tidak muat), tapi nama nav-nya tidak — pembaca
+    // layar masih mendengar "Daftar modul".
+    expect(html).not.toContain(">Daftar modul<");
+    expect(html).toContain('aria-label="Daftar modul"');
+    // Nama penuh modul tetap terjangkau lewat tooltip, karena judulnya terpotong.
+    expect(html).toContain('title="2. Mendalami React"');
+  });
+
+  it("menjaga status selesai terbaca saat judulnya terpotong", () => {
+    // Centangnya `aria-hidden`, jadi di bentuk ciut satu-satunya penanda
+    // "selesai" yang tersisa bagi pembaca layar adalah teks ini.
+    const html = renderToStaticMarkup(
+      createElement(MateriRail, {
+        slug: "kursus-uji",
+        modul: KURIKULUM,
+        modulAktif: "crs-1-m1",
+        selesai: ["crs-1-m1"],
+        ringkas: true,
+      }),
+    );
+    expect(html).toContain("Selesai");
+  });
 });
