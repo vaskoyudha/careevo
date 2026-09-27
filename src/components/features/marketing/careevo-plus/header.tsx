@@ -72,16 +72,19 @@ export function CareevoPlusSubNav() {
     <ScrollSubNav ambang={360}>
       <Link
         href="#main"
-        className="flex shrink-0 items-center gap-1.5 text-lg font-bold tracking-tight text-gray-900"
+        className="flex min-w-0 shrink-0 items-center gap-1.5 text-lg font-bold tracking-tight text-gray-900"
       >
         <span>Care<span className="text-[#0056D2]">evo</span></span>
-        <span className="rounded-[3px] border border-[#0056D2] px-1 text-[10px] font-bold text-[#0056D2]">
+        <span className="shrink-0 rounded-[3px] border border-[#0056D2] px-1 text-[10px] font-bold text-[#0056D2]">
           PLUS
         </span>
       </Link>
+      {/* The CTA keeps its `shrink-0` but tightens its padding on the narrowest
+          screens: full desktop padding overflowed `subnav-inner` by ~1px at
+          320px. */}
       <Link
         href="#paket"
-        className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg bg-[#0056D2] px-5 text-sm font-semibold text-white shadow-xs transition-colors duration-200 hover:bg-[#0046ab]"
+        className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg bg-[#0056D2] px-3 text-sm font-semibold whitespace-nowrap text-white shadow-xs transition-colors duration-200 hover:bg-[#0046ab] sm:px-5"
       >
         Hemat 40% sekarang
       </Link>
