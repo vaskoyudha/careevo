@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { cpp } from "@codemirror/lang-cpp";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
@@ -8,6 +8,8 @@ import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
 import { cn } from "@/lib/utils";
+import { setPersistentValue, usePersistentValue } from "@/lib/hooks/use-persistent-state";
+import { petakanStatus, type NadaJalankan, type StatusJalankan } from "@/lib/exec/port";
 import type { BahasaKode } from "@/types/course";
 
 /**
@@ -22,8 +24,26 @@ import type { BahasaKode } from "@/types/course";
  * `EditorView` dibuat. Membangunnya saat render berarti menjalankannya saat
  * server merender, dan itu menjatuhkan build.
  *
+ * **Kenapa komponen ini yang memegang tombol Jalankan.** Kalau tombolnya
+ * diletakkan pada komponen terpisah, ada dua tempat memanggil
+ * `POST /api/jalankan` dan dua tempat memetakan status jadi kalimat — dan
+ * hanya satu yang akan ikut diperbarui saat kalimatnya berubah.
+ * `petakanStatus` sudah ditulis supaya kata-katanya hidup di satu tempat.
+ *
+ * **Yang tidak boleh bocor ke peramban.** Angka exit mentah tidak pernah
+ * dibandingkan maupun ditampilkan di sini. Angka itu detail internal
+ * pengisolasi, dan dari luar kontainer satu angka yang sama menandai beberapa
+ * peristiwa berbeda — peserta yang membaca "137" akan mengira programnya salah,
+ * padahal itu kehabisan waktu. Status semantik sudah membawa artinya; komponen
+ * hanya membacanya lewat `petakanStatus`, dan test di
+ * `src/lib/learning/kode-view.test.ts` mengunci kata itu agar tidak muncul
+ * kembali di sini — termasuk di komentar, supaya berkasnya bebas dari detail
+ * yang tidak pernah boleh menyentuh peramban.
+ *
  * Berkas ini tidak boleh mengimpor modul server. Ia dipanggil dari
- * `halaman-view.tsx` dan `blok-editor.tsx`, keduanya klien.
+ * `halaman-view.tsx` dan `blok-editor.tsx`, keduanya klien. `@/lib/exec/port`
+ * aman diimpor justru karena ia murni: tidak ada `node:*`, tidak ada `fetch`,
+ * tidak ada `process`.
  */
 
 /**
@@ -161,8 +181,61 @@ const GAYA_SOROTAN = HighlightStyle.define([
 // gramatika menandainya sebagai `paren`/`brace`/`separator`/`*Operator` —
 // bukan `punctuation` — jadi aturan `punctuation` pun tidak akan pernah cocok.
 
+/**
+ * Warna panel sesuai nada status.
+ *
+ * Kuncinya `NadaJalankan` dari `@/lib/exec/port`, bukan `string`, jadi menambah
+ * nada di sana membuat `tsc` gagal di sini dan panelnya tidak pernah punya nada
+ * tanpa warna. Warna dipilih dari nada, bukan dari teks status, supaya
+ * komponen ini tidak pernah membaca `status` hanya untuk memilih warna.
+ *
+ * `text-success` mengikuti pola yang sudah dipakai untuk pesan hasil di
+ * `mastery-topic-view.tsx`. Nilai hex tidak ditulis tangan di sini karena
+ * `--color-success` sudah jadi token tema.
+ */
+const GAYA_NADA: Record<NadaJalankan, string> = {
+  sukses: "text-success",
+  galat: "text-red-700",
+  info: "text-gray-600",
+};
+
+/**
+ * Isi pane keluaran setelah status diterjemahkan jadi kalimat.
+ *
+ * `judul` sudah Bahasa Indonesia, dari `petakanStatus` atau dari pesan
+ * penolakan gerbang di route. Pane ini tidak pernah menampilkan `status` mentah
+ * maupun angka exit mentah.
+ */
+interface HasilPane {
+  judul: string;
+  nada: NadaJalankan;
+  detail?: string;
+  stdout: string;
+  stderr: string;
+  /** True kalau `stderr` datang dari g++, bukan dari program. */
+  dariKompilator: boolean;
+}
+
+/**
+ * Bentuk balasan `/api/jalankan`, dipisah berdasarkan `ok`.
+ *
+ * Penolakan gerbang (403 asal, 401 sesi, 429 rate limit, 400 bentuk) menjawab
+ * `{ ok: false, error }` dan tidak punya `status`. Menemapkannya menjadi
+ * `galat_runner` akan berbohong dengan cara lain: "layanan sedang tidak
+ * tersedia" untuk sesi yang sudah habis membuat peserta mengira masalahnya ada
+ * di programnya. Pesan route sudah Bahasa Indonesia dan menyebut penyebabnya.
+ */
+type BalasanJalankan =
+  | { ok: true; status?: StatusJalankan; stdout?: string; stderr?: string }
+  | { ok: false; error: string };
+
 export function KodeView({
   kode,
+  bahasa,
+  kunci,
+  kodeAwal,
+  stdin,
+  dapatJalankan = false,
   editable = false,
   onChange,
   label = "Kode",
@@ -170,6 +243,36 @@ export function KodeView({
 }: {
   kode: string;
   bahasa: BahasaKode;
+  /**
+   * Identitas stabil untuk ruang latihan peserta.
+   *
+   * Di jalur peserta ini `blok.id`, karena blok yang tampil sudah tersimpan dan
+   * sudah punya id. Di editor admin harus memakai identitas lokal blok
+   * (`kunci.dari(index)`), bukan `blok.id`: blok yang belum disimpan punya
+   * `id: ""`, sehingga seluruh blok kode yang belum disimpan akan berbagi satu
+   * kunci ruang latihan. Itu kelas bentrok yang sama persis dengan yang
+   * `useKunciBlok` ada untuk cegah.
+   */
+  kunci: string;
+  /**
+   * Titik mulai peserta di ruang latihan. Absen berarti sama dengan `kode`.
+   *
+   * Opsional karena itu pun kontraknya: tidak diisi berarti "mulai dari kode
+   * yang sama seperti yang ditulis ahli", dan itulah kasus yang paling sering.
+   */
+  kodeAwal?: string;
+  /** Masukan latihan yang dikirim ke program. */
+  stdin?: string;
+  /**
+   * Hanya `true` yang menampilkan tombol Jalankan.
+   *
+   * Absen berarti `false`, jadi blok yang sakelarnya tidak menyala tampil
+   * **tanpa tombol sama sekali**, bukan dengan tombol yang menolak saat diklik.
+   * Gerbang yang sama ditegakkan server: skema badannya di `/api/jalankan`
+   * memakai `z.literal(true)`, jadi permintaan yang salah tetap 400 walaupun
+   * dikirim langsung dari konsol peramban.
+   */
+  dapatJalankan?: boolean;
   editable?: boolean;
   onChange?: (kode: string) => void;
   label?: string;
@@ -178,6 +281,38 @@ export function KodeView({
   const wadah = useRef<HTMLDivElement>(null);
   const tampilan = useRef<EditorView | null>(null);
   const sifatRef = useRef(new Compartment());
+
+  /**
+   * Ruang latihan peserta: tempat mencoba, **bukan bukti**.
+   *
+   * Isinya bertahan di `localStorage` supaya mengedit tidak hilang saat pindah
+   * halaman. Itu seluruh janjinya. Ruang ini sengaja tidak punya jalan ke
+   * `submissions`, ke `attestations`, atau ke apa pun yang dibaca verifikator.
+   * Kalau suatu hari ada yang ingin menaikkan teks ini menjadi karya atau
+   * kredensial, itu keputusan tersendiri dengan bukti sendiri. Jangan memulainya
+   * dengan menyambungkan berkas ini ke sana, dan jangan menganggap isinya sudah
+   * terverifikasi hanya karena bisa dijalankan.
+   *
+   * Aksesnya lewat `usePersistentValue`/`setPersistentValue` yang sudah ada di
+   * `@/lib/hooks/use-persistent-state`, bukan panggilan `localStorage` mentah.
+   * Alasannya bukan gaya: kedua helper itu memberi tahu lewat satu `EventTarget`
+   * modul, jadi setiap komponen yang memakai kunci sama ikut tahu saat
+   * nilainya berubah.
+   */
+  const kunciRuangLatihan = `careevo:kode:${kunci}`;
+  const tersimpan = usePersistentValue(kunciRuangLatihan);
+  const [menjalankan, setMenjalankan] = useState(false);
+  const [hasil, setHasil] = useState<HasilPane | null>(null);
+
+  /**
+   * Teks yang dijalankan adalah teks ruang latihan, bukan `kode` prop.
+   *
+   * Urutannya `tersimpan` dulu, baru `kodeAwal`, lalu `kode`. Yang menentukan
+   * adalah `??` dan bukan `||`: dengan `||`, mengosongkan editor sepenuhnya akan
+   * mengembalikan teks ke kode ahli, dan tombol Jalankan akan menjalankan
+   * program yang tidak ada di layar.
+   */
+  const teks = tersimpan ?? kodeAwal ?? kode;
 
   // `onChange` lahir ulang setiap render. Menyimpannya di ref membuat efek
   // pembuatan tampilan tidak bergantung padanya, sehingga editor tidak dibangun
@@ -190,6 +325,15 @@ export function KodeView({
     onChangeRef.current = onChange;
   }, [onChange]);
 
+  // Kunci ruang latihan juga dibaca lewat ref, dengan alasan yang sama: nilainya
+  // ikut berubah kalau bloknya berpindah (`kunci.dari(index)` pada editor admin
+  // ikut bergerak saat blok ditukar), dan listener yang menutup kunci lamanya
+  // akan menulis hasil ruang latihan ke blok yang salah.
+  const kunciLatihanRef = useRef(kunciRuangLatihan);
+  useEffect(() => {
+    kunciLatihanRef.current = kunciRuangLatihan;
+  }, [kunciRuangLatihan]);
+
   // Efek pembuatan. Wajib dideklarasikan sebelum efek `editable` dan `kode`
   // di bawahnya: keduanya membaca `tampilan.current`, dan efek berjalan sesuai
   // urutan deklarasi. Letakkan juga di depan efek sinkron `onChangeRef` itu
@@ -200,7 +344,11 @@ export function KodeView({
 
     const view = new EditorView({
       state: EditorState.create({
-        doc: kode,
+        // `teks`, bukan `kode`: kalau peserta sudah punya ruang latihan, editor
+        // harus dibuka pada teks itu. Membuka pada `kode` lalu menjalankan
+        // `teks` berarti peserta membaca satu program dan menjalankan program
+        // lain, dan tidak ada apa pun di layar yang menunjukkan bedanya.
+        doc: teks,
         extensions: [
           cpp(),
           // Tanpa ekstensi inilah blok kode tampil sebagai teks polos: gramatika
@@ -220,7 +368,12 @@ export function KodeView({
           sifatRef.current.of(sifat(editable, label)),
           EditorView.updateListener.of((perubahan) => {
             if (!perubahan.docChanged) return;
-            onChangeRef.current?.(perubahan.state.doc.toString());
+            const berikut = perubahan.state.doc.toString();
+            // Disimpan di sini, bukan hanya saat tombol ditekan. Kalau disimpan
+            // saat menjalankan saja, mengedit lalu pindah halaman tanpa
+            // menjalankan akan membuang seluruh pekerjaan peserta.
+            setPersistentValue(kunciLatihanRef.current, berikut);
+            onChangeRef.current?.(berikut);
           }),
         ],
       }),
@@ -243,17 +396,160 @@ export function KodeView({
     view.dispatch({ effects: sifatRef.current.reconfigure(sifat(editable, label)) });
   }, [editable, label]);
 
-  // Dokumen bisa diubah dari luar, misalnya saat kode awal baru dimuat.
-  // Perbandingan mencegah efek ini melawan pengetikan peserta.
+  // Dokumen bisa diubah dari luar, misalnya saat ruang latihan baru dimuat
+  // setelah hidrasi, atau saat kode blok berubah di editor admin.
+  //
+  // Bandingkan dengan `teks`, bukan `kode`: `teks` adalah dokumen yang benar,
+  // sedangkan `kode` bisa berupa cuplikan awal yang memang harus diganti oleh
+  // ruang latihan peserta. Perbandingan yang mencegah efek ini melawan
+  // pengetikan peserta tetap ada, hanya sasarannya yang pindah.
   useEffect(() => {
     const view = tampilan.current;
     if (!view) return;
     const sekarang = view.state.doc.toString();
-    if (sekarang === kode) return;
-    view.dispatch({ changes: { from: 0, to: sekarang.length, insert: kode } });
-  }, [kode]);
+    if (sekarang === teks) return;
+    view.dispatch({ changes: { from: 0, to: sekarang.length, insert: teks } });
+  }, [teks]);
 
-  return <div ref={wadah} className={cn("kode-view", className)} />;
+  /**
+   * Kirim ke server dan tampilkan hasilnya.
+   *
+   * **Tidak ada yang dijalankan di sini.** Komponen ini tidak pernah memanggil
+   * proses apa pun; ia hanya mengirim teks dan membaca jawaban.
+   * `@/lib/exec/port` tetap murni supaya berkas ini boleh diimpor dari klien.
+   *
+   * Field `dapatDijalankan` dikirim apa adanya. Namanya **berbeda** dari prop
+   * `dapatJalankan`, dan itu bukan salah ketik: nama field di badan adalah
+   * `z.literal(true)` di `skemaTubuh`, jadi menuliskan bentuk lain membuat
+   * setiap permintaan ditolak 400.
+   */
+  const jalankan = useCallback(async () => {
+    setMenjalankan(true);
+    setHasil(null);
+    try {
+      const balasan = await fetch("/api/jalankan", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ bahasa, kode: teks, stdin, dapatDijalankan: true }),
+      });
+      const data = (await balasan.json()) as BalasanJalankan;
+      if (!data.ok) {
+        // Penolakan gerbang: sebabnya sudah dijelaskan route, jadi tampilkan
+        // pesan itu. Mengubahnya jadi `galat_runner` akan mengarahkan peserta
+        // ke programnya sendiri, padahal programnya belum pernah dijalankan.
+        setHasil({ judul: data.error, nada: "galat", stdout: "", stderr: "", dariKompilator: false });
+        return;
+      }
+      // `petakanStatus` sudah jadi satu-satunya sumber kalimatnya. Kalau
+      // `status` tidak ada di balasan 200, itu masalah runner dan bukan salah
+      // program peserta, jadi `galat_runner` yang tepat di sini.
+      const peta = petakanStatus(data.status ?? "galat_runner");
+      setHasil({
+        judul: peta.judul,
+        nada: peta.nada,
+        detail: peta.detail,
+        stdout: data.stdout ?? "",
+        stderr: data.stderr ?? "",
+        dariKompilator: data.status === "gagal_kompilasi",
+      });
+    } catch {
+      // Jaringan putus, badan bukan JSON, atau server tidak menjawab. Semua itu
+      // satu hal bagi peserta: belum ada jawaban program, dan programnya belum
+      // tentu salah.
+      const peta = petakanStatus("galat_runner");
+      setHasil({ judul: peta.judul, nada: peta.nada, detail: peta.detail, stdout: "", stderr: "", dariKompilator: false });
+    } finally {
+      setMenjalankan(false);
+    }
+  }, [bahasa, teks, stdin]);
+
+  return (
+    <div className={cn("space-y-2", className)}>
+      <div ref={wadah} className="kode-view" />
+
+      {/*
+        Gerbang tombol. `=== true`, bukan kebenaran biasa: prop-nya opsional
+        dan `undefined` berarti tidak boleh dijalankan, jadi nilai apa pun yang
+        bukan `true` harus berarti tidak ada tombol sama sekali. Ini meniru
+        `z.literal(true)` di server, jadi sakelar yang mati tidak bisa dilewati
+        hanya dengan mengirim nilai lain dari peramban.
+      */}
+      {dapatJalankan === true ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={jalankan}
+            disabled={menjalankan}
+            className="cursor-pointer rounded-lg bg-[#0056D2] px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {menjalankan ? "Menjalankan…" : "Jalankan"}
+          </button>
+          <span className="text-[11px] text-gray-500">
+            Kompilasi dan dijalankan di server, di kontainer terpisah.
+          </span>
+        </div>
+      ) : null}
+
+      {hasil ? (
+        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+          {/*
+            `role="status"` ada di blok **judul saja**, bukan di pane seluruhnya.
+            Karena itu `detail` ikut terbaca sebagai bagian dari pengumuman yang
+            sama tanpa harus dua kali. Pesan compiler sengaja tidak ikut: ia
+            bisa puluhan baris, dan membacakan seluruhnya sekaligus lebih buruk
+            daripada membiarkan peserta navigasi ke `<pre>`-nya sendiri.
+          */}
+          <div className={cn("border-b border-gray-100 px-3 py-1.5", GAYA_NADA[hasil.nada])}>
+            <p className="text-xs font-semibold" role="status">
+              {hasil.judul}
+            </p>
+            {hasil.detail ? (
+              <p className="mt-0.5 text-[11px] text-gray-500">{hasil.detail}</p>
+            ) : null}
+          </div>
+
+          {/*
+            stderr ditampilkan apa adanya, tanpa dipotong dan tanpa diringkas.
+            Untuk `gagal_kompilasi` ini adalah pesan g++ lengkap dengan nomor
+            baris, dan itu justru sinyalnya: nomor baris itulah yang
+            menunjukkan ke mana peserta harus melihat. Ringkasnya jadi satu
+            kalimat "kode salah sintaks" menghapus satu-satunya informasi yang
+            berguna. `whitespace-pre-wrap` menjaga baris baru dari compiler,
+            `overflow-x-auto` menjaga baris panjang tetap bisa dibaca.
+          */}
+          {hasil.stderr ? (
+            <div
+              className={cn(
+                "px-3 py-2",
+                // Garis pemisah hanya di antara dua isi. Tanpa syarat ini, blok
+                // terakhir selalu menggantung garis di bawahnya meski tidak ada
+                // apa pun lagi setelahnya.
+                hasil.stdout ? "border-b border-gray-100" : "",
+              )}
+            >
+              <p className="text-[11px] font-semibold tracking-wider text-gray-500 uppercase">
+                {hasil.dariKompilator ? "Pesan dari kompilator" : "Pesan dari program"}
+              </p>
+              <pre className="overflow-x-auto font-mono text-[12px] whitespace-pre-wrap text-gray-800">
+                {hasil.stderr}
+              </pre>
+            </div>
+          ) : null}
+
+          {hasil.stdout ? (
+            <div className="px-3 py-2">
+              <p className="text-[11px] font-semibold tracking-wider text-gray-500 uppercase">
+                Keluaran program
+              </p>
+              <pre className="overflow-x-auto font-mono text-[12px] whitespace-pre-wrap text-gray-800">
+                {hasil.stdout}
+              </pre>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 /**
