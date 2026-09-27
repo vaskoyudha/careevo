@@ -83,3 +83,6 @@ __pycache__/
 # dokumen kerja proposal lomba (lokal, tidak dipublikasikan di repositori)
 /pendahuluan.md
 
+
+# Local git worktrees (isolated feature workspaces)
+.worktrees/
