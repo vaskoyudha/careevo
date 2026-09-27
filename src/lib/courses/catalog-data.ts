@@ -505,7 +505,11 @@ export function getProgramBySlug(slug: string): ProgramDetails {
       "Careevo programs are built in collaboration with leading technology companies and universities to deliver verified hands-on skills.",
     instructorAvatar:
       "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://coursera-instructor-photos.s3.amazonaws.com/0f/8af4a501964eb58b75f4484a0e35b3/AI-AGENTS-24-.jpg?auto=format%2Ccompress&dpr=1&w=75&h=75&fit=crop",
-    thumbnail: "/images/programs/google-data-analytics.jpg",
+    // Sengaja tanpa `thumbnail`: program sintetis ini dipakai untuk slug yang
+    // tidak ada di registry, jadi tidak ada foto yang bisa dikreditkan padanya.
+    // Satu gambar di sini membuat setiap slug tak dikenal memakai sampul program
+    // yang sama persis; `ProgramCard` lalu jatuh ke nama penyedia, yang jujur.
+    thumbnail: undefined,
     rating: 4.8,
     reviews: "50K",
     enrolled: "350,000",
