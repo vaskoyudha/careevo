@@ -14,7 +14,7 @@ import yaml from "js-yaml";
 const AKAR = mkdtempSync(path.join(tmpdir(), "careevo-portals-"));
 vi.stubEnv("CAREER_OPS_ROOT", AKAR);
 
-const { bootstrapCareerOps } = await import("./bootstrap");
+const { bootstrapCareerOps, cariSeedPortals } = await import("./bootstrap");
 
 function portalsDoc(): Record<string, unknown> {
   return yaml.load(
@@ -31,12 +31,25 @@ afterAll(() => {
 });
 
 describe("seeded portals.yml", () => {
-  it("is seeded from the engine template, not a hand-written stub", () => {
-    const nyata = readFileSync(
-      path.join(process.cwd(), "engine", "templates", "portals.example.yml"),
-      "utf8",
+  // Two assertions, one source of truth. The seeded file must be a byte copy of
+  // the Careevo config — so a hand-written 15-line stub can never come back —
+  // AND the DEFAULT candidate order must actually resolve to that config.
+  // The second half matters because bootstrap.test.ts only ever passes an
+  // explicit candidate list, so inverting the two defaults would leave the
+  // suite green while seeding the engine's Western template again. That is the
+  // same invisible-zero failure class portals.test.ts exists to catch.
+  it("is seeded from the Careevo config, not the engine template", () => {
+    const nyata = path.join(
+      process.cwd(),
+      "src",
+      "lib",
+      "career-ops",
+      "portals-careevo.yml",
     );
-    expect(readFileSync(path.join(AKAR, "portals.yml"), "utf8")).toBe(nyata);
+    expect(readFileSync(path.join(AKAR, "portals.yml"), "utf8")).toBe(
+      readFileSync(nyata, "utf8"),
+    );
+    expect(cariSeedPortals()).toBe(nyata);
   });
 
   // The regression: an allow-list of six Indonesian cities matched nothing in a
