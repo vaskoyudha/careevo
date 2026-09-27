@@ -3188,6 +3188,18 @@ button.tag:hover {
   resize: vertical;
 }
 
+/* Permukaan kode pada blok halaman. Tinggi minimum pendek supaya satu blok
+   kode tidak mengambil seluruh layar; tinggi sebenarnya mengikuti isi.
+   Warna disamakan dengan `.code-editor` di atas supaya tidak lahir warna
+   keempat untuk kode. */
+.kode-view {
+  min-height: 120px;
+  max-height: 60vh;
+  overflow: auto;
+  background: #06202f;
+  color: #d7eef7;
+}
+
 .log-list-app {
   max-height: 220px;
   overflow-y: auto;
