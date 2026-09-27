@@ -217,6 +217,11 @@ export function htmlKeTeks(html: string): string {
       .replace(/<[^>]+>/g, " "),
   )
     .replace(/[ \t\u00a0]+/g, " ")
+    // The generic tag replace above leaves a space wherever a tag was, which
+    // after a block boundary reads as an indented line ("One\n Two"). Collapse
+    // that space so the block boundary is a newline and nothing else — the
+    // rule the doc comment above promises.
+    .replace(/[ \t]*\n[ \t]*/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
