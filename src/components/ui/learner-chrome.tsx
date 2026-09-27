@@ -6,8 +6,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Search } from "./icons";
 import { ExploreMenu } from "./explore-menu";
-import { AiMasteryLink } from "./ai-mastery-link";
-import { AccountMenu, learnerNavItems } from "./chrome-parts";
+import { AccountMenu, DashboardButton, learnerNavItems } from "./chrome-parts";
 import type { SessionPayload } from "@/lib/auth/types";
 
 
@@ -96,7 +95,7 @@ export function LearnerChrome({
               </button>
             </div>
           </form>
-          <AiMasteryLink />
+          <DashboardButton />
           <AccountMenu session={session} />
         </div>
       </div>

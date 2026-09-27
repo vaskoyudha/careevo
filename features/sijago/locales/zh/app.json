@@ -1832,6 +1832,8 @@
   "Rename failed": "重命名失败",
   "Session activity": "会话活动",
   "Session title": "会话标题",
+  "Previous session": "上一个会话",
+  "Next session": "下一个会话",
   "Start a conversation to rename": "开始对话后即可重命名",
   "As you chat, the tools and references you use — and the files the tutor generates — will appear here.": "随着你聊天，使用过的工具和引用、以及 AI 导师生成的文件会显示在这里。",
   "Generated files": "生成的文件",

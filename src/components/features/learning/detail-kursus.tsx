@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { ModulKursus } from "@/lib/courses/kurikulum";
+import { levelLabel } from "@/lib/onboarding/types";
 import { hitungProgres, irisModulSelesai } from "@/lib/courses/kurikulum";
 import { checkpointEfektif, checkpointTerverifikasi, wajibSesiTerverifikasi } from "@/lib/learning/akses";
 import { daftarKursusAction, tandaiModulAction } from "@/actions/enrollment";
@@ -19,6 +20,8 @@ import {
 } from "./course-session";
 import { KejadianPanel } from "./kejadian-panel";
 import { KuisView } from "./kuis-view";
+import { KursusAiPanel } from "./kursus-ai-panel";
+import { KursusSubNav } from "./kursus-subnav";
 import type { KebijakanCourse, TipeMateri } from "@/types/course";
 
 const LABEL_TIPE: Record<TipeMateri, string> = {
@@ -81,6 +84,7 @@ export function DetailKursus({
   terkait,
   tugas,
   kebijakan,
+  aiCourseId,
 }: {
   kursus: DetailKursusData;
   modul: ModulKursus[];
@@ -89,6 +93,11 @@ export function DetailKursus({
   terkait: KursusTerkait[];
   tugas: TugasTerkait | null;
   kebijakan: KebijakanCourse;
+  /**
+   * Id course di AI Mastery, sudah di-resolve server. Sama dengan `kursus.id`
+   * bila bridging tidak tersedia — lihat `tutor-ai-kursus.ts`.
+   */
+  aiCourseId?: string;
 }) {
   return (
     <CourseSessionProvider courseId={kursus.id} kebijakan={kebijakan}>
@@ -99,6 +108,7 @@ export function DetailKursus({
         selesaiAwal={selesaiAwal}
         terkait={terkait}
         tugas={tugas}
+        aiCourseId={aiCourseId ?? kursus.id}
       />
     </CourseSessionProvider>
   );
@@ -118,6 +128,7 @@ function RuangBelajar({
   selesaiAwal,
   terkait,
   tugas,
+  aiCourseId,
 }: {
   kursus: DetailKursusData;
   modul: ModulKursus[];
@@ -125,6 +136,7 @@ function RuangBelajar({
   selesaiAwal: string[];
   terkait: KursusTerkait[];
   tugas: TugasTerkait | null;
+  aiCourseId: string;
 }) {
   const [selesai, setSelesai] = useState<string[]>(() =>
     irisModulSelesai(selesaiAwal, modul),
@@ -160,6 +172,20 @@ function RuangBelajar({
    */
   const keputusanKuis = boleh("kuis");
   /**
+   * Keputusan untuk tombol "Tanya tutor AI".
+   *
+   * `bantuan_akademik` adalah satu-satunya jenis kegiatan yang membaca
+   * `aturan_bantuan` — inilah jalur yang membuat aturan `tanpa_ai` ditegakkan di
+   * UI, dan `CourseSessionIndicator` yang menampilkan label aturan itu
+   * sebelumnya tidak punya consumers. Tanpa pemanggilan ini, kebijakan
+   * `tanpa_ai` hanya dicetak ke layar tanpa pernah membatasi apa pun.
+   *
+   * Perhatikan bahwa `putuskanAkses` untuk jenis ini **tidak** membaca
+   * `adaBuktiSesi`: tutor AI adalah bantuan belajar, bukan penyelesaian, jadi
+   * sesi terverifikasi tidak menjadi syaratnya.
+   */
+  const keputusanBantuan = boleh("bantuan_akademik");
+  /**
    * Apakah course ini mewajibkan penyelesaian lewat sesi terverifikasi.
    *
    * Hanya sifat **kebijakan**, bukan ketersediaan bukti saat ini: `bukti` sengaja
@@ -189,6 +215,14 @@ function RuangBelajar({
   const selesaiValid = irisModulSelesai(selesai, modul);
   const progres = hitungProgres(selesaiValid.length, modul.length);
   const jumlahHalaman = modul.reduce((total, m) => total + (m.halaman?.length ?? 0), 0);
+  /**
+   * Blok header course, jadi trigger sub-header lengket.
+   *
+   * Ref, bukan state: `ScrollSubNav` membacanya dari listener scroll, jadi yang
+   * dibutuhkan hanya elemennya. Menyimpan posisi scroll di state akan
+   * me-render ulang seluruh daftar modul pada setiap gerakan scroll.
+   */
+  const headerRef = useRef<HTMLDivElement>(null);
 
   const daftar = () =>
     startTransition(async () => {
@@ -266,10 +300,22 @@ function RuangBelajar({
 
   return (
     <div className="min-w-0 overflow-x-clip bg-white">
-      <div className="bg-[#f5f7fa]">
+      <KursusSubNav
+        judul={kursus.title}
+        penyedia={kursus.provider}
+        terdaftar={sudahDaftar}
+        progres={progres}
+        selesai={selesaiValid.length}
+        total={modul.length}
+        gratis={kursus.is_free}
+        pending={pending}
+        onDaftar={daftar}
+        trigger={headerRef}
+      />
+      <div ref={headerRef} className="bg-[#f5f7fa]">
         <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
           <nav aria-label="Breadcrumb" className="text-sm text-gray-500">
-            <Link href="/belajar" className="hover:text-[#0056D2] hover:underline">
+            <Link href="/belajar" className="hover:text-[#0056D2]">
               Belajar
             </Link>
             <span aria-hidden="true"> / </span>
@@ -302,7 +348,7 @@ function RuangBelajar({
           </div>
           <dl className="mt-5 grid max-w-2xl grid-cols-2 gap-3 sm:grid-cols-4">
             {[
-              ["Level", kursus.level === "dasar" ? "Pemula" : kursus.level === "menengah" ? "Menengah" : "Lanjutan"],
+              ["Level", levelLabel(kursus.level)],
               ["Durasi", `${kursus.duration_min} mnt`],
               ["Modul", `${modul.length} modul`],
               ...(kursus.rating !== null ? [["Rating", `★ ${kursus.rating.toFixed(2)}`] as [string, string]] : []),
@@ -323,7 +369,10 @@ function RuangBelajar({
 
       <div className="mx-auto w-full max-w-6xl space-y-10 px-4 py-8 sm:px-6 lg:px-8">
         <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-          <section id="kurikulum" aria-labelledby="judul-kurikulum" className="min-w-0 scroll-mt-24">
+          {/* `subnav-scroll-mt`, bukan `scroll-mt-24`: target ini sekarang bisa
+              mendarat di belakang navbar mengambang *dan* sub-header lengket,
+              yang offset-nya dipublikasikan `ScrollSubNav`. */}
+          <section id="kurikulum" aria-labelledby="judul-kurikulum" className="subnav-scroll-mt min-w-0">
             <h2 id="judul-kurikulum" className="mb-1 text-xl font-bold tracking-tight text-gray-900">
               Kurikulum
             </h2>
@@ -406,7 +455,7 @@ function RuangBelajar({
                                 setModulTerbuka(terbuka ? null : m.id);
                               }}
                               aria-expanded={terbuka}
-                              className="cursor-pointer font-medium text-[#0056D2] hover:underline"
+                              className="cursor-pointer font-medium text-[#0056D2]"
                             >
                               {terbuka ? "Tutup materi" : "Buka materi"}
                             </button>
@@ -415,7 +464,7 @@ function RuangBelajar({
                               href={m.url}
                               target="_blank"
                               rel="noreferrer"
-                              className="font-medium text-[#0056D2] hover:underline"
+                              className="font-medium text-[#0056D2]"
                             >
                               Buka materi ↗
                             </a>
@@ -503,7 +552,11 @@ function RuangBelajar({
             </ol>
           </section>
 
-          <aside aria-label="Pendaftaran" className="lg:sticky lg:top-24 lg:self-start">
+          {/* `subnav-sticky-top`, bukan `lg:top-24`: kolom ini ikut diam di
+              viewport, jadi harus berhenti di bawah sub-header lengket —
+              `top-24` (96px) berada di dalam bar (78–131px) dan kartunya
+              tertutup. */}
+          <aside aria-label="Pendaftaran" className="subnav-sticky-top lg:sticky lg:self-start">
             <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_2px_12px_rgba(0,0,0,0.08)]">
               {sudahDaftar ? (
                 <>
@@ -576,11 +629,21 @@ function RuangBelajar({
                 href={kursus.url}
                 target="_blank"
                 rel="noreferrer"
-                className="mt-3 block text-center text-sm font-medium text-[#0056D2] hover:underline"
+                className="mt-3 block text-center text-sm font-medium text-[#0056D2]"
               >
                 Buka materi eksternal ↗
               </a>
             </div>
+
+            {sudahDaftar ? (
+              <KursusAiPanel
+                courseId={aiCourseId}
+                judul={kursus.title}
+                penyedia={kursus.provider}
+                jumlahModul={modul.length}
+                akses={keputusanBantuan}
+              />
+            ) : null}
           </aside>
         </div>
 
@@ -627,7 +690,7 @@ function RuangBelajar({
                     {item.title}
                   </h3>
                   <p className="mt-1 text-xs text-gray-500">
-                    {item.level === "dasar" ? "Pemula" : item.level === "menengah" ? "Menengah" : "Lanjutan"} ·{" "}
+                    {levelLabel(item.level)} ·{" "}
                     {item.duration_min} mnt · {item.is_free ? "Gratis" : "Plus"}
                   </p>
                 </Link>

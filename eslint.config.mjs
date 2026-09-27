@@ -16,6 +16,11 @@ const eslintConfig = defineConfig([
     // project and carrying its own licence. It is neither type-checked nor
     // linted by Careevo's config — see `features/sijago/README.md`.
     "features/sijago/**",
+    // DeepTutor backend: vendored upstream app (git-tracked, 1k+ TS files) kept
+    // in `backend/`. Its own web app has its own eslint/tsconfig rules and is
+    // never part of the Careevo build graph; linting it here floods
+    // `npm run lint` with upstream errors and drowns the Careevo signal.
+    "backend/**",
     // career-ops engine: vendored verbatim from the career-ops repo into
     // `engine/`. It is plain Node `.mjs` (its own lints/tests live upstream),
     // never part of the Next build graph — it is orchestrated via child_process

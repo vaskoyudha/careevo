@@ -3,9 +3,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { ReactNode } from "react";
 import { Search } from "./icons";
 import { ExploreMenu } from "./explore-menu";
-import { AccountMenu, learnerNavItems } from "./chrome-parts";
+import { AccountMenu, DashboardButton, learnerNavItems } from "./chrome-parts";
 import type { SessionPayload } from "@/lib/auth/types";
 
 /**
@@ -29,8 +30,27 @@ import type { SessionPayload } from "@/lib/auth/types";
  *
  * The bar reuses `.chrome`, `.nav-item` and `.chrome-btn` rather than
  * restyling them — `globals.css` holds the wing path and its drop-shadow.
+ *
+ * `pageLabel` and `sidebarToggle` are the dashboard shell's extras: `AppShell`
+ * used to render a second, separate topbar for the page title and the sidebar
+ * toggle; both now live here so there is one chrome instead of two.
  */
-export function AiMasteryNavbar({ session }: { session: SessionPayload }) {
+export function AiMasteryNavbar({
+  session,
+  pageLabel,
+  sidebarToggle,
+  showSearch = true,
+}: {
+  session: SessionPayload;
+  /** Page name shown in the chip beside the brand (dashboard shell only). */
+  pageLabel?: string;
+  /** Control rendered in `.chrome-actions` before the account menu (dashboard
+   *  shell's sidebar toggle; omitted on `/ai-mastery`). */
+  sidebarToggle?: ReactNode;
+  /** The dashboard shell hides the search field — a search box beside a page
+   *  that already has its own navigation reads as a second command surface. */
+  showSearch?: boolean;
+}) {
   const pathname = usePathname();
 
   const isActive = (href: string) =>
@@ -42,16 +62,28 @@ export function AiMasteryNavbar({ session }: { session: SessionPayload }) {
         Lewati ke konten utama
       </a>
       <div className="chrome is-winged relative is-top">
-        <Link className="chrome-brand" href="/" aria-label="Careevo">
-          <Image
-            src="/careevo-logo.png"
-            alt="Careevo"
-            width={250}
-            height={64}
-            priority
-            className="h-10 w-auto object-contain transition-transform duration-300 hover:scale-105"
-          />
-        </Link>
+        <div className="flex min-w-0 items-center gap-2">
+          <Link className="chrome-brand" href="/" aria-label="Careevo">
+            <Image
+              src="/careevo-logo.png"
+              alt="Careevo"
+              width={250}
+              height={64}
+              priority
+              className="h-10 w-auto object-contain transition-transform duration-300 hover:scale-105"
+            />
+          </Link>
+          {pageLabel ? (
+            <>
+              <span className="chrome-page-sep hidden sm:inline" aria-hidden="true">
+                /
+              </span>
+              <span className="chrome-page-label hidden sm:inline-flex">
+                {pageLabel}
+              </span>
+            </>
+          ) : null}
+        </div>
         <nav className="nav-float" aria-label="Navigasi utama">
           <ExploreMenu />
           {learnerNavItems.map((item) => {
@@ -70,33 +102,37 @@ export function AiMasteryNavbar({ session }: { session: SessionPayload }) {
           })}
         </nav>
         <div className="chrome-actions">
-          <form
-            role="search"
-            action="/belajar"
-            method="get"
-            className="learner-search hidden min-w-0 flex-1 items-center md:flex"
-          >
-            <label htmlFor="ai-mastery-search" className="sr-only">
-              Cari kursus
-            </label>
-            <div className="flex h-10 w-full max-w-xs items-center gap-2 rounded-full border border-black/15 bg-white/80 pr-1 pl-3.5 focus-within:border-[#0056D2]">
-              <Search className="h-4 w-4 shrink-0 text-black/50" aria-hidden="true" />
-              <input
-                id="ai-mastery-search"
-                name="q"
-                type="search"
-                autoComplete="off"
-                placeholder="Mau belajar apa?"
-                className="w-full bg-transparent text-[13.5px] text-black outline-none placeholder:text-black/45"
-              />
-              <button
-                type="submit"
-                className="brand-fill shrink-0 cursor-pointer rounded-full px-3.5 py-1.5 text-[13px] font-semibold"
-              >
-                Cari
-              </button>
-            </div>
-          </form>
+          {showSearch ? (
+            <form
+              role="search"
+              action="/belajar"
+              method="get"
+              className="learner-search hidden min-w-0 flex-1 items-center md:flex"
+            >
+              <label htmlFor="ai-mastery-search" className="sr-only">
+                Cari kursus
+              </label>
+              <div className="flex h-10 w-full max-w-xs items-center gap-2 rounded-full border border-black/15 bg-white/80 pr-1 pl-3.5 focus-within:border-[#0056D2]">
+                <Search className="h-4 w-4 shrink-0 text-black/50" aria-hidden="true" />
+                <input
+                  id="ai-mastery-search"
+                  name="q"
+                  type="search"
+                  autoComplete="off"
+                  placeholder="Mau belajar apa?"
+                  className="w-full bg-transparent text-[13.5px] text-black outline-none placeholder:text-black/45"
+                />
+                <button
+                  type="submit"
+                  className="brand-fill shrink-0 cursor-pointer rounded-full px-3.5 py-1.5 text-[13px] font-semibold"
+                >
+                  Cari
+                </button>
+              </div>
+            </form>
+          ) : null}
+          {sidebarToggle}
+          <DashboardButton />
           <AccountMenu session={session} />
         </div>
       </div>

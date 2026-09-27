@@ -13,7 +13,6 @@ import Link from "next/link";
 import {
   AtSign,
   BookOpen,
-  Brain,
   ChevronRight,
   ClipboardList,
   Database,
@@ -172,12 +171,6 @@ const SPACE_CATEGORIES: Record<string, SpaceCategoryDef> = {
     label: "Persona",
     icon: UserRound,
   },
-  memory: {
-    key: "memory",
-    href: "/memory",
-    label: "Memory",
-    icon: Brain,
-  },
 };
 
 /* Activity home surface, shared with SessionViewerPanel's Open section.
@@ -280,19 +273,6 @@ export function ActivityBody({
       >
         {space.personas.map((persona) => (
           <SpaceItemRow key={persona} title={persona} />
-        ))}
-      </SpaceSubsection>,
-    );
-  }
-  if (space.memoryKinds.length > 0) {
-    spaceSubsections.push(
-      <SpaceSubsection
-        key="memory"
-        category={SPACE_CATEGORIES.memory}
-        count={space.memoryKinds.length}
-      >
-        {space.memoryKinds.map((kind) => (
-          <SpaceItemRow key={kind} title={kind} />
         ))}
       </SpaceSubsection>,
     );

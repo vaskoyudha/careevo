@@ -108,7 +108,7 @@ export function HalamanView({
             <ol className="mt-2 space-y-1">
               {bagian.map((s) => (
                 <li key={s.id} className={s.level === 1 ? "" : s.level === 2 ? "pl-3" : "pl-6"}>
-                  <a href={`#${s.id}`} className="text-sm text-[#0056D2] hover:underline">
+                  <a href={`#${s.id}`} className="text-sm text-[#0056D2]">
                     {s.teks}
                   </a>
                 </li>
@@ -303,7 +303,7 @@ function SegmenView({ segmen }: { segmen: SegmenTeks[] }) {
           <a
             key={kunci}
             href={potongan.tautan}
-            className="text-[#0056D2] hover:underline"
+            className="text-[#0056D2]"
             {...(eksternal ? { target: "_blank", rel: "noreferrer" } : {})}
           >
             {isi}

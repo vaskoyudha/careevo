@@ -44,8 +44,10 @@ import { getKuis } from "@/lib/courses/store";
 import {
   ambilAttempt,
   ambilEnrollmentById,
+  ambilRunAktif,
   buatAttemptBerikutnya,
   kirimAttempt,
+  listEventRun,
   type Enrollment,
   type QuizAttempt,
 } from "@/lib/learning/repository";
@@ -106,7 +108,10 @@ export type KodeGalatAsesmen =
   // `selesaikanModulKuisVerified`: `modulId` harus benar-benar ada di kurikulum
   // kursus, dan kursus itu harus bisa di-resolve (gagal-tertutup) — id yang tidak
   // dikenal tidak boleh menghasilkan progres terverifikasi.
-  | "modul_tidak_ditemukan";
+  | "modul_tidak_ditemukan"
+  // `selesaikanModulKuisVerified`: course `wajib_kamera` menuntut run aktif
+  // dengan kejadian `kamera_mulai`; kelulusan kuis saja tidak cukup.
+  | "perlu_kamera";
 
 /** Galat domain asesmen — bukan galat database, supaya bisa dipetakan ke pesan UI. */
 export class GalatAsesmen extends Error {
@@ -322,8 +327,9 @@ export interface HasilSelesaikanModulKuis {
  *   sini bisa menandai modul dengan attempt orang lain.
  * - **Tidak ada query database langsung.** `tandaiModulDb` (upsert modul,
  *   penulis tunggal `module_progress`) dan `selesaikanKursusDb` (penurun
- *   `completion_path` + `rekamCompletion`) yang menulis; `ambilAttempt` hanya
- *   membaca baris attempt.
+ *   `completion_path` + `rekamCompletion`) yang menulis; sisanya hanya membaca —
+ *   `ambilAttempt` baris attempt, `ambilRunAktif`/`listEventRun` bukti kamera
+ *   pada course `wajib_kamera`.
  * - **Idempoten.** Memanggil dua kali tidak menggandakan apa pun: attempt
  *   `submitted` tetap mengembalikan skor pertama, `tandaiModulDb` upsert pada
  *   PK `(enrollment_id, module_id)`, dan `rekamCompletion` unique pada
@@ -343,8 +349,15 @@ export async function selesaikanModulKuisVerified(input: {
   quizId: string;
   attemptId: string;
   policyVersion: number;
+  /**
+   * Apakah kebijakan kursus menuntut kamera (`aturan_pengawasan ===
+   * "wajib_kamera"`). Diturunkan server-side oleh pemanggil action — jangan
+   * pernah dari input klien.
+   */
+  wajibKamera: boolean;
 }): Promise<HasilSelesaikanModulKuis> {
-  const { principal, courseId, modulId, quizId, attemptId, policyVersion } = input;
+  const { principal, courseId, modulId, quizId, attemptId, policyVersion, wajibKamera } =
+    input;
 
   const attempt = await ambilAttempt(attemptId);
   if (!attempt) {
@@ -399,6 +412,21 @@ export async function selesaikanModulKuisVerified(input: {
   }
   if (!(modulTarget.kuis ?? []).some((k) => k.id === quizId)) {
     throw new GalatAsesmen("kuis_tidak_cocok", "Kuis ini tidak terpasang pada modul tersebut.");
+  }
+
+  // Gerbang kamera (spec 2026-09-27, P5): kelulusan kuis bukan bukti kamera.
+  // Course `wajib_kamera` menuntut run aktif dengan `kamera_mulai`; run dibaca
+  // dari database untuk (user, course) ini — bukan dari argumen — dan run yang
+  // tidak bisa dibaca dihitung gagal (gagal-tertutup).
+  if (wajibKamera) {
+    const runAktif = await ambilRunAktif(principal.userId, courseId);
+    const kejadian = runAktif ? await listEventRun(runAktif.id) : [];
+    if (!runAktif || !kejadian.some((k) => k.kind === "kamera_mulai")) {
+      throw new GalatAsesmen(
+        "perlu_kamera",
+        "Course ini menuntut kamera menyala untuk menyelesaikan kuis.",
+      );
+    }
   }
 
   const modul = await tandaiModulDb({

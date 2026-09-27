@@ -1,11 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
+  ArrowLeft,
+  ArrowRight,
+  BadgeCheck,
+  ChartNoAxesColumnIncreasing,
   CircleCheck,
   Fingerprint,
   GitBranch,
+  GraduationCap,
   LockKeyhole,
   MessageSquare,
   Radar,
@@ -13,9 +19,11 @@ import {
   ScanLine,
   ScanSearch,
   ShieldCheck,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import { auditLog, jobs, profile, reviewQueue, submission, tasks } from "@/lib/fixtures";
+import { levelLabel } from "@/lib/onboarding/types";
 import { cn } from "@/lib/utils";
 import { Reveal } from "./primitives";
 
@@ -482,7 +490,7 @@ function SentinelWorkflowVisual() {
                       <div className="mt-2 flex flex-wrap gap-x-3 font-mono text-[9px] text-[#8aa0ac]">
                         <span>{job.source}</span>
                         <span>trust {job.trust_score}</span>
-                        <span>{job.level}</span>
+                        <span>{levelLabel(job.level)}</span>
                       </div>
                     </div>
                   </div>
@@ -701,6 +709,16 @@ interface MasalahSolusiItem {
   masalah: string;
   sumber: string;
   solusi: string;
+  /* Ikon bulat + aksen kartu. Satu aksen per kartu, dan semuanya tetap di
+     ramp biru-oseanik yang sama (DESIGN.md: jangan lebih dari satu aksen baru
+     per permukaan) — `--leaf` tidak dipakai di sini karena DESIGN.md
+     mencadangkannya untuk affordance sukses/status. */
+  ikon: LucideIcon;
+  gambar: string;
+  gambarAlt: string;
+  permukaan: string;
+  ikonGrad: string;
+  aksen: string;
 }
 
 const MASALAH_SOLUSI: MasalahSolusiItem[] = [
@@ -713,6 +731,12 @@ const MASALAH_SOLUSI: MasalahSolusiItem[] = [
     sumber: "BPS · Indikator Kesejahteraan Rakyat 2025",
     solusi:
       "Latihan diarahkan ke posisi yang benar-benar dibuka, bukan kursus yang berhenti di sertifikat.",
+    ikon: GraduationCap,
+    gambar: "/images/masalah-solusi/belajar-buku.webp",
+    gambarAlt: "Ilustrasi tumpukan buku dan buku terbuka di tepi laut",
+    permukaan: "bg-[linear-gradient(165deg,#f4fafe_0%,#e4f1f9_100%)]",
+    ikonGrad: "bg-[linear-gradient(140deg,#2a7fb8_0%,#0a3d62_100%)]",
+    aksen: "text-[#0a3d62]",
   },
   {
     id: "level-masuk-kena-ai",
@@ -723,22 +747,37 @@ const MASALAH_SOLUSI: MasalahSolusiItem[] = [
     sumber: "Stanford Digital Economy Lab · payroll AS 2026 · Kominfo 2024",
     solusi:
       "Materi dan latihan disusun dari celah skill di posisi yang kamu incar, dan lokernya sudah lewat audit Sentinel.",
+    ikon: ChartNoAxesColumnIncreasing,
+    gambar: "/images/masalah-solusi/analitik-skill.webp",
+    gambarAlt: "Ilustrasi laptop berisi grafik dan server di tepi laut",
+    permukaan: "bg-[linear-gradient(165deg,#fbfdfe_0%,#e9f4f8_100%)]",
+    ikonGrad: "bg-[linear-gradient(140deg,#1b6ca8_0%,#0a3d62_100%)]",
+    aksen: "text-[#124e78]",
   },
   {
     id: "bukti-bisa-dibuat-ai",
     nomor: "03",
-    judul: "Portofolio dan sertifikat bisa dibuat AI.",
+    judul: "Portofolio dan sertifikat bisa dikerjakan AI.",
     masalah:
-      "65% perekrut bilang banjir lamaran hasil AI bikin skill kandidat makin sukar diverifikasi, dan 67% merasa proses rekrutmennya jadi lebih lambat.",
+      "65% manajer perekrutan bilang banjir lamaran hasil AI bikin skill kandidat makin sukar diverifikasi, dan 67% pimpinan HR merasa proses rekrutmennya jadi lebih lambat.",
     sumber: "Robert Half · 2.000+ manajer perekrutan, 2026",
     solusi:
       "Tiap tugas diuji, dicatat, dan ditandatangani digital. Kamu harus bisa mempertanggungjawabkan hasil kerjamu sendiri, dan rekruter bisa mengeceknya dari satu tautan.",
+    ikon: BadgeCheck,
+    gambar: "/images/masalah-solusi/bukti-sertifikat.webp",
+    gambarAlt: "Ilustrasi sertifikat bertanda tangan dan segel yang sudah diverifikasi",
+    permukaan: "bg-[linear-gradient(165deg,#f2f9fc_0%,#e1eef6_100%)]",
+    ikonGrad: "bg-[linear-gradient(140deg,#40c9c6_0%,#2a7fb8_100%)]",
+    aksen: "text-[#0a3d62]",
   },
 ];
 
 export function MarketingProblemsSolutions() {
   const [activeItem, setActiveItem] = useState(0);
+  const [kartuTerbalik, setKartuTerbalik] = useState<string | null>(null);
   const articleRefs = useRef<(HTMLElement | null)[]>([]);
+  const tombolDepan = useRef<Record<string, HTMLButtonElement | null>>({});
+  const tombolBelakang = useRef<Record<string, HTMLButtonElement | null>>({});
 
   useEffect(() => {
     const handleScroll = () => {
@@ -792,28 +831,171 @@ export function MarketingProblemsSolutions() {
             </p>
           </Reveal>
 
-          <div className="mt-10 grid grid-cols-1 border-t border-[#cbe6ef] md:grid-cols-3">
-            {MASALAH_SOLUSI.map((item, index) => (
-              <Reveal
-                key={item.id}
-                delay={140 + index * 60}
-                className="flex flex-col border-b border-[#cbe6ef] py-6 last:border-b-0 md:border-b-0 md:border-l md:py-7 md:pl-6 md:pr-6 md:first:border-l-0 md:first:pl-0 md:last:pr-0"
-              >
-                <div className="flex items-center gap-2">
-                  <span aria-hidden="true" className="font-mono text-[10px] text-[#5d7a89]">{item.nomor}</span>
-                  <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#48606e]">Masalah</span>
-                </div>
+          {/*
+            Kartu bisa dibalik: muka depan memuat masalahnya, muka belakang
+            memuat yang Careevo kerjain. Tiga hal yang mudah terlewat di sini
+            dan sengaja ditangani:
 
-                <h3 className="mt-3 text-lg font-semibold tracking-[-0.02em] text-[#0a3d62]">{item.judul}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-[#48606e]">{item.masalah}</p>
-                <p className="mt-2 font-mono text-[10px] leading-relaxed text-[#5d7a89]">{item.sumber}</p>
+            1. Kedua muka duduk di sel grid yang SAMA (`[grid-area:1/1]`),
+               bukan `absolute inset-0`. Dengan absolute, tinggi wadah
+               ikut mengecil jadi nol saat isi muka berubah, dan muka yang
+               lebih tinggi akan terpotong. Sel bersama membuat tinggi
+               wadah = max(depan, belakang) secara otomatis.
+            2. Muka yang tersembunyi diberi `inert`, bukan hanya
+               `aria-hidden`. `aria-hidden` tidak mengeluarkan subtree dari
+               tab order — tanpa `inert`, tombol "Kembali" di muka belakang
+               yang terbalik masih bisa di-TAB dan difokuskan tanpa terlihat.
+            3. `motion-reduce` mematikan rotasinya, jadi kedua muka hanya
+               cross-fade. `backface-visibility` juga dimatikan di mode itu,
+               karena tanpa rotasi transformasinya tidak berlaku.
+          */}
+          <div className="mt-12 grid grid-cols-1 items-stretch gap-5 md:grid-cols-3 lg:gap-6">
+            {MASALAH_SOLUSI.map((item, index) => {
+              const terbalik = kartuTerbalik === item.id;
 
-                <div className="mt-4 border-t border-dashed border-[#cbe6ef] pt-3">
-                  <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#124e78]">Yang Careevo kerjain</span>
-                  <p className="mt-1.5 text-sm font-medium leading-relaxed text-[#0a3d62]">{item.solusi}</p>
-                </div>
-              </Reveal>
-            ))}
+              return (
+                <Reveal key={item.id} delay={140 + index * 60} className="h-full">
+                  <div className="h-full [perspective:1600px]">
+                    <div
+                      className={cn(
+                        "grid h-full w-full [transform-style:preserve-3d] [transition:transform_520ms_cubic-bezier(0.22,1,0.36,1)] motion-reduce:[transition:none]",
+                        terbalik
+                          ? "[transform:rotateY(180deg)] motion-reduce:[transform:none]"
+                          : "motion-reduce:[transform:none]",
+                      )}
+                    >
+                      <div
+                        aria-hidden={terbalik}
+                        inert={terbalik}
+                        className={cn(
+                          "flex flex-col overflow-hidden rounded-[12px] border border-[#bfd9e7] shadow-[0_1px_2px_rgba(10,61,98,0.05),0_12px_28px_-18px_rgba(10,61,98,0.32)] transition-opacity duration-200 [grid-area:1/1] [backface-visibility:hidden] motion-reduce:[backface-visibility:visible]",
+                          item.permukaan,
+                          terbalik && "opacity-0",
+                        )}
+                      >
+                        <div className="flex items-center gap-3 px-5 pt-5">
+                          <span
+                            aria-hidden="true"
+                            className={cn(
+                              "inline-flex size-9 shrink-0 items-center justify-center rounded-full text-white shadow-[0_6px_14px_-6px_rgba(10,61,98,0.55)]",
+                              item.ikonGrad,
+                            )}
+                          >
+                            <item.ikon className="size-[18px]" strokeWidth={1.7} />
+                          </span>
+                          <p className="text-[13px] font-semibold leading-tight tracking-[-0.01em] text-[#0a3d62]">
+                            Masalah{" "}
+                            <span className="font-mono text-[11px] font-normal text-[#8aa0ac]">
+                              {item.nomor}
+                            </span>
+                          </p>
+                        </div>
+
+                        <h3
+                          className={cn(
+                            "px-5 pt-6 text-[26px] font-bold leading-[1.1] tracking-[-0.035em]",
+                            item.aksen,
+                          )}
+                        >
+                          {item.judul}
+                        </h3>
+
+                        <p className="px-5 pt-2.5 font-mono text-[10px] leading-relaxed text-[#5d7a89]">
+                          {item.sumber}
+                        </p>
+
+                        <p className="px-5 pt-4 text-[13px] leading-relaxed text-[#48606e]">
+                          {item.masalah}
+                        </p>
+
+                        <div className="mt-auto px-5 pt-6">
+                          <button
+                            ref={(el) => {
+                              tombolDepan.current[item.id] = el;
+                            }}
+                            type="button"
+                            onClick={() => setKartuTerbalik(item.id)}
+                            aria-expanded={terbalik}
+                            aria-controls={`solusi-${item.id}`}
+                            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[10px] border border-[#bfd9e7] bg-white px-6 text-[15px] font-semibold text-[#0a3d62] shadow-[0_1px_2px_rgba(10,61,98,0.06)] transition-[color,background-color,border-color,transform] duration-200 ease-out hover:border-[#2a7fb8] hover:text-[#124e78] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2a7fb8] motion-reduce:transition-none motion-reduce:active:scale-100"
+                          >
+                            Lihat solusi kami
+                            <ArrowRight aria-hidden="true" className="size-4" strokeWidth={1.8} />
+                          </button>
+                        </div>
+
+                        <div className="relative mt-5 aspect-[16/10] w-full overflow-hidden">
+                          <Image
+                            src={item.gambar}
+                            alt={item.gambarAlt}
+                            fill
+                            sizes="(min-width: 768px) 33vw, 100vw"
+                            className="object-cover object-center [mask-image:linear-gradient(to_bottom,transparent_0%,#000_42%)] [-webkit-mask-image:linear-gradient(to_bottom,transparent_0%,#000_42%)]"
+                          />
+                        </div>
+                      </div>
+
+                      <div
+                        id={`solusi-${item.id}`}
+                        inert={!terbalik}
+                        className={cn(
+                          "flex flex-col overflow-hidden rounded-[12px] border border-[#8fd6e3]/45 bg-[linear-gradient(165deg,#0a3d62_0%,#124e78_58%,#1b6ca8_100%)] text-white shadow-[0_1px_2px_rgba(10,61,98,0.05),0_12px_28px_-18px_rgba(10,61,98,0.32)] transition-opacity duration-200 [grid-area:1/1] [transform:rotateY(180deg)] [backface-visibility:hidden] motion-reduce:[transform:none] motion-reduce:[backface-visibility:visible]",
+                          !terbalik && "opacity-0",
+                        )}
+                      >
+                        <div className="flex items-center gap-3 px-5 pt-5">
+                          <span
+                            aria-hidden="true"
+                            className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.3)]"
+                          >
+                            <Sparkles className="size-[18px]" strokeWidth={1.7} />
+                          </span>
+                          <p className="text-[13px] font-semibold leading-tight tracking-[-0.01em] text-white">
+                            Solusi{" "}
+                            <span className="font-mono text-[11px] font-normal text-[#bfe6ef]">
+                              {item.nomor}
+                            </span>
+                          </p>
+                        </div>
+
+                        <p className="px-5 pt-6 font-mono text-[10px] uppercase tracking-[0.16em] text-[#8fd6e3]">
+                          Yang Careevo kerjain
+                        </p>
+
+                        <p className="px-5 pt-3 text-[19px] font-semibold leading-snug tracking-[-0.02em] text-white">
+                          {item.judul}
+                        </p>
+
+                        <p className="px-5 pt-4 text-[14px] leading-relaxed text-[#dcecf3]">
+                          {item.solusi}
+                        </p>
+
+                        <p className="mt-auto px-5 pt-6 text-[11px] leading-relaxed text-[#bfe6ef]/80">
+                          Sumber masalahnya: {item.sumber}
+                        </p>
+
+                        <div className="px-5 pb-5 pt-4">
+                          <button
+                            ref={(el) => {
+                              tombolBelakang.current[item.id] = el;
+                            }}
+                            type="button"
+                            onClick={() => {
+                              setKartuTerbalik(null);
+                              tombolDepan.current[item.id]?.focus();
+                            }}
+                            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[10px] border border-white/70 bg-white px-6 text-[15px] font-semibold text-[#0a3d62] shadow-[0_1px_2px_rgba(7,42,63,0.18)] transition-[color,background-color,border-color,transform] duration-200 ease-out hover:border-white hover:bg-white/90 hover:text-[#124e78] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8fd6e3] motion-reduce:transition-none motion-reduce:active:scale-100"
+                          >
+                            <ArrowLeft aria-hidden="true" className="size-4" strokeWidth={1.8} />
+                            Kembali ke masalah
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Reveal>
+              );
+            })}
           </div>
 
           <Reveal delay={340}>

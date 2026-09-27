@@ -61,6 +61,16 @@ function progres(
   };
 }
 
+/** `progres` dengan `evidence_id` yang menunjuk bukti — jalur diturunkan dari situ. */
+function progresDenganRun(
+  enrollmentId: string,
+  moduleId: string,
+  completionPath: "terverifikasi" | "informal" | null,
+  evidenceId: string | null,
+): ModuleProgressRow {
+  return { ...progres(enrollmentId, moduleId, completionPath), evidenceId };
+}
+
 function attempt(input: {
   enrollmentId: string;
   status: string;
@@ -261,6 +271,64 @@ describe("detailPembelajaranDariDb", () => {
     });
 
     expect(detail?.kursus[0].selesai[0].sumber).toBe("informal");
+  });
+});
+
+describe("detailPembelajaranDariDb — jalur terlihat", () => {
+  const ENR = { id: "enr-1", userId: USER_A, nama: "Ani", email: EMAIL_A };
+
+  it("menandai jalur terverifikasi yang ditopang kamera", () => {
+    const hasil = detailPembelajaranDariDb({
+      enrollments: [enrollment(ENR)],
+      progress: [progresDenganRun(ENR.id, "crs-1-m1", "terverifikasi", "run-1")],
+      attempts: [],
+      kameraMulai: new Map([["run-1", true]]),
+    });
+    expect(hasil?.kursus[0]?.selesai[0]?.jalur).toBe("terverifikasi_kamera");
+  });
+
+  it("menandai jalur terverifikasi tanpa kamera sebagai terverifikasi biasa", () => {
+    const hasil = detailPembelajaranDariDb({
+      enrollments: [enrollment(ENR)],
+      progress: [progresDenganRun(ENR.id, "crs-1-m1", "terverifikasi", "run-1")],
+      attempts: [],
+      kameraMulai: new Map([["run-1", false]]),
+    });
+    expect(hasil?.kursus[0]?.selesai[0]?.jalur).toBe("terverifikasi");
+  });
+
+  it("menandai penyelesaian kuis sebagai jalur tanpa bukti kamera yang bisa ditelusuri", () => {
+    // Jalur kuis menyimpan `quiz_attempts.id` di `evidence_id`. Id itu tidak
+    // akan pernah ada di peta run, dan memang tidak boleh dipaksa jadi run:
+    // labelnya harus menyatakan "tidak bisa ditelusuri", bukan "kamera mati".
+    const hasil = detailPembelajaranDariDb({
+      enrollments: [enrollment(ENR)],
+      progress: [progresDenganRun(ENR.id, "crs-1-m1", "terverifikasi", "att-1")],
+      attempts: [],
+      kameraMulai: new Map([["run-1", true]]),
+    });
+    expect(hasil?.kursus[0]?.selesai[0]?.jalur).toBe("terverifikasi_tanpa_bukti_kamera");
+  });
+
+  it("menandai progres tanpa evidence_id sebagai jalur tanpa bukti kamera", () => {
+    const hasil = detailPembelajaranDariDb({
+      enrollments: [enrollment(ENR)],
+      progress: [progresDenganRun(ENR.id, "crs-1-m1", "terverifikasi", null)],
+      attempts: [],
+      kameraMulai: new Map([["run-1", true]]),
+    });
+    expect(hasil?.kursus[0]?.selesai[0]?.jalur).toBe("terverifikasi_tanpa_bukti_kamera");
+  });
+
+  it("progres tanpa peta kamera tidak pernah mengklaim kamera", () => {
+    // Halaman yang tidak mengirim peta harus tetap benar — bukan melempar, dan
+    // bukan mengarang bukti kamera.
+    const hasil = detailPembelajaranDariDb({
+      enrollments: [enrollment(ENR)],
+      progress: [progresDenganRun(ENR.id, "crs-1-m1", "terverifikasi", "run-1")],
+      attempts: [],
+    });
+    expect(hasil?.kursus[0]?.selesai[0]?.jalur).toBe("terverifikasi");
   });
 });
 

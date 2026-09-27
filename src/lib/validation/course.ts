@@ -6,7 +6,7 @@ export const LEVELS = ["dasar", "menengah", "lanjut"] as const;
 export const COURSE_TYPES = ["course", "video", "artikel", "bootcamp"] as const;
 export const COURSE_STATUSES = ["published", "draft", "archived"] as const;
 export const ATURAN_BANTUAN = ["bebas", "bertutor", "tanpa_ai"] as const;
-export const ATURAN_PENGAWASAN = ["wajib", "opsional"] as const;
+export const ATURAN_PENGAWASAN = ["wajib", "opsional", "wajib_kamera"] as const;
 
 export const courseSchema = z.object({
   title: z
@@ -93,7 +93,7 @@ export const kebijakanCourseSchema = z.object({
     message: "Aturan bantuan harus salah satu dari: bebas, bertutor, tanpa_ai",
   }),
   aturan_pengawasan: z.enum(ATURAN_PENGAWASAN, {
-    message: "Aturan pengawasan harus salah satu dari: wajib, opsional",
+    message: "Aturan pengawasan harus salah satu dari: wajib, opsional, wajib_kamera",
   }),
 });
 

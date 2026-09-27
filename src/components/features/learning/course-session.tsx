@@ -13,6 +13,13 @@ import {
 // `kebijakan.ts` murni dan aman untuk bundel klien (hanya `import type`), jadi
 // label bisa dirender apa adanya alih-alih menampilkan slug enum ke peserta.
 import { LABEL_ATURAN_BANTUAN } from "@/lib/courses/kebijakan";
+import {
+  sejakDetikTerakhirMengetik,
+  sinyalPaste,
+  sinyalPintasan,
+  sinyalSalin,
+} from "@/lib/learning/pengawasan-klien";
+import type { SinyalBrowser } from "@/lib/learning/pengawasan-klien";
 import type { KebijakanCourse } from "@/types/course";
 
 /**
@@ -94,6 +101,26 @@ function ringkas(daftar: KejadianSesi[]): { kejadian: number; celah: number } {
 }
 
 /**
+ * Ringkas satu sinyal browser menjadi detail yang muat di `detail`.
+ *
+ * Service memotong `detail` 300 karakter, jadi angka panjang harus diringkas
+ * di sini — bukan berharap server menampungnya. Nilai diagnostik yang disimpan:
+ * panjang paste dan jeda mengetik, yang dua-duanya dipakai untuk melihat pola.
+ */
+export function ringkasSinyal(sinyal: SinyalBrowser): string {
+  switch (sinyal.jenis) {
+    case "keluar_fullscreen":
+      return "Keluar layar penuh";
+    case "paste_massal":
+      return `${sinyal.panjang} karakter, jeda ${sinyal.sejak_mengetik_detik}s`;
+    case "pintasan_terlarang":
+      return `Pintasan ${sinyal.kombinasi}`;
+    case "salin_terlarang":
+      return `${sinyal.panjang} karakter`;
+  }
+}
+
+/**
  * Ubah `run` dari balasan server menjadi daftar kejadian minim.
  *
  * Server sudah menentukan `jenis_klasifikasi` lewat `klasifikasiKejadian`, tapi
@@ -150,6 +177,14 @@ export function CourseSessionProvider({
    * memaksa re-subscribe tiap kejadian.
    */
   const runRef = useRef<string | null>(null);
+  /**
+   * Waktu ketikan terakhir di halaman ini.
+   *
+   * Dipakai untuk menghitung jeda saat paste. Tanpa ini, "menempel 400 karakter"
+   * dan "mengetik 400 karakter lalu menyisipkan beberapa kata" terlihat sama —
+   * padahal hanya yang pertama yang biasanya bukan pekerjaan peserta.
+   */
+  const ketikRef = useRef<number | null>(null);
 
   const kirimKejadian = useCallback(
     (
@@ -163,6 +198,33 @@ export function CourseSessionProvider({
       // apa yang sudah tercatat, dan itu harus mencerminkan server, bukan
       // tebakan klien.
       void catatKejadianAction({ runId: id, jenis, visibilitas })
+        .then((hasil) => {
+          if (hasil.ok && hasil.run) setKejadian(kejadianDariRun(hasil.run));
+        })
+        .catch(() => undefined);
+    },
+    [],
+  );
+
+  /**
+   * Kirim satu sinyal browser ke server.
+   *
+   * Fire-and-forget seperti `kirimKejadian` — pencatatan tidak boleh memblokir
+   * UI. `asal` selalu `"browser"` karena semua sinyal di sini datang dari
+   * listener peramban, dan `detail` diringkas supaya tidak melewati batas 300
+   * karakter di service.
+   */
+  const kirimSinyal = useCallback(
+    (sinyal: SinyalBrowser) => {
+      const id = runRef.current;
+      if (!id) return;
+      void catatKejadianAction({
+        runId: id,
+        jenis: sinyal.jenis,
+        visibilitas: "visible",
+        asal: "browser",
+        detail: ringkasSinyal(sinyal),
+      })
         .then((hasil) => {
           if (hasil.ok && hasil.run) setKejadian(kejadianDariRun(hasil.run));
         })
@@ -247,6 +309,64 @@ export function CourseSessionProvider({
       window.removeEventListener("blur", padaFokusHilang);
     };
   }, [status, kirimKejadian]);
+
+  useEffect(() => {
+    if (status !== "aktif") return;
+
+    // Tandai ketikan terakhir **hanya** untuk tombol karakter (bukan modifier).
+    // `keydown` ctrl+v datang sebagai dua kejadian — `Control` lalu `v` — dan
+    // menandai keduanya sebagai "ketikan" akan membuat paste yang mengikuti
+    // pintasan itu dilaporkan berjeda 0 detik, padahal bukan itu yang terjadi.
+    const padaKetik = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key.length !== 1) return;
+      ketikRef.current = Date.now();
+    };
+    // Keluar dari layar penuh = peserta melihat sesuatu yang bukan halaman ini.
+    const padaFullscreen = () => {
+      if (!document.fullscreenElement) {
+        kirimSinyal({ jenis: "keluar_fullscreen", jumlah_keluar: 1 });
+      }
+    };
+    const padaPaste = (e: ClipboardEvent) => {
+      const teks = e.clipboardData?.getData("text") ?? "";
+      const sinyal = sinyalPaste(
+        teks.length,
+        sejakDetikTerakhirMengetik(ketikRef.current, Date.now()),
+      );
+      if (sinyal) kirimSinyal(sinyal);
+    };
+    const padaSalin = (e: ClipboardEvent) => {
+      const teks = e.clipboardData?.getData("text") ?? "";
+      const sinyal = sinyalSalin(teks.length);
+      if (sinyal) kirimSinyal(sinyal);
+    };
+    const padaPintasan = (e: KeyboardEvent) => {
+      const sinyal = sinyalPintasan({
+        ctrl: e.ctrlKey,
+        meta: e.metaKey,
+        alt: e.altKey,
+        shift: e.shiftKey,
+        key: e.key,
+      });
+      if (sinyal) kirimSinyal(sinyal);
+    };
+
+    document.addEventListener("keydown", padaKetik);
+    document.addEventListener("fullscreenchange", padaFullscreen);
+    document.addEventListener("paste", padaPaste);
+    document.addEventListener("copy", padaSalin);
+    document.addEventListener("cut", padaSalin);
+    document.addEventListener("keydown", padaPintasan);
+    return () => {
+      document.removeEventListener("keydown", padaKetik);
+      document.removeEventListener("fullscreenchange", padaFullscreen);
+      document.removeEventListener("paste", padaPaste);
+      document.removeEventListener("copy", padaSalin);
+      document.removeEventListener("cut", padaSalin);
+      document.removeEventListener("keydown", padaPintasan);
+    };
+  }, [status, kirimSinyal]);
 
   const boleh = useCallback(
     (jenis: JenisKegiatan) =>

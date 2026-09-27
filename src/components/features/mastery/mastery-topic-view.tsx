@@ -199,7 +199,7 @@ export function MasteryTopicView({
                   {" · "}
                   <Link
                     href={`/belajar/${topic.courseSlug}#kurikulum`}
-                    className="font-semibold text-primary hover:underline"
+                    className="font-semibold text-primary"
                   >
                     Buka kursus
                   </Link>
@@ -212,7 +212,7 @@ export function MasteryTopicView({
                   {" · "}
                   <Link
                     href={`/loker/${topic.jobId}`}
-                    className="font-semibold text-primary hover:underline"
+                    className="font-semibold text-primary"
                   >
                     Buka lowongan
                   </Link>

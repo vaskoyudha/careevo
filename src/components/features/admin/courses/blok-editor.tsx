@@ -279,7 +279,7 @@ function IsiBlok({
           <button
             type="button"
             onClick={() => onChange({ ...blok, butir: [...(blok.butir ?? []), [{ teks: "" }]] })}
-            className="cursor-pointer text-xs font-semibold text-[#0056D2] hover:underline"
+            className="cursor-pointer text-xs font-semibold text-[#0056D2]"
           >
             Tambah butir
           </button>

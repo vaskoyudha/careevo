@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { ResourceFixture } from "@/lib/fixtures";
+import { levelLabel } from "@/lib/onboarding/types";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
@@ -63,7 +64,7 @@ export function ResourceList({ resources }: { resources: ResourceFixture[] }) {
               {resource.title}
             </a>
             <span className="row-aside">
-              <span className="tag">{resource.level}</span>
+              <span className="tag">{levelLabel(resource.level)}</span>
               <Button
                 type="button"
                 variant="ghost"

@@ -38,14 +38,26 @@ import { sessions, type Session } from "@/lib/db/schema";
 import { buatTokenOpaque, hashToken } from "./token";
 
 /**
- * Umur sesi: 8 jam. Dipakai untuk `sessions.expires_at` **dan**
- * `maxAge` cookie, sehingga keduanya tidak bisa menyimpang.
+ * Umur sesi: 8 jam, dinyatakan dalam **milidetik**. Dipakai untuk
+ * `sessions.expires_at` **dan** `maxAge` cookie, sehingga keduanya tidak bisa
+ * menyimpang.
  *
  * Sesi pendek disengaja: cookie membawa token yang, bila dicuri, langsung
  * berguna. Revocation terpusat sudah ada, jadi memperpanjang umur bukan jalan
  * keluar dari login ulang — ia hanya memperpanjang jendela penyalahgunaan.
+ *
+ * **Satuan adalah milidetik, jadi faktornya harus `1000`.** Nilai ini pernah
+ * tertulis `60 * 60 * 8` tanpa menit→milidetik, dan hasilnya bukan "8 jam
+ * dikali sesuatu yang salah" melainkan **28,8 detik**: `expires_at` menjadi
+ * `now + 28_800 ms`, dan `SESSION_MAX_AGE = TTL_SESI_MS / 1000` menjadi 28
+ * detik. Gejalanya di UI adalah "diminta login lagi saat pindah halaman" —
+ * sesi yang masih hidup di cookie sudah mati di database, jadi `getSession()`
+ * mengembalikan `null` dan layout bergate me-redirect ke `/masuk`. Bug ini
+ * tidak terlihat di typecheck (keduanya `number`) dan tidak ketahuan `npm test`
+ * (tidak ada test yang memeriksa besaran TTL), jadi yang menjaganya sekarang
+ * adalah `session-repository.test.ts` yang mengunci nilai ini terhadap 8 jam.
  */
-export const TTL_SESI_MS = 60 * 60 * 8;
+export const TTL_SESI_MS = 8 * 60 * 60 * 1000;
 
 export type HasilBuatSession = {
   /** Token asli — satu-satunya tempat nilai ini ada. Kirim ke cookie, jangan simpan. */

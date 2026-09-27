@@ -134,6 +134,11 @@ const extraPages: SettingsLeaf[] = [
  * (used by the navigator only) drops them.
  */
 export const HIDDEN_SETTINGS_KEYS = new Set([
+  // Personal
+  'data-migration',
+  'usage',
+  // Learning & conversation
+  'memory',
   // Features & integrations
   'tools',
   'capabilities',

@@ -210,10 +210,15 @@ body {
     text-decoration: none;
   }
 
+  /* Hover hanya lewat warna, tidak pernah garis bawah. Aturan ini dulu menaruh
+     `text-decoration: underline` di sini, dan karena kartu learning memakai satu
+     `<a>` besar untuk seluruh isi kartu, satu hover di mana saja pada kartu akan
+     menggaris bawah semua teks di dalamnya — dekorasi teks mewarisi ke seluruh
+     Keturunan dan tidak bisa dimatikan dari anak (`text-decoration: none` di
+     anak tidak membatalkan dekorasi leluhur). Sumbernya harus dihapus di sini. */
   a:hover {
     color: var(--ocean-mid);
-    text-decoration: underline;
-    text-underline-offset: 3px;
+    text-decoration: none;
   }
 }
 
@@ -232,7 +237,7 @@ h6 {
 .caption { font-size: 12px; color: var(--text-tertiary); letter-spacing: 0.01em; }
 
 :focus-visible {
-  outline: 2px solid var(--aqua);
+  outline: 2px solid #0056D2;
   outline-offset: 2px;
 }
 
@@ -480,6 +485,135 @@ h6 {
   display: none;
 }
 
+/* ===== Scroll sub-header (ScrollSubNav) ===== */
+/* The bar `/careevo-plus` and `/belajar/[slug]` drop in once the page header
+   has scrolled away. `top` is NOT declared here: the component measures the
+   floated navbar's bottom edge and writes it to `style`, because `.chrome` is
+   `z-index: 60` and a bar pinned at the viewport top would be painted under it
+   (the pill is opaque enough to cover the whole measure). Below `z-index: 60`
+   deliberately, so the navbar always wins the overlap. */
+.subnav {
+  position: fixed;
+  right: 0;
+  left: 0;
+  z-index: 55;
+  /* Neutral, not `--border` (light cyan): the bar sits on the white/gray
+     course surface and on the Plus page, and both read as a hairline. */
+  border-bottom: 1px solid rgb(0 0 0 / 0.08);
+  /* Near-opaque, unlike the navbar pill's 0.86. The pill floats over page
+     chrome; this bar floats over arbitrary content — a saturated warning box
+     three lines under it was still readable through 0.92 + blur(16px). */
+  background: rgb(255 255 255 / 0.96);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: 0 2px 10px -4px rgb(10 61 98 / 0.14);
+  transform: translateY(-100%);
+  opacity: 0;
+  /* Matches the navbar's own 320ms morph, so the two bars move as one. */
+  transition:
+    transform 300ms ease,
+    opacity 300ms ease,
+    box-shadow 300ms ease;
+}
+
+.subnav.is-visible {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* Same measure as the floated pill (`.chrome.is-scrolled`), so the bar's logo
+   and CTA line up with the navbar's rather than hugging the viewport edge.
+   `--page-pad` carries the mobile inset. */
+.subnav-inner {
+  display: flex;
+  width: min(var(--max), calc(100% - 2 * var(--page-pad)));
+  min-height: 3.25rem;
+  margin-inline: auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .subnav {
+    background: rgb(255 255 255 / 0.98);
+  }
+}
+
+/* Clearance for anything that has to sit *underneath* the navbar and this bar —
+   both an anchored target (`scroll-margin-top`) and a sticky rail parked below
+   it. The two offsets are published by `ScrollSubNav` (`--chrome-float-bottom`,
+   measured) and by itself (`--subnav-h`, `0` while hidden); the fallbacks are
+   the unmeasured navbar and a collapsed bar, so the pre-hydration value is the
+   same 78px the navbar has always needed. With the bar hidden the two classes
+   agree with the old `scroll-mt-24` / `lg:top-24` they replace. */
+.subnav-scroll-mt,
+.subnav-sticky-top,
+.subnav-sticky-flush,
+.subnav-sticky-deep,
+.subnav-scroll-mt-deep {
+  --subnav-inset-flush: calc(var(--chrome-float-bottom, 78px) + var(--subnav-h, 0px));
+  --subnav-inset: calc(var(--subnav-inset-flush) + 1rem);
+  /* One more band deep: below a sticky strip that itself hangs under the
+     sub-header. The strip measures 57px (`py-3` around a `py-1.5` pill, plus
+     its 1px border), so 3.5rem is the honest rounding, not a guess. */
+  --subnav-inset-deep: calc(var(--subnav-inset-flush) + 3.5rem + 1rem);
+}
+
+.subnav-scroll-mt {
+  scroll-margin-top: var(--subnav-inset);
+}
+
+.subnav-sticky-top {
+  top: var(--subnav-inset);
+}
+
+/* No breathing room. For a bar that butts directly against the sub-header —
+   `/professional-certificates/[slug]`'s tab strip, which is a continuation of
+   the same stack rather than a separate band, so a gap would split one header
+   into three. */
+.subnav-sticky-flush {
+  top: var(--subnav-inset-flush);
+}
+
+/* Below that strip. Needed by the same page's sidebar: it is sticky *under* the
+   tab strip, so `subnav-sticky-top` alone parks it inside the strip. */
+.subnav-sticky-deep {
+  top: var(--subnav-inset-deep);
+}
+
+.subnav-scroll-mt-deep {
+  scroll-margin-top: var(--subnav-inset-deep);
+}
+
+/* ===== Blue → white surface wash (catalog heroes) ===== */
+/* Replaces the near-white `from-[#F0F5FA] via-[#F4F8FC] to-[#EBF3FA]` hero on
+   `/professional-certificates/[slug]`, whose three stops sat inside a ~3%
+   luminance band and so read as flat white.
+
+   Stops are `color-mix`ed from the oceanic tokens rather than re-spelled, per
+   DESIGN.md ("never re-spell the hexes, resolve the token"). It deliberately
+   does NOT use `--brand-grad`: that ramp is documented as the filled-button
+   treatment only, and its `#bfdbfe` tail is not AA-safe for white text. Here
+   the ink on top is dark, so the top stop has to stay light — AGENTS.md also
+   requires a light page top under the transparent navbar, and the navbar sits
+   over this band until it floats. */
+.surface-blue-fade {
+  background:
+    radial-gradient(
+      85% 70% at 6% 0%,
+      color-mix(in srgb, var(--ocean-mid) 22%, transparent),
+      transparent 62%
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--ocean-mid) 20%, var(--bg-soft)) 0%,
+      color-mix(in srgb, var(--ocean-mid) 7%, var(--bg-base)) 46%,
+      var(--bg-base) 100%
+    );
+}
+
+
 /* ===== AI Mastery navbar (winged bar, /ai-mastery) ===== */
 /* The third bar, and the only one that is not a morph. See
    `src/components/ui/ai-mastery-navbar.tsx` for why the page forces it: the
@@ -608,6 +742,29 @@ h6 {
 
 .chrome-brand span {
   color: var(--leaf-dark);
+}
+
+/* The dashboard shell's page label, carried inside the AI Mastery navbar where
+   the old topbar used to sit. Same vocabulary as the previous
+   `.dashboard-topbar-label` chip. */
+.chrome-page-sep {
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
+  user-select: none;
+}
+
+.chrome-page-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--primary);
+  background: rgba(10, 61, 98, 0.07);
+  border: 1px solid rgba(203, 230, 239, 0.9);
+  padding: 0.28rem 0.7rem;
+  border-radius: 999px;
 }
 
 .nav-float {
@@ -987,7 +1144,7 @@ h6 {
   color: rgba(255, 255, 255, 0.7);
 }
 
-.footer-grid a:hover { color: #fff; text-decoration: underline; }
+.footer-grid a:hover { color: #fff; text-decoration: none; }
 
 .footer-bottom {
   border-top: 1px solid rgba(255, 255, 255, 0.12);
@@ -2423,13 +2580,26 @@ h6 {
   background:
     radial-gradient(1100px 460px at 88% -8%, rgba(42, 127, 184, 0.08), transparent 62%),
     var(--background);
+  /* The `AiMasteryNavbar` above the shell is sticky, so the shell's own sticky
+     rails (sidebar + topbar) must park below it instead of sliding underneath.
+     Mirrors `--app-chrome-h`: 85px where the bar wraps to two rows, 64px above.
+     Also repaints the winged bar's fill to the shell's card surface so the bar
+     and the sidebar/topbar read as one light system. */
+  --dashboard-chrome-h: 85px;
+  --wing-fill: var(--card);
+}
+
+@media (min-width: 769px) {
+  .dashboard-shell {
+    --dashboard-chrome-h: 64px;
+  }
 }
 
 .dashboard-sidebar-aside {
   position: sticky;
-  top: 0;
+  top: var(--dashboard-chrome-h);
   align-self: flex-start;
-  height: 100vh;
+  height: calc(100vh - var(--dashboard-chrome-h));
   width: 260px;
   flex-shrink: 0;
   overflow: hidden;
@@ -2439,13 +2609,14 @@ h6 {
     transform 260ms ease;
 }
 
-/* Collapsing has to zero the desktop inset too — with `box-sizing: border-box`
-   a `width: 0` that keeps 12px of horizontal padding still reserves a 24px
-   gutter, so the panel would "collapse" to a visible empty strip. */
+/* Collapsing keeps a slim rail rather than zeroing the sidebar: the
+   collapse/expand controls live in the sidebar itself (top-right corner when
+   expanded, top of the rail when collapsed), so the affordance never leaves
+   the panel. The rail holds the 36px icon rows plus the panel's own inset. */
 .dashboard-shell[data-collapsed="true"] .dashboard-sidebar-aside {
-  width: 0;
-  padding-left: 0;
-  padding-right: 0;
+  width: 88px;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
 }
 
 /* Sidebar panel: a floating card, inset from the viewport edges on desktop —
@@ -2462,6 +2633,12 @@ h6 {
   background: var(--card);
   padding: 0.75rem;
   font-family: var(--font);
+}
+
+/* Collapsed rail panel: icon-only, centred, tighter padding. */
+.dashboard-sidebar-rail {
+  align-items: center;
+  padding: 0.75rem 0.5rem;
 }
 
 @media (min-width: 1024px) {
@@ -2483,63 +2660,9 @@ h6 {
   flex-direction: column;
 }
 
-/* Top bar: a sticky opaque strip with a single hairline edge, so it reads as a
-   real navbar instead of dissolving into the cards below. The elevation is the
-   border plus one tight shadow — not a blur that would show the page through. */
-.dashboard-topbar {
-  position: sticky;
-  top: 0;
-  z-index: 40;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  height: 64px;
-  padding: 0 1.25rem;
-  background: var(--card);
-  border-bottom: 1px solid var(--border);
-  box-shadow: 0 1px 2px rgba(10, 61, 98, 0.04);
-}
-
-.dashboard-topbar-brand {
-  display: inline-flex;
-  align-items: baseline;
-  font-weight: 700;
-  font-size: 1.04rem;
-  letter-spacing: -0.02em;
-  color: var(--ocean-deep);
-  text-decoration: none;
-  transition: color 180ms ease-out;
-}
-
-.dashboard-topbar-brand:hover {
-  color: var(--ocean-mid);
-  text-decoration: none;
-}
-
-.dashboard-topbar-brand-dot {
-  color: var(--aqua);
-}
-
-.dashboard-topbar-sep {
-  color: var(--text-tertiary);
-  font-size: 0.9rem;
-  user-select: none;
-}
-
-.dashboard-topbar-label {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--primary);
-  background: rgba(10, 61, 98, 0.07);
-  border: 1px solid rgba(203, 230, 239, 0.9);
-  padding: 0.28rem 0.7rem;
-  border-radius: 999px;
-}
+/* The dashboard shell no longer renders its own topbar — the page label and the
+   sidebar toggle moved into `AiMasteryNavbar` (`app-shell.tsx` passes them in),
+   so the chrome above the sidebar is one bar, not two stacked. */
 
 .dashboard-overlay {
   position: fixed;
@@ -2565,11 +2688,6 @@ h6 {
 
   .dashboard-sidebar-aside[data-open="true"] {
     transform: translateX(0);
-  }
-
-  .dashboard-topbar {
-    height: 60px;
-    padding: 0 0.75rem;
   }
 }
 
@@ -3169,7 +3287,7 @@ button.tag:hover {
 }
 
 .dashboard-shell .page-title {
-  font-size: clamp(22px, 2.4vw, 28px);
+  font-size: clamp(26px, 4vw, 38px);
   font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--foreground);
@@ -3236,6 +3354,17 @@ button.tag:hover {
   color: #b23a1c;
   background: rgba(228, 87, 46, 0.12);
   border-color: rgba(228, 87, 46, 0.28);
+}
+
+/* Loker rows in "Dipilih untukmu" use the shared list-app row language but carry
+   the learner link accent (#0056D2), not the global `.row-title` hover token. */
+.dashboard-shell .list-app-row .row-title {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.dashboard-shell .list-app-row:hover .row-title {
+  color: #0056D2;
 }
 
 .dashboard-shell .status-info {

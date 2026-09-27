@@ -1832,6 +1832,8 @@
   "Rename failed": "Rename failed",
   "Session activity": "Session activity",
   "Session title": "Session title",
+  "Previous session": "Previous session",
+  "Next session": "Next session",
   "Start a conversation to rename": "Start a conversation to rename",
   "As you chat, the tools and references you use — and the files the tutor generates — will appear here.": "As you chat, the tools and references you use — and the files the tutor generates — will appear here.",
   "Generated files": "Generated files",
