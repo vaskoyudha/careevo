@@ -958,17 +958,26 @@ export function MarketingProblemsSolutions() {
                           </p>
                         </div>
 
-                        <p className="px-5 pt-6 font-mono text-[10px] uppercase tracking-[0.16em] text-[#8fd6e3]">
-                          Yang Careevo kerjain
-                        </p>
+                        {/*
+                          Wajah belakang setinggi wajah depan (wajah depan
+                          tambah pita gambar), jadi tanpa ini ada rongga besar
+                          di tengah. `flex-1 + justify-center` menaruh isi
+                          solution di-optical center, dan tombol tetap
+                          menempel di bawah lewat `mt-auto` di blok terakhir.
+                        */}
+                        <div className="flex flex-1 flex-col justify-center">
+                          <p className="px-5 pt-6 font-mono text-[10px] uppercase tracking-[0.16em] text-[#8fd6e3]">
+                            Yang Careevo kerjain
+                          </p>
 
-                        <p className="px-5 pt-3 text-[19px] font-semibold leading-snug tracking-[-0.02em] text-white">
-                          {item.judul}
-                        </p>
+                          <p className="px-5 pt-3 text-[19px] font-semibold leading-snug tracking-[-0.02em] text-white">
+                            {item.judul}
+                          </p>
 
-                        <p className="px-5 pt-4 text-[14px] leading-relaxed text-[#dcecf3]">
-                          {item.solusi}
-                        </p>
+                          <p className="px-5 pt-4 text-[14px] leading-relaxed text-[#dcecf3]">
+                            {item.solusi}
+                          </p>
+                        </div>
 
                         <p className="mt-auto px-5 pt-6 text-[11px] leading-relaxed text-[#bfe6ef]/80">
                           Sumber masalahnya: {item.sumber}
