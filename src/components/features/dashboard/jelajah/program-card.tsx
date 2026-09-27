@@ -26,7 +26,7 @@ export function ProgramCard({ program }: { program: ProgramDetails }) {
       href={programHref(program)}
       className="group flex h-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xs transition-shadow duration-200 hover:shadow-md"
     >
-      <div className="relative aspect-[16/9] w-full overflow-hidden bg-gray-100">
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100">
         {program.bannerGraphic ? (
           <Image
             src={program.bannerGraphic}

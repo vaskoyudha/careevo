@@ -175,3 +175,17 @@ export function levelForExperience(experience: ExperienceLevel): Level {
       return "lanjut";
   }
 }
+
+/** Indonesian display label for a course/job `Level`. Single source. */
+export function levelLabel(level: string): string {
+  switch (level) {
+    case "dasar":
+      return "Pemula";
+    case "menengah":
+      return "Menengah";
+    case "lanjut":
+      return "Lanjutan";
+    default:
+      return level;
+  }
+}
