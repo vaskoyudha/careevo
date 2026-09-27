@@ -65,6 +65,33 @@ describe("petakanStatus", () => {
     expect(detail).toContain("64 proses");
   });
 
+  it("menyatakan cadangan 25 detik, karena bukan hanya tiga angka itu", () => {
+    // Status ini punya dua jalan masuk. 137 adalah batas yang dibatasi tiga
+    // angka utama, dan tiga angka itu cukup untuknya. Tapi 255 berarti cadangan
+    // `--timeout` podman yang menyala, yaitu 25 detik, dan 25 detik tidak ada di
+    // antara tiga angka itu.
+    //
+    // Kalau `detail` hanya menyebut tiga angka, peserta yang programnya kena
+    // cadangan diberi tahu batas yang salah, dan kalimatnya berarti "ini semua
+    // batasnya" padahal bukan. Assertion-nya sengaja dua syarat, angka dan
+    // kata: menghapus kata "cadangan" sambil mempertahankan angka 25 akan
+    // mengembalikan kalimat yang menyesatkan persis seperti sebelumnya.
+    const detail = petakanStatus("batas_dilampaui").detail ?? "";
+    expect(detail).toContain("25 detik");
+    expect(detail).toMatch(/cadangan/i);
+  });
+
+  it("menyebut sifat 25 detik sebelum angkanya, bukan sebagai angka tambahan", () => {
+    // Arah sebaliknya: 25 detik yang berdiri sendiri seperti batas utama akan
+    // membuat peserta mengira batas waktunya 25 detik, padahal 10.
+    const detail = petakanStatus("batas_dilampaui").detail ?? "";
+    const posisiAngka = detail.indexOf("25 detik");
+    const posisiKata = detail.indexOf("cadangan");
+    expect(posisiAngka).toBeGreaterThan(-1);
+    expect(posisiKata).toBeGreaterThan(-1);
+    expect(posisiKata).toBeLessThan(posisiAngka);
+  });
+
   it("galat_program tidak mengarang diagnosis", () => {
     // Status ini mencakup semua crash, jadi menyebut penyebab tertentu
     // berarti menebak. "SIGSEGV" memang 139, tapi "galat_program" tidak
