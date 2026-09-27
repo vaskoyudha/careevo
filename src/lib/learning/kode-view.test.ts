@@ -53,6 +53,27 @@ describe("KodeView sebagai berkas sumber", () => {
     expect(css).toMatch(/\.kode-view \.cm-scroller \{[^}]*max-height/);
   });
 
+  it("mewarnai token, bukan hanya memasang gramatika", () => {
+    // `cpp()` hanya memberi gramatika dan parser. Tanpa `HighlightStyle` tidak
+    // ada satu pun token yang diberi warna, dan blok kode tampil sebagai teks
+    // polos di atas permukaan gelap. Uji "memakai tata bahasa C++" di atas
+    // tidak menangkap ini: gramatika yang terpasang bukan bukti bahwa ada
+    // warna, dan itulah yang membuat cacat ini bisa hijau selama satu task
+    // penuh. Yang dipatok di sini adalah jalurnya sampai ke ekstensi.
+    expect(sumber).toContain('from "@codemirror/language"');
+    expect(sumber).toMatch(/HighlightStyle\.define\(/);
+    expect(sumber).toMatch(/syntaxHighlighting\(\s*GAYA_SOROTAN\s*\)/);
+
+    // Palet harus milik repo. `defaultHighlightStyle` membawa set warna asing
+    // yang bukan warna repo ini, persis yang dihindari oleh `TEMA`.
+    expect(sumber).not.toContain("defaultHighlightStyle");
+
+    // Warna token memakai tag asli dari `@lezer/highlight`, bukan nama tag yang
+    // diketik tangan.
+    expect(sumber).toContain('from "@lezer/highlight"');
+    expect(sumber).toMatch(/\btags\.[a-zA-Z]+/);
+  });
+
   it("menghancurkan tampilan saat unmount", () => {
     // Tanpa destroy, setiap buka halaman menambah satu EditorView yang terus
     // memegang listener.
