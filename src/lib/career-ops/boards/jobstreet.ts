@@ -13,9 +13,12 @@ import {
   type ListingJobstreet,
 } from "../jobstreet-audit";
 import type { HasilPapan, Io, PapanAdapter } from "./types";
+import { hostDari } from "./url";
 
 const ENDPOINT = "https://id.jobstreet.com/api/jobsearch/v5/search";
 const SITE_KEY = "ID-Main";
+
+const HOST_JOBSTREET = /(^|\.)jobstreet\.(com|co\.id)$/i;
 
 /**
  * Jobstreet's occupational categories, used as tags.
@@ -54,7 +57,7 @@ async function ambilListing(jobId: string, io: Io): Promise<ListingJobstreet | n
 
 export const jobstreet: PapanAdapter = {
   nama: "Jobstreet",
-  cocok: (url) => jobIdFromUrl(url) !== null,
+  cocok: (url) => HOST_JOBSTREET.test(hostDari(url)) && jobIdFromUrl(url) !== null,
   async ambilDetail(url, io, konteks): Promise<HasilPapan | null> {
     const jobId = jobIdFromUrl(url);
     if (!jobId) return null;

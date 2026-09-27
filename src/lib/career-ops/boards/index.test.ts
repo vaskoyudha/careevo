@@ -40,4 +40,12 @@ describe("registry", () => {
     expect(adapterUntuk("https://careers.allianz.com/job/1")).toBeNull();
     expect(namaPapan("https://careers.allianz.com/job/1")).toBeUndefined();
   });
+
+  it("scopes the Jobstreet rule to its own host", () => {
+    // `jobIdFromUrl` is path-shaped only, so an unscoped `cocok` would let
+    // jobstreet (first in ADAPTER) silently own any foreign URL carrying
+    // /id/job/<digits> — the order-dependent bug this file exists to catch.
+    expect(namaPapan("https://apply.workable.com/id/job/94821245")).toBe("Workable");
+    expect(namaPapan("https://dealls.com/id/job/94821245")).toBe("Dealls");
+  });
 });
