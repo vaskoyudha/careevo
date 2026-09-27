@@ -1191,6 +1191,20 @@ h6 {
   padding-bottom: calc(var(--reader-foot-h) + 1.25rem);
 }
 
+/* Lebar baca untuk halaman ber-lab kode.
+
+   `--max` (1280px) adalah lebar maksimum bersama situs ini — dipakai `.chrome`,
+   bar fokus reader, dan halaman marketing — jadi tepi kolom lab sejajar dengan
+   chrome tepat di atasnya. Sebelumnya halaman lab memakai `max-w-6xl` (1152px),
+   dan selisih 128px itu menyisakan margin mati yang lebih lebar daripada chrome
+   di atasnya; itulah yang terbaca sebagai "kartunya belum sampai tepi".
+
+   Halaman prosa **tidak** memakai ini: 1280px terlalu panjang untuk dibaca,
+   jadi ia tetap `max-w-3xl` (`materi-shell.tsx`). */
+.reader-shell .lab-baca {
+  max-width: min(var(--max), calc(100% - 2 * var(--page-pad)));
+}
+
 /* One row: navigation at the two ends and the AI Mastery door in the middle.
    A plain flex row, not the 3-column grid this used to be. The grid existed to
    spread the outer buttons to the *ends* of a wide bar, which is exactly the

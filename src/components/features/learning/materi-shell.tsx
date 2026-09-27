@@ -358,14 +358,27 @@ export function MateriShell({
             drawer, bukan menyingkir ke samping. */}
         <div className="relative min-w-0 flex-1">
           <main className="h-full min-w-0 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
+            {/* Lebar bacanya dipisah per jenis halaman, dan angka untuk lab
+                **tidak lagi angka karangan**: `max-w-6xl` (1152px) menyisakan
+                144px mati di kiri-kanan pada viewport 1440px, padahal bar fokus
+                tepat di atasnya membentang 1304px. Dua tepi yang berbeda 144px di
+                satu layar itulah yang terbaca sebagai "kartunya belum sampai
+                tepi". Sekarang halaman lab memakai `--max` milik situs (1280px,
+                DESIGN.md line 49) — lebar maksimum yang sama dengan bar fokus,
+                `.chrome`, dan halaman marketing — jadi tepinya sejajar dengan
+                chrome di atasnya alih-alih dengan angka ketiga yang hanya dipakai
+                di sini.
+
+                Halaman prosa tetap `max-w-3xl`: lebar baca yang nyaman, dan
+                melebarkannya ke 1280px akan membuat barisnya terlalu panjang untuk
+                dibaca. */}
             <div
               className={cn(
                 "mx-auto w-full space-y-6",
-                // Halaman ber-lab kode memakai dua kolom di dalamnya, jadi
-                // kolom bacanya dilebarkan: `max-w-3xl` memaksa dua kolom itu
-                // berdesakan dan editor kode jadi terlalu sempit untuk dibaca.
-                // Halaman biasa tetap `max-w-3xl` — lebar baca yang nyaman.
-                lebarLab ? "max-w-6xl" : "max-w-3xl",
+                // `<div>`: `max-w-[var(--max)]` gaya Tailwind tidak dipakai karena
+                // `--max` adalah custom property situs, dan menulis 1280px di sini
+                // berarti angka kedua yang bisa menyimpang dari DESIGN.md.
+                lebarLab ? "lab-baca" : "max-w-3xl",
                 // Halaman ber-lab juga **membagi tinggi** area baca, bukan
                 // menggulir seperti prosa. Editor butuh tinggi yang pasti untuk
                 // bisa mengisi kolomnya; tanpa rantai ini `flex-1` di bawah
