@@ -1,61 +1,17 @@
-import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { getSession } from "@/lib/auth/session";
-import { normalizeOwner } from "@/lib/auth/types";
-import { getProfile } from "@/lib/onboarding/store";
-import { katalogBelajar } from "@/lib/courses/katalog";
-import type { Pendaftaran } from "@/lib/courses/enrollment";
-import { pastikanBackfill } from "@/lib/learning/backfill-lazy";
-import { listKursusTerdaftarDb, progresKursusDb } from "@/lib/learning/service";
-import { bangunJalurPersonalisasi } from "@/lib/learning/personalized-path";
-import { LearnerShell } from "@/components/ui/learner-shell";
-import { JalurBelajarView } from "@/components/features/learning/jalur-belajar-view";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Jalur Belajar" };
-
-export default async function JalurBelajarPage() {
-  const session = await getSession();
-  if (!session) return null;
-
-  // Migrasi lazy sebelum membaca, sama seperti halaman belajar lain: enrollment
-  // cookie pemilik ini dipindahkan ke database sekali saja.
-  await pastikanBackfill(session);
-
-  const [profile, catalog, terdaftar] = await Promise.all([
-    getProfile(session.email),
-    katalogBelajar(),
-    listKursusTerdaftarDb(session),
-  ]);
-
-  if (!profile) notFound();
-
-  // `bangunJalurPersonalisasi` masih memakai bentuk `Pendaftaran[]` dari cookie.
-  // Bentuk itu dibangun ulang dari baris database, bukan dengan mengubah
-  // algoritmanya: id modul selesai tetap dibaca service (`progresKursusDb`),
-  // dan `owner` diisi email principal supaya penyaringan di dalamnya cocok.
-  const owner = normalizeOwner(session.email);
-  const enrollments: Pendaftaran[] = [];
-  for (const pendaftaran of terdaftar) {
-    const { selesai } = await progresKursusDb(session, pendaftaran.courseId);
-    enrollments.push({
-      course_id: pendaftaran.courseId,
-      slug:
-        catalog.find((entri) => entri.id === pendaftaran.courseId)?.slug ??
-        pendaftaran.courseId,
-      owner,
-      enrolled_at:
-        pendaftaran.enrolledAt instanceof Date
-          ? pendaftaran.enrolledAt.toISOString()
-          : String(pendaftaran.enrolledAt),
-      selesai_modul: selesai,
-    });
-  }
-
-  const path = bangunJalurPersonalisasi({ profile, catalog, enrollments });
-
-  return (
-    <LearnerShell session={session}>
-      <JalurBelajarView path={path} profile={profile} />
-    </LearnerShell>
-  );
+/**
+ * Rute lama → `/progres`.
+ *
+ * Halaman ini pernah jadi "Jalur Belajar": satu jalur personal ke satu kursus.
+ * Sekarang progres dibaca per kursus di `/progres`, jadi tidak ada lagi isi di
+ * sini. Rutenya **tidak** dihapus supaya tautan lama (sidebar lama, promo card,
+ * dan bookmark) tidak berakhir jadi 404 — rute lama menjawab 307, lalu
+ * `/progres` menjawab 200.
+ *
+ * Redirect terjadi setelah gate `(app)/layout.tsx` berjalan, jadi permintaan tanpa
+ * sesi tetap diarahkan ke `/masuk` lebih dulu — sama seperti sebelumnya.
+ */
+export default function JalurBelajarRedirect() {
+  redirect("/progres");
 }
