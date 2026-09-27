@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { ModulKursus } from "@/lib/courses/kurikulum";
@@ -21,6 +21,7 @@ import {
 import { KejadianPanel } from "./kejadian-panel";
 import { KuisView } from "./kuis-view";
 import { KursusAiPanel } from "./kursus-ai-panel";
+import { KursusSubNav } from "./kursus-subnav";
 import type { KebijakanCourse, TipeMateri } from "@/types/course";
 
 const LABEL_TIPE: Record<TipeMateri, string> = {
@@ -191,6 +192,14 @@ function RuangBelajar({
   const selesaiValid = irisModulSelesai(selesai, modul);
   const progres = hitungProgres(selesaiValid.length, modul.length);
   const jumlahHalaman = modul.reduce((total, m) => total + (m.halaman?.length ?? 0), 0);
+  /**
+   * Blok header course, jadi trigger sub-header lengket.
+   *
+   * Ref, bukan state: `ScrollSubNav` membacanya dari listener scroll, jadi yang
+   * dibutuhkan hanya elemennya. Menyimpan posisi scroll di state akan
+   * me-render ulang seluruh daftar modul pada setiap gerakan scroll.
+   */
+  const headerRef = useRef<HTMLDivElement>(null);
 
   const daftar = () =>
     startTransition(async () => {
@@ -268,7 +277,19 @@ function RuangBelajar({
 
   return (
     <div className="min-w-0 overflow-x-clip bg-white">
-      <div className="bg-[#f5f7fa]">
+      <KursusSubNav
+        judul={kursus.title}
+        penyedia={kursus.provider}
+        terdaftar={sudahDaftar}
+        progres={progres}
+        selesai={selesaiValid.length}
+        total={modul.length}
+        gratis={kursus.is_free}
+        pending={pending}
+        onDaftar={daftar}
+        trigger={headerRef}
+      />
+      <div ref={headerRef} className="bg-[#f5f7fa]">
         <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
           <nav aria-label="Breadcrumb" className="text-sm text-gray-500">
             <Link href="/belajar" className="hover:text-[#0056D2]">
@@ -325,7 +346,10 @@ function RuangBelajar({
 
       <div className="mx-auto w-full max-w-6xl space-y-10 px-4 py-8 sm:px-6 lg:px-8">
         <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-          <section id="kurikulum" aria-labelledby="judul-kurikulum" className="min-w-0 scroll-mt-24">
+          {/* `subnav-scroll-mt`, bukan `scroll-mt-24`: target ini sekarang bisa
+              mendarat di belakang navbar mengambang *dan* sub-header lengket,
+              yang offset-nya dipublikasikan `ScrollSubNav`. */}
+          <section id="kurikulum" aria-labelledby="judul-kurikulum" className="subnav-scroll-mt min-w-0">
             <h2 id="judul-kurikulum" className="mb-1 text-xl font-bold tracking-tight text-gray-900">
               Kurikulum
             </h2>
@@ -505,7 +529,11 @@ function RuangBelajar({
             </ol>
           </section>
 
-          <aside aria-label="Pendaftaran" className="lg:sticky lg:top-24 lg:self-start">
+          {/* `subnav-sticky-top`, bukan `lg:top-24`: kolom ini ikut diam di
+              viewport, jadi harus berhenti di bawah sub-header lengket —
+              `top-24` (96px) berada di dalam bar (78–131px) dan kartunya
+              tertutup. */}
+          <aside aria-label="Pendaftaran" className="subnav-sticky-top lg:sticky lg:self-start">
             <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_2px_12px_rgba(0,0,0,0.08)]">
               {sudahDaftar ? (
                 <>
