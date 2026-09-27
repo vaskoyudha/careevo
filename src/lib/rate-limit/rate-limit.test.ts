@@ -89,7 +89,15 @@ describe("tabel kebijakan", () => {
     }
   });
 
+  it("jalankanKode dikelompokkan per principal, bukan per IP", () => {
+    // Satu kelas belajar berada di satu jaringan. Pengelompokan per IP akan
+    // membatasi satu geng dan membiarkan penyalahguna berpindah IP.
+    expect(AMBANG.jalankanKode.bucketPrincipal).toBe(true);
+  });
 
+  it("jalankanKode gagal tertutup, karena endpoint ini menjalankan biner", () => {
+    expect(AMBANG.jalankanKode.failOpen).toBe(false);
+  });
 });
 
 describe("identifierUntuk", () => {
