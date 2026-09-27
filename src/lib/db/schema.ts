@@ -485,6 +485,20 @@ export const courses = pgTable("courses", {
   id: text("id").primaryKey(),
   slug: text("slug").notNull(),
   title: text("title").notNull(),
+  /**
+   * Id kursus pasangannya di AI Mastery, atau `null` bila belum pernah disejikan.
+   *
+   * **Dua ruang id yang berbeda, jadi pemetaan ini wajib disimpan.** AI Mastery
+   * membuat id-nya sendiri (`course_<hex>`, `deeptutor/services/courses.py`) dan
+   * API-nya tidak menerima id dari pemanggil — jadi `courses.id` Careevo tidak
+   * pernah bisa menjadi id sana. Tanpa kolom ini, `?course=<id Careevo>` selalu
+   * ditolak backend dan `course_study` tidak pernah aktif.
+   *
+   * `null` berarti "belum disejikan", bukan "tidak boleh": `null` dan id yang
+   * salah menghasilkan perilaku yang sama di sisi AI Mastery, jadi distinguishnya
+   * tidak menambah informasi apa pun.
+   */
+  aiCourseId: text("ai_course_id"),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
 });
 
