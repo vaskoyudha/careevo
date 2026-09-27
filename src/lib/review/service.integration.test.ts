@@ -595,3 +595,110 @@ describe("kredensial per course — bahan kotak sertifikat di halaman course", (
     expect(await ambilKredensialCourse(learner, "crs-1")).toBeNull();
   });
 });
+
+/**
+ * Rincian rubrik dibaca dari `reviews.rubric_snapshot` lewat
+ * `attestations.source_review_id`. Inilah yang membuat sertifikat lama tetap
+ * punya rincian tanpa menerbitkannya ulang dan tanpa mengubah payload.
+ */
+describe("rincian rubrik pada attestation publik", () => {
+  async function terbitDengan(learner: SessionPrincipal, staff: SessionPrincipal, rubric: RubrikReview) {
+    const { submission } = await submissionTerikat(learner, { judul: "Karya", catatan: "x" });
+    await kirimSubmissionDb({ principal: learner, submissionId: submission.id });
+    await tetapkanReviewerDb({
+      principal: staff,
+      submissionId: submission.id,
+      reviewerUserId: staff.userId,
+    });
+    await mulaiReviewDb({ principal: staff, submissionId: submission.id });
+    return putuskanReviewDb({
+      principal: staff,
+      submissionId: submission.id,
+      decision: "approved",
+      rubric,
+      rationale: "Alasan yang cukup panjang.",
+    });
+  }
+
+  it("mengembalikan kelima kriteria persis seperti yang dinilai verifikator", async () => {
+    const learner = await buatPrincipal("rub@contoh.test", "rub");
+    const staff = await buatStaff("staff-rub@contoh.test", "staff-rub");
+    const rubric: RubrikReview = {
+      kelengkapan: 3,
+      kualitas: 2,
+      orisinalitas: 4,
+      ketepatan_brief: 1,
+      dokumentasi: 4,
+    };
+    const hasil = await terbitDengan(learner, staff, rubric);
+
+    const publik = await ambilAttestationPublik(hasil.attestation!.publicToken);
+    expect(publik?.rubric).toEqual(rubric);
+  });
+
+  it("nilai rubrik tidak diambil dari payload yang ditandatangani", async () => {
+    // Payload tetap 7 field. Kalau seseorang menambahkan rubrik ke payload,
+    // test ini gagal — dan itu memang tujuannya: sertifikat lama tidak punya
+    // field itu, jadi menambahkannya akan memecah verifikasi tanda tangan.
+    const learner = await buatPrincipal("pay@contoh.test", "pay");
+    const staff = await buatStaff("staff-pay@contoh.test", "staff-pay");
+    const hasil = await terbitDengan(learner, staff, RUBRIK_LULUS);
+
+    const publik = await ambilAttestationPublik(hasil.attestation!.publicToken);
+    const payload = dariKanonik(publik!.attestation.payloadCanonical);
+    expect(Object.keys(payload!).sort()).toEqual(
+      [
+        "issued_at",
+        "level",
+        "score",
+        "task_id",
+        "task_title",
+        "track",
+        "username",
+      ].sort(),
+    );
+  });
+
+  it("snapshot rubrik yang rusak menjadi null, bukan throw", async () => {
+    // `source_review_id` dan `rubric_snapshot` sama-sama NOT NULL, jadi jalur
+    // "review hilang" tidak bisa disimulasikan lewat database. Yang bisa — dan
+    // yang memang perlu ditoleransi — adalah snapshot yang **bentuknya tidak
+    // terbaca** (mis. baris lama, atau penulisan yang gagal separuh). Halaman
+    // verifikasi publik tidak boleh 500 karena satu baris seperti itu.
+    const learner = await buatPrincipal("nul@contoh.test", "nul");
+    const staff = await buatStaff("staff-nul@contoh.test", "staff-nul");
+    const hasil = await terbitDengan(learner, staff, RUBRIK_LULUS);
+
+    expect((await ambilAttestationPublik(hasil.attestation!.publicToken))?.rubric).toEqual(
+      RUBRIK_LULUS,
+    );
+
+    for (const rusak of [[], "bukan-objek", { kualitas: "empat" }, {}]) {
+      await db
+        .update(reviews)
+        .set({ rubricSnapshot: rusak })
+        .where(eq(reviews.id, hasil.review.id));
+
+      const publik = await ambilAttestationPublik(hasil.attestation!.publicToken);
+      expect(publik, JSON.stringify(rusak)).not.toBeNull();
+      expect(publik?.rubric, JSON.stringify(rusak)).toBeNull();
+    }
+  });
+
+  it("hanya kriteria bernilai angka yang diteruskan", async () => {
+    // Angka non-finite (`NaN`, `Infinity`) tidak bisa datang dari jsonb, tapi bisa
+    // dari pembacaan yang salah. `bacaRubrik` menyaringnya alih-alih
+    // menampilkannya sebagai "/4" yang tidak berarti.
+    const learner = await buatPrincipal("ang@contoh.test", "ang");
+    const staff = await buatStaff("staff-ang@contoh.test", "staff-ang");
+    const hasil = await terbitDengan(learner, staff, RUBRIK_LULUS);
+
+    await db
+      .update(reviews)
+      .set({ rubricSnapshot: { kualitas: 3, kelengkapan: "tiga" } })
+      .where(eq(reviews.id, hasil.review.id));
+
+    const publik = await ambilAttestationPublik(hasil.attestation!.publicToken);
+    expect(publik?.rubric).toEqual({ kualitas: 3 });
+  });
+});

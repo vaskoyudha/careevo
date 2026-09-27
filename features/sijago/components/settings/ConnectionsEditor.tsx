@@ -39,15 +39,15 @@ import { inputClass, selectClass, selectOptionClass } from "./shared";
  * who want a different key per service simply never make a connection.
  */
 
-const SERVICE_LABEL: Record<ServiceName, { en: string; zh: string }> = {
-  llm: { en: "LLM", zh: "LLM" },
-  task: { en: "Task model", zh: "任务模型" },
-  embedding: { en: "Embedding", zh: "嵌入模型" },
-  search: { en: "Search", zh: "搜索" },
-  tts: { en: "Text-to-Speech", zh: "语音合成" },
-  stt: { en: "Speech-to-Text", zh: "语音识别" },
-  imagegen: { en: "Image", zh: "文生图" },
-  videogen: { en: "Video", zh: "文生视频" },
+const SERVICE_LABEL: Record<ServiceName, { en: string; zh: string; id: string }> = {
+  llm: { en: "LLM", id: "LLM", zh: "LLM" },
+  task: { en: "Task model", id: "Model tugas", zh: "任务模型" },
+  embedding: { en: "Embedding", id: "Embedding", zh: "嵌入模型" },
+  search: { en: "Search", id: "Cari", zh: "搜索" },
+  tts: { en: "Text-to-Speech", id: "Teks-ke-Ucapan", zh: "语音合成" },
+  stt: { en: "Speech-to-Text", id: "Ucapan-ke-Teks", zh: "语音识别" },
+  imagegen: { en: "Image", id: "Gambar", zh: "文生图" },
+  videogen: { en: "Video", id: "Video", zh: "文生视频" },
 };
 
 const SERVICE_HREF: Record<ServiceName, string> = {
@@ -81,7 +81,9 @@ function maskedKey(value: string): string {
 
 export function ConnectionsEditor() {
   const { t, i18n } = useTranslation();
-  const zh = i18n.language?.toLowerCase().startsWith("zh");
+  const lang = (i18n.language ?? "en").toLowerCase();
+  const zh = lang.startsWith("zh");
+  const id = lang.startsWith("id");
   const {
     draft,
     catalogEditable,
@@ -151,7 +153,11 @@ export function ConnectionsEditor() {
   }
 
   const label = (service: ServiceName) =>
-    zh ? SERVICE_LABEL[service].zh : SERVICE_LABEL[service].en;
+    id
+      ? SERVICE_LABEL[service].id
+      : zh
+        ? SERVICE_LABEL[service].zh
+        : SERVICE_LABEL[service].en;
 
   return (
     <div>
@@ -521,7 +527,9 @@ function AddConnectionPanel({
   ) => void;
 }) {
   const { t, i18n } = useTranslation();
-  const zh = i18n.language?.toLowerCase().startsWith("zh");
+  const lang = (i18n.language ?? "en").toLowerCase();
+  const zh = lang.startsWith("zh");
+  const id = lang.startsWith("id");
   const [provider, setProvider] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
@@ -535,7 +543,11 @@ function AddConnectionPanel({
   );
 
   const label = (service: ServiceName) =>
-    zh ? SERVICE_LABEL[service].zh : SERVICE_LABEL[service].en;
+    id
+      ? SERVICE_LABEL[service].id
+      : zh
+        ? SERVICE_LABEL[service].zh
+        : SERVICE_LABEL[service].en;
 
   const choose = (next: string) => {
     setProvider(next);

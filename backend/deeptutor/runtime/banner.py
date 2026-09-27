@@ -1,7 +1,7 @@
 """Branded banner + localized labels for ``deeptutor start`` / ``deeptutor init``.
 
 Both commands read the user's language preference from
-``data/user/settings/interface.json`` (default ``en``) so their startup
+``data/user/settings/interface.json`` (default ``id``) so their startup
 output matches the UI language the user has chosen.
 """
 

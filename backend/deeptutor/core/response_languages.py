@@ -1,6 +1,7 @@
 """Supported reply languages used by core turn-request validation."""
 
 SUPPORTED_RESPONSE_LANGUAGES: tuple[str, ...] = (
+    "id",
     "en",
     "zh",
     "zh-tw",

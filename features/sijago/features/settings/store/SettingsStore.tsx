@@ -101,6 +101,7 @@ export type ResponseLanguageOption = {
 };
 
 export const RESPONSE_LANGUAGE_OPTIONS: readonly ResponseLanguageOption[] = [
+  { value: "id", label: "Bahasa Indonesia" },
   { value: "en", label: "English" },
   { value: "zh", label: "简体中文" },
   { value: "zh-tw", label: "繁體中文" },
@@ -636,9 +637,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [theme, setTheme] = useState<UiSettings["theme"]>("snow");
-  const [language, setLanguage] = useState<UiSettings["language"]>("en");
+  const [language, setLanguage] = useState<UiSettings["language"]>("id");
   const [responseLanguage, setResponseLanguage] =
-    useState<UiSettings["response_language"]>("en");
+    useState<UiSettings["response_language"]>("id");
   const [catalog, setCatalog] = useState<Catalog>(defaultCatalog());
   const [draft, setDraft] = useState<Catalog>(defaultCatalog());
   const [catalogEditable, setCatalogEditable] = useState<boolean | null>(null);

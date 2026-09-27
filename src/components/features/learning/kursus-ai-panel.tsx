@@ -80,7 +80,7 @@ export function KursusAiPanel({
         <>
           <Link
             href={href}
-            className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-full bg-[#0056D2] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#00419e]"
+            className="brand-fill mt-4 flex w-full items-center justify-center gap-1.5 rounded-full border border-[var(--brand-border)] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:border-[var(--brand-border-hover)]"
           >
             <Sparkles size={14} strokeWidth={2} aria-hidden="true" />
             Tanya tutor AI

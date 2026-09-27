@@ -24,6 +24,7 @@ import { getCourseById } from "@/lib/courses/store";
 import { hitungSkorKarya, type RubricCriterion } from "@/lib/scoring/karya";
 import { punyaRoleStaff } from "@/lib/auth/authorization";
 import type { SessionPrincipal } from "@/lib/auth/principal";
+import type { BerkasSnapshot } from "@/lib/workspace/snapshot";
 import { kanonik, dariKanonik, type AttestationPayload } from "@/lib/attestation/payload";
 import { tandaTangan, tokenPublicBaru, type KeyVersion } from "@/lib/attestation/key";
 import { catatAudit } from "@/lib/auth/audit";
@@ -133,10 +134,25 @@ export function transisiSah(
  * Submission (learner)
  * ------------------------------------------------------------------ */
 
-/** Konten submission learner — snapshot, bukan payload credential. */
+/**
+ * Konten submission learner — snapshot, bukan payload credential.
+ *
+ * `berkas` adalah daftar berkas yang **dibekukan** dari ruang kerja saat
+ * submission dibuat. Yang disimpan hanya path dan ukuran, bukan isinya:
+ * menyalin isi seluruh proyek ke `content_snapshot` akan membuat baris jsonb
+ * tumbuh tanpa batas, dan yang dibutuhkan reviewer adalah daftar apa yang
+ * dikerjakan — bukan salinan kedua yang bisa menyimpang dari volume.
+ *
+ * `berkas` absen berarti "tidak ada ruang kerja yang terbaca saat itu", dan itu
+ * **berbeda** dari `[]` yang berarti "ruang kerjanya kosong". Reviewer yang
+ * membaca snapshot perlu membedakan keduanya; `berkasTerpotong` menyatakan
+ * apakah daftarnya lengkap.
+ */
 export interface KontenSubmission {
   judul?: string | null;
   catatan?: string | null;
+  berkas?: BerkasSnapshot[] | null;
+  berkasTerpotong?: boolean;
 }
 
 /**
@@ -425,6 +441,15 @@ export async function buatSubmissionDb(input: {
       contentSnapshot: {
         judul: input.konten.judul ?? null,
         catatan: input.konten.catatan ?? null,
+        // `berkas` hanya disertakan bila ada. Field yang absen berarti "tidak
+        // ada snapshot berkas", dan menulis `null` di sana akan menyamakannya
+        // dengan "ruang kerja kosong" — dua hal yang berbeda bagi reviewer.
+        ...(input.konten.berkas
+          ? {
+              berkas: input.konten.berkas,
+              berkasTerpotong: Boolean(input.konten.berkasTerpotong),
+            }
+          : {}),
       },
     });
     await catatAudit(tx, {
@@ -466,6 +491,12 @@ export async function kirimSubmissionDb(input: {
         contentSnapshot: {
           judul: input.konten.judul ?? null,
           catatan: input.konten.catatan ?? null,
+          ...(input.konten.berkas
+            ? {
+                berkas: input.konten.berkas,
+                berkasTerpotong: Boolean(input.konten.berkasTerpotong),
+              }
+            : {}),
         },
       });
     }

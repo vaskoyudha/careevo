@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 import type { AttestationPayload } from "@/lib/attestation/sign";
 import type { VerifyReason } from "@/lib/attestation/verify";
 import { Chip } from "@/components/ui/chip";
@@ -62,6 +64,12 @@ export type VerifyResultProps = {
   payload?: AttestationPayload;
   signature?: string;
   reason?: VerifyReason;
+  /**
+   * Tujuan tombol "rincian". Dihilangkan kalau rinciannya memang tidak dirender
+   * (mis. payload cacat atau status `invalid`), supaya tombolnya tidak pernah
+   * menggulir ke tempat yang kosong.
+   */
+  rincianHref?: string;
 };
 
 function formatIssuedAt(value: string): string {
@@ -73,14 +81,36 @@ function formatIssuedAt(value: string): string {
   }).format(date);
 }
 
+/**
+ * Kartu verifikasi — jawaban, bukan buktinya.
+ *
+ * ## Kenapa skor muncul sebagai bar di baris ringkas
+ *
+ * Skor ikut di baris `verify-rows` supaya bisa dibandingkan sejajar dengan Track
+ * dan Level. Batangnya paralel dengan nilai, bukan menggantikannya: panjang
+ * memberi proporsi, angka di kanan tetap angka yang ditandatangani. Karena kartu
+ * ini dirender di server dan tidak pernah berubah setelah dimuat, tidak ada
+ * transisi di sini — yang beranimasi hanya elemen yang memang bergerak.
+ *
+ * ## Kenapa tombolnya di dalam kartu
+ *
+ * Pembaca datang dengan pertanyaan "ini asli atau tidak", lalu langsung
+ * "bagusnya di mana". Tombol rincian menjawab pertanyaan kedua tanpa menggulir
+ * manual mencari panelnya, dan karena targetnya `#id` di halaman yang sama, ia
+ * tetap bekerja tanpa JavaScript. Tombol disembunyikan saat panelnya tidak
+ * dirender, bukan dibuat tidak aktif — tautan mati lebih buruk daripada tidak ada
+ * tautan.
+ */
 export function VerifyResult({
   status,
   payload,
   signature,
   reason,
+  rincianHref,
 }: VerifyResultProps) {
   const config = CONFIG[status];
   const showPayload = Boolean(payload) && status !== "invalid";
+  const skor = payload?.score;
 
   return (
     <div className="focal-card verify-card">
@@ -126,9 +156,24 @@ export function VerifyResult({
             <dt>Level</dt>
             <dd>{payload.level}</dd>
           </div>
-          <div className="verify-row">
+          <div className="verify-row verify-row-skor">
             <dt>Skor</dt>
-            <dd>{payload.score}/100</dd>
+            <dd>
+              {typeof skor === "number" && Number.isFinite(skor) ? (
+                <span className="verify-skor">
+                  <span
+                    className="verify-skor-track"
+                    aria-hidden="true"
+                    style={{ "--skor-w": `${Math.max(0, Math.min(100, skor))}%` } as CSSProperties}
+                  >
+                    <span className="verify-skor-fill" />
+                  </span>
+                  <span className="verify-skor-angka">{skor}/100</span>
+                </span>
+              ) : (
+                <span className="verify-row-note">tidak terbaca</span>
+              )}
+            </dd>
           </div>
           <div className="verify-row">
             <dt>Tanggal terbit</dt>
@@ -153,7 +198,25 @@ export function VerifyResult({
       ) : null}
 
       <div className="hero-actions verify-actions">
-        <Btn href={payload ? `/p/${payload.username}` : "/loker"}>
+        {rincianHref ? (
+          <Btn href={rincianHref} className="verify-btn-rincian">
+            <span>Lihat rincian penilaian</span>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 5v14M19 12l-7 7-7-7" />
+            </svg>
+          </Btn>
+        ) : null}
+        <Btn variant="ghost" href={payload ? `/p/${payload.username}` : "/loker"}>
           {payload ? "Lihat Profil" : "Buka Job Board"}
         </Btn>
         <CopyLinkButton />

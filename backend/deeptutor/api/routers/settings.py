@@ -95,6 +95,7 @@ TOUR_CACHE = None
 
 # Reader-facing model output supports more languages than the interface.
 ResponseLanguage = Literal[
+    "id",
     "en",
     "zh",
     "zh-tw",
@@ -171,8 +172,8 @@ class SidebarNavOrder(BaseModel):
 
 class UISettings(BaseModel):
     theme: Literal["light", "dark", "glass", "snow"] = "snow"
-    language: UiLanguage = "en"
-    response_language: ResponseLanguage = "en"
+    language: UiLanguage = "id"
+    response_language: ResponseLanguage = "id"
     sidebar_description: Optional[str] = None
     sidebar_nav_order: Optional[SidebarNavOrder] = None
     code_block_theme: Optional[str] = None

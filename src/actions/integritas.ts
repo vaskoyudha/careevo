@@ -7,6 +7,8 @@ import {
   GalatIntegritas,
   catatPelanggaranDb,
   pulihkanPelanggaranDb,
+  putuskanUsulanDb,
+  tolakUsulanDb,
 } from "@/lib/integritas/service";
 import { JENIS_PELANGGARAN } from "@/lib/integritas/katalog";
 
@@ -147,6 +149,119 @@ export async function pulihkanPelanggaranAction(
       ...(slug ? [`/belajar/${slug}`] : []),
     );
     return { ok: true, message: "Catatan dipulihkan. Skor dihitung ulang otomatis." };
+  } catch (error) {
+    if (error instanceof GalatIntegritas) return { ok: false, error: error.message };
+    throw error;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Stage 2 — keputusan atas usulan otomatis
+ * ------------------------------------------------------------------ */
+
+const KEPUTUSAN_SCHEMA = z.object({
+  id: z.uuid(),
+  slug: z.string().trim().max(200).optional(),
+});
+
+/**
+ * Konfirmasi usulan otomatis jadi pelanggaran yang berlaku. Hanya staf.
+ *
+ * **Id yang dibawa ke database adalah `proposed`, bukan `active`.**
+ * `putuskanUsulanDb` membandingkan status itu, jadi usulan yang sudah diputuskan
+ * tidak bisa diputar dua kali meski form-nya di-submit ulang.
+ *
+ * `null` (sudah diputuskan) dikembalikan sebagai pesan yang **jujur** — bukan
+ * error. Dua verifikator menekan bersamaan adalah keadaan normal, dan mengklaim
+ * "gagal" untuk keputusan yang sebenarnya sudah sah hanya mengajari staf untuk
+ * tidak percaya dengan pesan sistem.
+ */
+export async function konfirmasiUsulanAction(
+  _prev: PelanggaranState,
+  formData: FormData,
+): Promise<PelanggaranState> {
+  const session = await getSession();
+  if (!session?.userId) return { ok: false, error: PESAN_AKSES_DITOLAK };
+
+  const parsed = KEPUTUSAN_SCHEMA.safeParse({
+    id: formData.get("id"),
+    slug: formData.get("slug"),
+  });
+  if (!parsed.success) return { ok: false, error: "Usulan tidak valid." };
+
+  try {
+    const hasil = await putuskanUsulanDb({
+      principal: session,
+      id: parsed.data.id,
+    });
+    if (!hasil) {
+      return { ok: true, message: "Usulan itu sudah diputuskan. Tidak ada perubahan." };
+    }
+    const slug = parsed.data.slug;
+    safeRevalidate(
+      "/dashboard",
+      "/progres",
+      "/performa",
+      "/performa/integritas",
+      ...(slug ? [`/belajar/${slug}`] : []),
+    );
+    return {
+      ok: true,
+      pelanggaranId: hasil.id,
+      message: "Usulan dikonfirmasi. Skor kejujuran peserta turun mulai sekarang.",
+    };
+  } catch (error) {
+    if (error instanceof GalatIntegritas) return { ok: false, error: error.message };
+    throw error;
+  }
+}
+
+const TOLAK_SCHEMA = z.object({
+  id: z.uuid(),
+  // Batas bawah 10, sama seperti pencatatan: keputusan menolak tanpa penjelasan
+  // tidak bisa ditinjau staf berikutnya yang melihat usulan ini muncul lagi.
+  alasan: z.string().trim().min(10).max(2000),
+  slug: z.string().trim().max(200).optional(),
+});
+
+/** Tolak usulan otomatis. Skor tidak bergerak. Hanya staf. */
+export async function tolakUsulanAction(
+  _prev: PelanggaranState,
+  formData: FormData,
+): Promise<PelanggaranState> {
+  const session = await getSession();
+  if (!session?.userId) return { ok: false, error: PESAN_AKSES_DITOLAK };
+
+  const parsed = TOLAK_SCHEMA.safeParse({
+    id: formData.get("id"),
+    alasan: formData.get("alasan"),
+    slug: formData.get("slug"),
+  });
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Input tidak valid." };
+  }
+
+  try {
+    const hasil = await tolakUsulanDb({
+      principal: session,
+      id: parsed.data.id,
+      alasan: parsed.data.alasan,
+    });
+    if (!hasil) {
+      return { ok: true, message: "Usulan itu sudah diputuskan. Tidak ada perubahan." };
+    }
+    const slug = parsed.data.slug;
+    safeRevalidate(
+      "/dashboard",
+      "/progres",
+      "/performa",
+      "/performa/integritas",
+      ...(slug ? [`/belajar/${slug}`] : []),
+    );
+    return {
+      ok: true,
+      message: "Usulan ditolak. Skor kejujuran peserta tidak berubah.",
+    };
   } catch (error) {
     if (error instanceof GalatIntegritas) return { ok: false, error: error.message };
     throw error;

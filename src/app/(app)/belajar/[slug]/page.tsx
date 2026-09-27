@@ -10,7 +10,7 @@ import { pastikanBackfill } from "@/lib/learning/backfill-lazy";
 import { progresKursusDb } from "@/lib/learning/service";
 import { getCourseById } from "@/lib/courses/store";
 import { kebijakanDefault } from "@/lib/courses/kebijakan";
-import { kelayakanKursusSubmission, ambilKredensialCourse } from "@/lib/review/service";
+import { kelayakanKursusSubmission, ambilKredensialCourse, listKaryaCourse } from "@/lib/review/service";
 import { tipeLabel } from "@/lib/onboarding/types";
 import { ringkasanPelanggaranCourseDb } from "@/lib/integritas/service";
 import { tasks } from "@/lib/fixtures";
@@ -113,6 +113,17 @@ export default async function DetailKursusPage({
   );
 
   /**
+   * Karya milik peserta untuk course ini, dibaca **hanya** bila Project sudah
+   * terbuka.
+   *
+   * Dipakai tonggak ruang kerja di silabus untuk membedakan "boleh mulai" dari
+   * "sudah dikerjakan". Peserta yang belum layak tidak punya karya di sini —
+   * `pastikanKelayakanKursus` menolak pembuatannya — jadi membacanya untuk
+   * mereka hanya menambah satu query pada jalur yang paling sering.
+   */
+  const karyaCourse = layakProject ? await listKaryaCourse(session, entri.id) : [];
+
+  /**
    * Token publik credential yang sudah terbit untuk course ini, `null` bila
    * belum.
    *
@@ -204,6 +215,17 @@ export default async function DetailKursusPage({
           ringkasan:
             modulProyek?.ringkasan ??
             "Terapkan seluruh materi course ini dalam satu karya nyata, lalu kumpulkan untuk direview verifikator.",
+          // `adaKarya` membedakan "boleh mulai" dari "sudah dikerjakan" —
+          // tanpa itu, tonggak yang baru terbuka tampil hijau dan terbaca
+          // sebagai project yang sudah selesai.
+          //
+          // Karya dibaca **hanya** untuk peserta yang layak: peserta yang
+          // Project-nya masih terkunci tidak punya karya untuk course ini
+          // (`pastikanKelayakanKursus` menolak pembuatannya), jadi membacanya
+          // di sana adalah satu query yang dijamin kosong pada jalur yang
+          // justru paling sering.
+          adaKarya: karyaCourse.length > 0,
+          jumlahKarya: karyaCourse.length,
         }}
         sertifikat={{
           // Satu syarat, dua tampilan: nilai `terkunci` di sini identik dengan

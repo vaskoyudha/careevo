@@ -13,7 +13,7 @@ from .runtime_settings import RuntimeSettingsService
 PROJECT_ROOT = get_runtime_home()
 DEFAULT_BACKEND_PORT = 8001
 DEFAULT_FRONTEND_PORT = 3782
-DEFAULT_LANGUAGE = "en"
+DEFAULT_LANGUAGE = "id"
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,6 +52,8 @@ def _normalize_language(value: Any) -> str | None:
         return None
     language = value.strip().lower().replace("_", "-")
     base = language.split("-", 1)[0]
+    if language in {"indonesian", "bahasa"} or base == "id":
+        return "id"
     if language == "english" or base == "en":
         return "en"
     if language == "chinese" or base in {"zh", "cn"}:

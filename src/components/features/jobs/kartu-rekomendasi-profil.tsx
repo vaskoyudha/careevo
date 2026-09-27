@@ -5,7 +5,6 @@ import { ArrowRight, MapPin, UserCheck } from "lucide-react";
 import { monogram } from "@/lib/jobs/monogram";
 import type { RekomendasiLokerItem } from "@/lib/jobs/rekomendasi-inbox";
 
-import { PitaHeaderDither } from "@/components/ui/pita-header-dither";
 import {
   verdictBadge,
   type VerdictLoker,
@@ -42,18 +41,20 @@ export function KolomRekomendasiProfil({
           `h-full` di sana memang yang membuat daftar rekomendasi punya
           scroll sendiri. */}
       <div className="rounded-[var(--radius-dock)] border border-slate-200/90 bg-white shadow-sm overflow-hidden flex flex-col lg:h-full">
-        {/* Pita header. Bukan ramp statis yang "meniru" header `/belajar`:
-            media, crop, veil, dan fade-nya tinggal di `PitaHeaderDither`, satu
-            resep yang sama dengan hero `/belajar` (`pita-header-dither.tsx`
-            menyimpan alasan angkanya). Teks di atasnya karena itu tinta gelap,
-            bukan putih — putih di atas field pucat hanya ~1.1:1. */}
-        <PitaHeaderDither className="h-[72px]">
-          <div className="flex min-w-0 items-center gap-2">
-            {/* `bg-white/70` + `ring-[#0a3d62]/15`: bentuk pill putih yang sama
-                dengan header hero, tapi bukan `bg-white` penuh — di atas media
-                bergerak, bidang putih pekat akan membaca sebagai kotak yang
-                ditempel. */}
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-white/70 text-[#0a3d62] ring-1 ring-[#0a3d62]/15">
+        {/* Header with blue sky gradient - simplified version without dither effects */}
+        <div className="relative h-[72px] shrink-0 overflow-hidden">
+          {/* Blue sky gradient from top */}
+          <div className="absolute inset-0 bg-gradient-to-b from-[#8FC0F2] via-[#BAE6FD] to-[#DDEEFE]" />
+
+          {/* Dot grid pattern as subtle texture */}
+          <div className="absolute inset-0 bg-[size:3px_3px] [background-image:radial-gradient(rgba(10,61,98,0.12)_1px,transparent_1px)]" />
+
+          {/* Isi pita. Tanpa `z-index`: `absolute inset-0` yang datang SESUDAH
+              kedua lapisan latar sudah menggambarnya di atasnya, dan tautan
+              "Ubah" yang menyusul setelahnya tetap duduk paling atas — jadi
+              klaknya tidak terhalang lapisan ini. */}
+          <div className="absolute inset-0 flex items-center gap-3 px-4">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-white/80 text-[#0a3d62] ring-1 ring-[#0a3d62]/15 shadow-xs">
               <UserCheck aria-hidden className="size-4" />
             </span>
             <h2 className="truncate text-[14.5px] font-bold tracking-tight text-[#0a3d62]">
@@ -61,30 +62,22 @@ export function KolomRekomendasiProfil({
             </h2>
           </div>
 
+          {/* Edit button with white background for better contrast */}
           <Link
             href="/onboarding?edit=1"
-            /* `min-h-11` + `min-w-11` + `justify-end`: target sentuh 44x44px,
-               dengan teks tetap menempel ke tepi kanan seperti semula.
-
-               Tautan ini satu-satunya bagian header yang memakai `bg-white`
-               PENUH. Biru merek `#0056D2` hanya 3.37:1 di stop ground yang
-               paling gelap, jadi sebagai teks telanjang di atas media ia gagal
-               4.5:1 — persis kesalahan yang pernah membuat ramp lama menyimpan
-               klaim kontras di komentar. Di atas putih ia 6.0:1, dan bentuknya
-               jadi tombol aksi, bukan sekadar teks. */
-            className="pointer-fine:min-h-0 pointer-fine:min-w-0 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-end gap-0.5 rounded-md bg-white px-2 text-[11.5px] font-semibold text-[#0056D2] shadow-[0_1px_2px_rgba(10,61,98,0.12)] transition-colors hover:bg-[#f7fbff]"
+            className="pointer-fine:min-h-0 pointer-fine:min-w-0 absolute right-3 top-1/2 -translate-y-1/2 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-end gap-0.5 rounded-md bg-white px-2 text-[11.5px] font-semibold text-[#0056D2] shadow-[0_1px_2px_rgba(10,61,98,0.12)] transition-colors hover:bg-[#f7fbff]"
           >
             Ubah
             <ArrowRight aria-hidden className="size-3" />
           </Link>
-        </PitaHeaderDither>
+        </div>
 
-        {/* Lembar putih — satu lembar berujung membulat yang MENUMPUK pitanya.
+        {/* Lembar putih — satu lembar berujung membulat yang MENUMPUK header.
 
-            Ini resep yang sama dengan `CatalogCourseCard`
+            Bukan resep baru: ini bentuk yang sama dengan `CatalogCourseCard`
             (`relative z-10 -mt-8 rounded-t-2xl bg-white`, DESIGN.md
-            "Components and surfaces"), hanya tumpangannya lebih kecil karena
-            media di sini pita 72px, bukan thumbnail 4:3.
+            "Components and surfaces"), dengan tumpangan lebih kecil karena
+            media di sini header 72px, bukan thumbnail 4:3.
 
             Keempat kelasnya satu paket, dan masing-masing bisa hilang tanpa
             satu pun gerbang repo gagal:
@@ -93,20 +86,20 @@ export function KolomRekomendasiProfil({
                 12-16px di DESIGN.md dan sama dengan kartu katalog.
               - `-mt-4` — tumpangannya 16px, sama dengan radiusnya. Ini yang
                 membuat radiusnya BENAR-BENAR TERBACA: seluruh lengkung 16px
-                menyingkap pita biru di belakangnya, jadi mata membaca "lembar
-                yang menimpa pita". Tanpa negatif margin, radiusnya cuma
-                membulat di atas latar putih kontainer — tak terlihat, alias
-                kotak biasa lagi.
-              - `bg-white` — menutup 16px pita yang ditumpuknya.
-              - `relative` + `z-10` — pita di atasnya `relative` juga, jadi
-                tanpa `z-10` lembar ini kalah urutan cat dan pita menimpanya.
+                menyingkap gradien biru di belakangnya, jadi mata membaca
+                "lembar yang menimpa header". Tanpa negatif margin, radiusnya
+                cuma membulat di atas latar putih kontainer — tak terlihat,
+                alias kotak biasa lagi.
+              - `bg-white` — menutup 16px header yang ditumpuknya.
+              - `relative` + `z-10` — header di atasnya `relative` juga, jadi
+                tanpa `z-10` lembar ini kalah urutan cat dan header menimpanya.
 
             `flex-1 min-h-0` melanjutkan peran kontainer: di `lg` lembar ini
             yang mengisi sisa tinggi papan, dan `min-h-0` yang mengizinkan
             daftar di dalamnya menggulir sendiri alih-alih memaksa lembar ikut
             setinggi isinya. */}
         <div className="relative z-10 -mt-4 flex flex-1 min-h-0 flex-col rounded-t-2xl bg-white">
-          {/* Subtitle: anak pertama lembar, bukan div lepas di antara pita dan
+          {/* Subtitle: anak pertama lembar, bukan div lepas di antara header dan
               daftar — kalau ia duduk di luar, `-mt-4` ikut mengangkatnya dan
               lembar berhenti memuat "Berdasarkan minat …". */}
           <div className="shrink-0 px-4 pt-2.5">

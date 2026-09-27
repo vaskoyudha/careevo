@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { hitungSkorJadwal } from "./jadwal";
-import { hitungSkorKarya } from "./karya";
+import {
+  BOBOT_RUBRIC,
+  hitungSkorKarya,
+  LABEL_RUBRIC,
+  SKALA_RUBRIC_MAKS,
+  URUTAN_RUBRIC,
+  type RubricCriterion,
+} from "./karya";
 import { hitungSkorValidasi } from "./validasi";
 import { hitungSkorTotal } from ".";
 
@@ -92,6 +99,45 @@ describe("hitungSkorKarya", () => {
     const kualitasRendah = hitungSkorKarya({ ...base, kualitas: 0 });
     const dokumentasiRendah = hitungSkorKarya({ ...base, dokumentasi: 0 });
     expect(kualitasRendah).toBeLessThan(dokumentasiRendah);
+  });
+});
+
+describe("label & urutan rubric", () => {
+  const semua = Object.keys(BOBOT_RUBRIC) as RubricCriterion[];
+
+  it("setiap kriteria punya label, dan label tidak kosong", () => {
+    for (const kriteria of semua) {
+      expect(LABEL_RUBRIC[kriteria], kriteria).toBeTruthy();
+      expect(typeof LABEL_RUBRIC[kriteria]).toBe("string");
+    }
+  });
+
+  it("LABEL_RUBRIC tidak punya kunci yang bukan kriteria", () => {
+    const kunci = Object.keys(LABEL_RUBRIC).sort();
+    expect(kunci).toEqual([...semua].sort());
+  });
+
+  it("URUTAN_RUBRIC memuat tepat semua kriteria, tanpa duplikat", () => {
+    expect([...URUTAN_RUBRIC].sort()).toEqual([...semua].sort());
+    expect(new Set(URUTAN_RUBRIC).size).toBe(URUTAN_RUBRIC.length);
+  });
+
+  it("URUTAN_RUBRIC urut dari bobot terbesar (kualitas 30% di depan)", () => {
+    for (let i = 1; i < URUTAN_RUBRIC.length; i += 1) {
+      const sebelum = BOBOT_RUBRIC[URUTAN_RUBRIC[i - 1]];
+      const sesudah = BOBOT_RUBRIC[URUTAN_RUBRIC[i]];
+      expect(sebelum).toBeGreaterThanOrEqual(sesudah);
+    }
+    expect(URUTAN_RUBRIC[0]).toBe("kualitas");
+  });
+
+  it("total bobot tepat 100%", () => {
+    const total = semua.reduce((acc, k) => acc + BOBOT_RUBRIC[k], 0);
+    expect(total).toBeCloseTo(1, 10);
+  });
+
+  it("skala maksimum adalah 4 (label panel memakainya sebagai /4)", () => {
+    expect(SKALA_RUBRIC_MAKS).toBe(4);
   });
 });
 

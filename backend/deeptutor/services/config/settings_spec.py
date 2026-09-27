@@ -126,6 +126,7 @@ class SettingSpec:
 # --------------------------------------------------------------------------
 
 _LANGUAGE_CHOICES: tuple[tuple[str, str, str], ...] = (
+    ("id", "Bahasa Indonesia", "Interface and replies in Indonesian."),
     ("en", "English", "Interface and replies in English."),
     ("zh", "简体中文", "Interface and replies in Simplified Chinese."),
     ("fr", "Français", "Interface and replies in French."),
@@ -133,6 +134,7 @@ _LANGUAGE_CHOICES: tuple[tuple[str, str, str], ...] = (
 )
 
 _RESPONSE_LANGUAGE_CHOICES: tuple[tuple[str, str, str], ...] = (
+    ("id", "Bahasa Indonesia", "Replies in Indonesian."),
     ("en", "English", "Replies in English."),
     ("zh", "简体中文", "Replies in Simplified Chinese."),
     ("zh-tw", "繁體中文", "Replies in Traditional Chinese."),
@@ -190,8 +192,8 @@ def _static_choices(
 
 
 def _interface_specs() -> list[SettingSpec]:
-    language_read = _read_ui("language", "en")
-    response_read = _read_ui("response_language", "en")
+    language_read = _read_ui("language", "id")
+    response_read = _read_ui("response_language", "id")
     theme_read = _read_ui("theme", "snow")
     return [
         SettingSpec(

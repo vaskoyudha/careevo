@@ -1,0 +1,10 @@
+{
+  "name": "careevo-workspace-manager",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Manajer ruang kerja kode (code-server) terisolasi per peserta. Proses terpisah, di luar Next.js.",
+  "scripts": {
+    "start": "node server.mjs"
+  }
+}

@@ -660,8 +660,11 @@ h6 {
    deliberately, so the navbar always wins the overlap. */
 .subnav {
   position: fixed;
-  right: 0;
   left: 0;
+  right: 0;
+  width: 100%;
+  max-width: min(var(--max), calc(100% - 2 * var(--page-pad)));
+  margin-inline: auto;
   z-index: 55;
   /* Neutral, not `--border` (light cyan): the bar sits on the white/gray
      course surface and on the Plus page, and both read as a hairline. */
@@ -692,12 +695,12 @@ h6 {
    `--page-pad` carries the mobile inset. */
 .subnav-inner {
   display: flex;
-  width: min(var(--max), calc(100% - 2 * var(--page-pad)));
   min-height: 3.25rem;
   margin-inline: auto;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+  max-width: min(var(--max), calc(100% - 2 * var(--page-pad)));
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
@@ -1705,9 +1708,12 @@ h6 {
   margin-bottom: 0.6rem;
 }
 
-/* Judul kursus tidak lagi berbagi baris dengan tombol tutup: ia nama isi panel,
-   bukan kontrol. `min-width: 0` tetap perlu agar judul panjang membungkus di
-   dalam panel, bukan meluber keluar.
+/* Judul panel. Ia **bukan** lagi selalu judul kursus: saat panel menyempit ke
+   satu modul (tampilan default di reader), judulnya adalah nama modul itu —
+   isi di bawahnya memang bab-bab modul, bukan kursus. Nama kursusnya turun ke
+   `.reader-panel-penyedia` sebagai baris konteks. Tidak berbagi baris dengan
+   tombol tutup: ia nama isi panel, bukan kontrol. `min-width: 0` tetap perlu
+   agar judul panjang membungkus di dalam panel, bukan meluber keluar.
 
    `margin: 0` masih load-bearing, bukan kerapian: lembar dasar memberi setiap
    `<p>` margin bawah `1rem`, dan sebagai anak flex margin itu ikut ke dalam
@@ -1757,9 +1763,11 @@ h6 {
   color: var(--ocean-mid);
 }
 
-/* `min-width: 0` so a long course title shrinks and wraps inside the row
-   instead of overflowing it. */
-
+/* Baris konteks di bawah judul panel. Di tampilan modul ia memuat **judul kursus
+   dan penyedianya** ("Dasar C++ · Careevo"), karena judul panel sudah dipakai
+   nama modul; di tampilan daftar kursus ia kembali ke penyedia saja. Panjangnya
+   dibiarkan membungkus alih-alih terpotong — dua nama di satu baris lebih sering
+   meluber daripada judulnya sendiri. */
 .reader-panel-penyedia {
   font-size: 0.8rem;
   color: var(--text-secondary);
@@ -3972,6 +3980,515 @@ h6 {
   line-height: 1.8;
   word-break: break-word;
 }
+
+/* --- Panel rincian sertifikat (rubrik + integritas) ---
+   Dua panel, bukan satu blok gabungan: yang satu menjawab "seberapa bagus
+   karyanya", yang lain "seberapa bersih catatannya". Menggabungkannya jadi satu
+   angka akan membuat pembaca menyimpulkan hal yang datanya tidak dukung. */
+.verify-panels {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  text-align: left;
+}
+
+.verify-panel {
+  border: 1px solid var(--foam-line);
+  border-radius: 1rem;
+  background: var(--surface, #fff);
+  padding: 1.25rem 1.25rem 1rem;
+}
+
+.verify-panel-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin: 0 0 0.5rem;
+}
+
+.verify-panel-lead {
+  margin: 0 0 0.75rem;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+.verify-panel-foot {
+  margin: 0.75rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+/* Batas kejujuran, satu klaim per baris. Diberi penanda tepi supaya terbaca
+   sebagai batas yang menyertai angka — bukan sebagai catatan kaki yang boleh
+   dilewati. */
+.verify-batas {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--foam-line);
+  padding-top: 0.7rem;
+}
+
+.verify-batas li {
+  position: relative;
+  padding-left: 0.9rem;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+.verify-batas li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+}
+
+.verify-batas strong {
+  color: var(--ocean-deep);
+}
+
+.verify-row-note {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.verify-row-total {
+  border-top: 2px solid var(--foam-line);
+  margin-top: 0.25rem;
+  padding-top: 0.75rem;
+}
+
+.verify-row-total dt {
+  color: var(--ocean-deep);
+  font-weight: 600;
+}
+
+.verify-list {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.verify-list li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+}
+
+.verify-list-label {
+  color: var(--text-secondary);
+}
+
+.verify-list-value {
+  font-weight: 600;
+  color: var(--ocean-deep);
+}
+
+.verify-list-value-kosong {
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+/* --- Grafik sertifikat: cincin, batang, donat ---
+   Semua grafik di halaman ini digambar dari nilai yang sudah tersimpan
+   (`payload.score`, `rubric_snapshot`, `perCourse`). Tidak ada satu pun yang
+   mengarang data supaya tampak penuh; grafik yang tidak punya data tidak
+   digambar sama sekali. */
+
+/* Cincin skor rubrik. Busur digambar dengan `stroke-dashoffset`, satu-satunya
+   properti yang berubah, jadi biayanya paint pada satu elemen kecil — bukan
+   layout. Tidak ada transisi: kartu ini dirender server dan tidak pernah
+   berubah setelah halaman dimuat. */
+.verify-ring {
+  position: relative;
+  flex: 0 0 auto;
+  width: 92px;
+  height: 92px;
+  display: grid;
+  place-items: center;
+}
+
+.verify-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.verify-ring-track,
+.verify-ring-fill,
+.verify-donut-track,
+.verify-donut-seg {
+  fill: none;
+  stroke-width: 8;
+}
+
+.verify-ring-track {
+  stroke: rgba(191, 230, 239, 0.55);
+}
+
+.verify-ring-fill {
+  stroke-linecap: round;
+  stroke-dasharray: var(--ring-len);
+  stroke-dashoffset: var(--ring-offset);
+}
+
+.verify-ring-fill-ocean { stroke: var(--ocean-mid); }
+.verify-ring-fill-leaf { stroke: var(--leaf); }
+.verify-ring-fill-warn { stroke: var(--warning); }
+.verify-ring-fill-danger { stroke: var(--danger); }
+
+.verify-ring-value {
+  position: absolute;
+  display: flex;
+  align-items: baseline;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ocean-deep);
+  font-variant-numeric: tabular-nums;
+}
+
+.verify-ring-maks {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+}
+
+/* Kepala panel rubrik: cincin + kalimat pengantar, sejajar. */
+.verify-rubrik-head,
+.verify-integritas-head {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.verify-rubrik-headtext,
+.verify-integritas-headtext {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.verify-rubrik-claim {
+  margin: 0 0 0.15rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ocean-deep);
+}
+
+.verify-rubrik-headtext .verify-panel-lead,
+.verify-integritas-headtext .verify-panel-lead {
+  margin-bottom: 0;
+}
+
+/* Batang kriteria rubrik. Panjang = capaian (0–maks), angka kanan = bobot;
+   lihat komentar `RubrikPanel` soal kenapa keduanya dipisah. */
+.verify-bars {
+  display: grid;
+  gap: 0.9rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.verify-bar-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.verify-bar-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+/* Bobot sebagai angka kecil, bukan sebagai panjang. Memisahkan kedua besaran
+   itu dari satu kanal visual adalah inti dari perbaikan encoding di sini. */
+.verify-bar-weight {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--ocean-mid);
+  background: rgba(42, 127, 184, 0.1);
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.verify-bar-score {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ocean-deep);
+  font-variant-numeric: tabular-nums;
+}
+
+.verify-bar-max {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+.verify-bar-track {
+  height: 9px;
+  border-radius: 999px;
+  background: rgba(191, 230, 239, 0.55);
+  overflow: hidden;
+}
+
+.verify-bar-fill {
+  display: block;
+  width: var(--bar-w, 0%);
+  height: 100%;
+  border-radius: inherit;
+  background: var(--deep-gradient);
+}
+
+.verify-bar-fill.is-empty {
+  width: 0;
+}
+
+.verify-bar-note {
+  margin: 0.3rem 0 0;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+/* Donat komposisi skor kejujuran. Tiap segmen memakai pola dasharray yang sama
+   dengan cincin, digeser dengan `--seg-offset`; tiga segmen dijumlahkan persis
+   100 karena skor = 100 − potongan course ini − potongan course lain. */
+.verify-donut {
+  position: relative;
+  flex: 0 0 auto;
+  width: 92px;
+  height: 92px;
+  margin: 0;
+  display: grid;
+  place-items: center;
+}
+
+.verify-donut svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.verify-donut-track {
+  stroke: rgba(191, 230, 239, 0.55);
+}
+
+.verify-donut-seg {
+  stroke-dasharray: var(--seg-len) var(--seg-sisa);
+  stroke-dashoffset: var(--seg-offset);
+}
+
+.verify-donut-sisa { stroke: var(--leaf); }
+.verify-donut-ini { stroke: var(--warning); }
+.verify-donut-lain { stroke: var(--ocean-mid); }
+
+.verify-donut-pusat {
+  position: absolute;
+  display: flex;
+  align-items: baseline;
+  color: var(--ocean-deep);
+  font-variant-numeric: tabular-nums;
+}
+
+.verify-donut-pusat b {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.verify-donut-pusat span {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+}
+
+/* Legenda donat: titik, label, nilai — sejajar supaya bisa dibandingkan. */
+.verify-legend {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  list-style: none;
+  /* Dibatasi supaya nilai tidak terdorong ke tepi panel. Baris label-nilai yang
+     terpisah jauh oleh ruang kosong memaksa mata melompat untuk mencocokkan
+     keduanya. */
+  max-width: 20rem;
+}
+
+.verify-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+}
+
+.verify-legend-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.verify-legend-dot.verify-donut-sisa { background: var(--leaf); }
+.verify-legend-dot.verify-donut-ini { background: var(--warning); }
+.verify-legend-dot.verify-donut-lain { background: var(--ocean-mid); }
+
+.verify-legend-label {
+  color: var(--text-secondary);
+}
+
+.verify-legend-value {
+  margin-left: auto;
+  font-weight: 600;
+  color: var(--ocean-deep);
+  font-variant-numeric: tabular-nums;
+}
+
+.verify-panel-note {
+  margin: 0.75rem 0 0;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.6rem;
+  background: rgba(232, 163, 61, 0.12);
+  color: #6f4a10;
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+/* Skor di baris kartu: batang tipis sejajar angkanya. */
+.verify-row-skor dd {
+  width: min(240px, 100%);
+}
+
+.verify-skor {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  justify-content: flex-end;
+}
+
+.verify-skor-track {
+  display: block;
+  flex: 1 1 auto;
+  height: 7px;
+  min-width: 64px;
+  border-radius: 999px;
+  background: rgba(191, 230, 239, 0.55);
+  overflow: hidden;
+}
+
+.verify-skor-fill {
+  display: block;
+  width: var(--skor-w, 0%);
+  height: 100%;
+  border-radius: inherit;
+  background: var(--deep-gradient);
+}
+
+.verify-skor-angka {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Navigasi lompat ke panel. Tautan `#id` biasa: bekerja tanpa JavaScript dan
+   tanpa state yang bisa gagal disinkronkan. */
+.verify-jump {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+.verify-jump-link,
+.verify-jump a {
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--foam-line);
+  background: var(--glass-regular-bg);
+  color: var(--ocean-deep);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition:
+    background-color 180ms var(--ease-out-strong),
+    border-color 180ms var(--ease-out-strong),
+    transform 180ms var(--ease-out-strong);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .verify-jump-link:hover,
+  .verify-jump a:hover {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: var(--brand-border);
+  }
+}
+
+.verify-jump-link:active,
+.verify-jump a:active {
+  transform: scale(0.97);
+}
+
+.verify-btn-rincian {
+  gap: 0.5rem;
+}
+
+/* Panel yang jadi sasaran tombol diberi jarak gulir supaya judulnya tidak
+   tertutup tepi atas viewport di browser yang tidak menghormati
+   `scroll-margin-top`. */
+.verify-panel {
+  scroll-margin-top: 88px;
+}
+
+.verify-idcourse {
+  text-align: center;
+}
+
+@media (max-width: 560px) {
+  .verify-rubrik-head,
+  .verify-integritas-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.9rem;
+  }
+
+  .verify-row-skor dd {
+    width: 100%;
+  }
+
+  .verify-actions .btn,
+  .verify-actions button,
+  .verify-actions a {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 
 /* ===== APP PAGES (dashboard, belajar, challenge, review, loker, dsb) ===== */
 .app-header {

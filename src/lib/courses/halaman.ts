@@ -118,6 +118,41 @@ export function halamanDipilih(
   return daftar.find((h) => h.id === halamanId) ?? daftar[0];
 }
 
+/**
+ * Modul yang harus dipakai untuk sebuah permintaan, atau `null` bila kurikulum
+ * kosong.
+ *
+ * **Ini satu-satunya tempat aturan "modul mana yang aktif" hidup** untuk
+ * permukaan yang memilih modul lewat `?modul=` (ruang kerja). Sisi klien
+ * (`RuangKerjaChrome` dan `RuangKerjaLab`) dan panel silabusnya harus menjawab
+ * pertanyaan yang sama — modul mana yang disorot, halaman mana yang dirender —
+ * dan dua salinan aturan ini akan menyimpang diam-diam: panel menyorot satu
+ * modul sementara kolom panduan menampilkan modul lain, tanpa error di mana pun.
+ *
+ * Modul tanpa halaman **tidak pernah dipilih diam-diam**: `?modul=` yang
+ * menunjuk modul kosong (turunan, atau modul tersimpan yang halamannya belum
+ * ditulis) akan membuat kolom panduan kosong tanpa sebab yang terlihat. Karena
+ * itu fallback-nya jatuh ke modul **pertama yang punya halaman**, bukan ke
+ * `modul[0]` buta. Pada course yang modul pertamanya masih turunan dan modul
+ * kedua sudah tersimpan, tanpa URL pun yang dipakai adalah modul kedua — modul
+ * yang benar-benar punya sesuatu untuk dibaca.
+ *
+ * `??` dan bukan `||`: `find()` mengembalikan `undefined` saat tidak ada yang
+ * cocok, dan `??` menyatakan niatnya — "kalau tidak ketemu, pakai bawaan" —
+ * tanpa ikut menelan id yang sah.
+ */
+export function modulDipilih<T extends { id: string; halaman?: Halaman[] }>(
+  modul: T[],
+  modulId?: string | null,
+): T | null {
+  return (
+    modul.find((m) => m.id === modulId && (m.halaman?.length ?? 0) > 0) ??
+    modul.find((m) => (m.halaman?.length ?? 0) > 0) ??
+    modul[0] ??
+    null
+  );
+}
+
 function kataDari(teks: string): number {
   const bersih = teks.trim();
   return bersih ? bersih.split(/\s+/).length : 0;

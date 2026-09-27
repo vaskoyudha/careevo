@@ -148,31 +148,43 @@ describe("kursus — CTA 'Lanjutkan belajar'", () => {
 });
 
 /**
- * Kartu "Challenge praktik" — arsip gambar + lembar putih yang menumpuknya.
+ * Kartu "Challenge praktik" — satu kontainer, isinya langsung di atas wallpaper.
  *
  * Kartu ini dulu memakai `PitaHeaderDither`: pita header berisi ground, dot
  * grid, video dithered lewat WebGL, dan veil — empat lapisan untuk satu baris
- * judul. Sekarang header-nya satu `.webp` statis (`challenge-praktik-hero.webp`)
- * plus wash arah, dan isinya diangkat ke lembar putih berujung membulat.
+ * judul. Sekarang header-nya satu `.webp` statis
+ * (`challenge-praktik-hero.webp`) yang jadi latar **seluruh** kartu.
  *
  * Dikunci dari sumber karena semuanya buta bagi gerbang repo: `typecheck`,
- * `lint`, `vitest`, dan `build` hijau baiklah header-nya `.webp` atau gradien
- * rata, baiklah isinya menumpuk atau tidak. Tiga hal yang bisa hilang diam-diam:
+ * `lint`, `vitest`, dan `build` hijau baiklah gambarnya pita atau wallpaper
+ * penuh, baiklah isinya di lembar putih atau langsung di atas gambar. Empat hal
+ * yang bisa hilang diam-diam:
  *
- *  1. **Kelas wash-nya.** Tanpa wash, garis tipis di separuh kiri arsip itu
- *     lewat tepat di bawah judul — cacat render, bukan dekorasi. Nilai alphanya
- *     juga berarti: `0.9`+ di 34% pertama yang menahan judul, lalu turun ke `0`
- *     supaya kartu kaca di kanan tetap terlihat.
- *  2. **`-mt-4` + `rounded-t-2xl` + `bg-white` + `z-10`.** Empat kelas satu
- *     paket, perangkat yang sama dengan kartu katalog dan panel loker.
- *  3. **`criteria` tinggal di blok sendiri** (`bg-blue-50 ring-blue-100`),
- *     bukan empat baris lepas di badan kartu.
+ *  1. **Gambar benar-benar menutupi kartu.** `<Image>` harus anak langsung
+ *     `<section>` dengan `fill` + `object-cover`. Kalau ia dibungkus pita
+ *     `aspect-[1774/887]` lagi, gambar kembali jadi HEADER dan isi kartu
+ *     kehilangan wallpaper-nya — persis cacat yang sudah diperbaiki sekali.
+ *  2. **Tidak ada permukaan putih sama sekali.** `bg-white` di `<section>` dan
+ *     `-mt-4 rounded-t-2xl bg-white` di lembar isinya adalah dua bidang putih
+ *     yang bertumpuk; keduanya harus absen.
+ *  3. **Tidak ada wash/scrim di atas gambar.** Kalau ditambah untuk mengejar
+ *     keterbacaan, wallpaper-nya tertutup lagi.
+ *  4. **`criteria` tetap tinggal di blok sendiri** (`bg-blue-50 ring-blue-100`).
+ *     Blok itu boleh — ia panel penilaian, bukan "kartu putih" — dan
+ *     `text-gray-600` 11px di atasnya hanya ~4.4:1.
  */
 describe("kursus — kartu 'Challenge praktik'", () => {
   /** Blok JSX milik kartu praktiknya, dari `<section` yang dilabeli judul itu. */
   const penanda = 'aria-labelledby="judul-praktik"';
   const mulai = SUMBER.indexOf(penanda);
   const blok = SUMBER.slice(mulai, SUMBER.indexOf("</section>", mulai));
+
+  // `blok` mulai di tengah tag pembuka (setelah `aria-labelledby`), jadi tag
+  // `<section>`-nya dirakit ulang di sini. `>` pertama adalah penutup tag itu:
+  // tidak ada `>` di dalam nilai `aria-labelledby` maupun `className`.
+  const akhirTagSection = blok.indexOf(">");
+  const tagSection = `<section ${blok.slice(0, akhirTagSection + 1)}`;
+  const isiKartu = blok.slice(akhirTagSection + 1);
 
   it("memakai aset gambar sebagai header, bukan media dither", () => {
     expect(mulai, "kartu 'Challenge praktik' tidak ditemukan").toBeGreaterThanOrEqual(0);
@@ -189,47 +201,78 @@ describe("kursus — kartu 'Challenge praktik'", () => {
     expect(SUMBER).not.toContain("pita-header-dither");
   });
 
-  it("menahan judul dengan wash arah, bukan scrim penuh", () => {
-    // Wash kiri-ke-kanan dengan alpha menurun; DESIGN.md mengizinkan wash arah
-    // dan melarang scrim penuh.
-    const wash = blok.match(/bg-\[linear-gradient\(90deg,([^\]]*)\)\]/)?.[1] ?? "";
-    expect(wash, "wash arah pada arsip header tidak ditemukan").not.toBe("");
+  it("menjadikan gambar latar SELURUH kartu, bukan pita header", () => {
+    // Gambar harus anak langsung `<section>`, jadi yang dilapisi `fill` adalah
+    // kotak kartu seutuhnya — bukan pita `aspect-[1774/887]` yang hanya
+    // setinggi beberapa ratus piksel di atas lembar isinya.
+    const img = isiKartu.match(/<Image[\s\S]*?\/>/)?.[0] ?? "";
+    expect(img, "<Image> kartu praktik tidak ditemukan").not.toBe("");
 
-    const alphas = [...wash.matchAll(/rgba\(255,255,255,([\d.]+)\)/g)].map((m) =>
-      Number(m[1]),
+    // Tidak ada pembungkus antara `<section>` dan `<Image>`.
+    expect(
+      isiKartu.slice(0, isiKartu.indexOf("<Image")).trim(),
+      "gambar dibungkus div — ia jadi pita header, bukan latar kartu",
+    ).toBe("");
+
+    // `fill` + `object-cover` menutupi kotak tanpa sisa dan tanpa distort.
+    expect(img, "gambar latar tidak memakai `fill`").toMatch(/\bfill\b/);
+    expect(img, "gambar latar tidak `object-cover`").toMatch(/object-cover/);
+
+    // Pita `aspect-[1774/887]` adalah bentuk lama: gambar di HEADER saja.
+    expect(
+      blok,
+      "pita aspect-[1774/887] kembali — gambar jadi header",
+    ).not.toContain("aspect-[1774/887]");
+
+    // Tidak ada wash/scrim di atas gambar — wallpaper harus terbaca apa adanya.
+    const gradien = blok.match(/bg-\[linear-gradient\([^\]]*\)\]/g) ?? [];
+    expect(
+      gradien,
+      `masih ada lapisan gradien (${gradien.join(", ")}) — wallpaper tertutup`,
+    ).toHaveLength(0);
+    expect(blok, "masih ada wash putih di atas gambar").not.toMatch(
+      /rgba\(255,255,255,0\.\d+\)/,
     );
-    expect(alphas.length, "stop wash tidak ditemukan").toBeGreaterThanOrEqual(3);
-    // Stop pertama harus pekat: itulah yang menutup garis tipis di bawah judul.
-    expect(
-      alphas[0],
-      `alpha awal wash ${alphas[0]} tidak cukup menutup garis di bawah judul`,
-    ).toBeGreaterThanOrEqual(0.9);
-    // Dan harus TURUN ke 0 supaya kartu kaca di kanan tetap terlihat.
-    expect(
-      alphas[alphas.length - 1],
-      "wash tidak habis di sisi kanan; kartu kaca arsipnya ikut tertutup",
-    ).toBe(0);
-    for (let i = 1; i < alphas.length; i++) {
-      expect(alphas[i]).toBeLessThan(alphas[i - 1]);
-    }
   });
 
-  it("mengangkat isinya ke lembar putih membulat yang menumpuk arsip", () => {
-    const lembar =
-      (blok.match(/className="[^"]*"/g) ?? []).find((k) =>
-        k.includes("rounded-t-2xl"),
-      ) ?? "";
-    expect(lembar, "lembar putih berujung membulat tidak ditemukan").not.toBe("");
+  it("tidak punya permukaan putih: kontainernya yang memegang isi", () => {
+    // Dua bidang putih pernah bertumpuk: `bg-white` di `<section>` untuk isi,
+    // lalu `-mt-4 rounded-t-2xl bg-white` sebagai lembar isinya. Keduanya
+    // lenyap; yang tersisa hanya kontainer transparan di atas wallpaper.
+    const section = tagSection;
+    expect(section, "tag <section> kartu praktik tidak ditemukan").not.toBe("");
+    expect(section, "<section> masih punya bg-white").not.toMatch(/\bbg-white\b/);
+    // `relative` wajib supaya `fill` punya kotak acuan yang benar.
+    expect(section, "<section> tidak `relative` — `fill` tanpa acuan").toMatch(
+      /(?<![\w:-])relative/,
+    );
+    // `overflow-hidden` + radius yang memotong gambar mengikuti kartu.
+    expect(section, "<section> tidak memotong gambar ke radius kartu").toMatch(
+      /overflow-hidden/,
+    );
+    expect(section, "<section> kehilangan radius kartu").toMatch(/rounded-2xl/);
 
-    const tumpang = lembar.match(/(?<![\w:-])-mt-(\d+)/)?.[1];
-    expect(tumpang, "lembar tidak menumpuk arsip").not.toBeUndefined();
+    // Lembar isinya harus polos: tanpa latar, tanpa tumpang tindih, tanpa
+    // radius parsial — semuanya sisa perangkat "lemar yang menumpuk arsip".
+    const lembar = blok.match(/className="relative z-10 px-5[^"]*"/)?.[0] ?? "";
+    expect(lembar, "lembar isi tidak ditemukan").not.toBe("");
+    expect(lembar, "lembar isi masih punya latar").not.toMatch(/\bbg-\S/);
+    expect(lembar, "lembar isi masih menumpuk ke atas").not.toMatch(/-mt-/);
+    expect(lembar, "lembar isi masih berujung membulat").not.toMatch(
+      /rounded-t-2xl/,
+    );
+    expect(lembar, "lembar isi tidak di atas gambar").toMatch(/z-10/);
+
+    // Judul tetap menempel di atas dan tetap memakai tinta gelap: putih di atas
+    // wallpaper pucat hanya ~1.1:1.
+    const barisJudul = blok.match(/className="[^"]*gap-2\.5[^"]*"/)?.[0] ?? "";
+    expect(barisJudul, "baris judul tidak ditemukan").not.toBe("");
+    expect(barisJudul, "judul tidak menempel di atas").toContain("items-start");
+    expect(blok, "judul tidak memakai tinta gelap #0a3d62").toContain("#0a3d62");
     expect(
-      Number(tumpang) * 4,
-      `-mt-${tumpang} hanya menumpuk ${Number(tumpang) * 4}px, kurang dari radius 16px`,
-    ).toBeGreaterThanOrEqual(16);
-    expect(lembar, "lembar tidak menutup arsip dengan putih").toMatch(/\bbg-white\b/);
-    expect(lembar, "lembar tidak diposisikan").toMatch(/(?<![\w:-])relative/);
-    expect(lembar, "lembar tidak dinaikkan di atas arsip").toMatch(/z-10/);
+      blok,
+      "judul memakai text-white — di atas wallpaper pucat ~1.1:1",
+    ).not.toMatch(/text-white/);
   });
 
   it("mengelompokkan standar penilaian di blok sendiri", () => {
@@ -243,5 +286,95 @@ describe("kursus — kartu 'Challenge praktik'", () => {
     // Eyebrow-nya `text-gray-600`, bukan `text-gray-500`: di atas `bg-blue-50`
     // tinta 11px itu turun ke bawah 4.5:1 (terukur 4.01:1).
     expect(blok).not.toMatch(/uppercase[^"]*text-gray-500/);
+  });
+});
+
+/**
+ * Kontrak: **tonggak ruang kerja di silabus punya tiga keadaan, dan hijau
+ * hanya berarti "sudah ada karya".**
+ *
+ * Ditulis setelah bug yang benar-benar terlihat di peramban: versi pertama
+ * mewarnai "terbuka" dan "sudah dikerjakan" dengan `bg-emerald-500` yang sama.
+ * Akibatnya tonggak yang baru terbuka — peserta belum mengumpulkan apa pun —
+ * terbaca seolah projectnya sudah selesai, karena hijau adalah warna yang
+ * dipakai baris modul di atasnya untuk "selesai". Peserta melaporkannya sebagai
+ * "kenapa hijau padahal saya belum submit", dan laporan itu benar.
+ *
+ * Yang dijaga di sini adalah **pemetaan warna ke arti**, bukan nilai warnanya:
+ * tiga keadaan harus punya tiga nada yang berbeda, dan hijau harus terikat pada
+ * `adaKarya` saja. Menukar `adaKarya` dengan `!terkunci` akan membuat bug itu
+ * kembali, dan test ini gagal karenanya.
+ */
+describe("silabus — tonggak 'Project akhir: ruang kerja'", () => {
+  // Slice dimulai dari `<li` pembuka tonggak, **bukan** dari teks judulnya:
+  // ikon dan kelas nadanya ada di atas judul, jadi memotong dari judul akan
+  // membuat assertion warna memeriksa wilayah yang salah — dan test yang
+  // memeriksa wilayah yang salah tetap hijau sambil tidak menjaga apa pun.
+  const awalTonggak = SUMBER.lastIndexOf("<li", SUMBER.indexOf("Project akhir: ruang kerja"));
+  const BLOK = SUMBER.slice(awalTonggak, SUMBER.indexOf("</ol>", SUMBER.indexOf("Project akhir: ruang kerja")));
+
+  it("ada di dalam <ol> kurikulum, bukan kartu terpisah di luar daftar", () => {
+    // Di luar daftar ia terbaca sebagai promosi, bukan sebagai langkah yang
+    // harus diselesaikan. Yang memisahkan keduanya hanyalah posisi markup.
+    const indeksTonggak = SUMBER.indexOf("Project akhir: ruang kerja");
+    const indeksOlTutup = SUMBER.indexOf("</ol>", SUMBER.indexOf('<ol className="space-y-3">'));
+    expect(indeksTonggak, "tonggak tidak ditemukan").toBeGreaterThan(-1);
+    expect(
+      indeksTonggak,
+      "tonggak berada setelah </ol> — ia akan terbaca sebagai promosi",
+    ).toBeLessThan(indeksOlTutup);
+  });
+
+  it("hijau terikat pada adaKarya, bukan pada 'tidak terkunci'", () => {
+    // Inilah bug aslinya. `!terkunci` berarti "boleh mulai"; `adaKarya` berarti
+    // "sudah dikerjakan". Menyamakan keduanya membuat tonggak yang baru terbuka
+    // tampil selesai.
+    expect(BLOK, "warna hijau tidak memakai adaKarya").toMatch(
+      /proyek\.adaKarya\s*\?\s*"bg-emerald-500/,
+    );
+    expect(
+      BLOK,
+      "hijau dipakai untuk !terkunci — tonggak baru terbuka akan terbaca selesai",
+    ).not.toMatch(/!\s*proyek\.terkunci\s*\?\s*"bg-emerald-500/);
+  });
+
+  it("keadaan terkunci tidak memakai gray-100 yang terbaca sebagai putih", () => {
+    // `gray-100` (243,244,246) hanya 12 tingkat dari kartu putih (255,255,255),
+    // sehingga lingkaran kecil 28px terbaca sebagai putih dan ikonnya hilang.
+    expect(BLOK, "ikon terkunci memakai gray-100 — praktis tidak terlihat").not.toMatch(
+      /proyek\.terkunci\s*\?\s*"bg-gray-100/,
+    );
+    expect(BLOK, "ikon terkunci tidak punya cincin penegas").toMatch(/ring-1 ring-gray-300/);
+  });
+
+  it("tiga keadaan memakai tiga nada ikon yang berbeda", () => {
+    // Terkunci: abu + cincin. Terbuka: putih + cincin biru. Dikerjakan: hijau.
+    expect(BLOK).toContain("bg-gray-200 text-gray-500 ring-1 ring-gray-300");
+    expect(BLOK).toContain("bg-white text-[#0056D2] ring-1 ring-[rgba(147,197,253,0.7)]");
+    expect(BLOK).toContain("bg-emerald-500 text-white");
+  });
+
+  it("tombol 'Lihat karya' hanya muncul saat karyanya ada", () => {
+    expect(BLOK).toMatch(/proyek\.adaKarya \? \(/);
+    expect(BLOK).toContain("Lihat karya");
+  });
+
+  it("tombol sekunder tidak memakai chrome-btn polos", () => {
+    // `chrome-btn` adalah tombol ikon 40x40px (`width: 40px`), jadi label teks
+    // di dalamnya meluber keluar tombol dan terlihat sebagai gumpalan putih.
+    // Ini pernah terjadi di sini; konvensi repo untuk aksi sekunder di atas
+    // kartu putih adalah `Button variant="outline"`.
+    expect(
+      BLOK,
+      "tombol sekunder memakai chrome-btn polos — labelnya akan meluber",
+    ).not.toMatch(/className="chrome-btn[^"]*">\s*Lihat karya/);
+    expect(BLOK, "tombol sekunder bukan Button outline").toMatch(/variant="outline"/);
+  });
+
+  it("tombolnya ditumpuk, bukan sebaris, supaya label panjang tidak memaksa bungkus", () => {
+    // Sebaris membuat label panjang ("Lanjutkan di ruang kerja") memaksa label
+    // pendek ("Lihat karya") membungkus jadi dua baris — terlihat rusak.
+    expect(BLOK, "tombol tidak ditumpuk").toMatch(/flex-col[^"]*gap-2/);
+    expect(BLOK, "label tombol bisa membungkus").toContain("whitespace-nowrap");
   });
 });

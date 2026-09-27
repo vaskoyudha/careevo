@@ -70,7 +70,15 @@ export function IntegritasTabel({ baris }: { baris: BarisIntegritas[] }) {
               </td>
               <td className="p-3">
                 {b.kejadian} / {b.celah}
-                <p className="text-xs text-muted-foreground">kamera: tidak ada</p>
+                {/*
+                  Angka sebenarnya, bukan teks tetap. Sinyal kamera adalah fakta
+                  sesi yang sudah dihitung di `perAsal`; menulis "tidak ada"
+                  tanpa membacanya membuat tabel menyatakan keadaan yang salah
+                  untuk peserta yang kamera-nya menyala.
+                */}
+                <p className="text-xs text-muted-foreground">
+                  {b.kamera === 0 ? "kamera: 0 sinyal" : `kamera: ${b.kamera} sinyal`}
+                </p>
               </td>
             </tr>
           ))}

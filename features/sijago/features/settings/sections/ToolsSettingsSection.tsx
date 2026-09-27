@@ -69,14 +69,15 @@ type ToolSection = {
 
 // Display labels for capability-owned tool sections, keyed by the backend's
 // capability id. Falls back to the raw id for any unmapped capability.
-const CAPABILITY_LABELS: Record<string, { zh: string; en: string }> = {
-  solve: { zh: "深度解题", en: "Deep Solve" },
-  mastery: { zh: "精通路径", en: "Mastery Path" },
+const CAPABILITY_LABELS: Record<string, { zh: string; en: string; id: string }> = {
+  solve: { zh: "深度解题", en: "Deep Solve", id: "Penyelesaian Mendalam" },
+  mastery: { zh: "精通路径", en: "Mastery Path", id: "Jalur Penguasaan" },
 };
 
 export default function ToolsSettingsPage() {
   const { t } = useTranslation();
   const { language, draftRevision } = useSettings();
+  const isId = language === "id";
   const hintLanguage = language === "zh" ? "zh" : "en";
   const [tools, setTools] = useState<BuiltinTool[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -145,31 +146,50 @@ export default function ToolsSettingsPage() {
     if (experience.length) {
       out.push({
         key: "experience",
-        label: zh ? "体验增强" : "Experience Enhancement",
-        hint: zh
-          ? "用户可选；按需为 chat agent 开启或关闭。"
-          : "User-toggleable. Switch on or off to shape the chat agent's behavior.",
+        label: isId
+          ? "Peningkatan Pengalaman"
+          : zh
+            ? "体验增强"
+            : "Experience Enhancement",
+        hint: isId
+          ? "Dapat diubah pengguna. Aktifkan atau nonaktifkan untuk membentuk perilaku agen chat."
+          : zh
+            ? "用户可选；按需为 chat agent 开启或关闭。"
+            : "User-toggleable. Switch on or off to shape the chat agent's behavior.",
         tools: experience,
       });
     }
     if (builtin.length) {
       out.push({
         key: "builtin",
-        label: zh ? "内置工具" : "Built-in Tools",
-        hint: zh
-          ? "Chat agent 在需要时自动挂载，无需手动开关。"
-          : "Mounted automatically by the chat agent when needed. Not user-toggleable.",
+        label: isId
+          ? "Alat Bawaan"
+          : zh
+            ? "内置工具"
+            : "Built-in Tools",
+        hint: isId
+          ? "Dipasang otomatis oleh agen chat saat dibutuhkan. Tidak dapat diubah pengguna."
+          : zh
+            ? "Chat agent 在需要时自动挂载，无需手动开关。"
+            : "Mounted automatically by the chat agent when needed. Not user-toggleable.",
         tools: builtin,
       });
     }
     for (const [cap, list] of capabilities) {
-      const label = CAPABILITY_LABELS[cap]?.[zh ? "zh" : "en"] ?? cap;
+      const label =
+        CAPABILITY_LABELS[cap]?.[isId ? "id" : zh ? "zh" : "en"] ?? cap;
       out.push({
         key: `cap:${cap}`,
-        label: zh ? `${label} · 能力工具` : `${label} · Capability Tools`,
-        hint: zh
-          ? "该能力的专属工具，仅在此能力运行时挂载。"
-          : "Tools specific to this capability; mounted only when it runs.",
+        label: isId
+          ? `${label} · Alat Kemampuan`
+          : zh
+            ? `${label} · 能力工具`
+            : `${label} · Capability Tools`,
+        hint: isId
+          ? "Alat khusus kemampuan ini; hanya dipasang saat kemampuan tersebut berjalan."
+          : zh
+            ? "该能力的专属工具，仅在此能力运行时挂载。"
+            : "Tools specific to this capability; mounted only when it runs.",
         tools: list,
       });
     }
@@ -321,7 +341,7 @@ export default function ToolsSettingsPage() {
                     const availability = !isAvailable
                       ? toolAvailabilityCopy(
                           tool.unavailable_reason,
-                          language === "zh" ? "zh" : "en",
+                          isId ? "id" : language === "zh" ? "zh" : "en",
                         )
                       : null;
                     const isEnabled = toolEffectiveEnabled(
@@ -370,9 +390,11 @@ export default function ToolsSettingsPage() {
                                 )}
                                 {isComingSoon && (
                                   <span className="inline-flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--muted)]/40 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--muted-foreground)]">
-                                    {language === "zh"
-                                      ? "敬请期待"
-                                      : "Coming soon"}
+                                    {isId
+                                      ? "Segera hadir"
+                                      : language === "zh"
+                                        ? "敬请期待"
+                                        : "Coming soon"}
                                   </span>
                                 )}
                                 {availability && !isComingSoon && (
@@ -398,9 +420,11 @@ export default function ToolsSettingsPage() {
                                       href={availability.href}
                                       className="font-medium underline underline-offset-2"
                                     >
-                                      {language === "zh"
-                                        ? "打开设置"
-                                        : "Open settings"}
+                                      {isId
+                                        ? "Buka pengaturan"
+                                        : language === "zh"
+                                          ? "打开设置"
+                                          : "Open settings"}
                                     </Link>
                                   )}
                                 </p>
@@ -421,7 +445,11 @@ export default function ToolsSettingsPage() {
                                   /* locked */
                                 }}
                                 label={
-                                  language === "zh" ? "敬请期待" : "Coming soon"
+                                  isId
+                                    ? "Segera hadir"
+                                    : language === "zh"
+                                      ? "敬请期待"
+                                      : "Coming soon"
                                 }
                               />
                             ) : !isAvailable ? (

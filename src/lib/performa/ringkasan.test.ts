@@ -97,7 +97,38 @@ describe("barisIntegritas", () => {
 
   it("memuat hanya fakta sesi milik pemilik yang punya run", () => {
     const a = barisIntegritas(nama, peta).find((b) => b.owner === "a@x.test");
-    expect(a).toMatchObject({ nama: "Aisyah", sesi: 3, kejadian: 9, celah: 1, kedaluwarsa: 1 });
+    expect(a).toMatchObject({
+      nama: "Aisyah",
+      sesi: 3,
+      kejadian: 9,
+      celah: 1,
+      kedaluwarsa: 1,
+      kamera: 0,
+    });
+  });
+
+  it("menjumlahkan sinyal kamera dari seluruh sesi, bukan menulis tetap", () => {
+    // Tabel daftar dulu menulis "kamera: tidak ada" sebagai teks tetap, jadi
+    // peserta yang kamera-nya menyala tetap terbaca "tidak ada". Angka ini
+    // harus berasal dari `perAsal` tiap sesi.
+    const denganKamera = new Map<string, RingkasanIntegritas>([
+      [
+        "a@x.test",
+        {
+          sesi: 2,
+          kejadian: 4,
+          celah: 1,
+          kedaluwarsa: 0,
+          daftar: [
+            { perAsal: { browser: 2, kamera: 3, luar: 0, server: 1 } },
+            { perAsal: { browser: 1, kamera: 2, luar: 0, server: 1 } },
+          ] as RingkasanIntegritas["daftar"],
+        },
+      ],
+    ]);
+    const baris = barisIntegritas(nama, denganKamera);
+    // 3 + 2 = 5 — dijumlahkan lintas sesi, bukan diambil dari sesi pertama.
+    expect(baris[0]?.kamera).toBe(5);
   });
 
   it("memakai email sebagai nama ketika nama tidak diketahui", () => {
@@ -117,6 +148,7 @@ describe("barisIntegritas", () => {
     const baris = barisIntegritas(nama, peta);
     expect(Object.keys(baris[0]).sort()).toEqual([
       "celah",
+      "kamera",
       "kedaluwarsa",
       "kejadian",
       "nama",

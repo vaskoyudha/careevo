@@ -4,14 +4,25 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { resolveResponseLanguage } from "../context/app-shell-storage";
-import { APP_LANGUAGES, isAppLanguage, normalizeLanguage } from "../i18n/languages";
+import { APP_LANGUAGES, DEFAULT_APP_LANGUAGE, isAppLanguage, normalizeLanguage } from "../i18n/languages";
 
 test("the locale registry accepts every supported language", () => {
-  assert.deepEqual(APP_LANGUAGES.map(({ code }) => code), ["en", "zh", "fr", "uk"]);
+  assert.deepEqual(APP_LANGUAGES.map(({ code }) => code), ["id", "en", "zh", "fr", "uk"]);
   for (const { code } of APP_LANGUAGES) assert.equal(isAppLanguage(code), true);
   assert.equal(isAppLanguage("de"), false);
   assert.equal(normalizeLanguage("uk-UA"), "uk");
   assert.equal(normalizeLanguage("fr-FR"), "fr");
+});
+
+test("Indonesian is the default locale and normalizes its spellings", () => {
+  assert.equal(DEFAULT_APP_LANGUAGE, "id");
+  assert.equal(normalizeLanguage(undefined), "id");
+  assert.equal(normalizeLanguage(null), "id");
+  assert.equal(normalizeLanguage("id"), "id");
+  assert.equal(normalizeLanguage("ID"), "id");
+  assert.equal(normalizeLanguage("id-ID"), "id");
+  assert.equal(normalizeLanguage("indonesian"), "id");
+  assert.equal(normalizeLanguage("bahasa"), "id");
 });
 
 test("response language remains independent from the interface language", () => {

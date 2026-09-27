@@ -2816,7 +2816,7 @@ export default function ChatWorkspace({
                 replyLanguageOptions={RESPONSE_LANGUAGE_OPTIONS}
                 replyLanguageDefaultLabel={RESPONSE_LANGUAGE_OPTIONS.find(
                   (option) => option.value === readStoredResponseLanguage(),
-                )?.label ?? "English"}
+                )?.label ?? "Bahasa Indonesia"}
                 replyLanguageDisabled={replyLanguageSavingKey === state.sessionKey || state.isStreaming}
                 onReplyLanguageChange={handleReplyLanguageChange}
                 resourceCatalog={resourceCatalog}

@@ -61,6 +61,19 @@ export interface BarisIntegritas {
   kejadian: number;
   celah: number;
   kedaluwarsa: number;
+  /**
+   * Jumlah sinyal **berasal kamera** di seluruh sesi pemilik ini.
+   *
+   * Ada di sini karena tabel daftar sebelumnya menulis "kamera: tidak ada"
+   * sebagai teks tetap — sebuah klaim yang tidak membaca data apa pun dan
+   * karenanya salah untuk setiap peserta yang kamera-nya memang menyala.
+   * Menulis keadaan tanpa memeriksanya lebih buruk daripada tidak menulis.
+   *
+   * Ini tetap **fakta sesi**, bukan metrik belajar: daftar field di test
+   * mengunci bahwa tidak ada metrik belajar yang boleh masuk ke laporan
+   * integritas, dan sinyal kamera bukan hasil belajar.
+   */
+  kamera: number;
 }
 
 /**
@@ -92,6 +105,10 @@ export function barisIntegritas(
       kejadian: isi.kejadian,
       celah: isi.celah,
       kedaluwarsa: isi.kedaluwarsa,
+      // Dijumlahkan dari `perAsal` tiap sesi, bukan dari daftar kejadian mentah:
+      // `perAsal` sudah memakai aturan yang sama dengan label di halaman detail,
+      // termasuk baris lama yang `asal`-nya diturunkan dari jenisnya.
+      kamera: isi.daftar.reduce((n, s) => n + s.perAsal.kamera, 0),
     }))
     .sort((a, b) => a.nama.localeCompare(b.nama, "id"));
 }

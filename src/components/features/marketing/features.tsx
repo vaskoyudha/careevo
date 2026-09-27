@@ -302,16 +302,22 @@ export function MarketingFeatures() {
             data-fe="cta"
             className="mt-7 flex flex-wrap items-center justify-center gap-3"
           >
+            {/* Same navbar classes as `DashboardButton`/`Daftar`, not a
+                hand-rolled look-alike: `chrome-btn` carries the height, radius,
+                layered shadow, hover/active transform and 200ms transition, so
+                the CTA is literally the navbar button. Primary =
+                `chrome-btn-brand`, secondary = `chrome-btn-white` (the pair used
+                in `materi-foot-bar.tsx`). */}
             <Link
               href="/daftar"
-              className="inline-flex items-center gap-1.5 rounded-full bg-gray-950 px-5 py-2.5 text-sm font-medium text-white shadow-xs transition hover:bg-gray-800"
+              className="chrome-btn chrome-btn-brand gap-1.5"
             >
               <span>Cobain challenge gratis</span>
               <ChevronRight className="size-4 opacity-70" />
             </Link>
             <Link
               href="/loker"
-              className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-800 shadow-xs transition hover:bg-gray-50"
+              className="chrome-btn chrome-btn-white gap-1.5"
             >
               <span>Lihat cara cek loker</span>
               <ChevronRight className="size-4 opacity-70" />

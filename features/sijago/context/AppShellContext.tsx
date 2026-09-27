@@ -52,7 +52,7 @@ import {
   writeStoredSidebarCollapsed,
   type AppLanguage,
 } from "@/context/app-shell-storage";
-import { isAppLanguage } from "@/i18n/languages";
+import { DEFAULT_APP_LANGUAGE, isAppLanguage } from "@/i18n/languages";
 
 interface AppShellContextValue {
   theme: Theme;
@@ -78,8 +78,10 @@ export function AppShellProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
     return getStoredTheme() ?? getSystemTheme();
   });
-  // Always start with "en" to match SSR; hydrate from localStorage after mount
-  const [language, setLanguageState] = useState<AppLanguage>("en");
+  // Always start with the default locale to match SSR; hydrate from localStorage after mount
+  const [language, setLanguageState] = useState<AppLanguage>(
+    DEFAULT_APP_LANGUAGE,
+  );
   const [languageReady, setLanguageReady] = useState(false);
   const [activeSessionId, setActiveSessionIdState] = useState<string | null>(
     () => readStoredActiveSessionId(),

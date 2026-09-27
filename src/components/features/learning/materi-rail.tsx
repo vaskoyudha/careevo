@@ -41,6 +41,9 @@ export type TampilanRail = "modul" | "semua";
  *
  * 1. **Judul panel menjadi nama modul yang dibuka.** Itu judul yang benar untuk
  *    isinya — yang dirender di bawahnya memang bab-bab modul itu, bukan kursus.
+ *    Judulnya **bukan** milik rail: ia hidup di kepala panel (`IsiPanelSilabus`),
+ *    yang juga memegang pintu "Semua modul". Rail hanya memuat isinya, jadi satu
+ *    panel tidak pernah punya dua judul dengan teks yang sama.
  * 2. **Isinya daftar bab** (sub-modul).
  * 3. **Tiap bab bisa dibentangkan** dan menampilkan halaman-halamannya.
  *
@@ -123,12 +126,17 @@ export function MateriRail({
    */
   onNavigasi?: () => void;
   /**
-   * Slot di baris judul rail — tombol ciut/bentang milik shell.
+   * Slot aksi di rail — tombol ciut/bentang milik shell.
    *
    * Ditaruh di sini, bukan sebagai elemen terpisah di atas `<nav>`, karena
    * tempatnya memang **di dalam panel**: ia satu-satunya jalan membuka kembali
    * rail yang sudah ciut, jadi ia tidak boleh ikut menghilang bersama ruang
    * yang dikorbankan.
+   *
+   * Sejak judul modul pindah ke kepala panel, baris ini **hanya** memuat `aksi`;
+   * ia tidak dirender sama sekali saat tidak ada aksi, supaya daftar bab tidak
+   * diawali baris kosong. Panel silabus reader tidak mengirim `aksi`, jadi di
+   * sana daftarnya langsung mulai dari bab pertama.
    */
   aksi?: ReactNode;
 }) {
@@ -367,10 +375,14 @@ function TampilanSemua({
 }
 
 /**
- * Tampilan "modul yang dibuka": nama modul sebagai judul, lalu bab-babnya.
+ * Tampilan "modul yang dibuka": bab-bab modul, dengan halamannya.
  *
- * Pintu kembali ke daftar seluruh kursus **bukan** di sini: ia tinggal di kepala
- * panel (di atas judul kursus), tempat satu-satunya kontrol yang mengubah seluruh
+ * Nama modul **bukan** judul di sini — ia hidup di kepala panel
+ * (`IsiPanelSilabus`), yang memilihnya saat panel menyempit. Rail hanya memuat
+ * isinya (daftar bab), jadi tidak ada dua judul berteks sama dalam satu panel.
+ *
+ * Pintu kembali ke daftar seluruh kursus juga **bukan** di sini: ia tinggal di
+ * kepala panel (di atas judul), tempat satu-satunya kontrol yang mengubah seluruh
  * isi panel memang berada. Menaruhnya di dua tempat akan memberi dua pintu untuk
  * satu tindakan, dan yang di dalam daftar itu terbaca sebagai bagian dari daftar.
  */
@@ -400,14 +412,16 @@ function TampilanModul({
 
   return (
     <>
-      <div className="flex items-start justify-between gap-1 px-2 pb-1">
-        <div className="min-w-0">
-          <p className="line-clamp-2 text-[11px] font-semibold tracking-wider text-gray-500 uppercase">
-            {modulDibuka.judul}
-          </p>
-        </div>
-        {aksi}
-      </div>
+      {/* Nama modul **tidak** diulang di sini: judul panel sudah membawanya
+          (`IsiPanelSilabus` memilih nama modul saat panel menyempit). Dulu rail
+          merendernya sebagai eyebrow di atas daftar, dan begitu kepala panel
+          memakai nama modul yang sama, satu panel punya dua judul dengan teks
+          identik — pembaca mengira salah satunya label bagian. Yang tersisa di
+          baris ini hanyalah `aksi` (tombol ciut/bentang milik shell), dan ia
+          hanya dirender kalau ada. */}
+      {aksi ? (
+        <div className="flex items-center justify-end gap-1 px-2 pb-1">{aksi}</div>
+      ) : null}
 
       {punyaBab ? (
         <ol className="flex flex-col gap-0.5">

@@ -56,37 +56,37 @@ import {
 } from "@/lib/learning-api";
 import { setPendingPrompt } from "@/lib/pending-prompt";
 
-const NEXT_LABELS: Record<string, { zh: string; en: string }> = {
+const NEXT_LABELS: Record<string, { zh: string; en: string; id: string }> = {
   probe: {
     zh: "先用一道探查题看看你是否已经掌握",
-    en: "Start with a probe and test out if you already know it",
+    en: "Start with a probe and test out if you already know it", id: "Mulai dengan pertanyaan penguji dan uji apakah kamu sudah mengetahuinya",
   },
   practice: {
     zh: "继续练习，直到稳定越过掌握门槛",
-    en: "Practice until you reliably clear the mastery gate",
+    en: "Practice until you reliably clear the mastery gate", id: "Berlatihlah hingga kamu konsisten melewati batas penguasaan",
   },
   assess: {
     zh: "用自己的话讲清楚这个概念",
-    en: "Explain this clearly in your own words",
+    en: "Explain this clearly in your own words", id: "Jelaskan ini dengan jelas menggunakan kata-katamu sendiri",
   },
-  review: { zh: "复习这个记忆信标", en: "Revisit this memory beacon" },
+  review: { zh: "复习这个记忆信标", en: "Revisit this memory beacon", id: "Kunjungi kembali suar memori ini" },
   answer_pending: {
     zh: "完成导师正在等待的回答",
-    en: "Complete the answer your tutor is waiting for",
+    en: "Complete the answer your tutor is waiting for", id: "Lengkapi jawaban yang sedang ditunggu tutormu",
   },
   complete: {
     zh: "整片疆域已经点亮",
-    en: "The whole territory is illuminated",
+    en: "The whole territory is illuminated", id: "Seluruh wilayah telah diterangi",
   },
 };
 
-const NEXT_CTA_LABELS: Record<string, { zh: string; en: string }> = {
-  review: { zh: "开始本次复习", en: "Start this review" },
+const NEXT_CTA_LABELS: Record<string, { zh: string; en: string; id: string }> = {
+  review: { zh: "开始本次复习", en: "Start this review", id: "Mulai tinjauan ini" },
   answer_pending: {
     zh: "回到原会话作答",
-    en: "Answer in the original session",
+    en: "Answer in the original session", id: "Jawab di sesi asli",
   },
-  complete: { zh: "继续自由探索", en: "Keep exploring" },
+  complete: { zh: "继续自由探索", en: "Keep exploring", id: "Terus jelajahi" },
 };
 
 export default function MasteryTopicPage() {
@@ -94,7 +94,9 @@ export default function MasteryTopicPage() {
   const pathId = String(params.pathId || "");
   const router = useRouter();
   const { t, i18n } = useTranslation();
-  const zh = Boolean(i18n.language?.toLowerCase().startsWith("zh"));
+  const pageLang = (i18n.language ?? "en").toLowerCase();
+  const zh = Boolean(pageLang.startsWith("zh"));
+  const id = Boolean(pageLang.startsWith("id"));
   const [topic, setTopic] = useState<MasteryTopic | null>(null);
   const [sessions, setSessions] = useState<TopicSession[]>([]);
   const [loading, setLoading] = useState(true);
@@ -461,9 +463,11 @@ export default function MasteryTopicPage() {
                   ? t(
                       "This goal has no outline yet. Open a session and the tutor will design one with you.",
                     )
-                  : zh
-                    ? nextCopy.zh
-                    : nextCopy.en}
+                  : id
+                    ? nextCopy.id
+                    : zh
+                      ? nextCopy.zh
+                      : nextCopy.en}
               </p>
             </div>
           </div>
@@ -501,9 +505,11 @@ export default function MasteryTopicPage() {
               className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[var(--primary)] px-3.5 text-[13px] font-medium text-[var(--primary-foreground)] transition hover:opacity-90"
             >
               {nextCta
-                ? zh
-                  ? nextCta.zh
-                  : nextCta.en
+                ? id
+                  ? nextCta.id
+                  : zh
+                    ? nextCta.zh
+                    : nextCta.en
                 : topic.session_count > 0
                   ? t("Continue learning")
                   : t("Begin first waypoint")}

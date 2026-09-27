@@ -7,6 +7,7 @@ import { StatusBadge, statusSubmission } from "@/components/ui/status-badge";
 import { ambilKaryaPrincipal } from "@/lib/review/service";
 import { ambilTokenAttestationSubmission, ambilVersiTerkini, listReviewSubmission } from "@/lib/review/repository";
 import { TransisiSubmission } from "@/components/features/submission/submission-actions";
+import { DaftarBerkasSnapshot, type SnapshotKarya } from "@/components/features/submission/daftar-berkas-snapshot";
 import { cariEntri } from "@/lib/courses/katalog";
 
 export const metadata: Metadata = {
@@ -53,7 +54,7 @@ export default async function KaryaDetailPage({
     ambilVersiTerkini(submission.id),
     submission.status === "approved" ? ambilTokenAttestationSubmission(submission.id) : Promise.resolve(null),
   ]);
-  const snapshot = versi?.contentSnapshot as { judul?: string | null; catatan?: string | null } | undefined;
+  const snapshot = versi?.contentSnapshot as SnapshotKarya | undefined;
 
   return (
     <LearnerShell session={session}>
@@ -110,6 +111,7 @@ export default async function KaryaDetailPage({
             {snapshot?.judul ?? "Karya tanpa judul"}
           </h2>
           <p className="text-sm whitespace-pre-wrap text-gray-700">{snapshot?.catatan ?? "Tidak ada catatan."}</p>
+          <DaftarBerkasSnapshot snapshot={snapshot} />
           <div className="mt-4">
             {submission.status === "draft" && (
               <TransisiSubmission submissionId={submission.id} slug={entri.slug} jenis="kirim" />

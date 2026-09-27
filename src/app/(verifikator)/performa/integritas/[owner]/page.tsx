@@ -7,8 +7,16 @@ import { PageHead } from "@/components/ui/page-head";
 import { PeringatanIntegritas } from "@/components/features/performa/performa-integritas";
 import { listEnrollmentStaf, listEventRun } from "@/lib/learning/repository";
 import { FormPelanggaran } from "@/components/features/performa/form-pelanggaran";
-import { listSemuaPelanggaran, skorIntegritasDb } from "@/lib/integritas/service";
+import { AntrianUsulan } from "@/components/features/performa/antrian-usulan";
+import { PanelJejakProses } from "@/components/features/performa/panel-jejak-proses";
+import { PanelRingkasTutor } from "@/components/features/performa/panel-ringkas-tutor";
+import {
+  antrianUsulanDb,
+  listSemuaPelanggaran,
+  skorIntegritasDb,
+} from "@/lib/integritas/service";
 import { KATALOG_PELANGGARAN } from "@/lib/integritas/katalog";
+import { listSertifikatUserId } from "@/lib/review/service";
 import {
   LABEL_KEJADIAN,
   gabungPersetujuan,
@@ -20,6 +28,11 @@ import { barisIntegritas } from "@/lib/performa/ringkasan";
 import { BATAS_SINYAL, type AsalSinyal } from "@/lib/learning/sumber-sinyal";
 import { listRunStaf } from "@/lib/learning/run-service";
 import { sessionRunDariDb } from "@/lib/learning/dashboard";
+import { bacaSnapshot } from "@/lib/workspace/jejak-store";
+import { hitungJejak, jedaSnapshot } from "@/lib/workspace/proses";
+import { bacaTranskrip } from "@/lib/tutor/transkrip";
+import { faktaTranskrip } from "@/lib/agents/tutor/fakta";
+import { ringkasTutor } from "@/lib/agents/tutor/ringkas";
 
 export const metadata: Metadata = {
   title: "Detail Integritas",
@@ -96,8 +109,24 @@ export default async function IntegritasDetailPage({
    * catatan, dan angka skor di halaman ini berasal dari hitungan yang sama
    * dengan dashboard peserta — bukan hitungan kedua.
    */
-  const catatan = userId ? await listSemuaPelanggaran(userId) : [];
+  const semuaCatatan = userId ? await listSemuaPelanggaran(userId) : [];
+  // Yang di sini **sudah diputuskan**: `active`, `dismissed`, `expunged`.
+  // `proposed` dikecualikan karena ia belum keputusan apa pun — barisnya tampil
+  // di antrian Usulan di atas, dan menghitungnya di sini akan membuat daftar
+  // "keputusan" memuat hal yang belum pernah diputuskan siapa pun.
+  const catatan = semuaCatatan.filter((c) => c.status !== "proposed");
   const skor = userId ? await skorIntegritasDb(userId) : null;
+
+  /**
+   * Usulan otomatis yang belum diputuskan — antrian Stage 2.
+   *
+   * Baris `proposed` **tidak** termasuk di atas: `listSemuaPelanggaran` dibaca
+   * untuk keputusan yang sudah ada, sedangkan yang di sini justru yang belum.
+   * Menggabungkannya akan membuat satu daftar yang mencampur "sudah diputuskan"
+   * dengan "menunggu", dan angka jumlah pada `Catatan yang sudah diputuskan`
+   * akan memuat usulan mesin yang belum pernah dilihat siapa pun.
+   */
+  const usulan = userId ? await antrianUsulanDb(userId) : [];
 
   /**
    * Course yang bisa dipilih di form pencatatan: **hanya** enrollment milik
@@ -112,6 +141,73 @@ export default async function IntegritasDetailPage({
         .map((b) => b.enrollment.courseId),
     ),
   ).map((courseId) => ({ courseId, slug: null }));
+
+  /**
+   * Jejak proses ruang kerja, satu entri per course.
+   *
+   * Jejak **tidak pernah menurunkan skor**. Ia ditampilkan sebagai fakta
+   * pengamatan, di panel tersendiri, supaya tidak tercampur dengan daftar
+   * "Catatan yang sudah diputuskan" yang angkanya memang bergerak skor.
+   *
+   * Kegagalan membaca jejak dilewati, bukan dilempar: file jejak ada di disk
+   * terpisah dari database, jadi panel ini tidak boleh menjatuhkan halaman
+   * integritas yang isinya sudah benar.
+   */
+  const jejakPerCourse = new Map<
+    string,
+    { ringkas: ReturnType<typeof hitungJejak>; jedaTerlama: number | null }
+  >();
+  if (userId) {
+    await Promise.all(
+      opsiCourse.map(async ({ courseId }) => {
+        try {
+          const snapshots = await bacaSnapshot(userId, courseId);
+          if (snapshots.length === 0) return;
+          const jeda = jedaSnapshot(snapshots);
+          jejakPerCourse.set(courseId, {
+            ringkas: hitungJejak(snapshots),
+            jedaTerlama: jeda.length > 0 ? jeda[0]! : null,
+          });
+        } catch {
+          // Panel menampilkan "belum ada jejak" untuk course ini.
+        }
+      }),
+    );
+  }
+
+  /**
+   * Transkrip tutor + ringkasannya, untuk **area verifikator saja**.
+   *
+   * Email diambil dari `target.owner`, bukan dari segmen rute, sehingga
+   * panel ini menampilkan sesi milik peserta yang sedang dibuka halaman ini dan
+   * bukan milik siapa pun yang kebetulan menulis segmennya.
+   *
+   * Kegagalan membaca transkrip menghasilkan panel kosong, bukan halaman error:
+   * transkrip ditulis aplikasi lain (AI Mastery), jadi bentuknya bukan jaminan
+   * dan tidak boleh menjatuhkan laporan integritas.
+   */
+  /**
+ * Sertifikat aktif peserta ini, untuk ditautkan dari laporan.
+ *
+ * **Arah tautan hanya satu: laporan → sertifikat.** Sertifikatnya yang publik,
+ * laporannya yang staf. Menaruh tautan ke laporan di halaman `/verify` akan
+ * membuat siapa pun yang memegang token bisa menekan tombol dan mendarat di 307
+ * menuju `/masuk` — atau, lebih buruk, kalau gate-nya bergeser, membaca catatan
+ * integritas orang lain. Tautan ke depan tidak mungkin membocorkan apa pun.
+ *
+ * `listSertifikatUserId` memang menerima `userId`: halaman ini sudah dibatasi
+ * oleh sesi staf, dan course-nya berasal dari enrollment yang difilter di atas —
+ * bukan dari segmen rute.
+ */
+const sertifikat = userId ? await listSertifikatUserId(userId) : [];
+
+  const sesiTutor = await bacaTranskrip(target.owner);
+  const faktaTutor = faktaTranskrip(sesiTutor);
+  // Ringkasan hanya meminta model kalau ada yang bisa diringkas. Tanpa
+  // transkrip, memanggil model berarti membuang panggilan berbayar untuk
+  // menjelaskan tidak ada apa-apa.
+  const ringkasanTutor =
+    faktaTutor.sesi > 0 ? await ringkasTutor(sesiTutor) : null;
 
   return (
     <AppShell session={session} current="/performa/integritas">
@@ -157,6 +253,124 @@ export default async function IntegritasDetailPage({
           </section>
         ) : null}
 
+        <section className="card" aria-labelledby="integritas-usulan">
+          <h2 className="card-title" id="integritas-usulan">
+            Usulan otomatis — belum ada yang diputuskan
+          </h2>
+          <p className="mt-1 mb-3 text-sm text-muted-foreground">
+            Deteksi otomatis menulis usulan setelah sesi terverifikasi ditutup.
+            Usulan ini{" "}
+            <strong>belum memotong skor</strong> — skornya masih seperti sekarang
+            sampai kamu menyetujuinya. Menolak tidak mengubah skor.
+          </p>
+          {userId ? (
+            <AntrianUsulan
+              usulan={usulan.map((u) => ({
+                id: u.id,
+                courseId: u.courseId,
+                kind: u.kind,
+                penalty: u.penalty,
+                reason: u.reason,
+                createdAt: u.createdAt,
+                evidenceRedacted: u.evidenceRedacted,
+                slug: opsiCourse.find((c) => c.courseId === u.courseId)?.slug ?? null,
+              }))}
+              slug={opsiCourse[0]?.slug ?? null}
+            />
+          ) : null}
+        </section>
+
+        <section className="card" aria-labelledby="performa-sertifikat">
+          <h2 className="card-title" id="performa-sertifikat">
+            Sertifikat terbit
+          </h2>
+          <p className="mt-1 mb-3 text-sm text-muted-foreground">
+            Kredensial yang sudah terbit untuk peserta ini, lengkap dengan skor dan
+            tanggalnya. Tautan membuka halaman verifikasi publik — halaman yang
+            akan dilihat perekrut.
+          </p>
+          {sertifikat.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Belum ada sertifikat aktif. Sertifikat terbit setelah course selesai
+              dan karya disetujui.
+            </p>
+          ) : (
+            <ul className="list-app">
+              {sertifikat.map((s) => (
+                <li className="list-app-row" key={s.token}>
+                  <div className="min-w-0">
+                    <span className="row-title">{s.judul}</span>
+                    <span className="row-meta">
+                      Skor {s.score}/100 · {s.level} · {s.track}
+                    </span>
+                    <span className="row-meta">
+                      Terbit {s.terbitPada.slice(0, 10)}
+                    </span>
+                  </div>
+                  <Link
+                    href={`/verify/${s.token}`}
+                    className="shrink-0 text-sm underline"
+                  >
+                    Buka halaman verifikasi
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+          {/*
+            Tidak ada tautan dari sertifikat ke halaman ini. Sertifikatnya publik
+            dan halaman ini butuh sesi staf, jadi arah sebaliknya hanya
+            menghasilkan pintu yang tidak bisa dibuka — atau kebocoran kalau
+            gate-nya pernah bergeser.
+          */}
+        </section>
+
+        <section className="card" aria-labelledby="performa-ringkas-tutor">
+          <h2 className="card-title" id="performa-ringkas-tutor">
+            Percakapan dengan tutor
+          </h2>
+          <p className="mt-1 mb-3 text-sm text-muted-foreground">
+            Ringkasan bahasa alami dari percakapan peserta dengan tutor AI.
+            <strong> Bukan penilaian</strong> — tidak memotong skor, dan tidak
+            pernah jadi dasar keputusan otomatis. Yang tetap berlaku adalah rubrik
+            dan catatan yang kamu putuskan sendiri.
+          </p>
+          <PanelRingkasTutor
+            fakta={faktaTutor}
+            hasil={ringkasanTutor?.ok ? ringkasanTutor.hasil : null}
+            {...(ringkasanTutor && !ringkasanTutor.ok ? { pesanGagal: ringkasanTutor.pesan } : {})}
+          />
+        </section>
+
+        <section className="card" aria-labelledby="performa-jejak-proses">
+          <h2 className="card-title" id="performa-jejak-proses">
+            Jejak proses ruang kerja
+          </h2>
+          <p className="mt-1 mb-3 text-sm text-muted-foreground">
+            Kapan dan seberapa sering berkas berubah di ruang kode.{" "}
+            <strong>Jejak ini tidak memotong skor</strong> dan tidak pernah
+            otomatis jadi catatan: ia bahan baca, bukan vonis.
+          </p>
+          {jejakPerCourse.size === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Belum ada jejak proses. Jejak diambil saat ruang kerja peserta dibuka.
+            </p>
+          ) : (
+            <div className="space-y-5">
+              {[...jejakPerCourse.entries()].map(([courseId, data]) => (
+                <div key={courseId}>
+                  <h3 className="text-sm font-semibold">{courseId}</h3>
+                  <PanelJejakProses
+                    ringkas={data.ringkas}
+                    courseId={courseId}
+                    jedaTerlama={data.jedaTerlama}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
         <section className="card" aria-labelledby="integritas-catatan">
           <h2 className="card-title" id="integritas-catatan">
             Catatan yang sudah diputuskan
@@ -186,7 +400,9 @@ export default async function IntegritasDetailPage({
                         {c.courseId} · {c.penalty} poin ·{" "}
                         {c.status === "expunged"
                           ? `dipulihkan${c.expungedReason ? `: ${c.expungedReason}` : ""}`
-                          : "berlaku"}{" "}
+                          : c.status === "dismissed"
+                            ? "ditolak"
+                            : "berlaku"}{" "}
                         · {c.createdAt.toISOString().slice(0, 10)}
                       </span>
                     </div>
@@ -324,15 +540,32 @@ export default async function IntegritasDetailPage({
                       </ul>
                     ) : null}
 
+                    {/*
+                      Sinyal mentah sesi ini — **terbuka secara default**.
+
+                      Sebelumnya daftar ini terlipat di balik `details`, jadi
+                      laporan hanya memperlihatkan jumlah ("Keluar tab 3×") dan
+                      bukti paling rinci justru butuh satu klik untuk dilihat.
+                      Laporan integritas ada untuk ditelusuri; menyembunyikan
+                      lini masanya membuat kesimpulan tampak tanpa dasar.
+
+                      Labelnya "sinyal", bukan "catatan": yang di sini adalah
+                      rekaman mentah peramban/kamera, sedangkan "catatan" di
+                      bagian lain berarti keputusan yang sudah ditulis manusia.
+                      Menyebut keduanya dengan kata yang sama membuat pembaca
+                      mengira sinyal sudah pernah dinilai seseorang.
+                    */}
                     {s.catatan.length > 0 ? (
-                      <details className="mt-2">
+                      <details className="mt-2" open>
                         <summary className="cursor-pointer text-xs text-muted-foreground">
-                          Lihat {s.catatan.length} catatan
+                          Sinyal mentah sesi ini ({s.catatan.length}) — belum
+                          dinilai siapa pun
                         </summary>
                         <ol className="mt-2 space-y-1">
                           {s.catatan.map((k, i) => (
                             <li key={`${k.at}-${i}`} className="text-xs text-muted-foreground">
-                              {k.at} · {LABEL_KEJADIAN[k.jenis]} · {k.jenis_klasifikasi}
+                              {k.at} · {LABEL_KEJADIAN[k.jenis]} · {k.jenis_klasifikasi} ·{" "}
+                              {k.asal ?? "tidak diketahui"}
                               {k.detail ? ` · ${k.detail}` : ""}
                             </li>
                           ))}

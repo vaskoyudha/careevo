@@ -28,11 +28,11 @@ function withLocalStorage(entries: Record<string, string>, run: () => void) {
 }
 
 test("an absent choice is distinguishable from an explicit English one", () => {
-  // readStoredLanguage normalizes both to "en", so the bootstrap cannot use it
-  // to decide whether the server-side preference may be adopted.
+  // readStoredLanguage normalizes both to the default, so the bootstrap cannot
+  // use it to decide whether the server-side preference may be adopted.
   withLocalStorage({}, () => {
     assert.equal(hasStoredLanguage(), false);
-    assert.equal(readStoredLanguage(), "en");
+    assert.equal(readStoredLanguage(), "id");
   });
 
   withLocalStorage({ [LANGUAGE_STORAGE_KEY]: "en" }, () => {
@@ -42,6 +42,10 @@ test("an absent choice is distinguishable from an explicit English one", () => {
 });
 
 test("a stored choice is reported for every supported language", () => {
+  withLocalStorage({ [LANGUAGE_STORAGE_KEY]: "id" }, () => {
+    assert.equal(hasStoredLanguage(), true);
+    assert.equal(readStoredLanguage(), "id");
+  });
   withLocalStorage({ [LANGUAGE_STORAGE_KEY]: "zh" }, () => {
     assert.equal(hasStoredLanguage(), true);
     assert.equal(readStoredLanguage(), "zh");
@@ -56,10 +60,10 @@ test("a stored choice is reported for every supported language", () => {
   });
 });
 
-test("an unusable value still counts as a choice and normalizes to English", () => {
+test("an unusable value still counts as a choice and normalizes to the default", () => {
   withLocalStorage({ [LANGUAGE_STORAGE_KEY]: "de" }, () => {
     assert.equal(hasStoredLanguage(), true);
-    assert.equal(readStoredLanguage(), "en");
+    assert.equal(readStoredLanguage(), "id");
   });
 });
 
@@ -68,7 +72,7 @@ test("server-side rendering reports no stored choice instead of throwing", () =>
   (globalThis as { window?: unknown }).window = undefined;
   try {
     assert.equal(hasStoredLanguage(), false);
-    assert.equal(readStoredLanguage(), "en");
+    assert.equal(readStoredLanguage(), "id");
   } finally {
     (globalThis as { window?: unknown }).window = original;
   }

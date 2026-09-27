@@ -61,6 +61,25 @@ export default async function KaryaCoursePage({
               ? "Kumpulkan karya akhir course ini. Setelah disubmit, verifikator akan mereview dan menerbitkan credential."
               : "Project course ini masih terkunci. Selesaikan semua modul lewat sesi terverifikasi untuk membuka pengumpulan karya."}
           </p>
+          {/*
+            Ruang kerja ditautkan dari sini, bukan dari halaman course, karena
+            `detail-kursus.tsx` sedang disunting proses lain dan menyentuhnya
+            akan mencampur dua perubahan yang tidak berhubungan. Tempat ini
+            justru lebih tepat: ruang kerja adalah tempat *mengerjakan* karya
+            yang dikumpulkan di halaman ini, jadi tautannya berdiri di
+            sampingnya. Syaratnya sama — `siap` di sini berasal dari
+            `kelayakanKursusSubmission` yang juga menggerbang `/api/workspace`.
+          */}
+          {siap ? (
+            <div className="mt-4">
+              <Link
+                href={`/belajar/${entri.slug}/ruang-kerja`}
+                className="chrome-btn !h-11"
+              >
+                Buka ruang kerja
+              </Link>
+            </div>
+          ) : null}
         </header>
 
         <BuatSubmissionForm

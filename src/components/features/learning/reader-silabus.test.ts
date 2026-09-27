@@ -371,6 +371,29 @@ describe("ReaderPanelSilabus", () => {
     expect(html.match(/aria-current="true"/g) ?? []).toHaveLength(1);
   });
 
+  it("menjadikan nama modul yang dibuka sebagai judul panel", () => {
+    // Judul panel menunjuk isi yang dirender di bawahnya — bab-bab modul itu,
+    // bukan kursus. Sebelum ini kepala panel selalu menulis judul kursus
+    // ("Dasar C++") walau panelnya sudah menyempit ke sebuah modul, sehingga
+    // peserta yang memilih modul tetap melihat nama kursus di judul.
+    const html = renderPanel({ modulAktif: "crs-1-m2" });
+    expect(html.match(/<p class="reader-panel-judul">([^<]*)<\/p>/)?.[1]).toBe("Inti");
+    // Judul kursusnya tidak hilang — ia turun jadi baris konteks bersama
+    // penyedianya, sebab panelnya menutupi bar yang memuat salinan kecilnya.
+    expect(html.match(/<p class="reader-panel-penyedia">([^<]*)<\/p>/)?.[1]).toBe(
+      "Kursus Uji · Careevo",
+    );
+  });
+
+  it("kembali ke judul kursus saat daftar seluruh kursus yang tampil", () => {
+    // Di tampilan daftar kursus, judul panel memang nama kursus: isi di bawahnya
+    // seluruh kursus, bukan satu modul. Baris konteksnya kembali ke penyedia saja
+    // — judul kursus tidak ditulis dua kali.
+    const html = renderPanel({ modulAktif: "mod-yang-sudah-dihapus" });
+    expect(html.match(/<p class="reader-panel-judul">([^<]*)<\/p>/)?.[1]).toBe("Kursus Uji");
+    expect(html.match(/<p class="reader-panel-penyedia">([^<]*)<\/p>/)?.[1]).toBe("Careevo");
+  });
+
   it("memberi sudut `--radius-md`, bukan pil", () => {
     /**
      * DESIGN.md memisahkan dua bentuk: "rounded pill for focused marketing
@@ -388,7 +411,7 @@ describe("ReaderPanelSilabus", () => {
     expect(tombol).not.toMatch(/border-radius:\s*999px/);
   });
 
-  it("menaruh pintu 'Semua modul' di kepala panel, di atas judul kursus", () => {
+  it("menaruh pintu 'Semua modul' di kepala panel, di atas judul panel", () => {
     /**
      * Kontrol itu mengubah **seluruh** isi panel, jadi tempatnya di kepala —
      * bukan di dalam daftar, tempat ia terbaca sebagai bagian dari daftar yang

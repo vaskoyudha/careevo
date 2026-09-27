@@ -18,6 +18,8 @@ import {
   type RubrikReview,
 } from "@/lib/review/service";
 import type { RubricCriterion } from "@/lib/scoring/karya";
+import { prosesManajer } from "@/lib/workspace";
+import { ringkasBerkas } from "@/lib/workspace/snapshot";
 
 export interface ReviewState {
   ok: boolean;
@@ -97,11 +99,32 @@ export async function buatSubmissionAction(_prev: ReviewState, formData: FormDat
     if (!layak || layak.enrollmentId !== parsed.data.enrollmentId) {
       return { ok: false, error: "Kursus belum memenuhi syarat untuk submission." };
     }
+
+    // Daftar berkas dibekukan dari ruang kerja **saat ini**, dan kegagalannya
+    // tidak membatalkan submission. Alasannya disengaja: peserta yang menulis
+    // karyanya di luar ruang kerja (atau yang ruang kerjanya sudah dimatikan
+    // oleh penyapu menganggur) tetap harus bisa mengumpulkan. Yang hilang
+    // hanyalah daftar berkasnya — dan itu keadaan yang jujur, bukan alasan
+    // menolak pekerjaan orang.
+    //
+    // `daftarBerkas` mengembalikan `null` untuk "tidak bisa dibaca", bukan `[]`
+    // untuk "kosong"; pembedaan itu yang membuat snapshot tidak berbohong.
+    const mentahBerkas = await prosesManajer
+      .daftarBerkas({ userId: session.userId, courseId: layak.courseId })
+      .catch(() => null);
+    const ringkasan = mentahBerkas === null ? null : ringkasBerkas(mentahBerkas);
+
     const { submission } = await buatSubmissionDb({
       principal: session,
       courseId: layak.courseId,
       enrollmentId: layak.enrollmentId,
-      konten: { judul: parsed.data.judul, catatan: parsed.data.catatan },
+      konten: {
+        judul: parsed.data.judul,
+        catatan: parsed.data.catatan,
+        ...(ringkasan && ringkasan.total > 0
+          ? { berkas: ringkasan.berkas, berkasTerpotong: ringkasan.terpotong }
+          : {}),
+      },
     });
     safeRevalidate(`/belajar/${parsed.data.slug}`, `/belajar/${parsed.data.slug}/karya`);
     return { ok: true, submissionId: submission.id, message: "Draf karya dibuat." };

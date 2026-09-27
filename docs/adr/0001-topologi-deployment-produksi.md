@@ -653,3 +653,89 @@ Daftar yang dapat dicentang ada di `docs/security-release-checklist.md`.
 Nama berkas yang dirujuk ADR ini: `docs/security-release-checklist.md` dibuat bersama ADR
 ini; `.env.example` **belum ada** dan tidak dibuat di sini — ia bagian dari pekerjaan Fase 0
 yang menyentuh konfigurasi.
+
+---
+
+## Amandemen 1 — Ruang kerja kode (code-server) menuntut host sendiri
+
+- **Status:** Diusulkan — belum disetujui
+- **Tanggal:** 2026-10-03
+- **Konteks:** fitur Ruang kerja (`src/lib/workspace/`, `/belajar/[slug]/ruang-kerja`)
+- **Mengubah:** §1.0 (cakupan M0) dan §1.1 butir 2
+
+### A1.1 Keputusan yang diminta
+
+Fitur Ruang kerja menjalankan **code-server** — build terbuka VS Code yang berjalan sebagai
+**server HTTP berumur panjang** — di dalam kontainer podman, satu kontainer per
+`(userId, courseId)`. Konsekuensinya mengikat dan tidak bisa dihindari dengan konfigurasi:
+
+1. **Tidak dapat dilayani dari Vercel.** Vercel Functions tidak menjalankan kontainer
+   berumur panjang, tidak menyediakan volume persisten, dan tidak menerima koneksi
+   WebSocket yang dipegang IDE selama sesi berlangsung. Ini bukan "belum dioptimalkan" —
+   ini di luar model eksekusi Vercel.
+2. **Menuntut host yang bisa menjalankan podman** (atau Docker) dengan volume per pengguna.
+3. **Menuntut alamat yang dapat dijangkau browser**, karena IDE dimuat sebagai iframe dari
+   origin tersendiri. Ini persis kasus yang §1.0 daftarkan sebagai amandemen bernomor yang
+   dibutuhkan sebelum VPS melayani trafik.
+
+Amandemen ini memilih **opsi B — subdomain terpisah** dari tabel §1.0, dengan bentuk
+`https://<kunci>.ws.<domain>`, satu subdomain per ruang kerja.
+
+**Yang belum diputuskan di sini dan tetap terbuka:** provider host, region host, dan
+apakah host itu VPS yang sudah direncanakan §1 atau host terpisah. Ketiganya `[OWNER]` dan
+`[REGION]` seperti sisa ADR ini.
+
+### A1.2 Yang sudah ada di kode, dan yang belum
+
+Yang **sudah** ada dan teruji (86 test di `src/lib/workspace/`):
+
+- Manajer ruang kerja sebagai proses terpisah (`manager/server.mjs`), pola yang sama dengan
+  runner eksekusi: loopback + rahasia bersama, tanpa flag podman di luar `manager/soal.mjs`.
+- Isolasi per pengguna: satu kontainer + satu volume per `(userId, courseId)`, dengan
+  `--cap-drop=all`, `--security-opt=no-new-privileges`, `--memory`, `--cpus`,
+  `--pids-limit`, dan port hanya di loopback.
+- Penyapu ruang kerja menganggur (30 menit).
+- Tiket akses bertanda tangan HMAC berumur 5 menit (`tiket.ts`), terikat pada
+  `(userId, courseId)`, dan gerbang `/api/workspace/buka` yang memeriksa sesi Careevo.
+- Gerbang kelayakan memakai `kelayakanKursusSubmission` — definisi yang sama dengan panel
+  Project.
+
+Yang **belum** ada, dan tidak boleh terbaca sebagai selesai:
+
+1. **Reverse proxy di depan subdomain.** Ini bagian yang **wajib** untuk amandemen ini:
+   proxy harus memverifikasi tiket dan meneruskan WebSocket ke port loopback yang podman
+   pilih untuk ruang kerja itu. Tanpa proxy, subdomain tidak bisa dibentuk, dan keamanan
+   ruang kerja bersandar pada kunci 48 bit di alamatnya — yang **bukan** kontrol akses.
+2. **Penyelesaian alamat per ruang kerja.** Port host dipilih podman secara dinamis dan
+   hanya diketahui manajer. Proxy menuntut peta `kunci → port` yang tahan restart manajer;
+   hari ini peta itu hidup di memori dan hilang saat proses mati.
+3. **Batas kapasitas per host.** `BATAS_WS.serentak = 12` adalah angka konservatif yang
+   **belum diukur** untuk beban nyata; ia harus ditetapkan per host setelah ada pengukuran.
+4. **Kuota disk per ruang kerja.** Volume tumbuh tanpa batas. Belum ada batas maupun
+   pembersihan volume.
+
+### A1.3 Konsekuensi yang mengikat
+
+1. **Ruang kerja tidak tersedia di deployment M0.** Selama hanya Vercel yang melayani,
+   halaman Ruang kerja akan menampilkan "layanan tidak tersedia" — perilaku yang sudah
+   benar (fail-closed), bukan bug. Fitur ini tidak boleh dipromosikan ke pengguna sebelum
+   hostnya ada.
+2. **Host ruang kerja adalah permukaan yang menjalankan kode pengguna.** Ia menuntut
+   perlakuan yang lebih keras daripada host aplikasi: patch rutin, pemantauan disk, dan
+   batas sumber daya yang diukur, bukan ditebak.
+3. **Cookie sesi Careevo tidak melintasi batas origin.** Tiket bertanda tangan adalah
+   satu-satunya pembawa keputusan otorisasi antar-origin. Karena itu `CAREEVO_WORKSPACE_SECRET`
+   menjadi kredensial yang setara `SESSION_SECRET`: rotasinya harus mengikuti prosedur yang
+   sama, dan kebocorannya berarti ruang kerja siapa pun bisa diterbitkan tiketnya.
+4. **Subdomain liar menuntut sertifikat wildcard.** `https://<kunci>.ws.<domain>` berarti
+   sertifikat harus mencakup `*.ws.<domain>`. Ini menambah satu keputusan TLS yang belum
+   diambil.
+
+### A1.4 Yang harus terjadi berikutnya
+
+1. Putuskan provider + region host ruang kerja (`[OWNER]`, `[REGION]`).
+2. Tulis reverse proxy-nya, termasuk verifikasi tiket dan dukungan WebSocket.
+3. Ganti peta port dalam memori dengan sumber yang tahan restart (mis. label kontainer
+   podman, yang bertahan selama kontainernya ada).
+4. Ukur `BATAS_WS.serentak` dan tetapkan kuota disk sebelum ada pengguna nyata.
+5. Ratifikasi amandemen ini bersama §8.2 dan §10.2.

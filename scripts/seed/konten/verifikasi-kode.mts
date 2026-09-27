@@ -52,14 +52,30 @@ async function main() {
     slug: string;
     modul?: Array<{
       judul: string;
+      /**
+       * `halaman` pindah ke dalam `submodul` sejak tingkat sub-modul ada
+       * (`Modul.halaman` **dihapus**, lihat `types/course.ts`). Field lama tetap
+       * dibaca di sini hanya supaya berkas kursus yang belum dinormalisasi tidak
+       * diam-diam kehilangan bloknya — bukan sebagai jalan kedua yang setara.
+       */
       halaman?: Array<{ judul: string; blok: Array<{ tipe: string } & BlokKode> }>;
+      submodul?: Array<{
+        judul?: string;
+        halaman?: Array<{ judul: string; blok: Array<{ tipe: string } & BlokKode> }>;
+      }>;
     }>;
   }>;
 
   const daftar: Lokasi[] = [];
   for (const c of courses) {
     for (const m of c.modul ?? []) {
-      for (const h of m.halaman ?? []) {
+      // Urutan lapis mengikuti skema sekarang: halaman milik sub-modul, dan
+      // `m.halaman` hanya jalur kompatibilitas untuk berkas lama.
+      const lapisHalaman = [
+        ...(m.submodul ?? []).flatMap((s) => s.halaman ?? []),
+        ...(m.halaman ?? []),
+      ];
+      for (const h of lapisHalaman) {
         for (const b of h.blok ?? []) {
           if (b.tipe === "kode" && b.dapatDijalankan === true) {
             daftar.push({ slug: c.slug, modul: m.judul, halaman: h.judul, blok: b });

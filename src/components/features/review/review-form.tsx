@@ -2,20 +2,30 @@
 
 import { useActionState, useMemo, useState } from "react";
 import { decideReview, type ReviewState } from "@/actions/review";
-import { hitungSkorKarya, type RubricCriterion } from "@/lib/scoring/karya";
+import {
+  BOBOT_RUBRIC,
+  hitungSkorKarya,
+  LABEL_RUBRIC,
+  URUTAN_RUBRIC,
+  type RubricCriterion,
+} from "@/lib/scoring/karya";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 const INITIAL: ReviewState = { ok: false };
 
-const CRITERIA: Array<{ key: RubricCriterion; label: string; bobot: string }> = [
-  { key: "kelengkapan", label: "Kelengkapan", bobot: "20%" },
-  { key: "kualitas", label: "Kualitas", bobot: "30%" },
-  { key: "orisinalitas", label: "Orisinalitas", bobot: "20%" },
-  { key: "ketepatan_brief", label: "Ketepatan brief", bobot: "20%" },
-  { key: "dokumentasi", label: "Dokumentasi", bobot: "10%" },
-];
+/**
+ * Baris form dibangun dari `LABEL_RUBRIC` + `BOBOT_RUBRIC`, bukan daftar
+ * salinan. Label yang dipakai verifikator di sini adalah label yang sama yang
+ * dilihat pembaca sertifikat.
+ */
+const CRITERIA: Array<{ key: RubricCriterion; label: string; bobot: string }> =
+  URUTAN_RUBRIC.map((key) => ({
+    key,
+    label: LABEL_RUBRIC[key],
+    bobot: `${Math.round(BOBOT_RUBRIC[key] * 100)}%`,
+  }));
 
 /**
  * Form keputusan review. Yang menentukan credential hanya `submissionId`,

@@ -8,6 +8,7 @@ utilities.
 from __future__ import annotations
 
 _LANGUAGE_LABELS: dict[str, str] = {
+    "id": "Bahasa Indonesia",
     "zh": "中文（简体）",
     "zh-cn": "中文（简体）",
     "zh-tw": "繁體中文",

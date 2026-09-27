@@ -26,7 +26,7 @@ import { listNotebooks, listNotebookEntries } from "@/lib/notebook-api";
  * section page (which keeps the mini-nav for lateral movement).
  */
 
-type Lang = { zh: string; en: string };
+type Lang = { zh: string; en: string; id: string };
 
 type DashKey =
   | "chat_history"
@@ -71,18 +71,18 @@ interface DashboardGroup {
 
 const GROUPS: DashboardGroup[] = [
   {
-    label: { zh: "对话与资料", en: "Conversations & Materials" },
+    label: { zh: "对话与资料", en: "Conversations & Materials", id: "Percakapan & Materi" },
     items: [
       {
         key: "chat_history",
         href: "/space/chat-history",
         icon: History,
-        title: { zh: "聊天历史", en: "Chat History" },
+        title: { zh: "聊天历史", en: "Chat History", id: "Riwayat Chat" },
         blurb: {
           zh: "回顾并继续此前的对话。",
-          en: "Review and reopen previous conversations.",
+          en: "Review and reopen previous conversations.", id: "Tinjau dan buka kembali percakapan sebelumnya.",
         },
-        unit: { zh: "段对话", en: "conversations" },
+        unit: { zh: "段对话", en: "conversations", id: "percakapan" },
         tile: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
         load: async () => (await listSessions(200, 0, { force: true })).length,
       },
@@ -90,12 +90,12 @@ const GROUPS: DashboardGroup[] = [
         key: "notebooks",
         href: "/notebooks",
         icon: NotebookPen,
-        title: { zh: "笔记本", en: "Notebooks" },
+        title: { zh: "笔记本", en: "Notebooks", id: "Notebook" },
         blurb: {
           zh: "整理来自对话、研究、智能写作等的产出。",
-          en: "Organize saved outputs from chat, research, and more.",
+          en: "Organize saved outputs from chat, research, and more.", id: "Atur hasil tersimpan dari chat, riset, dan lainnya.",
         },
-        unit: { zh: "个笔记本", en: "notebooks" },
+        unit: { zh: "个笔记本", en: "notebooks", id: "notebook" },
         tile: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
         load: async () => (await listNotebooks()).length,
       },
@@ -103,12 +103,12 @@ const GROUPS: DashboardGroup[] = [
         key: "question_bank",
         href: "/space/questions",
         icon: ClipboardList,
-        title: { zh: "题库", en: "Question Bank" },
+        title: { zh: "题库", en: "Question Bank", id: "Bank Soal" },
         blurb: {
           zh: "跨会话回顾和整理测验题目。",
-          en: "Review and organize quiz questions across sessions.",
+          en: "Review and organize quiz questions across sessions.", id: "Tinjau dan atur soal kuis dari berbagai sesi.",
         },
-        unit: { zh: "道题", en: "questions" },
+        unit: { zh: "道题", en: "questions", id: "pertanyaan" },
         tile: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
         load: async () => (await listNotebookEntries({ limit: 1 })).total,
       },
@@ -128,16 +128,16 @@ const GROUPS: DashboardGroup[] = [
    * made for them either.
    */
   {
-    label: { zh: "更多项目", en: "More Projects" },
+    label: { zh: "更多项目", en: "More Projects", id: "Proyek Lainnya" },
     items: [
       {
         key: "whisper",
         href: "/whisper",
         icon: Ear,
-        title: { zh: "密语", en: "Whisper" },
+        title: { zh: "密语", en: "Whisper", id: "Whisper" },
         blurb: {
           zh: "双席位咨询练习房间：督导只对受训者耳语。",
-          en: "Dual-seat practice room — the supervisor whispers to the trainee only.",
+          en: "Dual-seat practice room — the supervisor whispers to the trainee only.", id: "Ruang latihan dua kursi — supervisor hanya berbisik kepada peserta.",
         },
         tile: "bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400",
         credit: "alanguan73",
@@ -179,8 +179,12 @@ export { GROUPS as DASHBOARD_GROUPS };
 
 export default function SpaceDashboard() {
   const { i18n } = useTranslation();
-  const zh = i18n.language?.toLowerCase().startsWith("zh");
-  const tr = useCallback((l: Lang) => (zh ? l.zh : l.en), [zh]);
+  const lang = (i18n.language ?? "en").toLowerCase();
+  const zh = lang.startsWith("zh");
+  const tr = useCallback(
+    (l: Lang) => (lang.startsWith("id") ? l.id : zh ? l.zh : l.en),
+    [lang, zh],
+  );
 
   const [counts, setCounts] = useState<Partial<Record<DashKey, number>>>({});
 
@@ -214,12 +218,12 @@ export default function SpaceDashboard() {
     <div>
       <header className="mb-8">
         <h1 className="font-serif text-[24px] font-semibold leading-tight tracking-tight text-[var(--foreground)]">
-          {tr({ zh: "学习空间", en: "Learning Space" })}
+          {tr({ zh: "学习空间", en: "Learning Space", id: "Ruang Belajar" })}
         </h1>
         <p className="mt-1.5 max-w-xl text-[13px] leading-relaxed text-[var(--muted-foreground)]">
           {tr({
             zh: "你的对话、智能体、笔记与题目，集中在一处 —— 从这里进入。",
-            en: "Your conversations, notebooks, and questions in one place — enter from here.",
+            en: "Your conversations, notebooks, and questions in one place — enter from here.", id: "Percakapan, notebook, dan pertanyaanmu di satu tempat — masuk dari sini.",
           })}
         </p>
       </header>

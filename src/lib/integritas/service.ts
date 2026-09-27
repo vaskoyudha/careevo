@@ -32,6 +32,7 @@ import { punyaRoleStaff } from "@/lib/auth/authorization";
 import { ambilRolesAktif } from "@/lib/auth/identity-repository";
 import { hanyaRoleSah } from "@/lib/auth/principal";
 import { ambilEnrollment } from "@/lib/learning/repository";
+import type { KejadianIntegritas } from "@/lib/learning/session";
 import type { SessionPrincipal } from "@/lib/auth/principal";
 import type { IntegrityViolation } from "@/lib/db/schema";
 import {
@@ -41,13 +42,18 @@ import {
   type JenisPelanggaran,
 } from "./katalog";
 import { hitungSkorIntegritas, skorPada, type RingkasanSkor } from "./skor";
+import { deteksiUsulan } from "./deteksi";
 import {
   catatPelanggaran,
+  konfirmasiPelanggaran,
   listPelanggaranAktif,
   listPelanggaranCourse,
+  listPelanggaranProposed,
   listSemuaPelanggaran as listSemuaPelanggaranDb,
   pulihkanPelanggaran,
   pulihkanSemuaPelanggaranCourse,
+  tolakUsulan,
+  usulkanPelanggaran,
 } from "./repository";
 
 /** Galat domain yang dipetakan ke pesan berbahasa Indonesia oleh pemanggil. */
@@ -112,13 +118,26 @@ export async function listSemuaPelanggaran(
   return listSemuaPelanggaranDb(userId);
 }
 
-/** Baris yang bentuknya bisa dihitung skor — dipetakan, bukan dikirim mentah. */
+/**
+ * Status baris untuk perhitungan skor: hanya `active` yang dihitung.
+ *
+ * ## Kenapa bukan `b.status === "expunged" ? "expunged" : "active"`
+ *
+ * Bentuk lama itu benar ketika hanya ada dua status, dan **berbahaya** begitu
+ * `proposed`/`dismissed` masuk: keduanya akan jatuh ke cabang `"active"` dan ikut
+ * memotong skor — persis hal yang tidak boleh terjadi, karena Stage 1 dan Stage 2
+ *玻璃-kan berjalan tanpa manusia. Penalti yang bergerak tanpa keputusan manusia
+ * berarti mematikan JavaScript menaikkan skor sendiri.
+ *
+ * Sebaliknya, `expunged` diteruskan apa adanya: `hitungSkorIntegritas` yang
+ * memfilternya, jadi hanya satu tempat yang memutuskan apa yang dihitung.
+ */
 function keBarisSkor(baris: readonly IntegrityViolation[]) {
   return baris.map((b) => ({
     id: b.id,
     courseId: b.courseId,
     penalty: b.penalty,
-    status: b.status === "expunged" ? ("expunged" as const) : ("active" as const),
+    status: b.status === "active" ? ("active" as const) : ("expunged" as const),
   }));
 }
 
@@ -174,7 +193,7 @@ export async function skorIntegritasDenganDelta(
       id: b.id,
       courseId: b.courseId,
       penalty: b.penalty,
-      status: b.status === "expunged" ? ("expunged" as const) : ("active" as const),
+      status: b.status === "active" ? ("active" as const) : ("expunged" as const),
       createdAt: b.createdAt,
       expungedAt: b.expungedAt,
     })),
@@ -189,6 +208,136 @@ export async function skorIntegritasDenganDelta(
 }
 
 /**
+ * Skor kejujuran seorang user **sebagaimana pada saat `saat`**.
+ *
+ * Dipakai sertifikat: yang dicetak adalah keadaan kejujuran **ketika kredensial
+ * diterbitkan**, bukan hari ini. Tanpa ini, sertifikat 2026 yang dicetak saat
+ * akun bersih akan berubah angkanya setelah pelanggaran 2027 — dan dokumen yang
+ * isinya bergerak tidak bisa diverifikasi siapa pun.
+ *
+ * Diturunkan dari `skorPada` yang sudah ada, bukan hitungan kedua: dua
+ * implementasi penjepitan per course pasti akan menyimpang.
+ */
+export async function skorIntegritasPada(
+  userId: string,
+  saat: Date,
+): Promise<RingkasanSkor> {
+  const semua = await listSemuaPelanggaran(userId);
+  return keBarisSkorBertanggal(semua, saat);
+}
+
+/**
+ * Ringkasan integritas untuk satu sertifikat: skor **saat terbit**, skor
+ * **sekarang**, dan rincian per jenis katalog.
+ *
+ * `perJenis` memakai katalog utuh (termasuk yang nol) supaya pembaca bisa
+ * membedakan "tidak ada catatan" dari "kategori ini belum ada" — aturan yang
+ * sama dengan `ringkasanPelanggaranCourseDb`.
+ *
+ * **Dua cakupan, dan bedanya disengaja.** Skor adalah properti **akun** —
+ * `hitungSkorIntegritas` menjepit per course lalu menjumlahkannya, jadi
+ * memotongnya ke satu course akan mengubah arti angka yang sudah dikunci. Yang
+ * dicakupkan ke course hanyalah `perJenis`; lihat `integritasSertifikatDb`.
+ */
+export interface IntegritasSertifikat {
+  skorSaatTerbit: number;
+  skorSekarang: number;
+  jumlahAktifSaatTerbit: number;
+  perJenis: Array<{ jenis: JenisPelanggaran; label: string; jumlah: number }>;
+  /**
+   * Penalti yang benar-benar memotong skor saat terbit, dipecah menurut cakupan.
+   *
+   * Keduanya berasal dari `saat.perCourse` — hitungan yang **sama** dengan yang
+   * menghasilkan `skorSaatTerbit`, bukan hitungan kedua. Jadi
+   * `skorSaatTerbit === 100 − penaltiCourseIni − penaltiCourseLain` selalu benar,
+   * dan pembaca bisa menjumlahkan sendiri.
+   *
+   * Tanpa ini, panel menampilkan angka yang tidak bisa direkonsiliasi: skor
+   * memuat course lain, sementara daftar baris hanya course ini. Pembaca yang
+   * teliti akan menemukan selisih dan menyimpulkan ada yang disembunyikan —
+   * padahal tidak.
+   */
+  penaltiCourseIni: number;
+  penaltiCourseLain: number;
+}
+
+/**
+ * @param courseId Course yang dicakup `perJenis`. **Hanya `perJenis`, bukan
+ *   skornya.** Sertifikat menyebut satu course, jadi baris rincian harus
+ *   menyebut catatan course itu; tanpa ini, sertifikat "Keamanan Aplikasi" bisa
+ *   menampilkan catatan dari course UI/UX dan terbaca seolah pelanggarannya
+ *   terjadi di course yang disertifikasi.
+ *
+ *   Skor sengaja **tidak** dipotong ke course. `hitungSkorIntegritas` menjepit
+ *   penalti per course lalu menjumlahkannya (`BATAS_PENALTI_PER_COURSE`), jadi
+ *   memotong input ke satu course menghasilkan angka yang berbeda dari "skor
+ *   kejujuran akun ini". Angka itu aturan yang sudah dikunci — mengubahnya
+ *   karena alasan tata letak akan membuat dua sertifikat menyebut skor berbeda
+ *   untuk akun yang sama.
+ *
+ *   Diberikan `courseId` dari `payload.task_id` yang **ditandatangani**: staf
+ *   tidak boleh bisa membuat sertifikat menyebut course lain.
+ */
+export async function integritasSertifikatDb(
+  userId: string,
+  saatTerbit: Date,
+  courseId?: string,
+): Promise<IntegritasSertifikat> {
+  const semua = await listSemuaPelanggaran(userId);
+  const saat = keBarisSkorBertanggal(semua, saatTerbit);
+  const sekarang = hitungSkorIntegritas(
+    keBarisSkor(semua.filter((b) => b.status === "active")),
+  );
+
+  const hitung = new Map<JenisPelanggaran, number>();
+  for (const b of semua) {
+    if (b.status !== "active" || !jenisPelanggaranValid(b.kind)) continue;
+    if (courseId !== undefined && b.courseId !== courseId) continue;
+    const dibuat = b.createdAt instanceof Date ? b.createdAt.getTime() : Number.NaN;
+    if (!Number.isFinite(dibuat) || dibuat > saatTerbit.getTime()) continue;
+    hitung.set(b.kind, (hitung.get(b.kind) ?? 0) + 1);
+  }
+
+  return {
+    skorSaatTerbit: saat.skor,
+    skorSekarang: sekarang.skor,
+    jumlahAktifSaatTerbit: saat.jumlahAktif,
+    perJenis: DAFTAR_PELANGGARAN.map((d) => ({
+      jenis: d.jenis,
+      label: d.label,
+      jumlah: hitung.get(d.jenis) ?? 0,
+    })),
+    // Diambil dari `saat.perCourse` — penjumlahan yang sama dengan yang dipakai
+    // `skorSaatTerbit`. Menghitung ulang dari baris di sini akan menciptakan
+    // hitungan kedua, dan dua hitungan penjepitan per course pasti menyimpang.
+    penaltiCourseIni: saat.perCourse
+      .filter((c) => courseId !== undefined && c.courseId === courseId)
+      .reduce((n, c) => n + c.penaltiDiterapkan, 0),
+    penaltiCourseLain: saat.perCourse
+      .filter((c) => courseId === undefined || c.courseId !== courseId)
+      .reduce((n, c) => n + c.penaltiDiterapkan, 0),
+  };
+}
+
+/** Varian murni dari `skorIntegritasPada` yang menerima baris yang sudah dibaca. */
+function keBarisSkorBertanggal(
+  semua: readonly IntegrityViolation[],
+  saat: Date,
+): RingkasanSkor {
+  return skorPada(
+    semua.map((b) => ({
+      id: b.id,
+      courseId: b.courseId,
+      penalty: b.penalty,
+      status: b.status === "active" ? ("active" as const) : ("expunged" as const),
+      createdAt: b.createdAt,
+      expungedAt: b.expungedAt,
+    })),
+    saat,
+  );
+}
+
+/**
  * Satu baris tabel report: satu jenis katalog, dengan hitungannya.
  *
  * Ekstensinya `DefinisiPelanggaran` (nilai), bukan indeks dari array — TypeScript
@@ -196,12 +345,22 @@ export async function skorIntegritasDenganDelta(
  * `(typeof DAFTAR_PELANGGARAN)[number]` bukan salah satunya.
  */
 export interface BarisPelanggaran extends DefinisiPelanggaran {
-  /** Jumlah baris tercatat untuk jenis ini, `expunged` pun ikut. */
+  /** Jumlah baris tercatat untuk jenis ini, semua status ikut. */
   jumlah: number;
-  /** Yang masih memotong skor. */
+  /**
+   * Yang **sudah diputuskan manusia dan masih memotong skor**.
+   *
+   * Bukan kebalikan dari `jumlahDipulihkan`: `proposed` dan `dismissed` bukan
+   * salah satu dari keduanya, jadi keduanya dihitung sendiri di
+   * `jumlahBelumPutus`.
+   */
   jumlahAktif: number;
   /** Yang sudah dipulihkan. */
   jumlahDipulihkan: number;
+  /** Usulan otomatis yang belum diputuskan (`proposed`). */
+  jumlahBelumPutus: number;
+  /** Usulan yang ditolak verifikator (`dismissed`). */
+  jumlahDitolak: number;
 }
 
 /**
@@ -224,7 +383,13 @@ export async function ringkasanPelanggaranCourseDb(
 
   const hitung = new Map<
     JenisPelanggaran,
-    { jumlah: number; jumlahAktif: number; jumlahDipulihkan: number }
+    {
+      jumlah: number;
+      jumlahAktif: number;
+      jumlahDipulihkan: number;
+      jumlahBelumPutus: number;
+      jumlahDitolak: number;
+    }
   >();
 
   for (const b of baris) {
@@ -233,10 +398,17 @@ export async function ringkasanPelanggaranCourseDb(
       jumlah: 0,
       jumlahAktif: 0,
       jumlahDipulihkan: 0,
+      jumlahBelumPutus: 0,
+      jumlahDitolak: 0,
     };
     isi.jumlah += 1;
-    if (b.status === "expunged") isi.jumlahDipulihkan += 1;
-    else isi.jumlahAktif += 1;
+    // Empat status, empat tempat — bukan `else`. `else` di sini akan menghitung
+    // `proposed` sebagai "aktif", dan tabel akan menampilkan usulan yang belum
+    // diputuskan seolah sudah memotong skor.
+    if (b.status === "active") isi.jumlahAktif += 1;
+    else if (b.status === "expunged") isi.jumlahDipulihkan += 1;
+    else if (b.status === "proposed") isi.jumlahBelumPutus += 1;
+    else if (b.status === "dismissed") isi.jumlahDitolak += 1;
     hitung.set(b.kind, isi);
   }
 
@@ -247,6 +419,8 @@ export async function ringkasanPelanggaranCourseDb(
       jumlah: isi?.jumlah ?? 0,
       jumlahAktif: isi?.jumlahAktif ?? 0,
       jumlahDipulihkan: isi?.jumlahDipulihkan ?? 0,
+      jumlahBelumPutus: isi?.jumlahBelumPutus ?? 0,
+      jumlahDitolak: isi?.jumlahDitolak ?? 0,
     };
   });
 }
@@ -349,6 +523,186 @@ export async function pulihkanPelanggaranDb(input: {
       action: "integrity_violation.expunged",
       entityType: "integrity_violation",
       entityId: input.id,
+      payloadRedacted: { alasan },
+    });
+    return hasil;
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ * Stage 1 — deteksi otomatis (sistem)
+ * ------------------------------------------------------------------ */
+
+/**
+ * Usulkan pelanggaran dari rekaman sesi — **Stage 1, tanpa staf**.
+ *
+ * ## Aturan yang tidak bisa dilanggar di sini
+ *
+ * 1. **Tidak ada `wajibStaf`.** Fungsi ini dipanggil sistem, bukan manusia, jadi
+ *    tidak ada `principal` untuk diperiksa. Itu justru alasan barisnya berstatus
+ *    `proposed`: penalti belum bergerak.
+ * 2. **Skor tidak bergerak.** Baris ditulis `proposed`, dan `hitungSkorIntegritas`
+ *    hanya menghitung `active`. Kalau Stage 1 boleh memotong skor, mematikan
+ *    JavaScript akan menaikkan skor sendiri — seluruh sinyalnya dilaporkan
+ *    peramban.
+ * 3. **Tidak melempar.** Session end bukan tempat gagal. Kalau pencatatan usulan
+ *    gagal, sesi tetap selesai dicatat dan verifikasi tetap terjadi; yang hilang
+ *    hanya usulan yang bisa dilihat staf.
+ * 4. **Idempoten per (user, course, jenis).** Sesi bisa berakhir lebih dari sekali
+ *    (retry, reconnect), dan tanpa penjaga itu antrian akan berisi salinan yang
+ *    sama beberapa kali.
+ *
+ * Tidak menerima `principal` sama sekali — bukan kelalaian, tapi yang memastikan
+ * Stage 1 tidak bisa menulis `active` lewat jalur ini.
+ */
+export async function usulkanPelanggaranDb(input: {
+  userId: string;
+  courseId: string;
+  kejadian: readonly KejadianIntegritas[];
+  /** Id run, untuk jejak; ikut masuk `evidence_redacted`. */
+  runId?: string;
+}): Promise<IntegrityViolation[]> {
+  const usulan = deteksiUsulan(input.kejadian);
+  if (usulan.length === 0) return [];
+  if (input.courseId.trim() === "") return [];
+
+  // Idempoten: kalau untuk (user, course, jenis) ini sudah ada baris yang belum
+  // diputuskan, jangan tulis lagi. Dibaca **sebelum** transaksi supaya tidak ada
+  // satu query per jenis.
+  const belumPutus = await listPelanggaranProposed({
+    userId: input.userId,
+    courseId: input.courseId,
+  });
+  const sudahAda = new Set(belumPutus.map((b) => b.kind));
+
+  let enrollmentId: string | null = null;
+  try {
+    const enrollment = await ambilEnrollment(input.userId, input.courseId);
+    enrollmentId = enrollment?.userId === input.userId ? enrollment.id : null;
+  } catch {
+    // Usulan tetap bisa dibuat tanpa enrollment: ketiadaan enrollment berarti
+    // course tak terdaftar, dan itu bukan alasan membatalkan pencatatan bukti.
+  }
+
+  const tersimpan: IntegrityViolation[] = [];
+  for (const u of usulan) {
+    if (sudahAda.has(u.jenis)) continue;
+    try {
+      const baris = await denganTransaksi(async (tx) => {
+        const baru = await usulkanPelanggaran(tx, {
+          userId: input.userId,
+          courseId: input.courseId,
+          enrollmentId,
+          kind: u.jenis,
+          penalty: u.penalty,
+          reason: u.alasan,
+          evidenceRedacted: saringPayloadAudit({
+            ...u.bukti,
+            ...(input.runId ? { run_id: input.runId } : {}),
+          }),
+        });
+
+        await catatAudit(tx, {
+          // `actor_user_id` null = peristiwa sistem, bukan keputusan staf.
+          actorUserId: null,
+          action: "integrity_violation.proposed",
+          entityType: "integrity_violation",
+          entityId: baru.id,
+          payloadRedacted: {
+            user_id: input.userId,
+            course_id: input.courseId,
+            kind: u.jenis,
+            penalty: baru.penalty,
+          },
+        });
+        return baru;
+      });
+      tersimpan.push(baris);
+    } catch {
+      continue;
+    }
+  }
+  return tersimpan;
+}
+
+/* ------------------------------------------------------------------ *
+ * Stage 2 — keputusan manusia
+ * ------------------------------------------------------------------ */
+
+/** Usulan yang belum diputuskan untuk satu peserta — antrian kerja verifikator. */
+export async function antrianUsulanDb(
+  userId: string,
+): Promise<IntegrityViolation[]> {
+  return listPelanggaranProposed({ userId });
+}
+
+/** Usulan yang belum diputuskan untuk seluruh akun — daftar lintas peserta. */
+export async function antrianUsulanSemuaDb(): Promise<IntegrityViolation[]> {
+  return listPelanggaranProposed();
+}
+
+/**
+ * Konfirmasi usulan jadi pelanggaran yang berlaku — **Stage 2**.
+ *
+ * Hanya staf, dan hanya baris berstatus `proposed`. Itulah inti dari model dua
+ * tahap ini: `active` adalah satu-satunya status yang memotong skor, jadi skor
+ * hanya bisa bergerak dari manusia yang menekan tombol ini — tidak bisa dari
+ * skrip yang memanggil Stage 1.
+ *
+ * `null` berarti usulan sudah diputuskan (seseorang lebih dulu). Itu bukan
+ * kegagalan: dua verifikator bisa menekan bersamaan, dan hanya satu keputusan
+ * yang boleh berlaku.
+ */
+export async function putuskanUsulanDb(input: {
+  principal: SessionPrincipal;
+  id: string;
+}): Promise<IntegrityViolation | null> {
+  const reviewerUserId = await wajibStaf(input.principal);
+
+  return denganTransaksi(async (tx) => {
+    const hasil = await konfirmasiPelanggaran(tx, { id: input.id, reviewerUserId });
+    if (!hasil) return null;
+    await catatAudit(tx, {
+      actorUserId: reviewerUserId,
+      action: "integrity_violation.confirmed",
+      entityType: "integrity_violation",
+      entityId: hasil.id,
+      payloadRedacted: { kind: hasil.kind, penalty: hasil.penalty },
+    });
+    return hasil;
+  });
+}
+
+/**
+ * Tolak usulan — **Stage 2**, skor tidak bergerak.
+ *
+ * Alasan wajib: keputusan menolak tanpa penjelasan tidak bisa ditinjau siapa pun
+ * nanti, dan staf berikutnya akan melihat usulan itu muncul lagi dari sesi yang
+ * sama tanpa tahu pernah ditolak.
+ */
+export async function tolakUsulanDb(input: {
+  principal: SessionPrincipal;
+  id: string;
+  alasan: string;
+}): Promise<IntegrityViolation | null> {
+  const reviewerUserId = await wajibStaf(input.principal);
+  const alasan = input.alasan?.trim() ?? "";
+  if (alasan === "") {
+    throw new GalatIntegritas("alasan_wajib", "Tuliskan alasan penolakan.");
+  }
+
+  return denganTransaksi(async (tx) => {
+    const hasil = await tolakUsulan(tx, {
+      id: input.id,
+      reviewerUserId,
+      alasan,
+    });
+    if (!hasil) return null;
+    await catatAudit(tx, {
+      actorUserId: reviewerUserId,
+      action: "integrity_violation.dismissed",
+      entityType: "integrity_violation",
+      entityId: hasil.id,
       payloadRedacted: { alasan },
     });
     return hasil;

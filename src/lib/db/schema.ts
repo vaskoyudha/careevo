@@ -1115,6 +1115,22 @@ export const attestationEvents = pgTable(
  *   dan `attestations.payload_redacted`): isinya bisa memuat id run/kuis, bukan
  *   materi mentah peserta.
  */
+/**
+ * Nilai `integrity_violations.status` yang sah.
+ *
+ * Empat tahap, dan **hanya `active` yang memotong skor**:
+ *
+ * - `proposed` — ditulis Stage 1 (deteksi otomatis) dari `learning_events`.
+ *   Skor **tidak** bergerak: kalau boleh, mematikan JavaScript akan menaikkan
+ *   skor sendiri, karena seluruh sinyalnya dilaporkan peramban.
+ * - `active` — verifikator mengonfirmasi usulan (atau mencatat sendiri). Satu-satunya
+ *   tahap yang memotong skor, dan satu-satunya yang wajib menyebut `reviewer_user_id`.
+ * - `dismissed` — verifikator menolak usulan. Terminal; skor tidak bergerak.
+ * - `expunged` — dipulihkan setelah course diulang. Terminal; skor tidak bergerak.
+ */
+export const STATUS_INTEGRITAS = ["proposed", "active", "dismissed", "expunged"] as const;
+export type StatusIntegritas = (typeof STATUS_INTEGRITAS)[number];
+
 export const integrityViolations = pgTable(
   "integrity_violations",
   {
@@ -1145,6 +1161,14 @@ export const integrityViolations = pgTable(
     expungedAt: timestamp("expunged_at", { withTimezone: true, mode: "date" }),
     /** Alasan pemulihan — penting agar "sudah dipulihkan" bisa diaudit. */
     expungedReason: text("expunged_reason"),
+    /**
+     * Kapan keputusan manusia diambil atas baris `proposed`.
+     *
+     * Nullable karena hanya `proposed` yang punya tahap ini: saat sistem menulis
+     * usulan belum ada yang memutuskan, jadi `decided_at` kosong adalah informasi
+     * yang benar — bukan data yang belum terisi.
+     */
+    decidedAt: timestamp("decided_at", { withTimezone: true, mode: "date" }),
   },
   (table) => [
     index("integrity_violations_user_id_idx").on(table.userId),
@@ -1159,15 +1183,30 @@ export const integrityViolations = pgTable(
     check("integrity_violations_penalty_check", sql`"penalty" > 0`),
     check(
       "integrity_violations_status_check",
-      sql`"status" in ('active', 'expunged')`,
+      sql`"status" in ('proposed', 'active', 'dismissed', 'expunged')`,
     ),
-    // Baris `active` wajib punya waktu dibuat; baris `expunged` wajib punya waktu
-    // pemulihan. Tanpa ini, "sudah dipulihkan" bisa punya `status` yang benar
-    // tanpa jejak kapan, dan expunge yang gagal di tengah jalan terlihat sama
-    // dengan yang benar-benar selesai.
+    // Bentuk tiap status, dalam satu CHECK supaya mustahil memenuhi sebagiannya.
+    //
+    // Yang dijaga:
+    //
+    // - **Hanya `expunged` boleh punya `expunged_at`.** Tanpa ini, "sudah
+    //   dipulihkan" bisa punya status yang benar tanpa jejak kapan, dan expunge
+    //   yang gagal di tengah jalan terlihat sama dengan yang benar-benar selesai.
+    // - **Hanya `proposed` boleh tanpa `reviewer_user_id`.** Ini yang membedakan
+    //   "mesin mengusulkan" dari "manusia memutuskan" secara struktural, bukan lewat
+    //   konvensi: `active` (satu-satunya yang memotong skor) dan `dismissed` keduanya
+    //   wajib menyebut siapa yang memutuskan. Kalau batas ini hanya konvensi, Stage 1
+    //   bisa menulis `active` lalu skornya bergerak tanpa manusia pernah melihat.
     check(
-      "integrity_violations_expunged_shape_check",
-      sql`("status" = 'active' and "expunged_at" is null) or ("status" = 'expunged' and "expunged_at" is not null)`,
+      "integrity_violations_status_shape_check",
+      sql`(
+        ("status" = 'expunged' and "expunged_at" is not null)
+        or ("status" <> 'expunged' and "expunged_at" is null)
+      ) and (
+        ("status" = 'proposed' and "reviewer_user_id" is null)
+        or ("status" in ('active', 'dismissed') and "reviewer_user_id" is not null)
+        or ("status" = 'expunged')
+      )`,
     ),
   ],
 );

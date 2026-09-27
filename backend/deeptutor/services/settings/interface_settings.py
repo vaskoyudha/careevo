@@ -19,13 +19,13 @@ from deeptutor.response_languages import SUPPORTED_RESPONSE_LANGUAGES
 from deeptutor.services.path_service import get_path_service
 from deeptutor.tools.builtin import USER_TOGGLEABLE_TOOL_NAMES
 
-UiLanguage = Literal["en", "zh", "fr", "uk"]
+UiLanguage = Literal["id", "en", "zh", "fr", "uk"]
 
 DEFAULT_UI_SETTINGS: dict[str, Any] = {
     # "snow" is the pure-white neutral theme, shown as "Default" in the UI.
     "theme": "snow",
-    "language": "en",
-    "response_language": "en",
+    "language": "id",
+    "response_language": "id",
     # When true, TTS verbalizes LaTeX (fractions, powers, Greek). Dollar
     # delimiters are stripped either way so the voice never says "dollar".
     "voice_math_speak": True,
@@ -36,6 +36,8 @@ _LOCKS_GUARD = threading.Lock()
 _LOCKS: dict[str, threading.Lock] = {}
 
 _RESPONSE_LANGUAGE_ALIASES: dict[str, str] = {
+    "indonesian": "id",
+    "bahasa": "id",
     "english": "en",
     "chinese": "zh",
     "simplified chinese": "zh",
@@ -76,9 +78,10 @@ def _interface_settings_file():
     return get_path_service().get_settings_file("interface")
 
 
-def _normalize_language(language: Any, default: str = "en") -> str:
+def _normalize_language(language: Any, default: str = "id") -> str:
     """
     Normalize language codes:
+    - id/indonesian/bahasa -> id
     - en/english -> en
     - zh/chinese/cn -> zh
     - fr/french -> fr
@@ -94,6 +97,8 @@ def _normalize_language(language: Any, default: str = "en") -> str:
     if isinstance(language, str):
         s = language.lower().strip().replace("_", "-")
         base = s.split("-", 1)[0]
+        if s in {"indonesian", "bahasa"} or base == "id":
+            return "id"
         if s == "english" or base == "en":
             return "en"
         if s == "chinese" or base in {"zh", "cn"}:
@@ -105,19 +110,21 @@ def _normalize_language(language: Any, default: str = "en") -> str:
 
     # Fall back to default
     if isinstance(default, str):
-        return _normalize_language(default, "en")
-    return "en"
+        return _normalize_language(default, "id")
+    return "id"
 
 
-def _normalize_response_language(language: Any, default: str = "en") -> str:
+def _normalize_response_language(language: Any, default: str = "id") -> str:
     """Normalize only the wider model-output-language domain.
 
-    Interface language remains en/zh. This function accepts the labels a user
-    may have copied from an issue or another deployment, then maps region
+    Interface language remains id/en/zh/fr/uk. This function accepts the labels
+    a user may have copied from an issue or another deployment, then maps region
     variants to their supported prompt-language base.
     """
-    fallback = default if isinstance(default, str) and default.strip() else "en"
-    fallback = _normalize_response_language(fallback, "en") if fallback != "en" else "en"
+    fallback = default if isinstance(default, str) and default.strip() else "id"
+    fallback = (
+        _normalize_response_language(fallback, "id") if fallback != "id" else "id"
+    )
 
     if language is None or str(language).strip() == "":
         language = fallback

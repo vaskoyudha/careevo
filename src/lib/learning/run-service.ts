@@ -51,6 +51,8 @@ import {
   listRun,
 } from "./repository";
 import { BATAS_SESI_BAWAAN_MENIT, buktiBaru, verifikasiBuktiSesi } from "./session";
+import { usulkanPelanggaranDb } from "@/lib/integritas/service";
+import { sessionRunDariDb } from "./dashboard";
 
 /** Hasil memulai sesi: run otoritatif + token bukti yang dipegang klien. */
 export interface HasilMulaiRun {
@@ -90,9 +92,23 @@ export function kedaluwarsaDb(run: LearningRun, now: number = Date.now()): boole
   return now >= akhir;
 }
 
-/** Tutup run sebagai `expired`. Idempoten: run non-aktif dibiarkan apa adanya. */
+/**
+ * Tutup run sebagai `expired`. Idempoten: run non-aktif dibiarkan apa adanya.
+ *
+ * Ini **satu-satunya** tempat yang melewati kedua cara sebuah run berhenti:
+ * dipanggil langsung dari `buktiSesiDb`/`mulaiRunDb` saat batas waktu lewat, dan
+ * dari `akhiriRunDb` saat peserta menutup sesinya sendiri. Deteksi otomatis
+ * karena itu dipicu di sini (lihat `jalankanDeteksiOtomatis`) supaya tidak ada
+ * jalur penutupan run yang melewatinya.
+ *
+ * Deteksi hanya dijalankan kalau `akhiriRunRepo` **benar-benar** mengubah status.
+ * Pemanggilan berulang pada run yang sudah non-aktif tidak menambang ulang
+ * kejadian yang sama.
+ */
 export async function tandaiKedaluwarsaDb(runId: string): Promise<LearningRun | null> {
-  return akhiriRunRepo(runId, "expired");
+  const ditutup = await akhiriRunRepo(runId, "expired");
+  if (ditutup) await jalankanDeteksiOtomatis(ditutup);
+  return ditutup;
 }
 
 /**
@@ -236,10 +252,55 @@ export async function akhiriRunDb(input: {
   if (run.userId !== input.principal.userId) return null;
 
   const ditutup = await akhiriRunRepo(input.runId, "completed");
-  if (ditutup) return ditutup;
+  if (ditutup) {
+    await jalankanDeteksiOtomatis(ditutup);
+    return ditutup;
+  }
 
   // Sudah non-aktif sejak awal: kembalikan keadaan yang ada, bukan `null`.
   return ambilRun(input.runId);
+}
+
+/**
+ * Stage 1 deteksi otomatis — dipanggil setiap kali sebuah run **berhenti**.
+ *
+ * ## Kenapa dipanggil dari satu tempat yang dilewati kedua jalur
+ *
+ * Sebuah run berhenti dengan dua cara: ditutup peserta (`akhiriRunDb`) atau
+ * dibiarkan lewat batas lalu ditandai server (`tandaiKedaluwarsaDb`). Pemicunya
+ * karena itu diletakkan di `tandaiKedaluwarsaDb`, dan `akhiriRunDb` memanggilnya
+ * lewat fungsi itu — bukan memanggil deteksi sendiri.
+ *
+ * Versi pertama menaruh deteksi **hanya** di `akhiriRunDb`, dan itu melewatkan
+ * seluruh jalur kedaluwarsa: di database dev ini, 201 dari 345 kejadian tidak
+ * pernah diperiksa, termasuk empat run yang melewati ambang. Sesi yang dibiarkan
+ * habis justru sesi yang paling perlu ditinjau. Satu tempat berarti tidak ada
+ * cara menutup run yang melewati deteksi tanpa terlihat.
+ *
+ * ## Tidak pernah melempar
+ *
+ * `usulkanPelanggaranDb` sudah tidak melempar; ini menambahkan satu lapis lagi
+ * karena pemanggilnya menutup sesi. Kalau Stage 1 gagal, sesi tetap harus
+ * tercatat selesai — peserta yang menyelesaikan modul dengan benar tidak boleh
+ * kehilangan progresnya karena masalah integritas yang terpisah.
+ *
+ * Baris yang ditulis berstatus `proposed`, jadi skor **tidak** bergerak: yang
+ * perlu diputuskan manusia tetap perlu diputuskan.
+ */
+async function jalankanDeteksiOtomatis(run: LearningRun): Promise<void> {
+  try {
+    const kejadian = await listEventRun(run.id);
+    if (kejadian.length === 0) return;
+    await usulkanPelanggaranDb({
+      userId: run.userId,
+      courseId: run.courseId,
+      kejadian: sessionRunDariDb(run, kejadian).kejadian,
+      runId: run.id,
+    });
+  } catch {
+    // Sengaja ditelan. Sesi tertutup; usulan yang hilang lebih baik daripada sesi
+    // yang tidak tertutup. Tidak ada yang perlu tahu selain log.
+  }
 }
 
 /**

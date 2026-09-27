@@ -84,24 +84,29 @@ export function KursusSubNav({
         {terdaftar ? (
           <Link
             href={hrefLanjut}
-            className="inline-flex h-9 items-center justify-center rounded-lg bg-gray-900 px-4 text-sm font-semibold text-white transition-colors duration-200 hover:bg-gray-700"
+            className={`chrome-btn-brand ${progres === 100 ? "chrome-btn-white" : ""}`}
+            style={{
+              ...(progres === 100 ? {
+                color: "#000000",
+                background: "linear-gradient(to bottom right, #fafafa, #f5f5f5, #d4d4d4)",
+                border: "1px solid #d4d4d4",
+                boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)"
+              } : {})
+            }}
           >
-            {progres === 100 ? "Ulas modul" : "Lanjutkan"}
+            {progres === 100 ? "Review & selesaikan" : "Lanjutkan belajar"}
           </Link>
         ) : gratis ? (
           <button
             type="button"
             onClick={onDaftar}
             disabled={pending}
-            className="inline-flex h-9 cursor-pointer items-center justify-center rounded-lg bg-[#0056D2] px-4 text-sm font-semibold text-white transition-colors duration-200 hover:bg-[#00419e] disabled:opacity-60"
+            className="chrome-btn-brand"
           >
             {pending ? "Mendaftar…" : "Daftar gratis"}
           </button>
         ) : (
-          <Link
-            href="/careevo-plus#paket"
-            className="inline-flex h-9 items-center justify-center rounded-lg bg-[#0056D2] px-4 text-sm font-semibold text-white transition-colors duration-200 hover:bg-[#00419e]"
-          >
+          <Link href="/careevo-plus#paket" className="chrome-btn-brand">
             Lihat paket Plus
           </Link>
         )}

@@ -40,7 +40,7 @@ import type { SettingsAccess } from "@/features/settings/navigation/settings-acc
  * search metadata, and persistence hints.
  */
 
-export type Lang = { zh: string; en: string };
+export type Lang = { zh: string; en: string; id: string };
 
 export interface SettingsLeaf {
   key: string;
@@ -105,9 +105,9 @@ const MODEL_CHILDREN: SettingsLeaf[] = [
   {
     key: "voice",
     href: "/settings/voice",
-    label: { en: "Voice", zh: "语音" },
+    label: { en: "Voice", id: "Suara", zh: "语音" },
     blurb: {
-      en: "Speech synthesis and transcription models with saved providers.",
+      en: "Speech synthesis and transcription models with saved providers.", id: "Model sintesis suara dan transkripsi dengan penyedia tersimpan.",
       zh: "使用已配置的提供方管理语音合成与语音识别模型。",
     },
     icon: AudioLines,
@@ -116,9 +116,9 @@ const MODEL_CHILDREN: SettingsLeaf[] = [
   {
     key: "multimodal",
     href: "/settings/multimodal",
-    label: { en: "Multimodal generation", zh: "多模态生成" },
+    label: { en: "Multimodal generation", id: "Pembuatan multimodal", zh: "多模态生成" },
     blurb: {
-      en: "Image and video generation models with saved providers.",
+      en: "Image and video generation models with saved providers.", id: "Model pembuatan gambar dan video dengan penyedia tersimpan.",
       zh: "使用已配置的提供方管理图片与视频生成模型。",
     },
     icon: ImageIcon,
@@ -127,10 +127,10 @@ const MODEL_CHILDREN: SettingsLeaf[] = [
   {
     key: "connections",
     href: "/settings#connections",
-    label: { zh: "提供方", en: "Providers" },
+    label: { zh: "提供方", en: "Providers", id: "Penyedia" },
     blurb: {
       zh: "管理提供方的名称、地址、密钥并测试连接。",
-      en: "Manage provider names, addresses, credentials, and connectivity.",
+      en: "Manage provider names, addresses, credentials, and connectivity.", id: "Kelola nama, alamat, kredensial, dan konektivitas penyedia.",
     },
     icon: KeyRound,
     tile: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
@@ -138,10 +138,10 @@ const MODEL_CHILDREN: SettingsLeaf[] = [
   {
     key: "llm",
     href: "/settings#llm",
-    label: { zh: "语言模型", en: "Language models" },
+    label: { zh: "语言模型", en: "Language models", id: "Model bahasa" },
     blurb: {
       zh: "模型名称、上下文窗口、能力与连接测试。",
-      en: "Model names, context windows, capabilities, and connection tests.",
+      en: "Model names, context windows, capabilities, and connection tests.", id: "Nama model, jendela konteks, kemampuan, dan uji koneksi.",
     },
     icon: Brain,
     tile: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
@@ -150,10 +150,10 @@ const MODEL_CHILDREN: SettingsLeaf[] = [
   {
     key: "task-models",
     href: "/settings#task-models",
-    label: { zh: "后台任务模型", en: "Task models" },
+    label: { zh: "后台任务模型", en: "Task models", id: "Model tugas" },
     blurb: {
       zh: "Careevo 自己发起的调用使用的模型。",
-      en: "The model behind the calls Careevo makes on its own.",
+      en: "The model behind the calls Careevo makes on its own.", id: "Model di balik panggilan mandiri yang dilakukan Careevo.",
     },
     icon: ListChecks,
     tile: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400",
@@ -161,10 +161,10 @@ const MODEL_CHILDREN: SettingsLeaf[] = [
   {
     key: "embedding",
     href: "/settings#embedding",
-    label: { zh: "嵌入模型", en: "Embedding models" },
+    label: { zh: "嵌入模型", en: "Embedding models", id: "Model embedding" },
     blurb: {
       zh: "嵌入模型、维度与连接测试。",
-      en: "Embedding models, dimensions, and connection tests.",
+      en: "Embedding models, dimensions, and connection tests.", id: "Model embedding, dimensi, dan uji koneksi.",
     },
     icon: Database,
     tile: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
@@ -173,8 +173,8 @@ const MODEL_CHILDREN: SettingsLeaf[] = [
   {
     key: "search",
     href: "/settings#search",
-    label: { zh: "搜索", en: "Search" },
-    blurb: { zh: "联网搜索供应商。", en: "Web search providers." },
+    label: { zh: "搜索", en: "Search", id: "Cari" },
+    blurb: { zh: "联网搜索供应商。", en: "Web search providers.", id: "Penyedia pencarian web." },
     icon: Search,
     tile: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
     service: "search",
@@ -182,10 +182,10 @@ const MODEL_CHILDREN: SettingsLeaf[] = [
   {
     key: "tts",
     href: "/settings#tts",
-    label: { zh: "语音合成", en: "Text-to-Speech" },
+    label: { zh: "语音合成", en: "Text-to-Speech", id: "Text-to-Speech" },
     blurb: {
       zh: "朗读助手回复的 TTS 供应商。",
-      en: "Text-to-speech for reading replies aloud.",
+      en: "Text-to-speech for reading replies aloud.", id: "Text-to-speech untuk membacakan balasan.",
     },
     icon: AudioLines,
     tile: "bg-rose-500/10 text-rose-600 dark:text-rose-400",
@@ -194,10 +194,10 @@ const MODEL_CHILDREN: SettingsLeaf[] = [
   {
     key: "stt",
     href: "/settings#stt",
-    label: { zh: "语音识别", en: "Speech-to-Text" },
+    label: { zh: "语音识别", en: "Speech-to-Text", id: "Speech-to-Text" },
     blurb: {
       zh: "转写麦克风录音的 STT 供应商。",
-      en: "Speech-to-text for the composer microphone.",
+      en: "Speech-to-text for the composer microphone.", id: "Speech-to-text untuk mikrofon composer.",
     },
     icon: Mic,
     tile: "bg-pink-500/10 text-pink-600 dark:text-pink-400",
@@ -206,10 +206,10 @@ const MODEL_CHILDREN: SettingsLeaf[] = [
   {
     key: "imagegen",
     href: "/settings#imagegen",
-    label: { zh: "文生图", en: "Image Generation" },
+    label: { zh: "文生图", en: "Image Generation", id: "Pembuatan Gambar" },
     blurb: {
       zh: "chat imagegen 工具使用的文生图模型。",
-      en: "Text-to-image model for the chat imagegen tool.",
+      en: "Text-to-image model for the chat imagegen tool.", id: "Model teks-ke-gambar untuk alat imagegen chat.",
     },
     icon: ImageIcon,
     tile: "bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400",
@@ -218,10 +218,10 @@ const MODEL_CHILDREN: SettingsLeaf[] = [
   {
     key: "videogen",
     href: "/settings#videogen",
-    label: { zh: "文生视频", en: "Video Generation" },
+    label: { zh: "文生视频", en: "Video Generation", id: "Pembuatan Video" },
     blurb: {
       zh: "chat videogen 工具使用的文生视频模型。",
-      en: "Text-to-video model for the chat videogen tool.",
+      en: "Text-to-video model for the chat videogen tool.", id: "Model teks-ke-video untuk alat videogen chat.",
     },
     icon: Clapperboard,
     tile: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",
@@ -233,10 +233,10 @@ const CHAT_CHILDREN: SettingsLeaf[] = [
   {
     key: "video-learning",
     href: "/settings#video-learning",
-    label: { zh: "视频学习", en: "Video Learning" },
+    label: { zh: "视频学习", en: "Video Learning", id: "Pembelajaran Video" },
     blurb: {
       zh: "原生 YouTube 与本地 Invidious 播放供应商。",
-      en: "Native YouTube and local Invidious playback providers.",
+      en: "Native YouTube and local Invidious playback providers.", id: "Penyedia pemutaran YouTube native dan Invidious lokal.",
     },
     icon: Clapperboard,
     tile: "bg-red-500/10 text-red-600 dark:text-red-400",
@@ -245,10 +245,10 @@ const CHAT_CHILDREN: SettingsLeaf[] = [
   {
     key: "tools",
     href: "/settings#tools",
-    label: { zh: "工具", en: "Tools" },
+    label: { zh: "工具", en: "Tools", id: "Alat" },
     blurb: {
       zh: "对话智能体可调用的内置工具。",
-      en: "Built-in tools the chat agent can invoke.",
+      en: "Built-in tools the chat agent can invoke.", id: "Alat bawaan yang dapat dipanggil oleh agen chat.",
     },
     icon: Wrench,
     tile: "bg-orange-500/10 text-orange-600 dark:text-orange-400",
@@ -256,10 +256,10 @@ const CHAT_CHILDREN: SettingsLeaf[] = [
   {
     key: "capabilities",
     href: "/settings#capabilities",
-    label: { zh: "能力", en: "Capabilities" },
+    label: { zh: "能力", en: "Capabilities", id: "Kemampuan" },
     blurb: {
       zh: "各能力的 LLM 参数与运行时旋钮。",
-      en: "Per-capability LLM parameters and runtime knobs.",
+      en: "Per-capability LLM parameters and runtime knobs.", id: "Parameter LLM dan setelan runtime per-kemampuan.",
     },
     icon: SlidersHorizontal,
     tile: "bg-lime-500/10 text-lime-600 dark:text-lime-400",
@@ -267,10 +267,10 @@ const CHAT_CHILDREN: SettingsLeaf[] = [
   {
     key: "starters",
     href: "/settings#starters",
-    label: { zh: "起始建议", en: "Starting points" },
+    label: { zh: "起始建议", en: "Starting points", id: "Titik awal" },
     blurb: {
       zh: "主页输入框下方那三行引导的素材范围。",
-      en: "How much history shapes the three lines under the composer.",
+      en: "How much history shapes the three lines under the composer.", id: "Berapa banyak riwayat yang memengaruhi tiga baris di bawah composer.",
     },
     icon: Sparkles,
     tile: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
@@ -278,10 +278,10 @@ const CHAT_CHILDREN: SettingsLeaf[] = [
   {
     key: "attachments",
     href: "/settings#attachments",
-    label: { zh: "附件", en: "Attachments" },
+    label: { zh: "附件", en: "Attachments", id: "Lampiran" },
     blurb: {
       zh: "聊天附件的大小上限与文本提取预算。",
-      en: "Upload caps and extraction budgets for chat attachments.",
+      en: "Upload caps and extraction budgets for chat attachments.", id: "Batas unggahan dan kuota ekstraksi untuk lampiran chat.",
     },
     icon: Paperclip,
     tile: "bg-teal-500/10 text-teal-600 dark:text-teal-400",
@@ -293,37 +293,37 @@ const CHAT_CHILDREN: SettingsLeaf[] = [
 export const SETTINGS_CATEGORIES: SettingsCategory[] = [
   {
     key: "appearance",
-    label: { zh: "外观", en: "Appearance" },
-    blurb: { zh: "视觉主题与代码块", en: "Theme and code blocks" },
+    label: { zh: "外观", en: "Appearance", id: "Tampilan" },
+    blurb: { zh: "视觉主题与代码块", en: "Theme and code blocks", id: "Tema dan blok kode" },
     icon: Palette,
     href: "/settings#appearance",
   },
   {
     key: "network",
-    label: { zh: "网络", en: "Network" },
+    label: { zh: "网络", en: "Network", id: "Jaringan" },
     blurb: {
       zh: "端口、浏览器 API 地址与 CORS",
-      en: "Ports, browser API base, and CORS",
+      en: "Ports, browser API base, and CORS", id: "Port, basis API browser, dan CORS",
     },
     icon: Network,
     href: "/settings#network",
   },
   {
     key: "workspace",
-    label: { zh: "工作区", en: "Workspace" },
+    label: { zh: "工作区", en: "Workspace", id: "Ruang kerja" },
     blurb: {
       zh: "系统、通用与自建工作区，根目录与存储迁移",
-      en: "System, general and custom workspaces, root folder and storage migration",
+      en: "System, general and custom workspaces, root folder and storage migration", id: "Sistem, ruang kerja umum dan kustom, folder root, serta migrasi penyimpanan",
     },
     icon: FolderOpen,
     href: "/settings#workspace",
   },
   {
     key: "models",
-    label: { zh: "模型", en: "Models" },
+    label: { zh: "模型", en: "Models", id: "Model" },
     blurb: {
       zh: "语言、向量、搜索、语音与生成模型",
-      en: "Language, embedding, search, voice, and generation models",
+      en: "Language, embedding, search, voice, and generation models", id: "Model bahasa, embedding, pencarian, suara, dan pembuatan",
     },
     icon: Boxes,
     href: "/settings#models",
@@ -331,17 +331,17 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
   },
   {
     key: "knowledge",
-    label: { zh: "知识库", en: "Knowledge Base" },
-    blurb: { zh: "文档解析引擎", en: "Document parsing engine" },
+    label: { zh: "知识库", en: "Knowledge Base", id: "Basis Pengetahuan" },
+    blurb: { zh: "文档解析引擎", en: "Document parsing engine", id: "Mesin pengurai dokumen" },
     icon: Library,
     href: "/settings#document-parsing",
   },
   {
     key: "chat",
-    label: { zh: "聊天", en: "Chat" },
+    label: { zh: "聊天", en: "Chat", id: "Chat" },
     blurb: {
       zh: "工具、能力与附件",
-      en: "Tools, capabilities, and attachments",
+      en: "Tools, capabilities, and attachments", id: "Alat, kemampuan, dan lampiran",
     },
     icon: MessagesSquare,
     href: "/settings#chat",
@@ -349,18 +349,18 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
   },
   {
     key: "progress",
-    label: { zh: "学习进度", en: "Learning progress" },
-    blurb: { zh: "查看自己的阅读与学习记录。", en: "Review your reading and learning activity." },
+    label: { zh: "学习进度", en: "Learning progress", id: "Kemajuan belajar" },
+    blurb: { zh: "查看自己的阅读与学习记录。", en: "Review your reading and learning activity.", id: "Tinjau aktivitas membaca dan belajar Anda." },
     icon: ChartNoAxesCombined,
     href: "/settings/progress",
   },
   {
     key: "learner-profile",
     learnerOnly: true,
-    label: { zh: "学习档案", en: "Learner profile" },
+    label: { zh: "学习档案", en: "Learner profile", id: "Profil pelajar" },
     blurb: {
       zh: "调整年龄、年级与讲解偏好。",
-      en: "Adjust age, grade, and explanation preferences.",
+      en: "Adjust age, grade, and explanation preferences.", id: "Sesuaikan preferensi usia, tingkat kelas, dan penjelasan.",
     },
     icon: UserRound,
     href: "/settings#learner-profile",
@@ -368,30 +368,30 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
   {
     key: "guardian",
     guardianOnly: true,
-    label: { zh: "监护管理", en: "Guardian" },
+    label: { zh: "监护管理", en: "Guardian", id: "Wali" },
     blurb: {
       zh: "查看已授权学习者与学习材料。",
-      en: "Review authorized learners and learning materials.",
+      en: "Review authorized learners and learning materials.", id: "Tinjau pelajar yang diizinkan dan materi pembelajaran.",
     },
     icon: ShieldCheck,
     href: "/settings#guardian",
   },
   {
     key: "memory",
-    label: { zh: "记忆", en: "Memory" },
+    label: { zh: "记忆", en: "Memory", id: "Memori" },
     blurb: {
       zh: "分块、预算、去重与引用策略",
-      en: "Chunking, budget, dedup, and reference policies",
+      en: "Chunking, budget, dedup, and reference policies", id: "Kebijakan chunking, kuota, deduplikasi, dan referensi",
     },
     icon: BrainCircuit,
     href: "/settings#memory",
   },
   {
     key: "about",
-    label: { zh: "关于", en: "About" },
+    label: { zh: "关于", en: "About", id: "Tentang" },
     blurb: {
       zh: "版本、更新与项目资源",
-      en: "Version, updates, and project resources",
+      en: "Version, updates, and project resources", id: "Versi, pembaruan, dan sumber daya proyek",
     },
     icon: Info,
     href: "/settings#about",

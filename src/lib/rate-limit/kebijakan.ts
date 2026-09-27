@@ -30,6 +30,7 @@ export const NAMA_KEBIJAKAN = [
   "verifyPublik",
   "pdfPublik",
   "jalankanKode",
+  "workspace",
 ] as const;
 
 export type NamaKebijakan = (typeof NAMA_KEBIJAKAN)[number];
@@ -192,6 +193,25 @@ export const AMBANG: Record<NamaKebijakan, SpesifikasiKebijakan> = {
     failOpen: false,
     bucketPrincipal: true,
     label: "Jalankan kode",
+  },
+  // Ruang kerja: menyalakan kontainer 2 GB, jadi ambangnya jauh lebih ketat
+  // daripada `jalankanKode` yang "hanya" menjalankan satu biner. Angka 10 per
+  // 10 menit mengikuti pemakaian yang sebenarnya: satu peserta membuka
+  // ruang kerja sekali lalu bekerja di dalamnya selama berjam-jam — `mulai`
+  // idempoten dan mengembalikan yang sudah hidup, jadi klik berulang bukan
+  // konsumsi baru. Yang dibatasi adalah **membuat** ruang kerja, bukan memakai.
+  //
+  // `bucketPrincipal: true` karena ruang kerja milik satu akun, dan satu akun
+  // yang berpindah IP tidak boleh mendapat kuota baru. `failOpen: false` karena
+  // endpoint ini menjalankan kontainer: lebih baik menolak daripada membuka
+  // pembuatan kontainer saat penghitungnya tidak bisa dipercaya.
+  workspace: {
+    limit: 10,
+    window: "10 m",
+    resetDetik: 600,
+    failOpen: false,
+    bucketPrincipal: true,
+    label: "Ruang kerja",
   },
 };
 

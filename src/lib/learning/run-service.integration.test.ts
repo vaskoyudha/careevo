@@ -25,7 +25,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { eq, sql } from "drizzle-orm";
 
 import { getDb, tutupDb, type KoneksiDb } from "@/lib/db/client";
-import { learningEvents, learningRuns } from "@/lib/db/schema";
+import { learningEvents, integrityViolations, learningRuns } from "@/lib/db/schema";
 import { daftarPengguna } from "@/lib/auth/auth-service";
 import type { SessionPrincipal } from "@/lib/auth/principal";
 import type { KJenisKejadian } from "@/lib/learning/akses";
@@ -67,7 +67,8 @@ async function kosongkan() {
       learning_events,
       quiz_attempts,
       quiz_attempt_answers,
-      course_completions
+      course_completions,
+      integrity_violations
       cascade`,
   );
 }
@@ -324,6 +325,108 @@ describe("sequence kejadian — anti-replay", () => {
     await tandaiKedaluwarsaDb(kedua.run.id);
     expect((await barisRun(kedua.run.id))?.state).toBe("expired");
     expect(await catatKejadianRun({ runId: kedua.run.id, kind: "pindah_tab" })).toBeNull();
+  });
+});
+
+/**
+ * Stage 1 dipicu oleh **kedua** cara sebuah run berhenti.
+ *
+ * Ini mengunci bug yang benar-benar ada: versi pertama menaruh deteksi hanya di
+ * `akhiriRunDb`, sehingga run yang dibiarkan lewat batas (`expired`) tidak pernah
+ * ditambang. Di database dev waktu itu, 201 dari 345 kejadian tidak pernah
+ * diperiksa — dan sesi yang ditinggalkan justru yang paling perlu ditinjau.
+ */
+describe("deteksi otomatis dari kedua jalur penutupan run", () => {
+  const KURSUS = "kursus-deteksi";
+
+  async function pesertaDenganKejadian(email: string, jenis: KJenisKejadian, n: number) {
+    const { principal, enrollment } = await siapkanPeserta(email);
+    const { run } = await mulaiRunDb({
+      principal,
+      enrollmentId: enrollment.id,
+      courseId: KURSUS,
+      policyVersion: 1,
+    });
+    for (let i = 0; i < n; i += 1) {
+      // Detail harus lewat `payloadRedacted.detail`: `kejadianDariEvent`
+      // membacanya dari sana, dan tanpa itu `paste_massal` terbaca 0 karakter
+      // sehingga tidak melewati ambang.
+      await catatKejadianRun({
+        runId: run.id,
+        kind: jenis,
+        payloadRedacted: {
+          asal: "browser",
+          detail: "400 karakter",
+          visibilitas: "visible",
+          jenis_klasifikasi: "kejadian",
+        },
+      });
+    }
+    return { principal, run };
+  }
+
+  async function usulanUntuk(userId: string) {
+    return db
+      .select()
+      .from(integrityViolations)
+      .where(eq(integrityViolations.userId, userId));
+  }
+
+  it("run yang kedaluwarsa tetap menghasilkan usulan", async () => {
+    const { principal, run } = await pesertaDenganKejadian(
+      "exp@contoh.test",
+      "pindah_tab",
+      3,
+    );
+
+    const ditutup = await tandaiKedaluwarsaDb(run.id);
+    expect(ditutup?.state).toBe("expired");
+
+    const usulan = await usulanUntuk(principal.userId);
+    expect(usulan.map((u) => u.kind)).toEqual(["meninggalkan_sesi"]);
+    expect(usulan[0]?.status).toBe("proposed");
+    // Usulan tidak memotong skor sampai manusia memutuskan.
+    expect(usulan.every((u) => u.reviewerUserId === null)).toBe(true);
+  });
+
+  it("run yang ditutup peserta juga menghasilkan usulan", async () => {
+    const { principal, run } = await pesertaDenganKejadian(
+      "tutup@contoh.test",
+      "paste_massal",
+      1,
+    );
+
+    const ditutup = await akhiriRunDb({ principal, runId: run.id, alasan: "selesai" });
+    expect(ditutup?.state).toBe("completed");
+
+    const usulan = await usulanUntuk(principal.userId);
+    expect(usulan.map((u) => u.kind)).toEqual(["pola_salin_tempel"]);
+  });
+
+  it("menutup dua kali tidak menambang ulang kejadian yang sama", async () => {
+    // Idempotensi: `akhiriRunRepo` mengembalikan null pada run non-aktif, jadi
+    // deteksi tidak berjalan dan antrian tidak terisi salinan.
+    const { principal, run } = await pesertaDenganKejadian(
+      "ulang@contoh.test",
+      "pindah_tab",
+      3,
+    );
+
+    await tandaiKedaluwarsaDb(run.id);
+    await tandaiKedaluwarsaDb(run.id);
+    await akhiriRunDb({ principal, runId: run.id, alasan: "lagi" });
+
+    expect(await usulanUntuk(principal.userId)).toHaveLength(1);
+  });
+
+  it("run tanpa sinyal tidak menghasilkan usulan apa pun", async () => {
+    const { principal, run } = await pesertaDenganKejadian(
+      "bersih@contoh.test",
+      "sesi_dimulai",
+      1,
+    );
+    await tandaiKedaluwarsaDb(run.id);
+    expect(await usulanUntuk(principal.userId)).toHaveLength(0);
   });
 });
 

@@ -423,12 +423,44 @@ export async function ambilTokenAttestationSubmission(submissionId: string): Pro
 export interface AttestationPublik {
   attestation: Attestation;
   subject: { userId: string; nama: string; username: string };
+  /**
+   * Rubrik 5 kriteria yang membekukan skor sertifikat ini, dibaca dari
+   * `reviews.rubric_snapshot` lewat `attestations.source_review_id`.
+   *
+   * Sengaja **tidak** dimasukkan ke `payload_canonical`: review adalah sumber
+   * immutable-nya (dilindungi `onDelete: restrict`), jadi menyalinnya ke payload
+   * hanya akan menduplikasi data dan membuat sertifikat lama kehilangan rincian.
+   * `null` bila baris review-nya hilang atau bentuknya tak terbaca — pemanggil
+   * menampilkan total yang ditandatangani tanpa rincian, bukan melempar.
+   */
+  rubric: Record<string, number> | null;
+}
+
+/**
+ * Baca `rubric_snapshot` sebagai peta kriteria→nilai.
+ *
+ * Bentuk rusak menjadi `null`, bukan lempar: satu sertifikat dengan rubrik yang
+ * tidak terbaca tidak boleh menjatuhkan halaman verifikasi publik.
+ */
+function bacaRubrik(snapshot: unknown): Record<string, number> | null {
+  if (typeof snapshot !== "object" || snapshot === null || Array.isArray(snapshot)) {
+    return null;
+  }
+  const hasil: Record<string, number> = {};
+  for (const [kunci, nilai] of Object.entries(snapshot as Record<string, unknown>)) {
+    if (typeof nilai === "number" && Number.isFinite(nilai)) hasil[kunci] = nilai;
+  }
+  return Object.keys(hasil).length > 0 ? hasil : null;
 }
 
 /**
  * Attestation + username subjek untuk sebuah public token. Dipakai endpoint
  * verify publik: status active/revoked ikut dikembalikan supaya UI bisa
  * membedakan "valid" dari "revoked".
+ *
+ * `leftJoin(reviews)` menambahkan rincian rubrik. **LEFT**, bukan INNER: baris
+ * attestation harus tetap ditemukan meski review-nya hilang, supaya sertifikat
+ * yang sah tidak mendadak "tidak dikenal".
  */
 export async function ambilAttestationPublik(
   token: string,
@@ -439,15 +471,18 @@ export async function ambilAttestationPublik(
       userId: users.id,
       nama: users.displayName,
       username: users.usernameNormalized,
+      rubricSnapshot: reviews.rubricSnapshot,
     })
     .from(attestations)
     .innerJoin(users, eq(attestations.subjectUserId, users.id))
+    .leftJoin(reviews, eq(attestations.sourceReviewId, reviews.id))
     .where(eq(attestations.publicToken, token));
   const b = baris[0];
   if (!b) return null;
   return {
     attestation: b.attestation,
     subject: { userId: b.userId, nama: b.nama, username: b.username },
+    rubric: bacaRubrik(b.rubricSnapshot),
   };
 }
 

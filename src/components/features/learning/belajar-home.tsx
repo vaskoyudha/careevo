@@ -11,9 +11,6 @@ import {
   Rocket,
   TrendingUp,
   Binoculars,
-  Award,
-  Mountain,
-  GraduationCap,
   Briefcase,
   Sparkles,
   Code2,
@@ -23,6 +20,13 @@ import {
   Users,
   Palette,
   FlaskConical,
+  BarChart3,
+  Bot,
+  Cloud,
+  Database,
+  Ruler,
+  ShieldCheck,
+  Smartphone,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -635,24 +639,6 @@ function HeroSection({
 }
 
 function PartnersAndCategories() {
-  const navCards = [
-    {
-      title: "Mulai karier baru",
-      icon: Award,
-      href: "/explore/most-popular-courses",
-    },
-    {
-      title: "Coba Careevo untuk Bisnis",
-      icon: Mountain,
-      href: "mailto:bisnis@careevo.id",
-    },
-    {
-      title: "Raih gelar akademik",
-      icon: GraduationCap,
-      href: "#gelar",
-    },
-  ];
-
   return (
     <section
       aria-labelledby="mitra-heading"
@@ -689,29 +675,6 @@ function PartnersAndCategories() {
               </div>
             </div>
           ))}
-        </div>
-
-        {/* Section 2: Navigation Action Cards */}
-        {/* No bottom margin: this used to space itself from the category chips,
-            and the section's own `py-*` now does that against the banner. */}
-        <div className="mt-6 grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-3">
-          {navCards.map((c) => {
-            const Icon = c.icon;
-            return (
-              <Link
-                key={c.title}
-                href={c.href}
-                className="group flex items-center justify-between rounded-2xl bg-[#F0F4F8] p-6 sm:p-7 shadow-2xs transition-all duration-200 hover:bg-[#E6EEF5] hover:no-underline hover:shadow-xs active:scale-[0.99]"
-              >
-                <span className="max-w-[190px] text-lg sm:text-xl font-bold leading-snug text-[#1f1f1f] group-hover:text-[#0056D2] transition-colors">
-                  {c.title}
-                </span>
-                <div className="relative flex size-14 sm:size-16 shrink-0 rotate-6 items-center justify-center rounded-2xl bg-[#E9E4F5] shadow-2xs transition-transform duration-200 group-hover:rotate-12">
-                  <Icon className="size-7 sm:size-8 stroke-[1.75] text-[#0056D2] -rotate-6" />
-                </div>
-              </Link>
-            );
-          })}
         </div>
       </div>
     </section>
@@ -1825,20 +1788,107 @@ const TESTIMONIALS = [
  *
  * "Pengembangan Pribadi" is the one tile with no dedicated course in the
  * catalog; it maps to `lead` (kepemimpinan), the nearest real tag.
+ *
+ * The glyphs used to be emoji (`"🤖"`, `"💻"`, …), which DESIGN.md rules out —
+ * "no emoji as interface iconography". Each tile now carries a `LucideIcon`
+ * (the library DESIGN.md already names) and a `tint`, a Tailwind colour pair
+ * for the rounded icon plate. The tint is per-category so the grid stays
+ * scannable: twelve identical blue plates read as a wall of sameness. Tints
+ * stay in the 50/600-700 ramp — a saturated fill under a line glyph would turn
+ * a 20px icon into a swatch, and the muted end keeps the section calm against
+ * the white section the tiles sit on.
  */
-const CATEGORIES = [
-  { name: "Kecerdasan Buatan & AI", query: "AI", count: 48, icon: "🤖" },
-  { name: "Ilmu Komputer & Web", query: "web", count: 72, icon: "💻" },
-  { name: "Ilmu Data & Analitika", query: "data", count: 54, icon: "📊" },
-  { name: "Keamanan Siber & Jaringan", query: "security", count: 32, icon: "🔒" },
-  { name: "Bisnis & Manajemen Produk", query: "product", count: 40, icon: "📈" },
-  { name: "Desain UI/UX & Interaksi", query: "design", count: 28, icon: "🎨" },
-  { name: "Cloud & DevOps", query: "devops", count: 36, icon: "☁️" },
-  { name: "Pengembangan Pribadi", query: "lead", count: 22, icon: "🚀" },
-  { name: "Algoritma & Matematika", query: "algoritma", count: 30, icon: "📐" },
-  { name: "Pengembangan Aplikasi Mobile", query: "mobile", count: 26, icon: "📱" },
-  { name: "Pengujian & Jaminan Mutu", query: "testing", count: 18, icon: "🧪" },
-  { name: "Sistem Basis Data & SQL", query: "sql", count: 24, icon: "🗄️" },
+const CATEGORIES: {
+  name: string;
+  query: string;
+  count: number;
+  icon: LucideIcon;
+  tint: string;
+}[] = [
+  {
+    name: "Kecerdasan Buatan & AI",
+    query: "AI",
+    count: 48,
+    icon: Bot,
+    tint: "bg-indigo-50 text-indigo-600",
+  },
+  {
+    name: "Ilmu Komputer & Web",
+    query: "web",
+    count: 72,
+    icon: Code2,
+    tint: "bg-blue-50 text-blue-600",
+  },
+  {
+    name: "Ilmu Data & Analitika",
+    query: "data",
+    count: 54,
+    icon: BarChart3,
+    tint: "bg-cyan-50 text-cyan-700",
+  },
+  {
+    name: "Keamanan Siber & Jaringan",
+    query: "security",
+    count: 32,
+    icon: ShieldCheck,
+    tint: "bg-emerald-50 text-emerald-700",
+  },
+  {
+    name: "Bisnis & Manajemen Produk",
+    query: "product",
+    count: 40,
+    icon: TrendingUp,
+    tint: "bg-amber-50 text-amber-700",
+  },
+  {
+    name: "Desain UI/UX & Interaksi",
+    query: "design",
+    count: 28,
+    icon: Palette,
+    tint: "bg-pink-50 text-pink-600",
+  },
+  {
+    name: "Cloud & DevOps",
+    query: "devops",
+    count: 36,
+    icon: Cloud,
+    tint: "bg-sky-50 text-sky-600",
+  },
+  {
+    name: "Pengembangan Pribadi",
+    query: "lead",
+    count: 22,
+    icon: Rocket,
+    tint: "bg-violet-50 text-violet-600",
+  },
+  {
+    name: "Algoritma & Matematika",
+    query: "algoritma",
+    count: 30,
+    icon: Ruler,
+    tint: "bg-teal-50 text-teal-700",
+  },
+  {
+    name: "Pengembangan Aplikasi Mobile",
+    query: "mobile",
+    count: 26,
+    icon: Smartphone,
+    tint: "bg-orange-50 text-orange-600",
+  },
+  {
+    name: "Pengujian & Jaminan Mutu",
+    query: "testing",
+    count: 18,
+    icon: FlaskConical,
+    tint: "bg-lime-50 text-lime-700",
+  },
+  {
+    name: "Sistem Basis Data & SQL",
+    query: "sql",
+    count: 24,
+    icon: Database,
+    tint: "bg-slate-100 text-slate-600",
+  },
 ];
 
 const FAQS = [
@@ -3003,31 +3053,40 @@ export function BelajarHome({
           </p>
 
           <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {CATEGORIES.map((cat) => (
-              <button
-                key={cat.name}
-                type="button"
-                onClick={() => {
-                  setQuery(cat.query);
-                  document
-                    .getElementById("katalog")
-                    ?.scrollIntoView({ behavior: "smooth" });
-                }}
-                className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 text-left shadow-2xs transition-colors hover:border-[#0056D2] hover:bg-blue-50/40 active:scale-[0.98]"
-              >
-                <span className="text-2xl" aria-hidden="true">
-                  {cat.icon}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <span className="block truncate text-xs font-bold text-gray-900 sm:text-sm">
-                    {cat.name}
+            {CATEGORIES.map((cat) => {
+              const Icon = cat.icon;
+              return (
+                <button
+                  key={cat.name}
+                  type="button"
+                  onClick={() => {
+                    setQuery(cat.query);
+                    document
+                      .getElementById("katalog")
+                      ?.scrollIntoView({ behavior: "smooth" });
+                  }}
+                  className="flex items-center gap-2.5 rounded-xl border border-gray-200 bg-white p-4 text-left shadow-2xs transition-colors hover:border-[#0056D2] hover:bg-blue-50/40 active:scale-[0.98]"
+                >
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors",
+                      cat.tint,
+                    )}
+                  >
+                    <Icon className="size-4" strokeWidth={1.75} />
                   </span>
-                  <span className="text-[11px] text-gray-500">
-                    {cat.count}+ materi
-                  </span>
-                </div>
-              </button>
-            ))}
+                  <div className="min-w-0 flex-1">
+                    <span className="block truncate text-xs font-bold text-gray-900 sm:text-sm">
+                      {cat.name}
+                    </span>
+                    <span className="text-[11px] text-gray-500">
+                      {cat.count}+ materi
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
       </section>

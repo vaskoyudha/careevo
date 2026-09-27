@@ -268,3 +268,31 @@ npm run typecheck && npm run test:unit && npm run i18n:check \
 edits are **not live** until the standalone bundle is rebuilt and the `:3790`
 server restarted. A screenshot that still shows "DeepTutor" after a rename is
 usually this, not a failed edit.
+
+## UI language — Indonesian is the default
+
+The framed app ships **five** UI locales: `id` (default), `en`, `zh`, `fr`, `uk`
+— bundles in `locales/<code>/app.json`. Adding/removing one means four edits, and
+a language that is wired in one place but not the others silently serves English:
+
+| Seam | File |
+|---|---|
+| Locale registry (drives the picker) | `i18n/languages.ts` (`APP_LANGUAGES`, `DEFAULT_APP_LANGUAGE`) |
+| Lazy loader | `i18n/init.ts` (`ensureLanguage`) |
+| Stored/SSR default + response language | `context/app-shell-storage.ts`, `context/AppShellContext.tsx` |
+| Response-language options | `features/settings/store/SettingsStore.tsx` (`RESPONSE_LANGUAGE_OPTIONS`) |
+| Audit gate's required set | `scripts/i18n_audit.mjs` (`REQUIRED_LOCALES`) |
+
+The default is **gated on the backend**, not the frontend: `:8011` normalizes
+`language`/`response_language` and rejects anything outside its `UiLanguage`
+literal, so an `id` that the frontend knows but the backend does not is silently
+served as English. The backend seams are
+`deeptutor/services/settings/interface_settings.py` (`UiLanguage`,
+`DEFAULT_UI_SETTINGS`, `_normalize_language`),
+`services/config/settings_spec.py`, `services/config/launch_settings.py`,
+`core/response_languages.py`, `services/prompt/language.py`, and the judge prompt
+in `api/routers/quiz_judge.py`.
+
+`backend/data/user/settings/interface.json` is gitignored and usually carries an
+explicit `"language"`, which **overrides the default** — to actually see
+Indonesian, clear that field or set it to `"id"` and restart `sijago-backend.service`.

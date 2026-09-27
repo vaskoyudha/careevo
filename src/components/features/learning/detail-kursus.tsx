@@ -14,6 +14,7 @@ import {
   SquareTerminal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import type { ModulKursus } from "@/lib/courses/kurikulum";
 import { levelLabel, tipeLabel } from "@/lib/onboarding/types";
 import { hitungProgres, irisModulSelesai } from "@/lib/courses/kurikulum";
@@ -89,6 +90,24 @@ export interface RingkasanProject {
   terkunci: boolean;
   judul: string;
   ringkasan: string;
+  /**
+   * Apakah peserta sudah punya karya untuk course ini.
+   *
+   * Ini yang membedakan **"boleh mulai"** dari **"sudah dikerjakan"** — dua
+   * keadaan yang sebelumnya sama-sama ditampilkan hijau, sehingga tonggak yang
+   * baru terbuka terbaca seolah projectnya sudah selesai. Nilainya dihitung
+   * server dari `listKaryaCourse` (karya yang terikat course ini), bukan dari
+   * jumlah modul selesai: mengerjakan project tidak sama dengan menyelesaikan
+   * modul.
+   *
+   * `false` berarti **belum ada karya sama sekali**. Karya berstatus apa pun
+   * (`draft` sampai `approved`) menghitungnya sebagai `true`: yang ditanyakan
+   * hanyalah "sudah ada isinya atau belum", dan status rincinya milik halaman
+   * Project.
+   */
+  adaKarya: boolean;
+  /** Jumlah karya, untuk menyebut "1 karya" vs "3 karya" tanpa query kedua. */
+  jumlahKarya: number;
 }
 
 /**
@@ -622,6 +641,162 @@ function RuangBelajar({
                   </li>
                 );
               })}
+
+              {/*
+                Ruang kerja sebagai **tonggak terakhir silabus**, bukan tautan
+                tersembunyi.
+
+              Sebelum ini ruang kerja hanya bisa dicapai lewat URL atau lewat
+              halaman Project, sehingga dari silabus — tempat peserta melihat
+              "apa yang harus saya kerjakan" — ia tidak terlihat sama sekali.
+              Fitur yang tidak bisa ditemukan sama saja belum ada.
+
+              Gerbangnya `proyek.terkunci`, **nilai server yang sama** dengan
+              panel Project di bawah dan dengan `/api/workspace`: satu
+              `kelayakanKursusSubmission`, bukan aturan yang disalin. Karena itu
+              peserta yang silabusnya masih menampilkan tonggak terkunci tidak
+              bisa menemukan jalan masuk lewat halaman ini.
+
+              Ditaruh **di dalam** `<ol>` sebagai `<li>` terakhir dengan sengaja:
+              ia memang langkah kurikulum, jadi penomoran dan jaraknya mengikuti
+              modul di atasnya. Kartu terpisah di luar daftar akan terbaca
+              sebagai promosi, bukan sebagai langkah yang harus diselesaikan.
+            */}
+            {/*
+              Ruang kerja sebagai **tonggak terakhir silabus** — tiga keadaan.
+
+              Keadaannya **tiga, bukan dua**, dan itu perbaikan dari versi
+              pertama: dulu "boleh mulai" dan "sudah selesai" sama-sama hijau,
+              sehingga tonggak yang baru terbuka terbaca seolah projectnya sudah
+              selesai. Peserta yang belum mengumpulkan apa pun melihat centang
+              hijau, dan itu klaim yang tidak benar.
+
+                1. TERKUNCI   — belum ada completion terverifikasi. Abu + gembok.
+                2. TERBUKA    — layak, belum ada karya. Netral/biru, "buka".
+                3. DIKERJAKAN — sudah ada karya. Hijau, "lihat karya".
+
+              Hijau sekarang **hanya** berarti "sudah ada karya", sama seperti
+              hijau di baris modul di atasnya berarti "sudah selesai". Satu
+              warna, satu arti — itu yang membuat daftar ini bisa dibaca.
+
+              Gerbangnya `proyek.terkunci`, **nilai server yang sama** dengan
+              panel Project di bawah dan dengan `/api/workspace`: satu
+              `kelayakanKursusSubmission`, bukan aturan yang disalin. Keadaan
+              ketiga datang dari `proyek.adaKarya`, juga dari server.
+
+              Ditaruh **di dalam** `<ol>` sebagai `<li>` terakhir dengan sengaja:
+              ia memang langkah kurikulum, jadi jaraknya mengikuti modul di
+              atasnya. Kartu terpisah di luar daftar akan terbaca sebagai
+              promosi, bukan sebagai langkah yang harus diselesaikan.
+            */}
+            <li
+              className={cn(
+                "mt-3 rounded-2xl border bg-white",
+                proyek.terkunci
+                  ? "border-gray-200"
+                  : proyek.adaKarya
+                    ? "border-emerald-200"
+                    : "border-[rgba(147,197,253,0.55)]",
+              )}
+            >
+              <div className="flex items-start gap-3 p-4">
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    // Tiga nada, tiga arti.
+                    //
+                    // Terkunci memakai **abu yang benar-benar terbaca**, bukan
+                    // `bg-gray-100`: `gray-100` hanya 12 tingkat dari putih
+                    // (243,244,246 vs 255,255,255), sehingga lingkaran kecil di
+                    // atas kartu putih terbaca sebagai putih — ikonnya hilang,
+                    // dan peserta tidak bisa membedakan "belum terbuka" dari
+                    // "tidak ada apa-apa di sini". `gray-200` (229,231,235) plus
+                    // `ring-1 ring-gray-300` memberi bentuk yang terlihat, pola
+                    // yang sama dengan lencana terkunci di panel Project.
+                    //
+                    // Terbuka memakai `bg-white` + cincin biru, **bukan**
+                    // `bg-emerald-500`: itulah yang membedakannya dari
+                    // "dikerjakan". Ikonnya tetap terminal, tetapi netral.
+                    "mt-0.5 grid size-7 shrink-0 place-items-center rounded-full",
+                    proyek.terkunci
+                      ? "bg-gray-200 text-gray-500 ring-1 ring-gray-300"
+                      : proyek.adaKarya
+                        ? "bg-emerald-500 text-white"
+                        : "bg-white text-[#0056D2] ring-1 ring-[rgba(147,197,253,0.7)]",
+                  )}
+                >
+                  {proyek.terkunci ? (
+                    <Lock className="size-3.5" />
+                  ) : proyek.adaKarya ? (
+                    <Check className="size-3.5" />
+                  ) : (
+                    <SquareTerminal className="size-3.5" />
+                  )}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm font-semibold text-gray-900">Project akhir: ruang kerja</h3>
+                  <p className="mt-0.5 text-sm leading-relaxed text-gray-600">
+                    {proyek.terkunci
+                      ? "Terbuka setelah seluruh modul di atas selesai lewat sesi terverifikasi. Di sini kamu membangun project akhirnya dengan editor dan terminal sungguhan."
+                      : proyek.adaKarya
+                        ? `Kamu sudah mengerjakan project ini (${proyek.jumlahKarya} karya). Buka kembali ruang kerjanya atau lanjutkan pengumpulannya.`
+                        : "Editor kode lengkap untuk membangun project akhir course ini. Berkasmu tersimpan dan tetap ada saat kamu kembali."}
+                  </p>
+                  <p className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                    <span>editor · terminal · berkas tersimpan</span>
+                  </p>
+                </div>
+                <div className="shrink-0 self-center">
+                  {proyek.terkunci ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600">
+                      <Lock className="size-3.5" aria-hidden="true" /> Terkunci
+                    </span>
+                  ) : (
+                    // Dua tombol **ditumpuk**, bukan sebaris. Sebaris membuat
+                    // keduanya berebut lebar yang sama di kolom sempit, dan
+                    // label panjang ("Lanjutkan di ruang kerja") memaksa label
+                    // pendek ("Lihat karya") membungkus jadi dua baris — terlihat
+                    // rusak. `whitespace-nowrap` menutup sisanya: label tidak
+                    // pernah dipotong di tengah kata.
+                    <div className="flex shrink-0 flex-col items-stretch gap-2">
+                      <Link
+                        href={`/belajar/${kursus.slug}/ruang-kerja`}
+                        className="chrome-btn chrome-btn-brand !h-11 whitespace-nowrap"
+                      >
+                        {proyek.adaKarya ? "Lanjutkan di ruang kerja" : "Buka ruang kerja"}
+                      </Link>
+                      {/* Tombol "Lihat karya" hanya muncul saat karyanya ada.
+                          Tautannya ke halaman Project — di sanalah status
+                          pengumpulan (draf/terkirim/direview) ditampilkan, dan
+                          menyebut statusnya di sini berarti menyalin aturan
+                          yang bisa menyimpang dari halaman itu. */}
+                      {proyek.adaKarya ? (
+                        // Tombol sekunder memakai komponen `Button` dengan
+                        // `variant="outline"` — konvensi repo untuk aksi
+                        // sekunder di atas kartu putih (lihat
+                        // `jobs/evaluasi-panel.tsx`, `admin/courses/course-manager.tsx`).
+                        //
+                        // Dua percobaan sebelumnya salah dan keduanya terlihat:
+                        // `chrome-btn` polos adalah tombol ikon 40x40px, jadi
+                        // labelnya meluber jadi gumpalan putih; dan
+                        // `chrome-btn-ghost` adalah kaca putih yang dirancang
+                        // untuk navbar berwarna, sehingga di atas kartu putih ia
+                        // menghilang dan labelnya terbaca sebagai teks biasa.
+                        // `outline` memberi garis yang terlihat di permukaan
+                        // putih tanpa bersaing dengan tombol utama.
+                        //
+                        // `asChild` + `<Link>`: tombolnya harus tetap sebuah
+                        // tautan (navigasi klien, bisa dibuka di tab baru),
+                        // bukan `<button>` yang menjalankan `router.push`.
+                        <Button variant="outline" className="h-11 whitespace-nowrap" asChild>
+                          <Link href={`/belajar/${kursus.slug}/karya`}>Lihat karya</Link>
+                        </Button>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </li>
             </ol>
           </section>
 
@@ -695,7 +870,7 @@ function RuangBelajar({
                         setModulDituju(modulBerikutnya.id);
                       }
                     }}
-                    className="mt-4 block rounded-[var(--radius-md)] bg-gray-900 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-gray-700"
+                    className="brand-fill mt-4 block rounded-[var(--radius-md)] border border-[var(--brand-border)] px-4 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:border-[var(--brand-border-hover)]"
                   >
                     {progres === 100 ? "Ulas kembali modul" : "Lanjutkan belajar"}
                   </Link>
@@ -783,12 +958,10 @@ function RuangBelajar({
 
         {tugas ? (
           /*
-           * Tantangan praktik — panel ber-arsip + lembar putih yang menumpuknya.
+           * Tantangan praktik — satu kontainer, isinya langsung di atas wallpaper.
            *
            * Kartu ini adalah penutup silabus: satu tugas nyata dengan standar
-           * penilaiannya. Bentuknya sengaja bukan kartu putih rata, karena
-           * justru itulah yang membuatnya tenggelam di antara kartu-kartu lain
-           * di halaman yang sama.
+           * penilaiannya.
            *
            * **Arsipnya adalah gambar, bukan gradien.** Sebelum ini header-nya
            * `PitaHeaderDither` — empat lapisan (ground + dot grid + video
@@ -797,93 +970,80 @@ function RuangBelajar({
            * titik, dan kartu kaca itu sendiri, jadi byte-nya jauh lebih kecil,
            * tidak ada canvas yang harus dihentikan saat offscreen, dan tidak ada
            * crop video yang harus ikut disetel ulang kalau kartu ini berubah
-           * tinggi. Gambarnya dekoratif murni: `alt=""`, `aria-hidden` lewat
-           * `alt` kosong, dan tidak ada teks di dalamnya yang perlu dibaca.
+           * tinggi. Gambarnya dekoratif murni: `alt=""`, dan tidak ada teks di
+           * dalamnya yang perlu dibaca.
            *
-           * **`object-[70%_18%]` memilih pita yang benar, dan itu bukan
-           * selera.** Gambar 1774x887 dipotong `object-cover` ke pita yang
-           * sangat lebar dan tipis, jadi hampir seluruh garis vertikalnya
-           * terbuang. Sisi KIRI gambar (tempat judul duduk) adalah langit pucat
-           * rata; yang bergambar — sampel titik dan tiga kartu kaca — ada di
-           * kanan dan di sepertiga atas. Nilai itu menaruh bagian bergambar di
-           * sisi kanan pita, tempat yang memang tidak dipakai teks, dan
-           * menyisakan bidang rata di belakang judul.
+           * **GAMBAR MENJADI LATAR SELURUH KARTU, BUKAN SEPTAH PITA.**
+           * Dulu ada dua bidang putih yang bertumpuk: pita gambar
+           * `aspect-[1774/887]` di atas untuk judul, lalu lembar `bg-white` di
+           * bawahnya untuk isi — kartu jadi dua benda, bukan satu.
            *
-           * **Tinta tetap gelap, dan itu diukur.** Tidak ada scrim di atas
-           * gambar (DESIGN.md melarangnya). Yang menahan keterbacaan adalah
-           * gambar itu sendiri: separuh kirinya rata ~0.93-0.96 luminance,
-           * sehingga judul `#0a3d62` dan eyebrow tetap lolos AA tanpa lapisan
-           * tambahan apa pun. Putih di atas bidang itu hanya ~1.1:1 — karena
-           * itu tidak ada `text-white` di sini.
+           * Sekarang `<Image fill object-cover>` adalah anak langsung
+           * `<section>`, jadi ia menutupi kotak kartu **sepenuhnya**, dan
+           * `<section>` tidak lagi punya `bg-white`. Isinya juga bukan lembar
+           * lagi: `div` biasa yang menumpuk di atas gambar dengan
+           * `relative z-10`. Dua permukaan putih lenyap bersamaan — `bg-white`
+           * di `<section>` **dan** `-mt-4 rounded-t-2xl bg-white` di lembar
+           * isinya.
            *
-           * **Isi duduk di lembar putih yang MENUMPUK arsipnya** (`relative z-10
-           * -mt-4 rounded-t-2xl bg-white`) — perangkat yang sama dengan kartu
-           * katalog (`-mt-8`) dan panel rekomendasi loker (`-mt-4`). Keempat
-           * kelasnya satu paket: `-mt-4` sebesar radius 16px, jadi seluruh
-           * lengkungnya menyingkap gambar di belakangnya; tanpa negatif margin,
-           * `bg-white`, atau `z-10` bentuknya diam-diam kembali jadi kotak
-           * putih persegi di atas gambar yang terpotong.
+           * **`rounded-t-2xl` + `-mt-4` ikut hilang** bukan karena warnanya,
+           * melainkan karena perangkat itu — lengkung yang menyingkap arsip di
+           * belakangnya — hanya bermakna kalau ada arsip yang bisa disingkapi.
+           * Kalau seluruh kartu sudah wallpaper, tidak ada tepi yang tersisa
+           * untuk disingkapi.
            *
-           * **`criteria` tinggal di dalam kartu sendiri**, bukan sebagai empat
-           * baris lepas. Itu satu-satunya isi kartu ini yang benar-benar
-           * dibutuhkan peserta — standar penilaiannya — dan mengelompokkannya
-           * membuat batas penilaian terbaca sebagai satu blok, sejajar dengan
-           * `bg-blue-50 ring-blue-100` yang sudah dipakai chip level di
-           * atasnya, bukan sebagai daftar yang mengambang di badan kartu.
+           * **`overflow-hidden` + `rounded-2xl` tetap ada** di `<section>`:
+           * itulah yang memotong `object-cover` supaya wallpaper mengikuti radius
+           * kartu dan tidak bocor ke sudut luar.
+           *
+           * **Tidak ada wash, tidak ada scrim.** Yang menahan keterbacaan
+           * sekarang adalah file gambarnya sendiri: rata-rata luminance 239 dan
+           * 71% pikselnya sudah near-white (saturasi 10%). Itu juga alasan
+           * kenapa `text-white` tidak akan pernah benar di sini — putih di atas
+           * ~#eef6fe hanya ~1.1:1.
+           *
+           * Yang tetap berpanel: blok `bg-blue-50` "Yang Dinilai". Itu bukan
+           * kartu putih — ia panel yang mengelompokkan standar penilaian, dan
+           * `text-gray-600` 11px di atas `bg-blue-50` hanya ~4.4:1. Menghapus
+           *nya mengubah kontras, bukan dekorasi.
            */
           <section
             aria-labelledby="judul-praktik"
-            className="overflow-hidden rounded-2xl border border-[rgba(147,197,253,0.45)] bg-white shadow-[0_1px_2px_rgba(10,61,98,0.04),0_10px_24px_-16px_rgba(10,61,98,0.18)]"
+            className="relative overflow-hidden rounded-2xl border border-[rgba(147,197,253,0.45)] shadow-[0_1px_2px_rgba(10,61,98,0.04),0_10px_24px_-16px_rgba(10,61,98,0.18)]"
           >
-            <div className="relative h-[88px] shrink-0 overflow-hidden">
-              <Image
-                src="/images/belajar/challenge-praktik-hero.webp"
-                alt=""
-                fill
-                unoptimized
-                sizes="(min-width: 1024px) 1024px, 100vw"
-                className="object-cover object-top"
-              />
+            <Image
+              src="/images/belajar/challenge-praktik-hero.webp"
+              alt=""
+              fill
+              unoptimized
+              sizes="(min-width: 1024px) 1024px, 100vw"
+              className="object-cover"
+            />
 
-              {/* Wash kiri-ke-kanan. Ini perangkat yang sama dengan panel "Hasil
-                  karier" di `/belajar` (`bg-[linear-gradient(90deg,
-                  rgba(255,255,255,0.9)…)]`) dan bukan scrim penuh: DESIGN.md
-                  melarang menutup seluruh permukaan media, tetapi mengizinkan
-                  wash arah yang menahan teks di sisi yang memang rata.
+            {/* Judul menempel di ATAS kartu, bukan di tengah.
 
-                  Fungsinya di sini konkret: separuh kiri arsip ini rata, tapi
-                  menyimpan satu garis tipis melengkung (sisa objek gambar).
-                  Garis itu, kalau lolos ke bawah judul, terbaca sebagai cacat
-                  render — bukan dekorasi. Wash ini menutupnya sekaligus
-                  menaikkan kontras judul ke bidang yang praktis putih, jadi
-                  `#0a3d62` tinggal melawan ~#fbfdff alih-alih melawan piksel
-                  bergaris. Sisi kanan dibiarkan bersih supaya kartu kacanya
-                  tetap terlihat; kartu itu motif yang justru dipilih. */}
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.95)_0%,rgba(255,255,255,0.9)_34%,rgba(255,255,255,0.5)_54%,rgba(255,255,255,0)_70%)]"
-              />
+              Level dan estimasi tidak ada di sini: keduanya hilang di bawah
+              `sm` kalau ditaruh di baris judul, dan informasi yang hanya muncul
+              di lebar tertentu adalah informasi yang hilang separuh waktu.
+              Keduanya pindah ke baris meta di badan kartu.
 
-              {/* Judul pita saja. Level dan estimasi **tidak** di sini: keduanya
-                  akan hilang di bawah `sm` kalau ditempatkan di pita setinggi
-                  ini, dan informasi yang muncul hanya di lebar tertentu adalah
-                  informasi yang hilang separuh waktu. Keduanya pindah ke baris
-                  meta di badan kartu, jadi lebar layar tidak pernah menentukan
-                  apa yang bisa dibaca. */}
-              <div className="absolute inset-0 flex items-center gap-2.5 px-5 lg:px-8">
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-white/85 text-[#0a3d62] shadow-[0_1px_2px_rgba(10,61,98,0.08)] ring-1 ring-white/70">
-                  <SquareTerminal aria-hidden className="size-4" />
-                </span>
-                <h2
-                  id="judul-praktik"
-                  className="truncate text-[14.5px] font-bold tracking-tight text-[#0a3d62]"
-                >
-                  Challenge praktik
-                </h2>
-              </div>
+              Penempatan atasnya bukan selera. Kiri-atas adalah bidang paling
+              terang dan paling rata di arsip ini, jadi di sanalah `#0a3d62`
+              punya kontras terbesar. `items-center` akan menaruh judul melayang
+              di tengah gambar, terpisah dari tepi yang dipegangnya. */}
+            <div className="relative z-10 flex items-start gap-2.5 px-5 pt-5 lg:px-8 lg:pt-6">
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-white/85 text-[#0a3d62] shadow-[0_1px_2px_rgba(10,61,98,0.08)] ring-1 ring-white/70">
+                <SquareTerminal aria-hidden className="size-4" />
+              </span>
+              <h2
+                id="judul-praktik"
+                className="truncate text-[14.5px] font-bold tracking-tight text-[#0a3d62]"
+              >
+                Challenge praktik
+              </h2>
             </div>
 
-            <div className="relative z-10 -mt-4 rounded-t-2xl bg-white px-5 pt-6 pb-6 lg:px-8 lg:pb-7">
+            <div className="relative z-10 px-5 pt-8 pb-6 lg:px-8 lg:pb-7">
               <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end lg:gap-8">
                 <div className="min-w-0">
                   <p className="text-lg font-bold tracking-tight text-gray-900">

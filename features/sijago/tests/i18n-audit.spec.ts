@@ -10,11 +10,16 @@ function runAudit(
   source: string,
   en: Record<string, string>,
   zh = en,
-  partial: { fr?: Record<string, string>; uk?: Record<string, string> } = {},
+  partial: {
+    id?: Record<string, string>;
+    fr?: Record<string, string>;
+    uk?: Record<string, string>;
+  } = {},
 ) {
   const root = mkdtempSync(path.join(tmpdir(), "deeptutor-i18n-"));
   try {
     for (const [locale, entries] of Object.entries({
+      id: partial.id ?? en,
       en,
       zh,
       fr: partial.fr ?? en,

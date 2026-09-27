@@ -17,8 +17,10 @@ import {
 
 export default function SettingsNav({ onNavigate }: { onNavigate?: () => void }) {
   const { t, i18n } = useTranslation()
-  const zh = i18n.language?.toLowerCase().startsWith('zh')
-  const tr = (label: Lang) => (zh ? label.zh : label.en)
+  const lang = (i18n.language ?? 'en').toLowerCase()
+  const zh = lang.startsWith('zh')
+  const tr = (label: Lang) =>
+    lang.startsWith('id') ? label.id : zh ? label.zh : label.en
   const pathname = usePathname()
   const access = useSettingsAccess()
   const pages = listedSettingsPages(access)
@@ -29,8 +31,10 @@ export default function SettingsNav({ onNavigate }: { onNavigate?: () => void })
   const matches = pages.filter(page =>
     [
       page.label.en,
+      page.label.id,
       page.label.zh,
       page.blurb.en,
+      page.blurb.id,
       page.blurb.zh,
       page.key,
       page.key === 'connections' ? 'API Key token base url 密钥 凭据 地址 供应商' : '',
@@ -41,7 +45,7 @@ export default function SettingsNav({ onNavigate }: { onNavigate?: () => void })
       .includes(needle)
   )
   const groups = needle
-    ? [{ label: { en: 'Search results', zh: '搜索结果' }, pages: matches }]
+    ? [{ label: { en: 'Search results', id: 'Hasil pencarian', zh: '搜索结果' }, pages: matches }]
     : SETTINGS_PAGE_GROUPS.map(group => ({
         ...group,
         pages: group.keys.flatMap(key => {

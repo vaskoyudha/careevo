@@ -8,6 +8,7 @@ import {
   jumlahKataHalaman,
   perkiraanMenitBaca,
   halamanDipilih,
+  modulDipilih,
   judulHalamanOtomatis,
   normalisasiHalamanLama,
   KATA_PER_MENIT,
@@ -310,6 +311,51 @@ describe("halamanDipilih", () => {
     // "ringkasan + tautan eksternal". `null` di sini bukan halaman pertama.
     expect(halamanDipilih({ submodul: [] }, "a")).toBeNull();
     expect(halamanDipilih(modul([]), "a")).toBeNull();
+  });
+});
+
+/**
+ * `modulDipilih` — aturan "modul mana yang aktif" untuk **dua** pemakai di ruang
+ * kerja: sidebar (`RuangKerjaChrome`, yang menyorot barisnya) dan kolom panduan
+ * (`RuangKerjaLab`, yang merender halamannya). Sama seperti `halamanDipilih`,
+ * yang diuji adalah kontraknya, bukan pemakaiannya.
+ */
+describe("modulDipilih", () => {
+  /** Modul dengan `halaman` datar — bentuk yang dipakai `ModulKursus`. */
+  const mod = (id: string, jumlahHalaman: number) => ({
+    id,
+    halaman: Array.from({ length: jumlahHalaman }, (_, i) => halaman(`${id}-h${i + 1}`, i + 1)),
+  });
+
+  const kosong = mod("m-kosong", 0);
+  const berisi = mod("m-berisi", 2);
+  const lain = mod("m-lain", 1);
+
+  it("memilih modul yang diminta", () => {
+    expect(modulDipilih([kosong, berisi, lain], "m-lain")?.id).toBe("m-lain");
+  });
+
+  it("tidak memilih modul tanpa halaman meski id-nya cocok", () => {
+    // `?modul=` yang menunjuk modul kosong akan membuat kolom panduan kosong
+    // tanpa sebab yang terlihat; fallback-nya harus modul yang **punya** isi.
+    expect(modulDipilih([kosong, berisi], "m-kosong")?.id).toBe("m-berisi");
+  });
+
+  it("jatuh ke modul pertama yang punya halaman saat id tidak ketemu", () => {
+    expect(modulDipilih([kosong, berisi, lain], "id-basi")?.id).toBe("m-berisi");
+    expect(modulDipilih([kosong, berisi, lain])?.id).toBe("m-berisi");
+    expect(modulDipilih([kosong, berisi, lain], null)?.id).toBe("m-berisi");
+  });
+
+  it("jatuh ke modul pertama saat tidak ada yang punya halaman", () => {
+    // Course yang seluruh modulnya masih turunan tetap punya modul pertama
+    // untuk disorot — bukan `null` yang membuat sidebar tampak rusak.
+    expect(modulDipilih([kosong, mod("m-kosong-2", 0)])?.id).toBe("m-kosong");
+  });
+
+  it("mengembalikan null untuk kurikulum kosong", () => {
+    expect(modulDipilih([])).toBeNull();
+    expect(modulDipilih([], "apa pun")).toBeNull();
   });
 });
 

@@ -177,7 +177,7 @@ async def test_apply_rejects_a_value_outside_the_offered_choices(
 
     assert not outcome.ok
     assert "not one of the available options" in outcome.error
-    assert get_ui_settings()["language"] == "en"
+    assert get_ui_settings()["language"] == "id"
 
 
 @pytest.mark.asyncio

@@ -35,7 +35,21 @@ def test_normalizer_accepts_ukrainian_spellings(raw: str) -> None:
 
 
 def test_an_unknown_language_still_falls_back() -> None:
-    assert _normalize_language("klingon") == "en"
+    assert _normalize_language("klingon") == "id"
+
+
+def test_indonesian_is_the_default_language() -> None:
+    assert _normalize_language(None) == "id"
+    assert _normalize_language("") == "id"
+    assert _normalize_language("id") == "id"
+    assert _normalize_language("ID") == "id"
+    assert _normalize_language("id-ID") == "id"
+    assert _normalize_language("indonesian") == "id"
+    assert _normalize_language("bahasa") == "id"
+
+
+def test_settings_offers_indonesian() -> None:
+    assert "id" in {code for code, _label, _desc in _LANGUAGE_CHOICES}
 
 
 def test_settings_offers_ukrainian() -> None:
@@ -58,6 +72,11 @@ def test_judge_speaks_every_language_it_advertises() -> None:
     assert SUPPORTED_JUDGE_LANGUAGES == frozenset(_JUDGE_SYSTEM_PROMPTS)
     assert "uk" in SUPPORTED_JUDGE_LANGUAGES
     assert "українською" in _JUDGE_SYSTEM_PROMPTS["uk"]
+
+
+def test_judge_speaks_indonesian() -> None:
+    assert "id" in SUPPORTED_JUDGE_LANGUAGES
+    assert "Bahasa Indonesia" in _JUDGE_SYSTEM_PROMPTS["id"]
 
 
 def test_web_locale_has_core_copy_and_english_fallback() -> None:

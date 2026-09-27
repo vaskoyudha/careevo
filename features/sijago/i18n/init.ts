@@ -4,7 +4,12 @@ import { initReactI18next } from "react-i18next";
 import enApp from "@/locales/en/app.json";
 import { normalizeLanguage, type AppLanguage } from "./languages";
 
-export { APP_LANGUAGES, isAppLanguage, normalizeLanguage } from "./languages";
+export {
+  APP_LANGUAGES,
+  DEFAULT_APP_LANGUAGE,
+  isAppLanguage,
+  normalizeLanguage,
+} from "./languages";
 export type { AppLanguage } from "./languages";
 
 let _initialized = false;
@@ -38,6 +43,10 @@ export function initI18n(language?: unknown) {
 
 export async function ensureLanguage(language: AppLanguage) {
   if (i18n.hasResourceBundle(language, "app")) return;
+  if (language === "id") {
+    const idApp = (await import("@/locales/id/app.json")).default;
+    i18n.addResourceBundle("id", "app", idApp, true, true);
+  }
   if (language === "zh") {
     const zhApp = (await import("@/locales/zh/app.json")).default;
     i18n.addResourceBundle("zh", "app", zhApp, true, true);

@@ -230,6 +230,22 @@ export function IsiPanelSilabus({
     modul.some((m) => m.id === modulAktif) ? "modul" : "semua",
   );
 
+  /**
+   * Modul yang sedang dibuka — **hanya saat panel menyempit ke satu modul**.
+   *
+   * Judul panel mengikuti nilai ini: saat panel menampilkan satu modul, judulnya
+   * adalah nama modul itu (isi di bawahnya memang bab-bab modul, bukan kursus);
+   * saat daftar seluruh kursus yang tampil — atau saat `modulAktif` basi — yang
+   * benar adalah judul kursus, karena panelnya memang memuat seluruh kursus.
+   *
+   * Judulnya hidup di **kepala panel**, bukan di rail: rail hanya memuat isinya
+   * (daftar bab), jadi satu panel tidak pernah punya dua judul dengan teks yang
+   * sama. `aria-label` dialog tetap menyebut kursusnya — identitas panelnya tidak
+   * berubah saat ia menyempit.
+   */
+  const modulDibuka =
+    tampilan === "modul" ? (modul.find((m) => m.id === modulAktif) ?? null) : null;
+
   return (
     <aside
       ref={panelRef}
@@ -294,10 +310,15 @@ export function IsiPanelSilabus({
           </button>
         </div>
 
-        {/* Judul kursus berdiri sendiri: ia nama isi panel, bukan kontrol, jadi
-            ia tidak lagi berbagi baris dengan tombol tutup. */}
-        <p className="reader-panel-judul">{kursusJudul}</p>
-        <p className="reader-panel-penyedia">{kursusPenyedia}</p>
+        {/* Judul panel mengikuti tampilannya: nama modul saat panel menyempit ke
+            satu modul, nama kursus saat seluruh daftar kursus yang tampil.
+            Judul kursus tidak hilang — ia turun jadi baris konteks bersama
+            penyedianya, sebab panelnya menutupi bar yang memuat salinan kecilnya
+            dan peserta tidak boleh kehilangan "kursus mana ini" saat membaca. */}
+        <p className="reader-panel-judul">{modulDibuka ? modulDibuka.judul : kursusJudul}</p>
+        <p className="reader-panel-penyedia">
+          {modulDibuka ? `${kursusJudul} · ${kursusPenyedia}` : kursusPenyedia}
+        </p>
         <ProgressSegmen
           jumlah={modul.length}
           selesai={selesaiValid.length}

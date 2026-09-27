@@ -131,11 +131,14 @@ function bacaSumber(): string {
 }
 
 describe("MateriRail — modul yang dibuka", () => {
-  it("menjadikan nama modul yang dibuka sebagai judul panel", () => {
-    // Ini inti perubahan yang diminta: judulnya menunjuk isi yang dirender di
-    // bawahnya — bab-bab modul itu — bukan nama kursus.
+  it("menamai nav-nya dengan modul yang dibuka, tanpa mengulang judulnya", () => {
+    // Judul panel hidup di **kepala panel** (`IsiPanelSilabus`), bukan di rail:
+    // rail hanya memuat isinya (daftar bab), jadi satu panel tidak pernah punya
+    // dua judul berteks sama. Yang tersisa di rail adalah nama aksesibel nav-nya,
+    // sehingga nama modulnya muncul **sekali**, bukan dua kali sebagai judul kedua.
     const html = render({ modulAktif: "crs-1-m2" });
-    expect(html).toContain("Mendalami React");
+    expect(html).toContain('nav aria-label="Mendalami React"');
+    expect(html.match(/Mendalami React/g) ?? []).toHaveLength(1);
   });
 
   it("tidak lagi memuat modul lain saat satu modul dibuka", () => {

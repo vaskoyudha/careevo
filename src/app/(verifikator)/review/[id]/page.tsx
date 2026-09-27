@@ -7,6 +7,7 @@ import { StatusBadge, statusSubmission } from "@/components/ui/status-badge";
 import { ReviewForm } from "@/components/features/review/review-form";
 import { ambilVersiTerkini, listSubmissionStaf } from "@/lib/review/repository";
 import { TransisiSubmission } from "@/components/features/submission/submission-actions";
+import { DaftarBerkasSnapshot, type SnapshotKarya } from "@/components/features/submission/daftar-berkas-snapshot";
 
 export const metadata: Metadata = {
   title: "Review Detail",
@@ -43,7 +44,7 @@ export default async function ReviewDetailPage({
 
   const { submission, owner } = baris;
   const versi = await ambilVersiTerkini(submission.id);
-  const snapshot = versi?.contentSnapshot as { judul?: string | null; catatan?: string | null } | undefined;
+  const snapshot = versi?.contentSnapshot as SnapshotKarya | undefined;
   const bukanPemilik = submission.userId !== session.userId;
   const ditugaskan = bukanPemilik && submission.assignedReviewerUserId === session.userId;
 
@@ -97,6 +98,7 @@ export default async function ReviewDetailPage({
           <section className="card" aria-labelledby="karya-review-title">
             <h2 className="card-title" id="karya-review-title">{snapshot?.judul ?? "Karya tanpa judul"}</h2>
             <p style={{ whiteSpace: "pre-wrap" }}>{snapshot?.catatan ?? "Tidak ada catatan."}</p>
+            <DaftarBerkasSnapshot snapshot={snapshot} />
             {submission.status === "submitted" && bukanPemilik && (
               <TransisiSubmission submissionId={submission.id} jenis="ambil" />
             )}
