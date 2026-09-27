@@ -312,55 +312,81 @@ function RuangBelajar({
         onDaftar={daftar}
         trigger={headerRef}
       />
-      <div ref={headerRef} className="bg-[#f5f7fa]">
-        <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-          <nav aria-label="Breadcrumb" className="text-sm text-gray-500">
-            <Link href="/belajar" className="hover:text-[#0056D2]">
+      <div
+        ref={headerRef}
+        className="relative z-10 w-full overflow-hidden pt-32 pb-12 sm:pt-32 sm:pb-14 lg:pt-36 lg:pb-16"
+      >
+        {/* Background Layers: Rich Skyblue Gradient + Striped Pattern + Radial Glow (Loker Header Effect) */}
+        <div className="pointer-events-none absolute inset-0 z-0 h-full w-full overflow-hidden select-none">
+          {/* Base Layer: Rich Skyblue to Cyan-tinted Oceanic Gradient */}
+          <div className="absolute inset-0 z-0 bg-[linear-gradient(170deg,#93c5fd_0%,#7dd3fc_22%,#bae6fd_48%,#dbeafe_78%,#e0f2fe_100%)]" />
+
+          {/* Radial ambient glow orbs for dimensionality */}
+          <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-15%,rgba(56,189,248,0.55)_0%,rgba(147,197,253,0.35)_45%,transparent_80%)]" />
+          <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_50%_45%_at_90%_15%,rgba(96,165,250,0.3)_0%,transparent_70%)]" />
+          <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_50%_45%_at_10%_35%,rgba(56,189,248,0.25)_0%,transparent_70%)]" />
+
+          {/* Layer 1: Striped diagonal grid pattern with radial mask (identical to loker header) */}
+          <div className="absolute inset-0 z-0 bg-[size:12px_12px] [background-image:repeating-linear-gradient(315deg,rgba(255,255,255,0.2)_0_1px,transparent_0_50%)] [mask-image:radial-gradient(ellipse_85%_80%_at_50%_40%,black_50%,transparent_95%)] opacity-80" />
+
+          {/* Layer 2: Radial glow highlight (identical to loker header) */}
+          <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_85%_75%_at_50%_35%,rgba(255,255,255,0.7)_0%,rgba(255,255,255,0.2)_55%,transparent_85%)]" />
+
+          {/* Layer 3: Smooth bottom edge blend into curriculum section */}
+          <div className="absolute inset-x-0 bottom-0 h-16 sm:h-24 bg-gradient-to-t from-white via-white/70 to-transparent" />
+        </div>
+
+        <div className="relative z-10 mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+          <nav aria-label="Breadcrumb" className="text-xs sm:text-sm text-neutral-600 font-medium">
+            <Link href="/belajar" className="hover:text-[#0056D2] transition-colors">
               Belajar
             </Link>
-            <span aria-hidden="true"> / </span>
-            <span className="font-medium text-gray-900">{kursus.title}</span>
+            <span aria-hidden="true" className="text-neutral-400"> / </span>
+            <span className="font-semibold text-neutral-950">{kursus.title}</span>
           </nav>
-          <p className="mt-4 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+          <p className="mt-3.5 flex flex-wrap items-center gap-2 text-xs text-neutral-700 font-medium">
             <span
               aria-hidden="true"
-              className="inline-flex size-5 items-center justify-center rounded-sm bg-[#0056D2] text-[10px] font-bold text-white"
+              className="inline-flex size-5 items-center justify-center rounded-sm bg-[#0056D2] text-[10px] font-bold text-white shadow-xs"
             >
               {kursus.provider.charAt(0)}
             </span>
-            {kursus.provider}
-            <span aria-hidden="true">·</span>
+            <span>{kursus.provider}</span>
+            <span aria-hidden="true" className="text-neutral-400">·</span>
             <span className="capitalize">{kursus.type}</span>
           </p>
-          <h1 id="judul-kursus" className="mt-2 max-w-3xl text-3xl font-bold tracking-tight text-gray-900">
+          <h1 id="judul-kursus" className="mt-2.5 max-w-3xl text-3xl font-bold tracking-tight text-neutral-950 sm:text-4xl">
             {kursus.title}
           </h1>
-          <p className="mt-3 max-w-2xl leading-relaxed text-gray-600">{kursus.description}</p>
+          <p className="mt-3 max-w-2xl text-base leading-relaxed text-neutral-700">{kursus.description}</p>
           <div className="mt-4 flex flex-wrap gap-1.5">
             {kursus.tags.map((tag) => (
               <span
                 key={tag}
-                className="inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-[#0056D2]"
+                className="inline-flex rounded-full border border-sky-200/90 bg-white/80 backdrop-blur-xs px-3 py-1 text-xs font-semibold text-[#0056D2] shadow-2xs"
               >
                 {tag}
               </span>
             ))}
           </div>
-          <dl className="mt-5 grid max-w-2xl grid-cols-2 gap-3 sm:grid-cols-4">
+          <dl className="mt-6 grid max-w-2xl grid-cols-2 gap-3 sm:grid-cols-4">
             {[
               ["Level", levelLabel(kursus.level)],
               ["Durasi", `${kursus.duration_min} mnt`],
               ["Modul", `${modul.length} modul`],
               ...(kursus.rating !== null ? [["Rating", `★ ${kursus.rating.toFixed(2)}`] as [string, string]] : []),
             ].map(([istilah, nilai]) => (
-              <div key={istilah} className="rounded-xl border border-gray-200 bg-white px-3 py-2.5">
-                <dt className="text-[11px] font-medium tracking-wide text-gray-500 uppercase">{istilah}</dt>
-                <dd className="mt-0.5 text-sm font-semibold text-gray-900">{nilai}</dd>
+              <div
+                key={istilah}
+                className="rounded-xl border border-white/90 bg-white/90 backdrop-blur-md px-4 py-3 shadow-[0_2px_12px_-4px_rgba(14,165,233,0.12),0_1px_2px_rgba(0,0,0,0.04)] transition-all hover:shadow-xs"
+              >
+                <dt className="text-[11px] font-medium tracking-wide text-neutral-500 uppercase">{istilah}</dt>
+                <dd className="mt-0.5 text-sm font-semibold text-neutral-950">{nilai}</dd>
               </div>
             ))}
           </dl>
           {pesan ? (
-            <p role="status" className="mt-4 max-w-2xl rounded-xl bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-800">
+            <p role="status" className="mt-4 max-w-2xl rounded-xl border border-blue-200 bg-blue-50/90 px-4 py-2.5 text-sm font-medium text-blue-800 shadow-2xs">
               {pesan}
             </p>
           ) : null}
