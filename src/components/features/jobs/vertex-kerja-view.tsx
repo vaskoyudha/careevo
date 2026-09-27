@@ -397,6 +397,13 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                       <span>Jelajahi Papan Loker</span>
                       <ArrowRight className="size-4" />
                     </a>
+                    <Link
+                      href="/loker/inbox"
+                      className="chrome-btn chrome-btn-white !h-11 !px-6 !text-sm gap-2"
+                    >
+                      <span>Semua Lowongan</span>
+                      <ArrowRight className="size-4" />
+                    </Link>
                     <a
                       href="#features"
                       className="chrome-btn chrome-btn-white !h-11 !px-6 !text-sm"
