@@ -288,8 +288,25 @@ function BlokView({
             </span>
             <TombolSalin teks={blok.kode ?? ""} />
           </figcaption>
+          {/*
+            `kunci={blok.id}` benar di sini dan hanya di sini. Blok yang tampil
+            di materi sudah tersimpan, jadi setiap blok punya id sendiri dan
+            ruang latihannya tidak akan tertukar. Editor admin memakai
+            identitas lokal blok, bukan `blok.id`, karena blok yang belum
+            disimpan masih `id: ""`.
+
+            `dapatJalankan={blok.dapatDijalankan === true}` bukan sekadar
+            `blok.dapatDijalankan`: fieldnya opsional, dan blok yang tidak pernah
+            disentuh ahli tidak punya nilainya sama sekali. `=== true` membuat
+            `undefined` berarti tidak boleh dijalankan, jadi blok seperti itu
+            tampil tanpa tombol alih-alih dengan tombol yang menolak.
+          */}
           <KodeView
+            kunci={blok.id}
             kode={blok.kode ?? ""}
+            kodeAwal={blok.kodeAwal}
+            stdin={blok.stdin}
+            dapatJalankan={blok.dapatDijalankan === true}
             bahasa={bahasa}
             label={`Kode contoh ${blok.id}`}
           />
