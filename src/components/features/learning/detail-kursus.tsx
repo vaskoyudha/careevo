@@ -23,6 +23,7 @@ import { KejadianPanel } from "./kejadian-panel";
 import { KuisView } from "./kuis-view";
 import { KursusAiPanel } from "./kursus-ai-panel";
 import { KursusSubNav } from "./kursus-subnav";
+import { SertifikatPanel } from "./sertifikat-panel";
 import type { KebijakanCourse, TipeMateri } from "@/types/course";
 
 const LABEL_TIPE: Record<TipeMateri, string> = {
@@ -58,6 +59,20 @@ export interface RingkasanProject {
   terkunci: boolean;
   judul: string;
   ringkasan: string;
+}
+
+/**
+ * Status kotak sertifikat di halaman course.
+ *
+ * `terkunci` **sumbernya sama** dengan `RingkasanProject.terkunci` — keduanya
+ * diturunkan dari satu panggilan `kelayakanKursusSubmission` di server, bukan
+ * dua pembacaan. `token` adalah token publik credential yang sudah terbit,
+ * `null` selama belum ada; token itulah satu-satunya alasan kotak boleh
+ * menampilkan tautan `/verify/...`.
+ */
+export interface RingkasanSertifikat {
+  terkunci: boolean;
+  token: string | null;
 }
 
 export interface DetailKursusData {
@@ -102,6 +117,7 @@ export function DetailKursus({
   kebijakan,
   aiCourseId,
   proyek,
+  sertifikat,
 }: {
   kursus: DetailKursusData;
   modul: ModulKursus[];
@@ -117,6 +133,8 @@ export function DetailKursus({
   aiCourseId?: string;
   /** Status Project (locked/siap) — dihitung server dari completion terverifikasi. */
   proyek: RingkasanProject;
+  /** Status kotak sertifikat — sumbernya satu pembacaan server yang sama dengan `proyek`. */
+  sertifikat: RingkasanSertifikat;
 }) {
   return (
     <CourseSessionProvider courseId={kursus.id} kebijakan={kebijakan}>
@@ -129,6 +147,7 @@ export function DetailKursus({
         tugas={tugas}
         aiCourseId={aiCourseId ?? kursus.id}
         proyek={proyek}
+        sertifikat={sertifikat}
       />
     </CourseSessionProvider>
   );
@@ -150,6 +169,7 @@ function RuangBelajar({
   tugas,
   aiCourseId,
   proyek,
+  sertifikat,
 }: {
   kursus: DetailKursusData;
   modul: ModulKursus[];
@@ -159,6 +179,7 @@ function RuangBelajar({
   tugas: TugasTerkait | null;
   aiCourseId: string;
   proyek: RingkasanProject;
+  sertifikat: RingkasanSertifikat;
 }) {
   const [selesai, setSelesai] = useState<string[]>(() =>
     irisModulSelesai(selesaiAwal, modul),
@@ -604,7 +625,25 @@ function RuangBelajar({
               viewport, jadi harus berhenti di bawah sub-header lengket —
               `top-24` (96px) berada di dalam bar (78–131px) dan kartunya
               tertutup. */}
-          <aside aria-label="Pendaftaran" className="subnav-sticky-top lg:sticky lg:self-start">
+          <aside
+            aria-label="Sertifikat dan pendaftaran"
+            className="subnav-sticky-top flex flex-col gap-4 lg:sticky lg:self-start"
+          >
+            {/* Kotak sertifikat sengaja berada di atas kotak pendaftaran:
+                yang dijanjikan peserta ("selesai ini dapat sertifikat") adalah
+                alasan mereka mendaftar, jadi tidak boleh kalah oleh harga. */}
+            <SertifikatPanel
+              judul={kursus.title}
+              provider={kursus.provider}
+              slug={kursus.slug}
+              terdaftar={sudahDaftar}
+              terkunci={sertifikat.terkunci}
+              token={sertifikat.token}
+              progres={progres}
+              selesai={selesaiValid.length}
+              total={modul.length}
+            />
+
             <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_2px_12px_rgba(0,0,0,0.08)]">
               {sudahDaftar ? (
                 <>

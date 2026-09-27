@@ -37,6 +37,7 @@ import { getDb } from "@/lib/db/client";
 import {
   ambilAttestation,
   ambilSubmission,
+  ambilTokenAttestationSubmission,
   ambilVersiTerkini,
   buatBadge,
   buatSubmission,
@@ -247,6 +248,51 @@ export async function listKaryaCourse(
   return (await listSubmissionUser(principal.userId)).filter(
     (baris) => baris.courseId === courseId,
   );
+}
+
+/**
+ * Token publik credential yang **sudah terbit** untuk `courseId` milik
+ * `principal`, atau `null` bila belum ada.
+ *
+ * Dipakai panel sertifikat di halaman course supaya kotak itu menampilkan
+ * kredensial asli yang punya tautan `/verify/<token>`, bukan sekadar allege
+ * "kamu akan dapat sertifikat".
+ *
+ * Yang dikunci di sini:
+ *
+ * - **Cakupan = milik sendiri dan satu course.** Daftar diambil lewat
+ *   `listKaryaCourse`, jadi submission orang lain dan submission tanpa ikatan
+ *   course tidak mungkin terbaca. Tidak ada parameter user yang masuk dari
+ *   pemanggil, sehingga halaman tidak bisa meminta credential participant lain.
+ * - **Hanya `approved`.** Credential terbit pada keputusan review, bukan pada
+ *   saat submission dibuat. Saringan ini terutama penghematan query: draf tidak
+ *   mungkin punya attestation, jadi `null`-nya sudah datang dari repository
+ *   juga. Yang dijaga di sini adalah tidak membacanya token untuk setiap draf
+ *   yang pernah dibuat, dan urutan pembacanya tetap eksplisit.
+ * - **Credential dicabut = `null`.** `ambilTokenAttestationSubmission` hanya
+ *   membaca attestation `active`; badge yang dicabut karena alasan tertentu
+ *   muncul sebagai "belum terbit" lagi, bukan kredensial yang masih dipajang.
+ * - **Kursus selesai tanpa karya = `null`.** Itu bukan kegagalan: completion
+ *   terverifikasi baru membuka pengumpulan karya, Sertifikat terbit setelah
+ *   review. Pemanggil wajib membedakan keduanya lewat `kelayakanKursusSubmission`.
+ *
+ * `for...of` yang ber-`await` dengan sengaja: jumlah submission satu course
+ * kecil, dan token hanya dibaca sampai yang pertama ketemu — memuat semua
+ * attestation sekaligus tidak menambah nilai apa pun.
+ */
+export async function ambilKredensialCourse(
+  principal: SessionPrincipal,
+  courseId: string,
+): Promise<string | null> {
+  const disetujui = (await listKaryaCourse(principal, courseId))
+    .filter((baris) => baris.status === "approved")
+    .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+
+  for (const baris of disetujui) {
+    const token = await ambilTokenAttestationSubmission(baris.id);
+    if (token) return token;
+  }
+  return null;
 }
 
 /**
