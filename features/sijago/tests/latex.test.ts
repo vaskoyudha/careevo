@@ -243,13 +243,13 @@ test("flow fence: layout hints are not edge labels", () => {
 
 test("seq fence: converts messages and notes", () => {
   const input = [
-    "Student->Careevo: Ask for help",
-    "Note right of Careevo: Collect memory\\nand context",
-    "Careevo-->Student: Respond",
+    "Student->Tutor: Ask for help",
+    "Note right of Tutor: Collect memory\\nand context",
+    "Tutor-->Student: Respond",
   ].join("\n");
   const result = convertSequenceFenceToMermaid(input);
   assert.ok(result, "conversion should succeed");
   assert.ok(result.startsWith("sequenceDiagram"));
-  assert.ok(result.includes("Student->>Careevo: Ask for help"));
+  assert.ok(result.includes("Student->>Tutor: Ask for help"));
   assert.ok(result.includes("Collect memory<br/>and context"));
 });

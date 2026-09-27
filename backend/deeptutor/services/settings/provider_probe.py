@@ -81,7 +81,7 @@ def test_search_access(
     if proxy:
         kwargs["proxy"] = proxy
     response = get_provider(binding, **kwargs).search(
-        "DeepTutor configuration health check", **kwargs
+        "AI Personalize configuration health check", **kwargs
     )
     if not (response.answer or response.search_results):
         raise ValueError("Search provider returned no answer or results.")

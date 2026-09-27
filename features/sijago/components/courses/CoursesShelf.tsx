@@ -235,7 +235,7 @@ export default function CoursesShelf() {
                 ? t(
                     "Start with a subject such as Operating Systems or Network Security.",
                   )
-                : t("Attach its textbook, then let Careevo plan from there.")}
+                : t("Attach its textbook, then let AI Mastery plan from there.")}
             </span>
           </button>
         </div>

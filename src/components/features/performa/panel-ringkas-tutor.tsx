@@ -30,7 +30,7 @@ import type { FaktaTranskrip, HasilRingkasTutor } from "@/lib/agents/tutor/ringk
 /** Panel kosong untuk peserta yang belum pernah memakai tutor. */
 function TanpaTranskrip() {
   return (
-    <p className="text-sm text-muted-foreground">
+    <p className="performa-kosong">
       Belum ada percakapan tutor untuk peserta ini, jadi tidak ada yang bisa
       diringkas.
     </p>
@@ -52,49 +52,59 @@ export function PanelRingkasTutor({
   if (!fakta || fakta.sesi === 0) return <TanpaTranskrip />;
 
   return (
-    <div className="space-y-4">
-      {/* Fakta dulu: inilah yang benar tanpa model, jadi tidak boleh hilang
-          hanya karena model tidak tersedia. */}
+    <div className="tutor">
+      {/*
+        Fakta dulu: inilah yang benar tanpa model, jadi tidak boleh hilang hanya
+        karena model tidak tersedia. Bentuknya kini kartu angka, bukan baris
+        label/nilai berulang — tiga baris tabel untuk tiga angka membuat panel
+        yang isinya sedikit terlihat panjang.
+      */}
       <div>
-        <h3 className="text-sm font-semibold">Yang tercatat</h3>
-        <ul className="list-app mt-2">
-          <li className="list-app-row">
-            <span className="row-title">Sesi dengan percakapan</span>
-            <span className="text-xs text-muted-foreground">{fakta.sesi}</span>
+        <h3 className="performa-subjudul">Yang tercatat</h3>
+        <ul className="tutor-stat">
+          <li className="tutor-stat-sel">
+            <b>{fakta.sesi}</b>
+            <span>sesi dengan percakapan</span>
           </li>
-          <li className="list-app-row">
-            <span className="row-title">Pesan</span>
-            <span className="text-xs text-muted-foreground">
-              {fakta.pesanPeserta} dari peserta · {fakta.pesanTutor} dari tutor
-            </span>
+          <li className="tutor-stat-sel">
+            <b>{fakta.pesanPeserta}</b>
+            <span>pesan peserta</span>
           </li>
-          <li className="list-app-row">
-            <span className="row-title">Topik yang ditanyakan lebih dari sekali</span>
-            <span className="text-xs text-muted-foreground">{fakta.topikDiulang}</span>
+          <li className="tutor-stat-sel">
+            <b>{fakta.pesanTutor}</b>
+            <span>pesan tutor</span>
           </li>
-          {fakta.topik.length > 0 ? (
-            <li className="list-app-row">
-              <span className="row-title">Topik</span>
-              <span className="text-xs text-muted-foreground">
-                {fakta.topik
-                  .slice(0, 8)
-                  .map((t) => `${t.judul} (${t.sesi}×)`)
-                  .join(" · ")}
-              </span>
-            </li>
-          ) : null}
+          <li className="tutor-stat-sel">
+            <b>{fakta.topikDiulang}</b>
+            <span>topik diulang</span>
+          </li>
         </ul>
-        <p className="mt-2 text-xs text-muted-foreground">
+
+        {fakta.topik.length > 0 ? (
+          <div className="tutor-topik">
+            <span className="tutor-topik-label">Topik</span>
+            <ul className="performa-chips">
+              {fakta.topik.slice(0, 8).map((t) => (
+                <li className="performa-chip" key={t.judul}>
+                  {t.judul}
+                  <b>{t.sesi}×</b>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        <p className="performa-catatan-kecil">
           Angka di atas dihitung langsung dari berkas transkrip, bukan dari model.
         </p>
       </div>
 
       {hasil ? (
-        <div className="space-y-3">
+        <div className="tutor-hasil">
           {hasil.ringkasan ? (
             <div>
-              <h3 className="text-sm font-semibold">Ringkasan</h3>
-              <p className="mt-1 text-sm">{hasil.ringkasan}</p>
+              <h3 className="performa-subjudul">Ringkasan</h3>
+              <p className="tutor-ringkasan">{hasil.ringkasan}</p>
             </div>
           ) : null}
 
@@ -103,8 +113,8 @@ export function PanelRingkasTutor({
 
           {hasil.batas.length > 0 ? (
             <div>
-              <h3 className="text-sm font-semibold">Yang tidak bisa diketahui</h3>
-              <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+              <h3 className="performa-subjudul">Yang tidak bisa diketahui</h3>
+              <ul className="tutor-batas">
                 {hasil.batas.map((b) => (
                   <li key={b}>{b}</li>
                 ))}
@@ -113,15 +123,13 @@ export function PanelRingkasTutor({
           ) : null}
         </div>
       ) : (
-        <div className="rounded-lg border border-border p-3">
-          <p className="text-sm text-muted-foreground">
-            {pesanGagal ??
-              "Ringkasan bahasa alami tidak tersedia. Fakta di atas tetap akurat."}
-          </p>
-        </div>
+        <p className="performa-kosong tutor-gagal">
+          {pesanGagal ??
+            "Ringkasan bahasa alami tidak tersedia. Fakta di atas tetap akurat."}
+        </p>
       )}
 
-      <p className="text-xs text-muted-foreground">
+      <p className="performa-catatan-kecil">
         Ringkasan ini bahan baca, bukan penilaian. Ia tidak memotong skor dan tidak
         pernah menjadi dasar keputusan otomatis.
       </p>
@@ -140,17 +148,15 @@ function DaftarPoin({
   if (poin.length === 0) return null;
   return (
     <div>
-      <h3 className="text-sm font-semibold">{judul}</h3>
-      <ul className="mt-1 space-y-2">
+      <h3 className="performa-subjudul">{judul}</h3>
+      <ul className="tutor-poin">
         {poin.map((p) => (
-          <li key={`${p.teks}-${p.bukti}`} className="text-sm">
-            <span className="block">{p.teks}</span>
+          <li key={`${p.teks}-${p.bukti}`} className="tutor-poin-baris">
+            <span className="tutor-poin-teks">{p.teks}</span>
             {/* Bukti ditampilkan, bukan disembunyikan di balik-detail: panel ini
                 dipakai saat menilai, dan klaim tanpa bukti yang bisa dibaca
                 adalah klaim yang harus dipercaya buta. */}
-            <span className="mt-0.5 block text-xs text-muted-foreground">
-              “{p.bukti}”
-            </span>
+            <q className="tutor-poin-bukti">{p.bukti}</q>
           </li>
         ))}
       </ul>

@@ -12,7 +12,7 @@ import { brandIconFor, brandInitials } from "@/lib/brand-icons";
  * store does not tell a vendor that this person is looking at their service.
  *
  * Monochrome (`currentColor`) rather than the brand's own hex, for two reasons:
- * a dozen brand colours in one grid reads as noise next to Careevo's own
+ * a dozen brand colours in one grid reads as noise next to AI Mastery's own
  * restrained palette, and several brand hexes fail contrast against one of the
  * two themes. The hex is kept in the generated data if an accent is ever wanted.
  */

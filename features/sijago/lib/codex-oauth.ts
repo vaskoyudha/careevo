@@ -149,7 +149,7 @@ export async function requestCodex<T>(
     } catch {
       throw new CodexOAuthApiError(
         "invalid_response",
-        "Careevo returned an invalid Codex OAuth response.",
+        "AI Mastery returned an invalid Codex OAuth response.",
       );
     }
   }

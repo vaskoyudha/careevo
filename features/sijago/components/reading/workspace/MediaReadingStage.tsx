@@ -273,7 +273,7 @@ export function MediaReadingStage({
       if (error === 101 || error === 150) {
         setPlayerError(
           t(
-            "This video's owner disabled embedded playback. Open it on YouTube; Careevo can still use captions when they are available.",
+            "This video's owner disabled embedded playback. Open it on YouTube; AI Mastery can still use captions when they are available.",
           ),
         );
       } else if (error === 153) {

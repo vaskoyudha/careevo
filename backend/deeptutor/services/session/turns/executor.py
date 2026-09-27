@@ -395,7 +395,7 @@ class TurnExecutor:
                 _attachment_progress(
                     str(record.get("id") or ""),
                     "received",
-                    "PDF uploaded to DeepTutor",
+                    "PDF uploaded to AI Personalize",
                 )
 
             attachment_records, document_texts = await parse_chat_pdf_attachments(

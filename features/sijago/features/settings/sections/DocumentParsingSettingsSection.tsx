@@ -826,7 +826,7 @@ function MarkItDownPanel({
       <SettingRow
         title={t("Describe images with the vision model")}
         description={t(
-          "Reserved — uses Careevo's vision model to caption images during conversion.",
+          "Reserved — uses AI Mastery's vision model to caption images during conversion.",
         )}
         control={
           <Toggle

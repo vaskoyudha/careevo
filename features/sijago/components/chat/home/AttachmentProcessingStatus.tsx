@@ -18,7 +18,7 @@ function phaseLabel(
 ): string {
   switch (phase) {
     case "received":
-      return t("Uploaded to Careevo");
+      return t("Uploaded to AI Mastery");
     case "submitting":
       return t("Sending to document parser");
     case "parsing":

@@ -351,7 +351,7 @@ export const kbDetailSections = (kb: KnowledgeBase): KbDetailSection[] =>
         (section) => section !== "devices" && (section !== "folders" || !kb.metadata?.type),
       );
 
-/** Local source folders belong to ordinary, Careevo-managed indexed KBs. */
+/** Local source folders belong to ordinary, AI Mastery-managed indexed KBs. */
 export const kbSupportsLinkedFolders = (kb: KnowledgeBase): boolean =>
   !isMarginNoteKb(kb) && !kb.metadata?.type;
 

@@ -9,7 +9,7 @@ export default function TaskModelsSettingsPage() {
       <SettingsPageHeader
         title={t("Task models")}
         description={t(
-          "The model behind the calls Careevo makes on its own — titles, suggestions, lookups. Set one for all of them, or give a task its own.",
+          "The model behind the calls AI Mastery makes on its own — titles, suggestions, lookups. Set one for all of them, or give a task its own.",
         )}
       />
       <TaskModelsWorkspace />

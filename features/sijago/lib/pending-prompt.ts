@@ -1,7 +1,7 @@
 /**
  * Hand a starting message from one surface to another's composer.
  *
- * Two callers today. The Settings hub's "let Careevo configure this" button
+ * Two callers today. The Settings hub's "let AI Mastery configure this" button
  * navigates to chat with the request already typed, so the user reads and sends
  * it rather than arriving at an empty box wondering what to say. Course Study's
  * hand-off cards do the same across the learning surfaces: the assistant

@@ -14,7 +14,7 @@ export type Discovery = {
 };
 export type ServiceName =
   | "llm"
-  /** Same shape as `llm`; stands in for it on the calls Careevo makes itself. */
+  /** Same shape as `llm`; stands in for it on the calls AI Mastery makes itself. */
   | "task"
   | "embedding"
   | "search"
@@ -25,7 +25,7 @@ export type ServiceName =
 
 /**
  * What the user declared about a model, overriding the built-in capability
- * tables. A missing key means "let Careevo decide".
+ * tables. A missing key means "let AI Mastery decide".
  */
 export type ModelCapabilities = {
   tools?: boolean;
@@ -141,11 +141,11 @@ export type CatalogService = {
 };
 
 /**
- * One call Careevo makes on its own, as the backend enumerates them.
+ * One call AI Mastery makes on its own, as the backend enumerates them.
  *
  * The list ships with the settings payload rather than being restated here:
  * every entry comes from a call site that names its `TaskKind`, so this page
- * cannot offer a task Careevo no longer runs, or miss one it just gained.
+ * cannot offer a task AI Mastery no longer runs, or miss one it just gained.
  */
 export type TaskKindInfo = { id: string; group: string };
 

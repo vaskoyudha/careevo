@@ -52,7 +52,7 @@ export default function SettingsOverview() {
       <SettingsPageHeader
         title={t("General")}
         description={t(
-          "Make Careevo feel at home. Apply your preferences using the bar below.",
+          "Make AI Mastery feel at home. Apply your preferences using the bar below.",
         )}
       />
       <SettingSection title={t("Language")}>

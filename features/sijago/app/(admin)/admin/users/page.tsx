@@ -677,7 +677,7 @@ export default function AdminUsersPage() {
         </div>
 
         <p className="mt-8 text-center text-xs text-[var(--muted-foreground)]">
-          {t("Careevo Admin · User Management")}
+          {t("AI Mastery Admin · User Management")}
         </p>
       </div>
 

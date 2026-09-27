@@ -226,7 +226,7 @@ function entityDeepLinkUrl(surface: Surface, ent: Entity): string | null {
     case "chat":
       return `/chat/${encodeURIComponent(ent.id)}`;
     case "cowriter":
-      // Co-Writer was removed from SiJago; its stored memory entities stay
+      // Co-Writer was removed from AI Mastery; its stored memory entities stay
       // readable in the graph, but there is no page to deep-link into.
       return null;
     case "notebook": {
@@ -475,7 +475,7 @@ export default function MemorySection({
             </p>
             <p className="mt-0.5 text-[var(--muted-foreground)]">
               {t(
-                "Stored at memory/backup/{{name}}. v2 starts fresh — interact with Careevo and click Update on each doc to build memory.",
+                "Stored at memory/backup/{{name}}. v2 starts fresh — interact with AI Mastery and click Update on each doc to build memory.",
                 { name: latestBackup },
               )}
             </p>

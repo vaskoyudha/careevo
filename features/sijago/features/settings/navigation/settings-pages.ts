@@ -53,7 +53,7 @@ export function isWideSettingsPage(key: string): boolean {
 /**
  * Related service pages share a compact navigation row, with explicit tabs.
  *
- * SiJago has no agent settings, so the family is normally empty and
+ * AI Mastery has no agent settings, so the family is normally empty and
  * `settingsPageFamily` falls back to a single-entry family (which renders no
  * tab row). Optional chaining keeps that case safe instead of asserting a
  * category that may not exist.
@@ -127,7 +127,7 @@ const extraPages: SettingsLeaf[] = [
 ]
 
 /**
- * SiJago hides its backend-plumbing pages from the settings navigator and
+ * AI Mastery hides its backend-plumbing pages from the settings navigator and
  * settings search. The pages stay reachable by direct URL — the onboarding
  * tour, the sidebar version badge, and the readiness panel all deep-link to
  * them — so `visibleSettingsPages` keeps them while `listedSettingsPages`

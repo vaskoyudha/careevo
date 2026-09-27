@@ -45,7 +45,7 @@ function decide(
     return {
       headline: t("This course has nothing to work with yet"),
       detail: t(
-        "Attach its textbook or knowledge base and Careevo can start planning from the material itself.",
+        "Attach its textbook or knowledge base and AI Mastery can start planning from the material itself.",
       ),
       action: null,
     };

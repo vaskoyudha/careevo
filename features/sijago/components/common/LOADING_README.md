@@ -1,15 +1,15 @@
-# Beautiful Skeleton Loading Components for SiJago
+# Beautiful Skeleton Loading Components for AI Mastery
 
-This document describes the beautiful skeleton loading animation system implemented for the SiJago application.
+This document describes the beautiful skeleton loading animation system implemented for the AI Mastery application.
 
 ## Overview
 
-The skeleton loading system provides elegant, professional loading states that match SiJago's ocean-blue theme palette. All components use smooth shimmer animations with CSS gradients for a modern, polished feel.
+The skeleton loading system provides elegant, professional loading states that match AI Mastery's ocean-blue theme palette. All components use smooth shimmer animations with CSS gradients for a modern, polished feel.
 
 ## Features
 
 - ✨ **Beautiful Shimmer Animations** - Smooth gradient-based shimmer effects
-- 🎨 **Ocean Blue Theme** - Matches SiJago's color palette (`#e2eef4`, `#f0f7fa`)
+- 🎨 **Ocean Blue Theme** - Matches AI Mastery's color palette (`#e2eef4`, `#f0f7fa`)
 - 📱 **Responsive** - Adapts to different screen sizes
 - ⚡ **Performance Optimized** - Pure CSS animations, no JavaScript overhead
 - 🎯 **Type-Safe** - Full TypeScript support with props validation
@@ -393,8 +393,8 @@ Planned improvements:
 
 ## Credits
 
-Created with care for SiJago's beautiful user experience. The shimmer pattern was inspired by modern design systems like Material UI and Ant Design.
+Created with care for AI Mastery's beautiful user experience. The shimmer pattern was inspired by modern design systems like Material UI and Ant Design.
 
 ---
 
-*For questions or contributions, see the main SiJago repository.*
+*For questions or contributions, see the main AI Mastery repository.*

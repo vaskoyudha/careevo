@@ -327,7 +327,7 @@ function StandaloneComposerImpl({
 
   // Connected subagents arrive as `type: subagent` knowledge bases and travel
   // the same request path as real knowledge bases, so the resource-reuse
-  // policy still has to tell the two apart. SiJago no longer surfaces
+  // policy still has to tell the two apart. AI Mastery no longer surfaces
   // subagents in the UI, so this normally resolves to an empty set — the
   // split is kept so the shared `retainedKnowledgeBases` path is unchanged.
   const agentNameSet = useMemo(

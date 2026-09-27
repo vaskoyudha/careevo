@@ -27,7 +27,7 @@ export default function ThemeScript() {
           // No stored preference: open the light "snow" canvas.
           //
           // This used to follow prefers-color-scheme and pick Dark on a dark OS.
-          // That is wrong here, because SiJago is framed inside Careevo, whose
+          // That is wrong here, because AI Mastery is framed inside Careevo, whose
           // own chrome is always light: the workspace would open warm-black
           // under a white navbar — reintroducing exactly the mismatch the
           // light-mode repaint removed. The frame has to match its host, so the

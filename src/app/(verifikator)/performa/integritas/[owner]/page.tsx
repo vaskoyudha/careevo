@@ -1,10 +1,27 @@
+import type { CSSProperties } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import {
+  Activity,
+  Award,
+  Camera,
+  ChartColumn,
+  CirclePlus,
+  ClipboardCheck,
+  Clock,
+  FileCode2,
+  History,
+  Inbox,
+  MessagesSquare,
+  ShieldCheck,
+} from "lucide-react";
+
 import { getSession } from "@/lib/auth/session";
 import { AppShell } from "@/components/ui/app-shell";
 import { PageHead } from "@/components/ui/page-head";
-import { PeringatanIntegritas } from "@/components/features/performa/performa-integritas";
+import { CincinSkor } from "@/components/ui/cincin-skor";
+import { DaftarFakta, Fakta, Kartu } from "@/components/ui/kartu";
 import { listEnrollmentStaf, listEventRun } from "@/lib/learning/repository";
 import { FormPelanggaran } from "@/components/features/performa/form-pelanggaran";
 import { AntrianUsulan } from "@/components/features/performa/antrian-usulan";
@@ -36,6 +53,14 @@ import { ringkasTutor } from "@/lib/agents/tutor/ringkas";
 
 export const metadata: Metadata = {
   title: "Detail Integritas",
+};
+
+/** Label asal sinyal — kata kunci yang sama dengan `BATAS_SINYAL`. */
+const LABEL_ASAL: Record<AsalSinyal, string> = {
+  browser: "Peramban",
+  kamera: "Kamera",
+  luar: "Lockdown browser",
+  server: "Server",
 };
 
 export default async function IntegritasDetailPage({
@@ -97,6 +122,7 @@ export default async function IntegritasDetailPage({
     {} as Record<AsalSinyal, number>,
   );
   const asalTerpakai = (Object.keys(perAsal) as AsalSinyal[]).filter((a) => perAsal[a] > 0);
+  const asalMaks = Math.max(1, ...Object.values(perAsal));
 
   /**
    * Catatan integritas yang sudah diputuskan, plus skor yang dihasirkan dari
@@ -187,82 +213,114 @@ export default async function IntegritasDetailPage({
    * dan tidak boleh menjatuhkan laporan integritas.
    */
   /**
- * Sertifikat aktif peserta ini, untuk ditautkan dari laporan.
- *
- * **Arah tautan hanya satu: laporan → sertifikat.** Sertifikatnya yang publik,
- * laporannya yang staf. Menaruh tautan ke laporan di halaman `/verify` akan
- * membuat siapa pun yang memegang token bisa menekan tombol dan mendarat di 307
- * menuju `/masuk` — atau, lebih buruk, kalau gate-nya bergeser, membaca catatan
- * integritas orang lain. Tautan ke depan tidak mungkin membocorkan apa pun.
- *
- * `listSertifikatUserId` memang menerima `userId`: halaman ini sudah dibatasi
- * oleh sesi staf, dan course-nya berasal dari enrollment yang difilter di atas —
- * bukan dari segmen rute.
- */
-const sertifikat = userId ? await listSertifikatUserId(userId) : [];
+   * Sertifikat aktif peserta ini, untuk ditautkan dari laporan.
+   *
+   * **Arah tautan hanya satu: laporan → sertifikat.** Sertifikatnya yang publik,
+   * laporannya yang staf. Menaruh tautan ke laporan di halaman `/verify` akan
+   * membuat siapa pun yang memegang token bisa menekan tombol dan mendarat di 307
+   * menuju `/masuk` — atau, lebih buruk, kalau gate-nya bergeser, membaca catatan
+   * integritas orang lain. Tautan ke depan tidak mungkin membocorkan apa pun.
+   *
+   * `listSertifikatUserId` memang menerima `userId`: halaman ini sudah dibatasi
+   * oleh sesi staf, dan course-nya berasal dari enrollment yang difilter di atas —
+   * bukan dari segmen rute.
+   */
+  const sertifikat = userId ? await listSertifikatUserId(userId) : [];
 
   const sesiTutor = await bacaTranskrip(target.owner);
   const faktaTutor = faktaTranskrip(sesiTutor);
   // Ringkasan hanya meminta model kalau ada yang bisa diringkas. Tanpa
   // transkrip, memanggil model berarti membuang panggilan berbayar untuk
   // menjelaskan tidak ada apa-apa.
-  const ringkasanTutor =
-    faktaTutor.sesi > 0 ? await ringkasTutor(sesiTutor) : null;
+  const ringkasanTutor = faktaTutor.sesi > 0 ? await ringkasTutor(sesiTutor) : null;
+
+  const nadaSkor: "baik" | "netral" | "perhatian" = !skor
+    ? "netral"
+    : skor.skor >= 90
+      ? "baik"
+      : skor.skor >= 70
+        ? "netral"
+        : "perhatian";
+
+  const nadaCincin = skor
+    ? skor.skor >= 90
+      ? "leaf"
+      : skor.skor >= 70
+        ? "ocean"
+        : "warn"
+    : "ocean";
 
   return (
     <AppShell session={session} current="/performa/integritas">
-      <PageHead
-        eyebrow="Area verifikator"
-        title={`Integritas — ${target.nama}`}
-        lead={target.owner}
-        actions={
-          <Link className="text-sm underline" href="/performa/integritas">
-            Kembali ke daftar integritas
-          </Link>
-        }
-      />
+      <div className="performa-kepala">
+        <PageHead
+          eyebrow="Area verifikator"
+          title={`Integritas — ${target.nama}`}
+          lead={target.owner}
+          kembali={{ href: "/performa/integritas", label: "Kembali ke daftar integritas" }}
+        />
+      </div>
 
-      <div className="space-y-4">
-        <PeringatanIntegritas />
-
+      <div className="performa-grid">
         {/*
           Skor kejujuran dibaca **di sini** juga, dari fungsi yang sama dengan
           dashboard peserta. Dua tampilan angka yang sama dari dua hitungan
-          berbeda akan menyimpang diam-diam — dan justru两者 yang dipakai
-          peserta, jadi perbedaan sekecil apa pun adalah kebohongan.
+          berbeda akan menyimpang diam-diam — dan justru yang dipakai peserta,
+          jadi perbedaan sekecil apa pun adalah kebohongan.
         */}
         {skor ? (
-          <section className="card" aria-labelledby="integritas-skor">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="card-title" id="integritas-skor">
-                Skor kejujuran
-              </h2>
-              <span className="text-2xl font-bold tabular-nums">
-                {skor.skor}
-                <span className="text-sm font-normal text-muted-foreground">/100</span>
-              </span>
+          <Kartu
+            ikon={ShieldCheck}
+            judul="Skor kejujuran"
+            id="integritas-skor"
+            nada={nadaSkor}
+            lead="Diturunkan dari catatan yang diputuskan manusia, bukan dari rekaman otomatis."
+          >
+            <div className="performa-skor">
+              <CincinSkor
+                nilai={skor.skor}
+                label="Skor kejujuran"
+                nada={nadaCincin}
+                ukuran="lg"
+              />
+              <DaftarFakta>
+                <Fakta label="Catatan aktif">{skor.jumlahAktif}</Fakta>
+                <Fakta label="Course memotong">
+                  {skor.perCourse.length === 0 ? (
+                    <span className="performa-kosong">tidak ada</span>
+                  ) : (
+                    <span className="performa-chips">
+                      {skor.perCourse.map((r) => (
+                        <span className="performa-chip" key={r.courseId}>
+                          {r.courseId}
+                          <b>−{r.penaltiDiterapkan}</b>
+                        </span>
+                      ))}
+                    </span>
+                  )}
+                </Fakta>
+              </DaftarFakta>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {skor.jumlahAktif} catatan aktif ·{" "}
-              {skor.perCourse.length > 0
-                ? skor.perCourse
-                    .map((r) => `${r.courseId} −${r.penaltiDiterapkan}`)
-                    .join(", ")
-                : "tidak ada course yang memotong skor"}
-            </p>
-          </section>
+          </Kartu>
         ) : null}
 
-        <section className="card" aria-labelledby="integritas-usulan">
-          <h2 className="card-title" id="integritas-usulan">
-            Usulan otomatis — belum ada yang diputuskan
-          </h2>
-          <p className="mt-1 mb-3 text-sm text-muted-foreground">
-            Deteksi otomatis menulis usulan setelah sesi terverifikasi ditutup.
-            Usulan ini{" "}
-            <strong>belum memotong skor</strong> — skornya masih seperti sekarang
-            sampai kamu menyetujuinya. Menolak tidak mengubah skor.
-          </p>
+        <Kartu
+          ikon={Inbox}
+          judul="Usulan otomatis"
+          id="integritas-usulan"
+          nada={usulan.length > 0 ? "perhatian" : "netral"}
+          lead={
+            <>
+              Deteksi otomatis menulis usulan setelah sesi terverifikasi ditutup.
+              Selama belum kamu putuskan, skor <strong>tidak bergerak</strong>.
+            </>
+          }
+          aksi={
+            <span className={`performa-badge${usulan.length > 0 ? " is-aktif" : ""}`}>
+              {usulan.length === 0 ? "Tidak ada" : `${usulan.length} menunggu`}
+            </span>
+          }
+        >
           {userId ? (
             <AntrianUsulan
               usulan={usulan.map((u) => ({
@@ -278,40 +336,35 @@ const sertifikat = userId ? await listSertifikatUserId(userId) : [];
               slug={opsiCourse[0]?.slug ?? null}
             />
           ) : null}
-        </section>
+        </Kartu>
 
-        <section className="card" aria-labelledby="performa-sertifikat">
-          <h2 className="card-title" id="performa-sertifikat">
-            Sertifikat terbit
-          </h2>
-          <p className="mt-1 mb-3 text-sm text-muted-foreground">
-            Kredensial yang sudah terbit untuk peserta ini, lengkap dengan skor dan
-            tanggalnya. Tautan membuka halaman verifikasi publik — halaman yang
-            akan dilihat perekrut.
-          </p>
+        <Kartu
+          ikon={Award}
+          judul="Sertifikat terbit"
+          id="performa-sertifikat"
+          lead="Kredensial yang sudah terbit, lengkap dengan skor dan tanggalnya. Tautan membuka halaman yang akan dilihat perekrut."
+          aksi={
+            <span className="performa-badge">{sertifikat.length}</span>
+          }
+        >
           {sertifikat.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="performa-kosong">
               Belum ada sertifikat aktif. Sertifikat terbit setelah course selesai
               dan karya disetujui.
             </p>
           ) : (
-            <ul className="list-app">
+            <ul className="performa-daftar">
               {sertifikat.map((s) => (
-                <li className="list-app-row" key={s.token}>
-                  <div className="min-w-0">
-                    <span className="row-title">{s.judul}</span>
-                    <span className="row-meta">
-                      Skor {s.score}/100 · {s.level} · {s.track}
-                    </span>
-                    <span className="row-meta">
-                      Terbit {s.terbitPada.slice(0, 10)}
+                <li className="performa-item" key={s.token}>
+                  <div className="performa-item-utama">
+                    <span className="performa-item-judul">{s.judul}</span>
+                    <span className="performa-item-meta">
+                      Skor {s.score}/100 · {s.level} · {s.track} · terbit{" "}
+                      {s.terbitPada.slice(0, 10)}
                     </span>
                   </div>
-                  <Link
-                    href={`/verify/${s.token}`}
-                    className="shrink-0 text-sm underline"
-                  >
-                    Buka halaman verifikasi
+                  <Link className="performa-item-aksi" href={`/verify/${s.token}`}>
+                    Buka verifikasi
                   </Link>
                 </li>
               ))}
@@ -323,43 +376,48 @@ const sertifikat = userId ? await listSertifikatUserId(userId) : [];
             menghasilkan pintu yang tidak bisa dibuka — atau kebocoran kalau
             gate-nya pernah bergeser.
           */}
-        </section>
+        </Kartu>
 
-        <section className="card" aria-labelledby="performa-ringkas-tutor">
-          <h2 className="card-title" id="performa-ringkas-tutor">
-            Percakapan dengan tutor
-          </h2>
-          <p className="mt-1 mb-3 text-sm text-muted-foreground">
-            Ringkasan bahasa alami dari percakapan peserta dengan tutor AI.
-            <strong> Bukan penilaian</strong> — tidak memotong skor, dan tidak
-            pernah jadi dasar keputusan otomatis. Yang tetap berlaku adalah rubrik
-            dan catatan yang kamu putuskan sendiri.
-          </p>
+        <Kartu
+          ikon={MessagesSquare}
+          judul="Percakapan dengan tutor"
+          id="performa-ringkas-tutor"
+          lead={
+            <>
+              Ringkasan bahasa alami dari percakapan peserta. <strong>Bukan
+              penilaian</strong> — tidak memotong skor dan tidak pernah jadi dasar
+              keputusan otomatis.
+            </>
+          }
+        >
           <PanelRingkasTutor
             fakta={faktaTutor}
             hasil={ringkasanTutor?.ok ? ringkasanTutor.hasil : null}
             {...(ringkasanTutor && !ringkasanTutor.ok ? { pesanGagal: ringkasanTutor.pesan } : {})}
           />
-        </section>
+        </Kartu>
 
-        <section className="card" aria-labelledby="performa-jejak-proses">
-          <h2 className="card-title" id="performa-jejak-proses">
-            Jejak proses ruang kerja
-          </h2>
-          <p className="mt-1 mb-3 text-sm text-muted-foreground">
-            Kapan dan seberapa sering berkas berubah di ruang kode.{" "}
-            <strong>Jejak ini tidak memotong skor</strong> dan tidak pernah
-            otomatis jadi catatan: ia bahan baca, bukan vonis.
-          </p>
+        <Kartu
+          ikon={FileCode2}
+          judul="Jejak proses ruang kerja"
+          id="performa-jejak-proses"
+          lead={
+            <>
+              Kapan dan seberapa sering berkas berubah di ruang kode.{" "}
+              <strong>Tidak memotong skor</strong> dan tidak pernah otomatis jadi
+              catatan: bahan baca, bukan vonis.
+            </>
+          }
+        >
           {jejakPerCourse.size === 0 ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="performa-kosong">
               Belum ada jejak proses. Jejak diambil saat ruang kerja peserta dibuka.
             </p>
           ) : (
-            <div className="space-y-5">
+            <div className="performa-tumpuk">
               {[...jejakPerCourse.entries()].map(([courseId, data]) => (
                 <div key={courseId}>
-                  <h3 className="text-sm font-semibold">{courseId}</h3>
+                  <h3 className="performa-subjudul">{courseId}</h3>
                   <PanelJejakProses
                     ringkas={data.ringkas}
                     courseId={courseId}
@@ -369,41 +427,45 @@ const sertifikat = userId ? await listSertifikatUserId(userId) : [];
               ))}
             </div>
           )}
-        </section>
+        </Kartu>
 
-        <section className="card" aria-labelledby="integritas-catatan">
-          <h2 className="card-title" id="integritas-catatan">
-            Catatan yang sudah diputuskan
-          </h2>
-          <p className="mt-1 mb-3 text-sm text-muted-foreground">
-            Yang tampil di sini adalah keputusan manusia, bukan rekaman
-            otomatis. Catatan mentah di bawah tetap konteks — tidak ada satu pun
-            yang otomatis menurunkan skor.
-          </p>
+        <Kartu
+          ikon={ClipboardCheck}
+          judul="Catatan yang sudah diputuskan"
+          id="integritas-catatan"
+          lead="Keputusan manusia, bukan rekaman otomatis. Tidak ada satu pun yang otomatis menurunkan skor."
+          aksi={<span className="performa-badge">{catatan.length}</span>}
+        >
           {catatan.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="performa-kosong">
               Belum ada catatan untuk peserta ini. Skornya masih 100; itu berarti
               tidak ada yang tercatat, bukan berarti sudah diperiksa semua.
             </p>
           ) : (
-            <ul className="list-app">
+            <ul className="performa-daftar">
               {catatan.map((c) => {
-                const definisi = KATALOG_PELANGGARAN[c.kind as keyof typeof KATALOG_PELANGGARAN];
+                const definisi =
+                  KATALOG_PELANGGARAN[c.kind as keyof typeof KATALOG_PELANGGARAN];
+                const statusLabel =
+                  c.status === "expunged"
+                    ? `dipulihkan${c.expungedReason ? `: ${c.expungedReason}` : ""}`
+                    : c.status === "dismissed"
+                      ? "ditolak"
+                      : "berlaku";
                 return (
-                  <li className="list-app-row" key={c.id}>
-                    <div className="min-w-0">
-                      <span className="row-title">
+                  <li className="performa-item" key={c.id}>
+                    <span
+                      className={`performa-titik performa-titik-${c.status}`}
+                      aria-hidden="true"
+                    />
+                    <div className="performa-item-utama">
+                      <span className="performa-item-judul">
                         {definisi?.label ?? c.kind}
                       </span>
-                      <span className="row-meta">{c.reason}</span>
-                      <span className="row-meta">
-                        {c.courseId} · {c.penalty} poin ·{" "}
-                        {c.status === "expunged"
-                          ? `dipulihkan${c.expungedReason ? `: ${c.expungedReason}` : ""}`
-                          : c.status === "dismissed"
-                            ? "ditolak"
-                            : "berlaku"}{" "}
-                        · {c.createdAt.toISOString().slice(0, 10)}
+                      <span className="performa-item-alasan">{c.reason}</span>
+                      <span className="performa-item-meta">
+                        {c.courseId} · {c.penalty} poin · {statusLabel} ·{" "}
+                        {c.createdAt.toISOString().slice(0, 10)}
                       </span>
                     </div>
                   </li>
@@ -411,130 +473,122 @@ const sertifikat = userId ? await listSertifikatUserId(userId) : [];
               })}
             </ul>
           )}
-        </section>
+        </Kartu>
 
-        {userId ? (
-          <section className="card" aria-labelledby="integritas-form">
-            <h2 className="card-title" id="integritas-form">
-              Catat catatan baru
-            </h2>
-            <p className="mt-1 mb-3 text-sm text-muted-foreground">
-              Menulis di sini akan langsung memotong skor kejujuran peserta di
-              dashboard. Besaran penalti ditentukan jenis, bukan pilihanmu.
-            </p>
-            <FormPelanggaran userId={userId} course={opsiCourse} />
-          </section>
-        ) : null}
+        <Kartu
+          ikon={ChartColumn}
+          judul="Ringkasan sesi"
+          id="integritas-ringkas"
+          lead="Fakta sesi, bukan penilaian. Angka di bawah dihitung dari rekaman yang sama dengan lini masa."
+        >
+          <DaftarFakta>
+            <Fakta label="Sesi tercatat" ikon={History}>
+              {target.sesi}
+            </Fakta>
+            <Fakta label="Kejadian / celah" ikon={Activity}>
+              {target.kejadian} / {target.celah}
+            </Fakta>
+            <Fakta label="Sesi kedaluwarsa" ikon={Clock}>
+              {target.kedaluwarsa}
+            </Fakta>
+            <Fakta label="Persetujuan kamera" ikon={Camera}>
+              {izin.label}
+            </Fakta>
+            <Fakta label="Sinyal kamera" ikon={Camera}>
+              {target.kamera === 0 ? "—" : `${target.kamera} sinyal`}
+            </Fakta>
+          </DaftarFakta>
 
-        <section className="card" aria-labelledby="integritas-ringkas">
-          <h2 className="card-title" id="integritas-ringkas">
-            Ringkasan
-          </h2>
-          <ul className="list-app">
-            <li className="list-app-row">
-              <span className="row-title">Sesi tercatat</span>
-              <span className="text-xs text-muted-foreground">{target.sesi}</span>
-            </li>
-            <li className="list-app-row">
-              <span className="row-title">Kejadian / celah</span>
-              <span className="text-xs text-muted-foreground">
-                {target.kejadian} / {target.celah}
-              </span>
-            </li>
-            <li className="list-app-row">
-              <span className="row-title">Sesi kedaluwarsa</span>
-              <span className="text-xs text-muted-foreground">{target.kedaluwarsa}</span>
-            </li>
-            <li className="list-app-row">
-              <span className="row-title">Persetujuan kamera</span>
-              <span className="text-xs text-muted-foreground">
-                {izin.label} — {izin.detail}
-              </span>
-            </li>
-            <li className="list-app-row">
-              <span className="row-title">Asal sinyal</span>
-              <span className="text-xs text-muted-foreground">
-                {asalTerpakai.length === 0
-                  ? "—"
-                  : asalTerpakai.map((asal) => `${perAsal[asal]} ${asal}`).join(" · ")}
-              </span>
-            </li>
-          </ul>
+          <p className="performa-catatan-kecil">{izin.detail}</p>
+
           {/*
             Batas asal hanya untuk asal yang benar-benar muncul: empat baris
             batas untuk empat sumber membuat pembaca mengira semuanya aktif, dan
             itu klaim yang tidak benar untuk peserta yang belum pernah menyalakan
-            kamera.
+            kamera. Batangnya memberi proporsi, angkanya tetap angka.
           */}
           {asalTerpakai.length > 0 ? (
-            <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
-              {asalTerpakai.map((asal) => (
-                <li key={asal}>
-                  <span className="font-medium">{asal}:</span> {BATAS_SINYAL[asal]}
-                </li>
-              ))}
-            </ul>
+            <div className="performa-asal">
+              <h3 className="performa-subjudul">Asal sinyal</h3>
+              <ul className="performa-asal-daftar">
+                {asalTerpakai.map((asal) => (
+                  <li
+                    className="performa-asal-baris"
+                    key={asal}
+                    style={{ "--asal-w": `${(perAsal[asal] / asalMaks) * 100}%` } as CSSProperties}
+                  >
+                    <span className="performa-asal-label">{LABEL_ASAL[asal]}</span>
+                    <span className="performa-asal-track">
+                      <span className="performa-asal-fill" />
+                    </span>
+                    <b className="performa-asal-angka">{perAsal[asal]}</b>
+                  </li>
+                ))}
+              </ul>
+              <ul className="performa-batas">
+                {asalTerpakai.map((asal) => (
+                  <li key={asal}>
+                    <b>{LABEL_ASAL[asal]}:</b> {BATAS_SINYAL[asal]}
+                  </li>
+                ))}
+              </ul>
+            </div>
           ) : null}
-        </section>
+        </Kartu>
 
-        <section className="card" aria-labelledby="integritas-riwayat">
-          <h2 className="card-title" id="integritas-riwayat">
-            Riwayat sesi
-          </h2>
+        {userId ? (
+          <Kartu
+            ikon={CirclePlus}
+            judul="Catat catatan baru"
+            id="integritas-form"
+            lead={
+              <>
+                Menulis di sini <strong>langsung memotong skor</strong> peserta di
+                dashboard. Besaran penalti ditentukan jenis, bukan pilihanmu.
+              </>
+            }
+          >
+            <FormPelanggaran userId={userId} course={opsiCourse} />
+          </Kartu>
+        ) : null}
+
+        <Kartu
+          ikon={History}
+          judul="Riwayat sesi"
+          id="integritas-riwayat"
+          lead="Lini masa sinyal mentah per sesi. Belum dinilai siapa pun — ini bahan baca."
+          aksi={<span className="performa-badge">{ringkas?.daftar.length ?? 0}</span>}
+        >
           {ringkas && ringkas.daftar.length > 0 ? (
-            <ul className="space-y-4">
+            <ul className="performa-sesi">
               {ringkas.daftar.map((s) => {
                 const run = sesi.find((r) => r.id === s.run_id);
                 const temuan = run ? temuanSesi(run) : [];
                 return (
-                  <li key={s.run_id} className="rounded-xl border border-border p-3">
-                    <div className="flex flex-wrap items-baseline justify-between gap-2">
-                      <span className="text-sm font-semibold">{s.course_id}</span>
-                      <span className="text-xs text-muted-foreground">
+                  <li className="performa-sesi-kartu" key={s.run_id}>
+                    <div className="performa-sesi-kepala">
+                      <span className="performa-sesi-course">{s.course_id}</span>
+                      <span className="performa-sesi-meta">
                         {s.status} ·{" "}
-                        {s.durasiMenit === null
-                          ? "berjalan"
-                          : `${s.durasiMenit} menit`}{" "}
-                        · {s.mulai_at}
+                        {s.durasiMenit === null ? "berjalan" : `${s.durasiMenit} menit`}
                       </span>
                     </div>
 
-                    <ul className="mt-2 space-y-1">
-                      <li className="text-sm">
-                        <span className="font-medium">Persetujuan kamera:</span>{" "}
-                        <span className="text-muted-foreground">
-                          {s.persetujuan.label} — {s.persetujuan.detail}
-                        </span>
-                      </li>
-                      <li className="text-sm">
-                        <span className="font-medium">Ditutup peserta:</span>{" "}
-                        <span className="text-muted-foreground">
-                          {s.ditutupPeserta
-                            ? "ya, sesi ditutup sendiri"
-                            : "tidak, berakhir sendiri lewat batas waktu"}
-                        </span>
-                      </li>
+                    <ul className="performa-temuan">
+                      {temuan.map((t) => (
+                        <li key={t.kode} className="performa-temuan-baris">
+                          <b>{t.label}</b>
+                          <span>{t.detail}</span>
+                        </li>
+                      ))}
                     </ul>
 
-                    {temuan.length > 0 ? (
-                      <ul className="mt-2 space-y-1">
-                        {temuan.map((t) => (
-                          <li key={t.kode} className="text-sm">
-                            <span className="font-medium">{t.label}</span>{" "}
-                            <span className="text-muted-foreground">{t.detail}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : null}
-
                     {s.perJenis.length > 0 ? (
-                      <ul className="mt-2 flex flex-wrap gap-2">
+                      <ul className="performa-chips">
                         {s.perJenis.map((p) => (
-                          <li
-                            key={p.jenis}
-                            className="rounded-full border border-border px-2 py-0.5 text-xs"
-                          >
-                            {p.label} {p.jumlah}×
+                          <li className="performa-chip" key={p.jenis}>
+                            {p.label}
+                            <b>{p.jumlah}×</b>
                           </li>
                         ))}
                       </ul>
@@ -552,21 +606,30 @@ const sertifikat = userId ? await listSertifikatUserId(userId) : [];
                       Labelnya "sinyal", bukan "catatan": yang di sini adalah
                       rekaman mentah peramban/kamera, sedangkan "catatan" di
                       bagian lain berarti keputusan yang sudah ditulis manusia.
-                      Menyebut keduanya dengan kata yang sama membuat pembaca
-                      mengira sinyal sudah pernah dinilai seseorang.
                     */}
                     {s.catatan.length > 0 ? (
-                      <details className="mt-2" open>
-                        <summary className="cursor-pointer text-xs text-muted-foreground">
-                          Sinyal mentah sesi ini ({s.catatan.length}) — belum
-                          dinilai siapa pun
+                      <details className="performa-sinyal" open>
+                        <summary>
+                          Sinyal mentah ({s.catatan.length}) — belum dinilai siapa pun
                         </summary>
-                        <ol className="mt-2 space-y-1">
+                        <ol className="performa-sinyal-daftar">
                           {s.catatan.map((k, i) => (
-                            <li key={`${k.at}-${i}`} className="text-xs text-muted-foreground">
-                              {k.at} · {LABEL_KEJADIAN[k.jenis]} · {k.jenis_klasifikasi} ·{" "}
-                              {k.asal ?? "tidak diketahui"}
-                              {k.detail ? ` · ${k.detail}` : ""}
+                            <li key={`${k.at}-${i}`}>
+                              <span className="performa-sinyal-waktu">
+                                {k.at.slice(11, 16)}
+                              </span>
+                              <span className="performa-sinyal-nama">
+                                {LABEL_KEJADIAN[k.jenis]}
+                              </span>
+                              <span className="performa-sinyal-tag">
+                                {k.jenis_klasifikasi}
+                              </span>
+                              <span className="performa-sinyal-asal">
+                                {k.asal ? LABEL_ASAL[k.asal] : "tidak diketahui"}
+                              </span>
+                              {k.detail ? (
+                                <span className="performa-sinyal-detail">{k.detail}</span>
+                              ) : null}
                             </li>
                           ))}
                         </ol>
@@ -577,9 +640,9 @@ const sertifikat = userId ? await listSertifikatUserId(userId) : [];
               })}
             </ul>
           ) : (
-            <p className="text-sm text-muted-foreground">Belum ada sesi tercatat.</p>
+            <p className="performa-kosong">Belum ada sesi tercatat.</p>
           )}
-        </section>
+        </Kartu>
       </div>
     </AppShell>
   );

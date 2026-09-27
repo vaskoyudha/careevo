@@ -124,7 +124,7 @@ export default function KbGitHubSourcesSection({
           </div>
           <p className="mt-0.5 text-[11.5px] text-[var(--muted-foreground)]">
             {t(
-              "Track a GitHub repo's Markdown docs. Careevo auto-syncs daily; you can also trigger a sync manually.",
+              "Track a GitHub repo's Markdown docs. AI Mastery auto-syncs daily; you can also trigger a sync manually.",
             )}
           </p>
         </div>

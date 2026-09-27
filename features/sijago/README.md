@@ -1,7 +1,7 @@
-# SiJago
+# AI Mastery
 
 Careevo's DeepTutor-derived learning system, vendored from the upstream
-DeepTutor project and rebranded **SiJago**.
+DeepTutor project and rebranded **AI Mastery**.
 
 ## Provenance
 
@@ -20,8 +20,8 @@ else is upstream's, untouched.
 
 | Change | Files |
 | --- | --- |
-| Document `title` → `SiJago` | `app/layout.tsx` |
-| Logo `alt` → `SiJago` | `components/layout/AppShell.tsx`, `components/chat/home/SessionLoadingView.tsx` |
+| Document `title` → `AI Mastery` | `app/layout.tsx` |
+| Logo `alt` → `AI Mastery` | `components/layout/AppShell.tsx`, `components/chat/home/SessionLoadingView.tsx` |
 | `package.json` `name` → `sijago-web` | `package.json` |
 | **Logo art → Careevo** | `components/sidebar/SidebarShell.tsx`, `components/layout/AppShell.tsx`, `components/chat/home/SessionLoadingView.tsx`, `features/chat/components/ChatWorkspace.tsx` |
 
@@ -115,9 +115,9 @@ Geometry only. The palette section below covers the colour pass that followed.
 
 ### Repainted: light mode is now ocean blue
 
-SiJago is embedded in the Careevo shell at `/sijago`, and the two used to disagree
+AI Mastery is embedded in the Careevo shell at `/sijago`, and the two used to disagree
 on what "light" meant: Careevo's canvas was a blue-tinted `#ecf3f7` under navy
-ink, while SiJago's light theme was a warm parchment `#fdfcf9` with a terracotta
+ink, while AI Mastery's light theme was a warm parchment `#fdfcf9` with a terracotta
 primary. The user-facing result was a blue navbar sitting directly above a cream
 workspace.
 
@@ -264,7 +264,7 @@ With the correct backend the turn runs and then fails with
 `No active LLM model is configured. Please set it in Settings > Catalog.`
 (`/api/settings/llm-options` returns `{"active": null, "options": []}` — there
 are zero providers to choose from). This is environment configuration, not a
-code defect: add a provider in SiJago's Settings → Catalog before a chat turn
+code defect: add a provider in AI Mastery's Settings → Catalog before a chat turn
 can produce a reply. Styling and layout can still be verified without one.
 
 Internal identifiers were deliberately **left alone**: import paths, cookie
@@ -292,14 +292,14 @@ when you need it` (`/settings/embedding`, `/settings/search`,
 were removed too, since every target they link to is now hidden from the
 navigator. What remains on General is language + starting-point presets.
 
-The **Settings → About / update** screen says "Careevo" (not "DeepTutor" — an
+The **Settings → About / update** screen says "AI Mastery" (not "DeepTutor" — an
 earlier rename already took care of that; this note was stale). What it does
 still point at is upstream's own release/version machinery, so the *update URL*
 remains `HKUDS/DeepTutor` while the *label* is ours. That mismatch is deliberate:
 relabelling the machinery would misreport which build is actually running and
 where updates come from.
 
-**The `deeptutor` CLI was removed.** Careevo serves a website and never invoked
+**The `deeptutor` CLI was removed.** AI Mastery serves a website and never invoked
 it — the API has always been started directly with uvicorn (see "Where it runs"
 below). So `backend/deeptutor_cli/`, its `deeptutor` console entry point,
 `packaging/deeptutor-cli/`, `start_deeptutor.command`, and `scripts/start_tour.py`

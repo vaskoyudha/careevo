@@ -337,8 +337,8 @@ class ConfigTestRunner:
         )
         client = EmbeddingClient(config)
         probe_texts = [
-            "DeepTutor embedding smoke test",
-            "DeepTutor retrieval batch probe",
+            "AI Personalize embedding smoke test",
+            "AI Personalize retrieval batch probe",
         ]
         vectors = await client.embed(probe_texts)
         if len(vectors) != len(probe_texts):
@@ -464,7 +464,7 @@ class ConfigTestRunner:
             f"voice `{resolved.voice or '(default)'}`).",
         )
         run.emit("info", f"Request target: {resolved.base_url}")
-        sample = "DeepTutor voice check. 这是一段语音合成测试。"
+        sample = "AI Personalize voice check. 这是一段语音合成测试。"
         run.emit("info", "Synthesizing a short sample clip.")
         audio, content_type = await synthesize_speech(sample, catalog=catalog)
         run.emit(

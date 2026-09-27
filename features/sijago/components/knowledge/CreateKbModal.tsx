@@ -1324,7 +1324,7 @@ function WeKnoraFields({
         </div>
         <p className="mt-1 text-[11px] text-[var(--muted-foreground)]">
           {t(
-            "The base URL of your self-hosted WeKnora deployment. Documents remain there; Careevo only runs retrieval searches.",
+            "The base URL of your self-hosted WeKnora deployment. Documents remain there; AI Mastery only runs retrieval searches.",
           )}
         </p>
       </div>

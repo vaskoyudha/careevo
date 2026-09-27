@@ -111,7 +111,7 @@ export default function AboutSettingsPage() {
       }
       if (cancelled) return;
       if (Date.now() >= deadline) {
-        setError(t("Careevo did not reconnect before the update timeout."));
+        setError(t("AI Mastery did not reconnect before the update timeout."));
         return;
       }
       timer = setTimeout(poll, POLL_INTERVAL_MS);
@@ -194,7 +194,7 @@ export default function AboutSettingsPage() {
       <SettingsPageHeader
         title={t("About")}
         description={t(
-          "Careevo version, release channel, and the safest update path for this installation.",
+          "AI Mastery version, release channel, and the safest update path for this installation.",
         )}
       />
 
@@ -267,7 +267,7 @@ export default function AboutSettingsPage() {
         <SettingRow
           title={t("Installation")}
           description={t(
-            status?.installation.reason || "How Careevo is installed here.",
+            status?.installation.reason || "How AI Mastery is installed here.",
           )}
           control={
             <span className="text-[12.5px] text-[var(--foreground)]">
@@ -278,7 +278,7 @@ export default function AboutSettingsPage() {
         <SettingRow
           title={t("Release channel")}
           description={t(
-            "Only stable, published Careevo releases are considered.",
+            "Only stable, published AI Mastery releases are considered.",
           )}
           control={
             <span className="text-[12.5px] text-[var(--foreground)]">
@@ -291,7 +291,7 @@ export default function AboutSettingsPage() {
       <SettingSection
         title={t("Updates")}
         description={t(
-          "Version checks are cached for 24 hours. Careevo never installs an update without confirmation.",
+          "Version checks are cached for 24 hours. AI Mastery never installs an update without confirmation.",
         )}
       >
         <SettingRow
@@ -408,7 +408,7 @@ export default function AboutSettingsPage() {
 
       <ConfirmDialog
         open={confirmOpen}
-        title={t("Update and restart Careevo?")}
+        title={t("Update and restart AI Mastery?")}
         confirmLabel={t("Update and restart")}
         busy={requesting}
         busyLabel={t("Preparing update…")}
@@ -416,7 +416,7 @@ export default function AboutSettingsPage() {
         onCancel={() => setConfirmOpen(false)}
       >
         {t(
-          "Careevo will briefly stop, install {{version}}, and reopen with the same settings. Active conversations must finish first.",
+          "AI Mastery will briefly stop, install {{version}}, and reopen with the same settings. Active conversations must finish first.",
           { version: latestVersion ?? "" },
         )}
       </ConfirmDialog>

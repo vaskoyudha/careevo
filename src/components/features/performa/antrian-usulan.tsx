@@ -75,7 +75,7 @@ export function AntrianUsulan({ usulan, slug }: { usulan: BarisUsulan[]; slug: s
 
   if (usulan.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
+      <p className="performa-kosong">
         Tidak ada usulan otomatis yang menunggu. Usulan muncul setelah sesi
         terverifikasi ditutup dan polanya melewati ambang — dan sampai kamu
         menyetujuinya, skor kejujuran peserta tidak bergerak sama sekali.
@@ -84,7 +84,7 @@ export function AntrianUsulan({ usulan, slug }: { usulan: BarisUsulan[]; slug: s
   }
 
   return (
-    <ul className="list-app">
+    <ul className="usulan-daftar">
       {usulan.map((u) => {
         const definisi =
           KATALOG_PELANGGARAN[u.kind as keyof typeof KATALOG_PELANGGARAN];
@@ -94,47 +94,65 @@ export function AntrianUsulan({ usulan, slug }: { usulan: BarisUsulan[]; slug: s
         const jenisKejadian = typeof bukti?.jenis_kejadian === "string" ? bukti.jenis_kejadian : null;
 
         return (
-          <li key={u.id} className="list-app-row">
-            <div className="min-w-0">
-              <span className="row-title">{definisi?.label ?? u.kind}</span>
-              <span className="row-meta">{u.reason}</span>
-              <span className="row-meta">
-                {u.courseId} · {u.penalty} poin · {u.createdAt.toISOString().slice(0, 10)}
+          <li key={u.id} className="usulan-kartu">
+            <div className="usulan-kepala">
+              <div className="usulan-judul-wrap">
+                <h3 className="usulan-judul">{definisi?.label ?? u.kind}</h3>
+                <p className="usulan-alasan">{u.reason}</p>
+              </div>
+              <span className="usulan-bobot">
+                {u.penalty}
+                <small>poin</small>
               </span>
-
-              {/* Bukti apa adanya, bukan ringkasan. */}
-              <span className="row-meta">
-                {jenisKejadian ? `Sinyal: ${jenisKejadian}` : null}
-                {jumlah !== null ? ` · ${jumlah} peristiwa` : null}
-                {panjang !== null ? ` · terpanjang ${panjang} karakter` : null}
-              </span>
-
-              {/*
-                Batas asal sinyal. "Keluar tab 3×" (dilaporkan peramban) dan
-                "wajah kedua 3×" (turunan model) bukan klaim yang setara — teksnya
-                sudah dikunci `BATAS_SINYAL` dan `sumber-sinyal.test.ts`, jadi di sini
-                hanya dirujuk, tidak ditulis ulang.
-              */}
-              <span className="row-meta">{BATAS_SINYAL.browser}</span>
             </div>
 
-            <div className="mt-3 space-y-3">
-              <form action={aksiKonfirmasi} className="flex flex-wrap items-center gap-3">
+            {/*
+              Bukti apa adanya, bukan ringkasan. Kalau Confirm bisa ditekan tanpa
+              membaca bukti, Stage 1 bukan lagi usulan — ia broadband penalti.
+              Tiap angka diberi label sendiri supaya tidak perlu diurai dari satu
+              kalimat panjang.
+            */}
+            <dl className="usulan-bukti">
+              <div className="usulan-bukti-sel">
+                <dt>Jenis sinyal</dt>
+                <dd>{jenisKejadian ?? "—"}</dd>
+              </div>
+              <div className="usulan-bukti-sel">
+                <dt>Peristiwa</dt>
+                <dd>{jumlah ?? "—"}</dd>
+              </div>
+              <div className="usulan-bukti-sel">
+                <dt>Terpanjang</dt>
+                <dd>{panjang !== null ? `${panjang} karakter` : "—"}</dd>
+              </div>
+              <div className="usulan-bukti-sel">
+                <dt>Course</dt>
+                <dd>{u.courseId}</dd>
+              </div>
+            </dl>
+
+            <p className="usulan-foot">
+              {BATAS_SINYAL.browser}
+              {" · tercatat "}
+              {u.createdAt.toISOString().slice(0, 10)}
+            </p>
+
+            {/*
+              Dua form, dua baris, tidak pernah berdampingan di satu baris:
+              memasukkan input teks dan dua tombol ke satu baris membuat
+              keputusan yang berbeda tampak seperti satu keputusan.
+            */}
+            <div className="usulan-aksi">
+              <form action={aksiKonfirmasi} className="usulan-form">
                 <input type="hidden" name="id" value={u.id} />
                 <input type="hidden" name="slug" value={slug ?? ""} />
-                <button
-                  type="submit"
-                  disabled={pendingKonfirmasi}
-                  className="rounded-full bg-[#0056D2] px-4 py-2 text-sm font-semibold text-white hover:bg-[#00419e] disabled:opacity-60"
-                >
+                <button type="submit" disabled={pendingKonfirmasi} className="usulan-btn-ya">
                   {pendingKonfirmasi ? "Memproses…" : `Konfirmasi · potong ${u.penalty} poin`}
                 </button>
-                <span className="text-xs text-muted-foreground">
-                  Setuju dengan yang tercatat? Skor akan turun {u.penalty} poin.
-                </span>
+                <span className="usulan-hint">Skor akan turun {u.penalty} poin.</span>
               </form>
 
-              <form action={aksiTolak} className="flex flex-wrap items-center gap-3">
+              <form action={aksiTolak} className="usulan-form">
                 <input type="hidden" name="id" value={u.id} />
                 <input type="hidden" name="slug" value={slug ?? ""} />
                 <input
@@ -145,37 +163,31 @@ export function AntrianUsulan({ usulan, slug }: { usulan: BarisUsulan[]; slug: s
                   maxLength={2000}
                   placeholder="Alasan menolak (minimal 10 karakter)"
                   aria-label={`Alasan menolak usulan ${definisi?.label ?? u.kind}`}
-                  className="min-w-[16rem] flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  className="usulan-input"
                 />
-                <button
-                  type="submit"
-                  disabled={pendingTolak}
-                  className="rounded-full border border-border px-4 py-2 text-sm font-semibold disabled:opacity-60"
-                >
+                <button type="submit" disabled={pendingTolak} className="usulan-btn-tidak">
                   {pendingTolak ? "Memproses…" : "Tolak"}
                 </button>
-                <span className="text-xs text-muted-foreground">
-                  Tidak setuju? skor tidak berubah.
-                </span>
+                <span className="usulan-hint">Skor tidak berubah.</span>
               </form>
 
               {stateKonfirmasi.ok ? (
-                <p className="text-sm text-emerald-700" role="status">
+                <p className="usulan-pesan is-ok" role="status">
                   {stateKonfirmasi.message}
                 </p>
               ) : null}
               {stateKonfirmasi.error ? (
-                <p className="text-sm text-red-700" role="alert">
+                <p className="usulan-pesan is-galat" role="alert">
                   {stateKonfirmasi.error}
                 </p>
               ) : null}
               {stateTolak.ok ? (
-                <p className="text-sm text-emerald-700" role="status">
+                <p className="usulan-pesan is-ok" role="status">
                   {stateTolak.message}
                 </p>
               ) : null}
               {stateTolak.error ? (
-                <p className="text-sm text-red-700" role="alert">
+                <p className="usulan-pesan is-galat" role="alert">
                   {stateTolak.error}
                 </p>
               ) : null}

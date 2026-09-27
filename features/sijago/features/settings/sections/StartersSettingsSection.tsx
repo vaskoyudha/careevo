@@ -126,7 +126,7 @@ export default function StarterSettingsPage() {
       <SettingsPageHeader
         title={t("Conversation")}
         description={t(
-          "Manage home suggestions and how long Careevo waits for replies.",
+          "Manage home suggestions and how long AI Mastery waits for replies.",
         )}
       />
 

@@ -196,7 +196,7 @@ it('uses the native partner conversation for replay, live response and follow-up
   await waitFor(() => expect(fixture.send).toHaveBeenCalledWith(JSON.stringify({ action: 'attach', include_activity: false, session_key: 'dt-native' })))
   act(() => {
     fixture.frame?.({ data: JSON.stringify({ type: 'resuming' }) })
-    fixture.frame?.({ data: JSON.stringify({ type: 'user_echo', content: 'Careevo question' }) })
+    fixture.frame?.({ data: JSON.stringify({ type: 'user_echo', content: 'AI Mastery question' }) })
     fixture.frame?.({ data: JSON.stringify({ type: 'content', content: 'Native partner answer' }) })
     fixture.frame?.({ data: JSON.stringify({ type: 'done' }) })
   })

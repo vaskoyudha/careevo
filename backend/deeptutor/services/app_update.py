@@ -131,7 +131,7 @@ def _optional_string(value: object) -> str | None:
 def _version_tuple(value: str) -> tuple[int, int, int]:
     match = _CURRENT_VERSION.match(value.strip())
     if match is None:
-        raise ValueError(f"Invalid DeepTutor version: {value}")
+        raise ValueError(f"Invalid AI Personalize version: {value}")
     return tuple(int(part) for part in match.groups())  # type: ignore[return-value]
 
 
@@ -203,7 +203,7 @@ def detect_installation() -> Installation:
             current_version=__version__,
             automatic_update=False,
             command="pip install -U deeptutor",
-            reason="The running DeepTutor distribution could not be identified.",
+            reason="The running AI Personalize distribution could not be identified.",
         )
     if bool((direct_url.get("dir_info") or {}).get("editable")):
         return Installation(
@@ -386,7 +386,7 @@ def _release_from_latest_url(value: str) -> ReleaseInfo:
         raise VersionCheckError("The latest release has an invalid version") from None
     return ReleaseInfo(
         version=version,
-        name=f"DeepTutor {version}",
+        name=f"AI Personalize {version}",
         published_at="",
         url=f"https://github.com{parsed.path}",
         excerpt="",

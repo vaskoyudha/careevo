@@ -9,7 +9,7 @@ test("authorization failures give specific recovery steps without reflecting inp
   );
   assert.match(
     invidiousAccountResultMessage("authorization_login_required")!,
-    /Careevo login/,
+    /AI Mastery login/,
   );
   assert.match(
     invidiousAccountResultMessage("authorization_unavailable")!,

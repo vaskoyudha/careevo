@@ -166,7 +166,7 @@ export async function installSkillFromHub(
 // ── EduHub / hub browsing ───────────────────────────────────────────────
 // Powers the in-app "Import from EduHub" browser. The backend proxies the
 // hub's public catalog (no login, no iframe), so the panel can render hub
-// skills in Careevo's own UI and download them with one click.
+// skills in AI Mastery's own UI and download them with one click.
 
 export interface HubSkillListing {
   slug: string;

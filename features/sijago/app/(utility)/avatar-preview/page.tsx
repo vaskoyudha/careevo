@@ -11,10 +11,10 @@ import {
 } from "@/components/sidebar/SessionAvatar";
 
 const TITLES = [
-  "Careevo 模型配置工作台",
-  "Careevo 侧边栏聊天历史重组",
-  "Thinking-orbs 集成到 Careevo",
-  "Careevo 模型配置集成逻辑",
+  "AI Mastery 模型配置工作台",
+  "AI Mastery 侧边栏聊天历史重组",
+  "Thinking-orbs 集成到 AI Mastery",
+  "AI Mastery 模型配置集成逻辑",
   "deeptutor.info 文档审查",
   "New session",
 ];

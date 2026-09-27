@@ -44,8 +44,8 @@ def _mastery_context() -> UnifiedContext:
 @pytest.mark.parametrize(
     ("language", "tutor_phrase", "chat_phrase"),
     [
-        ("zh", "掌握式导师", "你是 DeepTutor"),
-        ("en", "mastery tutor", "You are DeepTutor"),
+        ("zh", "掌握式导师", "你是 AI Mastery"),
+        ("en", "mastery tutor", "You are AI Mastery"),
     ],
 )
 def test_tutor_identity_replaces_chat_identity(

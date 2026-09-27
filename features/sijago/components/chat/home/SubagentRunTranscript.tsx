@@ -7,7 +7,7 @@ import { getTraceMeta } from "@/features/chat/trace";
 
 /**
  * A connected subagent's native run, rendered close to how its own CLI shows it:
- * each of Careevo's questions heads a round, then the agent's reply streams as
+ * each of AI Mastery's questions heads a round, then the agent's reply streams as
  * "●"-bulleted steps — its messages in a neutral bullet, tool calls in an amber
  * bullet — with command output in a muted block (collapsed when long). Text and
  * reasoning stream token-by-token: deltas sharing a merge id collapse to one row

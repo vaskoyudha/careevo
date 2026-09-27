@@ -152,8 +152,8 @@ const MODEL_CHILDREN: SettingsLeaf[] = [
     href: "/settings#task-models",
     label: { zh: "后台任务模型", en: "Task models", id: "Model tugas" },
     blurb: {
-      zh: "Careevo 自己发起的调用使用的模型。",
-      en: "The model behind the calls Careevo makes on its own.", id: "Model di balik panggilan mandiri yang dilakukan Careevo.",
+      zh: "AI Mastery 自己发起的调用使用的模型。",
+      en: "The model behind the calls AI Mastery makes on its own.", id: "Model di balik panggilan mandiri yang dilakukan AI Mastery.",
     },
     icon: ListChecks,
     tile: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400",

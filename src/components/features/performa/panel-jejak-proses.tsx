@@ -50,7 +50,7 @@ export function PanelJejakProses({
 }) {
   if (!ringkas || ringkas.observasi === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
+      <p className="performa-kosong">
         Belum ada jejak proses untuk course ini. Jejak diambil berkali-kali saat
         ruang kerja dibuka, jadi baru ada setelah peserta sempat mengerjakannya.
       </p>
@@ -60,57 +60,78 @@ export function PanelJejakProses({
   const teratas = ringkas.jejak.slice(0, 12);
 
   return (
-    <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">
-        {ringkas.observasi} pengamatan · {ringkas.jejak.length} berkas.
-        Jejak ini menunjukkan{" "}
-        <strong>kapan berkas berubah</strong>, bukan siapa yang mengetiknya —
-        editor berjalan di kontainer terpisah yang tidak bisa diamati dari sini.
+    <div className="jejak">
+      <p className="performa-kosong">
+        {ringkas.observasi} pengamatan · {ringkas.jejak.length} berkas. Jejak ini
+        menunjukkan <strong>kapan berkas berubah</strong>, bukan siapa yang
+        mengetiknya — editor berjalan di kontainer terpisah yang tidak bisa
+        diamati dari sini.
       </p>
 
       {jedaTerlama !== null ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="performa-kosong">
           Jeda terpanjang antar pengamatan: {formatMenit(jedaTerlama)}. Jeda yang
           panjang setelah satu perubahan tunggal sering berarti peserta berhenti
-          menulis lalu membaca — tapi bisa juga berarti ruang kerjanya tidak dibuka
-          selama itu, jadi ini bukan kesimpulan apa pun.
+          menulis lalu membaca — tapi bisa juga berarti ruang kerjanya tidak
+          dibuka selama itu, jadi ini bukan kesimpulan apa pun.
         </p>
       ) : null}
 
       {ringkas.adaTerpotong ? (
-        <p className="text-sm text-amber-700">
+        <p className="jejak-terpotong">
           Sebagian daftar berkas terpotong pada satu pengamatan. Ada berkas yang
           tidak terekam, jadi perubahannya tidak akan terlihat di sini.
         </p>
       ) : null}
 
       {teratas.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          Tidak ada berkas yang tercatat pada course ini.
-        </p>
+        <p className="performa-kosong">Tidak ada berkas yang tercatat pada course ini.</p>
       ) : (
-        <ul className="list-app">
-          {teratas.map((j) => (
-            <li className="list-app-row" key={j.path}>
-              <div className="min-w-0">
-                <span className="row-title">{j.path}</span>
-                <span className="row-meta">
-                  {j.perubahan}× berubah · {j.ukuranAwal} → {j.ukuranAkhir} byte ·{" "}
-                  {j.kemunculan}× terlihat
-                </span>
-                <span className="row-meta">
-                  Pertama terlihat {j.pertamaPada.slice(0, 16).replace("T", " ")} · terakhir{" "}
-                  {j.terakhirPada.slice(0, 16).replace("T", " ")}
-                  {j.hilang ? " · tidak ada di pengamatan terakhir" : ""}
-                </span>
-              </div>
-            </li>
-          ))}
-        </ul>
+        /*
+         * Tabel, bukan baris daftar. Nilai-nilai ini sebanding antar berkas —
+         * "berapa kali berubah", "berapa byte", "berapa kali terlihat" — dan
+         * deretan angka yang sejajar kolomnya jauh lebih cepat dibandingkan
+         * daripada empat baris kalimat bertumpuk per berkas.
+         */
+        <div className="jejak-tabel-wrap">
+          <table className="jejak-tabel">
+            <thead>
+              <tr>
+                <th>Berkas</th>
+                <th className="jejak-angka">Berubah</th>
+                <th className="jejak-angka">Ukuran awal → akhir</th>
+                <th className="jejak-angka">Terlihat</th>
+                <th>Rentang</th>
+              </tr>
+            </thead>
+            <tbody>
+              {teratas.map((j) => (
+                <tr key={j.path} className={j.hilang ? "is-hilang" : undefined}>
+                  <th scope="row" className="jejak-path">
+                    {j.path}
+                    {j.hilang ? (
+                      <span className="jejak-tag">tidak ada di akhir</span>
+                    ) : null}
+                  </th>
+                  <td className="jejak-angka">{j.perubahan}×</td>
+                  <td className="jejak-angka">
+                    {j.ukuranAwal} → {j.ukuranAkhir}
+                    <small> byte</small>
+                  </td>
+                  <td className="jejak-angka">{j.kemunculan}×</td>
+                  <td className="jejak-waktu">
+                    {j.pertamaPada.slice(11, 16)}–{j.terakhirPada.slice(11, 16)}
+                    <small>{j.terakhirPada.slice(0, 10)}</small>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {ringkas.jejak.length > teratas.length ? (
-        <p className="text-xs text-muted-foreground">
+        <p className="performa-catatan-kecil">
           Menampilkan {teratas.length} dari {ringkas.jejak.length} berkas, diurutkan
           dari yang berubah paling banyak ({courseId}).
         </p>

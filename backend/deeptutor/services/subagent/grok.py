@@ -1,6 +1,6 @@
 """Drive xAI's Grok CLI using its native ``streaming-json`` headless protocol.
 
-The CLI owns authentication and session storage. DeepTutor only retains the
+The CLI owns authentication and session storage. AI Personalize only retains the
 ``end.sessionId`` needed for ``--resume`` in the connection's working directory.
 Text and tool events stream to Activity; private ``thought`` payloads and opaque
 usage signatures are deliberately not forwarded or stored in the trace.
@@ -36,7 +36,7 @@ from deeptutor.services.subagent.types import (
 logger = logging.getLogger(__name__)
 
 _NOT_FOUND_DETAIL = (
-    "Install xAI's Grok CLI on the DeepTutor server, sign in with `grok login`, "
+    "Install xAI's Grok CLI on the AI Personalize server, sign in with `grok login`, "
     "and ensure `grok` is on PATH. Requires native `--output-format streaming-json`."
 )
 

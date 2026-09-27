@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Start the SiJago production (standalone) server against a chosen backend.
+# Start the AI Mastery production (standalone) server against a chosen backend.
 #
 # Why this script exists
 # ----------------------
@@ -34,11 +34,22 @@ if [ ! -f .next/standalone/server.js ]; then
   exit 1
 fi
 
-# public/ and .next/static are not copied into .next/standalone by the build.
-if [ ! -d .next/standalone/public ]; then cp -r public .next/standalone/; fi
-if [ ! -d .next/standalone/.next/static ]; then cp -r .next/static .next/standalone/.next/; fi
+# public/ and .next/static are not copied into .next/standalone by the build, so
+# they have to be synced here — on EVERY start, not just the first one.
+#
+# The `! -d` guard this replaced was a stale-asset trap. After `npm run build`,
+# `server.js` referenced the new hashed chunks while the directory already
+# existed and still held the previous build's files, so the copy was skipped.
+# The server then answered 500 for every chunk the page asked for, the document
+# never hydrated, and the tutor drawer (`/embed/chat`) rendered as a blank white
+# panel — a failure that looks exactly like a theme bug and is nothing of the
+# kind. Always re-syncing costs a directory copy and removes that whole class of
+# "blank iframe after rebuild".
+rm -rf .next/standalone/public .next/standalone/.next/static
+cp -r public .next/standalone/
+cp -r .next/static .next/standalone/.next/
 
-echo "SiJago standalone on :${PORT}  ->  backend ${API_BASE}"
+echo "AI Mastery standalone on :${PORT}  ->  backend ${API_BASE}"
 
 # Kill whatever currently holds the port, by PID. Never pkill -f: that pattern
 # also matches this script and the editor's own command line.

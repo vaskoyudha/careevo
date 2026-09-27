@@ -476,7 +476,7 @@ function formatFileSize(bytes?: number): string {
   return `${unit === 0 ? value : value.toFixed(1)} ${units[unit]}`;
 }
 
-/** "Careevo_Introduction.pdf" → "Careevo Introduction" — the card title
+/** "AI Mastery_Introduction.pdf" → "AI Mastery Introduction" — the card title
  * reads like a document name; the extension already shows in the subtitle. */
 function humanizeFilename(filename: string): string {
   const stem = filename.replace(/\.[A-Za-z0-9]{1,8}$/, "");
@@ -859,7 +859,7 @@ export const AssistantMessage = memo(function AssistantMessage({
   );
 
   // Interleaved segments for the default chat surface: the message is laid
-  // out in the order it was written — what Careevo said it was about to do,
+  // out in the order it was written — what AI Mastery said it was about to do,
   // the work it then did, what it found, and so on down to the closing answer.
   // Only walked when this message will actually render through the default
   // branch (the research / quiz / animator / visualize branches have their own
@@ -995,8 +995,8 @@ export const AssistantMessage = memo(function AssistantMessage({
   return (
     <>
       {/* Activity block pinned to the TOP: the status header
-          ("Careevo Exploring… · 8s" → "Careevo responded. · 10s") with
-          the exploring trace nested beneath it — expanded while Careevo is
+          ("AI Mastery Exploring… · 8s" → "AI Mastery responded. · 10s") with
+          the exploring trace nested beneath it — expanded while AI Mastery is
           still working, collapsed once it settles into the final answer. */}
       <AssistantActivity
         events={events}

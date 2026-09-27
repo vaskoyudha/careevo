@@ -655,7 +655,7 @@ export default function ChatWorkspace({
     prefillInputRef.current?.(text);
   }, []);
 
-  // A message handed over by another page (Settings' "set up with Careevo"
+  // A message handed over by another page (Settings' "set up with AI Mastery"
   // button). Prefilled rather than sent: the user reads what will be asked and
   // presses enter themselves. Consumed once, so a refresh does not retype it.
   //

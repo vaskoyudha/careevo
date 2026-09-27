@@ -7,7 +7,7 @@ import pw from "playwright";
 const { chromium } = pw;
 
 async function runTests() {
-  console.log("🎨 Testing SiJago Beautiful Skeleton Loading Animations...\n");
+  console.log("🎨 Testing AI Mastery Beautiful Skeleton Loading Animations...\n");
   
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
@@ -43,7 +43,7 @@ async function runTests() {
       img.src && img.src.includes("careevo")
     ).length;
   });
-  console.log(`   ✓ Found ${logoCount} Careevo logo images`);
+  console.log(`   ✓ Found ${logoCount} AI Mastery logo images`);
   
   // Take screenshot of current view
   await page.screenshot({ 

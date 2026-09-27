@@ -23,7 +23,7 @@ type Palette = {
 };
 
 const PALETTES: Record<Theme, Palette> = {
-  // theme id "light" applies no class → the :root ocean-light palette: Careevo's
+  // theme id "light" applies no class → the :root ocean-light palette: AI Mastery's
   // #ecf3f7 tinted canvas under #0a2a3a navy ink, blue primary
   light: {
     bg: "#ecf3f7",
@@ -62,7 +62,7 @@ const PALETTES: Record<Theme, Palette> = {
   },
 };
 
-// Renders a miniature Careevo UI mockup in the given theme's palette —
+// Renders a miniature AI Mastery UI mockup in the given theme's palette —
 // a left sidebar with one highlighted nav row, a content area with two
 // text lines and an accent button. Pure SVG so it stays crisp at any
 // device pixel ratio without leaking real interactive controls.

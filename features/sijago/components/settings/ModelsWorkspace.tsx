@@ -699,7 +699,7 @@ function ModelEditor({
                 {t(
                   service === "search"
                     ? "No search adapter is on record for this provider, and search has no OpenAI-compatible fallback. Run the test below — it will say so rather than search with the wrong engine."
-                    : "No adapter for this model type is on record for this provider. Careevo calls it as an OpenAI-compatible endpoint derived from the provider URL; run the model test below to confirm it answers.",
+                    : "No adapter for this model type is on record for this provider. AI Mastery calls it as an OpenAI-compatible endpoint derived from the provider URL; run the model test below to confirm it answers.",
                 )}
               </p>
             )}

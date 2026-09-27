@@ -67,16 +67,19 @@ export function saveThemeToStorage(theme: Theme): boolean {
 }
 
 /**
- * Get system preference for theme.
- * Light systems get "snow" (the pure-white Default theme); dark systems
- * get "dark". Must stay in sync with the inline ThemeScript fallback.
+ * Theme to open with when this browser has stored no preference.
+ *
+ * Always "snow" (the pure-white Default) — never the OS. AI Mastery is framed inside
+ * Careevo, whose chrome is always light, so following `prefers-color-scheme`
+ * would open a warm-black frame under a white navbar. The inline `ThemeScript`
+ * already ignores the OS for exactly this reason; this must agree with it,
+ * because it seeds the React state that later calls `applyThemeToDocument`.
+ * When the two disagreed, a dark-mode machine could flip the canvas to Dark.
+ *
+ * Dark and Glass stay available as explicit choices in Settings -> Appearance.
  */
 export function getSystemTheme(): Theme {
-  if (typeof window === "undefined") return "snow";
-
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "snow";
+  return "snow";
 }
 
 /**
@@ -99,8 +102,9 @@ export function applyThemeToDocument(theme: Theme): void {
 }
 
 /**
- * Initialize theme on app startup
- * Priority: localStorage > system preference (snow on light systems, dark on dark)
+ * Initialize theme on app startup.
+ * Priority: stored preference > the light Default. Never the OS — see
+ * `getSystemTheme`.
  */
 export function initializeTheme(): Theme {
   // Check localStorage first

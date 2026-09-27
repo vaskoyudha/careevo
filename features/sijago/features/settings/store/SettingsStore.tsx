@@ -532,7 +532,7 @@ export type SettingsContextValue = {
 
   // Connections + task models
   connectionTargets: ConnectionTarget[];
-  /** The calls Careevo makes on its own, in the order the backend lists them. */
+  /** The calls AI Mastery makes on its own, in the order the backend lists them. */
   taskKinds: TaskKindInfo[];
   connectionTarget: (provider: string) => ConnectionTarget | null;
   addConnection: (input: {
