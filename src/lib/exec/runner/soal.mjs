@@ -385,6 +385,18 @@ export function petakanExitCode({ exitCode, stdout, stderr }) {
   ) {
     return "galat_runner";
   }
+  // Tidak ada kode keluar sama sekali. `null` bukan kode yang dipilih program,
+  // melainkan "podman tidak sempat menghasilkan kode": binar podman hilang,
+  // PATH salah, atau prosesnya dibunuh dari luar sebelum memberi angka apa pun.
+  // Peristiwanya terjadi **sebelum** program peserta jalan, jadi ia bukan
+  // `sukses` — jatuh ke kasus terakhir dan dilaporkan "selesai tanpa galat"
+  // membuat peserta dengan runner yang salah konfigurasi diberi tahu programnya
+  // berjalan. Dan bukan `batas_dilampaui`, karena tidak ada batas yang meletus.
+  //
+  // Fangsi ini milik fungsi, bukan pemanggil. `server.mjs` punya penjaga
+  // sendiri untuk bentuk `null` yang ia hasilkan, tapi penjaga di satu pemanggil
+  // bukan sifat dari fungsi ini: pemanggil berikutnya tidak akan memilikinya.
+  if (exitCode === null) return "galat_runner";
   // Sisanya adalah kode yang memang bisa dipilih program di dalam kontainer:
   // program berjalan, selesai, dan mengembalikan kodenya sendiri, jadi
   // `sukses`. `return 3` adalah eksekusi yang berhasil, dan stdout-nya
