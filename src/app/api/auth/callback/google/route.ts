@@ -1,7 +1,7 @@
 import { cookies, headers } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { ambilProfilGoogle, tukarCodeGoogle } from "@/lib/auth/google";
+import { ambilProfilGoogle, originPublik, tukarCodeGoogle } from "@/lib/auth/google";
 import { masukAtauDaftarGoogle, terbitkanSesi } from "@/lib/auth/auth-service";
 import { pasangCookieSesi } from "@/lib/auth/session";
 import { landingFor } from "@/lib/auth/landing";
@@ -33,12 +33,16 @@ const COOKIE_REDIRECT_URI = "ls_oauth_redirect_uri";
  * detail internal yang bocor lewat URL.
  */
 export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const params = url.searchParams;
+  const params = new URL(request.url).searchParams;
   const jar = await cookies();
 
+  // Redirect dibangun dari `Host`/`X-Forwarded-Proto`, bukan `request.url`:
+  // di belakang reverse proxy `request.url` menunjuk ke alamat internal server
+  // (`http://localhost:3000`), sehingga setiap redirect — sukses maupun gagal —
+  // akan mengirim pengguna ke localhost komputer mereka sendiri, bukan ke situs.
+  const asal = originPublik(request);
   const kembali = "/masuk";
-  const gagal = (kode: string) => NextResponse.redirect(new URL(`${kembali}?error=${kode}`, request.url));
+  const gagal = (kode: string) => NextResponse.redirect(new URL(`${kembali}?error=${kode}`, asal));
 
   // 1. Pengguna membatalkan atau Google menolak.
   if (params.get("error")) {
@@ -119,6 +123,6 @@ export async function GET(request: Request) {
   await pasangCookieSesi(token);
 
   return NextResponse.redirect(
-    new URL(await landingFor(hasil.principal.role, hasil.principal.userId, hasil.principal.email), request.url),
+    new URL(await landingFor(hasil.principal.role, hasil.principal.userId, hasil.principal.email), asal),
   );
 }

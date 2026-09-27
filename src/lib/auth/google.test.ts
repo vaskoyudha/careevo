@@ -3,6 +3,7 @@ import {
   ambilKonfigurasiGoogle,
   buatUrlOauthGoogle,
   GALAT_OAUTH,
+  originPublik,
   PATH_CALLBACK_GOOGLE,
   terjemahkanGalatOAuth,
   tentukanRedirectUri,
@@ -126,7 +127,7 @@ describe("tentukanRedirectUri", () => {
   it("mempercayai host sebelum x-forwarded-host", () => {
     // `x-forwarded-host` bisa disuplai klien, jadi ia tidak boleh mengalahkan
     // header yang benar. Mengurutkan terbalik membuat redirect_uri bisa
-    // diarahkan ke host attackerschoice — dan kode ditukar untuk URI itu.
+    // diarahkan ke host pilihan penyerang — dan kode ditukar untuk URI itu.
     denganEnv(KREDENSIAL, () => {
       const req = request("https://app.test/api/auth/google", {
         host: "careevo.my.id",
@@ -147,6 +148,68 @@ describe("tentukanRedirectUri", () => {
   });
 });
 
+/**
+ * Regresi: redirect setelah login mendarat di `localhost` milik komputer
+ * pengguna, bukan di situs.
+ *
+ * `request.url` disusun Next dari alamat server yang menerima koneksi. Di VPS
+ * di belakang nginx itu `http://localhost:3000`, bukan host yang diketik
+ * pengguna — sehingga `NextResponse.redirect(new URL(path, request.url))`
+ * mengirim orang ke localhost mereka. Redirect gagal (`invalid_state`,
+ * `oauth_not_configured`) terpengaruh sama, jadi gejalanya bukan "login gagal"
+ * melainkan "halaman melompat ke tempat yang aneh".
+ */
+describe("originPublik di belakang reverse proxy", () => {
+  const request = (url: string, headers: Record<string, string> = {}) =>
+    new Request(url, { headers });
+
+  it("mengabaikan request.url dan memakai Host + X-Forwarded-Proto", () => {
+    // `request.url` sengaja berisi alamat internal server, seperti yang terjadi
+    // setelah nginx meneruskan request ke 127.0.0.1:3000.
+    const req = request("http://localhost:3000/api/auth/callback/google", {
+      host: "careevo.my.id",
+      "x-forwarded-proto": "https",
+    });
+    expect(originPublik(req)).toBe("https://careevo.my.id");
+  });
+
+  it("tidak pernah mengembalikan localhost untuk host publik", () => {
+    const req = request("http://localhost:3000/api/auth/callback/google", {
+      host: "careevo.my.id",
+    });
+    expect(originPublik(req)).not.toContain("localhost");
+  });
+
+  it("memakai x-forwarded-proto hanya untuk skema, bukan untuk host", () => {
+    // Skema tidak memilih tujuan, jadi boleh dipercaya; host tidak, karena
+    // klien bisa menyuntik header itu sendiri.
+    const req = request("http://localhost:3000/api/auth/callback/google", {
+      host: "careevo.my.id",
+      "x-forwarded-host": "evil.test",
+      "x-forwarded-proto": "https",
+    });
+    expect(originPublik(req)).toBe("https://careevo.my.id");
+  });
+
+  it("jatuh ke host request.url saat tidak ada header sama sekali", () => {
+    // Kasus tanpa proxy: tidak ada yang perlu dipercaya, `request.url` sudah
+    // host yang benar.
+    expect(originPublik(request("https://careevo.my.id/api/auth/callback/google"))).toBe(
+      "https://careevo.my.id",
+    );
+  });
+
+  it("tentukanRedirectUri memakai origin yang sama, bukan request.url", () => {
+    denganEnv(KREDENSIAL, () => {
+      const req = request("http://localhost:3000/api/auth/google", {
+        host: "careevo.my.id",
+        "x-forwarded-proto": "https",
+      });
+      expect(tentukanRedirectUri(req)).toBe(`https://careevo.my.id${PATH_CALLBACK_GOOGLE}`);
+    });
+  });
+});
+
 describe("terjemahkanGalatOAuth", () => {
   it("mengembalikan undefined tanpa kode, sehingga halaman tidak menampilkan galat kosong", () => {
     expect(terjemahkanGalatOAuth(undefined)).toBeUndefined();
@@ -156,7 +219,7 @@ describe("terjemahkanGalatOAuth", () => {
 
   it("memetakan setiap kode yang emit oleh handler ke pesan berbahasa manusia", () => {
     // Kode yang ditulis di `callback/google/route.ts` harus punya terjemahan;
-    // tanpa ini pengguna melihat pesan generik tanpa知道 apa yang terjadi.
+    // tanpa ini pengguna melihat pesan generik tanpa tahu apa yang terjadi.
     const dipakaiHandler = [
       "oauth_cancelled",
       "invalid_state",

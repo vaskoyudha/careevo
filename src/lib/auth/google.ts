@@ -135,20 +135,32 @@ export async function ambilProfilGoogle(accessToken: string): Promise<GoogleProf
 }
 
 /**
+ * Origin publik untuk membangun redirect — `host` + skema dari header.
+ *
+ * `request.url` **tidak boleh** dipakai untuk redirect di belakang reverse
+ * proxy. Next menyusun `request.url` dari alamat server yang menerima
+ * koneksi, jadi di VPS di belakang nginx hasilnya `http://localhost:3000`,
+ * bukan host yang diketik pengguna. Gejalanya redirect setelah login mendarat
+ * di localhost milik komputer pengguna, bukan di situs.
+ *
+ * `Host` menang atas `x-forwarded-host` — alasan yang sama dengan
+ * `tentukanRedirectUri`: `X-Forwarded-*` bisa disuplai klien, sedangkan `Host`
+ * adalah host yang benar-benar dilayani. `x-forwarded-proto` tetap dipercaya
+ * karena skema tidak memilih tujuan, hanya menentukan `http` atau `https`.
+ */
+export function originPublik(request: Request): string {
+  const url = new URL(request.url);
+  const host = request.headers.get("host") || request.headers.get("x-forwarded-host") || url.host;
+  const proto = request.headers.get("x-forwarded-proto") || url.protocol.replace(":", "") || "http";
+  return `${proto}://${host}`;
+}
+
+/**
  * Tentukan callback redirect URI yang tepat.
  *
  * Prioritas:
  * 1. Nilai eksplisit dari `GOOGLE_REDIRECT_URI` bila diatur.
  * 2. Origin request (`host` + skema) + `PATH_CALLBACK_GOOGLE`.
- *
- * **`host` menang atas `x-forwarded-host`, bukan sebaliknya.** Header
- * `X-Forwarded-*` bisa disuplai klien apa adanya, jadi mempercayainya lebih
- * dulu membiarkan penyerang mengarahkan `redirect_uri` ke host-nya sendiri —
- * dan kode otorisasi lalu ditukar untuk URI itu. `Host` adalah host yang
- * benar-benar dilayani, jadi itu yang dipakai.
- *
- * `x-forwarded-proto` tetap dipercaya karena skema tidak memilih tujuan, hanya
- * menentukan apakah URI menghasilkan `http` atau `https`.
  *
  * Kalau reverse proxy menulis ulang `Host` ke host internal, tetapkan
  * `GOOGLE_REDIRECT_URI` eksplisit — jebakan yang sama seperti di `.env.example`,
@@ -158,12 +170,7 @@ export function tentukanRedirectUri(request: Request): string {
   const envRedirect = process.env.GOOGLE_REDIRECT_URI?.trim();
   if (envRedirect) return envRedirect;
 
-  const url = new URL(request.url);
-  const host = request.headers.get("host") || request.headers.get("x-forwarded-host") || url.host;
-  const proto =
-    request.headers.get("x-forwarded-proto") || url.protocol.replace(":", "") || "http";
-
-  return `${proto}://${host}${PATH_CALLBACK_GOOGLE}`;
+  return `${originPublik(request)}${PATH_CALLBACK_GOOGLE}`;
 }
 
 /**

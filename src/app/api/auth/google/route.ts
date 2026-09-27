@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { ambilKonfigurasiGoogle, buatUrlOauthGoogle, tentukanRedirectUri } from "@/lib/auth/google";
+import { ambilKonfigurasiGoogle, buatUrlOauthGoogle, originPublik, tentukanRedirectUri } from "@/lib/auth/google";
 import { cekBatasiAksi } from "@/lib/rate-limit/next";
 
 export const dynamic = "force-dynamic";
@@ -34,19 +34,25 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const kembali = url.searchParams.get("mode") === "daftar" ? "/daftar" : "/masuk";
 
+  // Redirect dibangun dari `Host`/`X-Forwarded-Proto`, bukan `request.url`:
+  // di belakang reverse proxy `request.url` menunjuk ke alamat internal server
+  // (`http://localhost:3000`), sehingga redirect kemana pun akan mengirim
+  // pengguna ke localhost komputer mereka sendiri, bukan ke situs.
+  const asal = originPublik(request);
+
   if (!aktif) {
-    return NextResponse.redirect(new URL(`${kembali}?error=oauth_not_configured`, request.url));
+    return NextResponse.redirect(new URL(`${kembali}?error=oauth_not_configured`, asal));
   }
 
   // Sudah punya sesi? Login kedua hanya memusingkan orang.
   const jar = await cookies();
   if (jar.get("ls_session")?.value) {
-    return NextResponse.redirect(new URL(kembali, request.url));
+    return NextResponse.redirect(new URL(kembali, asal));
   }
 
   const batas = await cekBatasiAksi("login");
   if (batas) {
-    return NextResponse.redirect(new URL(`${kembali}?error=oauth_exchange_failed`, request.url));
+    return NextResponse.redirect(new URL(`${kembali}?error=oauth_exchange_failed`, asal));
   }
 
   const state = randomBytes(32).toString("hex");
