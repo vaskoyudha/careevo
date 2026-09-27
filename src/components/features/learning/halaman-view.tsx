@@ -5,6 +5,7 @@ import { Fragment, useEffect, useRef, useState, type ReactElement, type ReactNod
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
+  blokTampil,
   daftarSection,
   petaSection,
   rangkumBacklink,
@@ -86,7 +87,13 @@ export function HalamanView({
   const bagian = daftarSection(halaman.blok);
   const peta = petaSection(halaman.blok);
   const backlink = rangkumBacklink(halaman.blok);
-  const adaIsi = halaman.blok.length > 0;
+  // Yang dirender bukan `halaman.blok` mentah: blok yang diklik tapi tidak
+  // diisi harus hilang, atau ia jadi artefak yang terlihat — untuk `kode` itu
+  // panel gelap 78px dengan chip `C++` dan tombol `Salin` yang menyalin string
+  // kosong. Jangkar dan backlink tetap dihitung dari daftar penuh karena
+  // keduanya sudah melewati blok kosong sendiri.
+  const tampil = blokTampil(halaman.blok);
+  const adaIsi = tampil.length > 0;
 
   return (
     <div className={cn("space-y-5", className)}>
@@ -120,7 +127,7 @@ export function HalamanView({
 
         {adaIsi ? (
           <div className="space-y-4">
-            {halaman.blok.map((blok) => (
+            {tampil.map((blok) => (
               <BlokView
                 key={blok.id}
                 blok={blok}

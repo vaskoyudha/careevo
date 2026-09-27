@@ -70,6 +70,32 @@ export function blokBerisi(blok: BlokHalaman): boolean {
   }
 }
 
+/**
+ * Blok-blok satu halaman yang benar-benar dirender.
+ *
+ * Ini tempat `blokBerisi` dipakai. Fungsinya sendiri sudah benar sejak
+ * `5d9ca2e`, tapi tanpa pemanggil: renderer memetakan seluruh
+ * `halaman.blok` apa adanya, sehingga blok yang diklik tapi tidak diisi jadi
+ * artefak yang terlihat. Untuk `paragraf` atau `kutipan` itu hampir tak terlihat
+ * (`<p></p>`), tapi `kode` tidak: panel gelap 78px dengan chip `C++` dan tombol
+ * `Salin` yang menyalin string kosong — 29 di antaranya sudah tersimpan di satu
+ * halaman uji, dan ahlinya tidak punya cara tahu blok mana yang kosong.
+ *
+ * **Kenapa di jalur baca, bukan di jalur tulis.** Kerusakannya sudah ada di
+ * data: filter saat simpan tidak pernah menyentuh halaman yang sudah salah
+ * simpan, sedangkan filter render menutupnya seketika. Menolak saat simpan juga
+ * lebih buruk untuk yang sedang mengetik — blok kode yang belum diisi adalah
+ * keadaan yang wajar di tengah menyunting, dan pesannya tidak punya field yang
+ * bisa ditunjuk. `kode: ""` dengan `outputHarapan` terisi ikut hilang, dan itu
+ * memang benar: keluaran yang diharapkan tanpa kode tidak bisa ditafsirkan.
+ *
+ * Pratinjau admin lewat renderer yang sama, jadi apa yang dilihat ahlinya
+ * persis apa yang dilihat peserta.
+ */
+export function blokTampil(blok: BlokHalaman[]): BlokHalaman[] {
+  return blok.filter(blokBerisi);
+}
+
 /** Ringkasan satu baris untuk daftar blok yang terlipat di editor. */
 export function ringkasBlok(blok: BlokHalaman, maks = 80): string {
   let teks = "";

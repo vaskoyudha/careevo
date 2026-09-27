@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import {
   daftarSection,
   gabungSegmenSejenis,
@@ -9,6 +11,7 @@ import {
   slugBagian,
   tautanSah,
   blokBerisi,
+  blokTampil,
   blokKosong,
 } from "./blok";
 import type { BlokHalaman } from "@/types/course";
@@ -171,6 +174,72 @@ describe("blokBerisi", () => {
   it("blok kode kosong tidak berisi, yang berkode isi berisi", () => {
     expect(blokBerisi(kode("b1", "   "))).toBe(false);
     expect(blokBerisi(kode("b2", "int main(){}"))).toBe(true);
+  });
+});
+
+describe("blokTampil", () => {
+  it("membuang blok kode kosong dari daftar yang dirender", () => {
+    // Ini predikat yang benar-benar jalan: `halaman-view.tsx` memetakan
+    // `blokTampil(halaman.blok)`, jadi daftar kosong berarti tidak ada satu
+    // pun panel kode yang sampai ke peserta.
+    const halaman = [kode("b1", "int main(){}"), kode("b2", ""), kode("b3", "   ")];
+    expect(blokTampil(halaman).map((b) => b.id)).toEqual(["b1"]);
+  });
+
+  it("membuang keluaran harapan yang tidak punya kode", () => {
+    // `outputHarapan` tanpa `kode` tidak bisa ditafsirkan: tidak ada program
+    // yang menghasilkan apa pun. Bloknya hilang seluruhnya, bukan jadi panel
+    // kosong dengan kartu keluaran.
+    const halaman = [{ ...kode("b1", ""), outputHarapan: "Halo, Budi!" }];
+    expect(blokTampil(halaman)).toEqual([]);
+  });
+
+  it("mempertahankan urutan blok yang lolos", () => {
+    const halaman = [
+      paragraf("p1", [{ teks: "Satu." }]),
+      kode("b1", ""),
+      heading("h1", "Dua"),
+    ];
+    expect(blokTampil(halaman).map((b) => b.id)).toEqual(["p1", "h1"]);
+  });
+
+  it("menghasilkan daftar kosong untuk halaman yang seluruh bloknya kosong", () => {
+    // Renderer memakai ini juga untuk menentukan "Halaman ini belum diisi",
+    // jadi kasus ini bukan detail: halaman dengan 30 blok kode kosong harus
+    // terbaca sebagai kosong, bukan sebagai artikel dengan 30 panel.
+    const halaman = Array.from({ length: 30 }, (_, i) => kode(`b${i}`, ""));
+    expect(blokTampil(halaman)).toEqual([]);
+  });
+});
+
+describe("blokTampil dipakai renderer", () => {
+  const sumber = readFileSync(
+    fileURLToPath(
+      new URL("../../components/features/learning/halaman-view.tsx", import.meta.url),
+    ),
+    "utf8",
+  );
+
+  it("halaman-view memetakan hasil blokTampil, bukan halaman.blok mentah", () => {
+    // Alasannya dua lapis, dan keduanya harus benar.
+    //
+    // Lapis pertama: `blokTampil` benar. Test di atas membuktikannya, dan test
+    // itu tidak bisa dilewati hanya dengan menimpa `blokTampil` — tidak ada
+    // yang memanggilnya selain renderer ini.
+    //
+    // Lapis kedua: renderer benar-benar memanggilnya. `env: node`, tanpa jsdom,
+    // jadi merender komponen tidak mungkin diuji di sini; dan `npm run check`
+    // (typecheck + lint + test) buta terhadap pemanggilan yang hilang. Tanpa
+    // pemeriksaan sumber di sini, seluruh perbaikan ini bisa dicabut dengan
+    // satu baris dan semua test tetap hijau — persis cacat `blokBerisi` yang
+    // tanpa pemanggil sejak `5d9ca2e`.
+    expect(sumber).toContain("blokTampil(halaman.blok)");
+    expect(sumber).toMatch(/\{tampil\.map\(/);
+    // Tidak boleh ada lagi pemetaan langsung dari daftar mentah.
+    expect(sumber).not.toMatch(/\{halaman\.blok\.map\(/);
+    // `adaIsi` harus ikut daftar yang sama, kalau tidak halaman yang seluruh
+    // bloknya kosong akan tampil sebagai artikel kosong.
+    expect(sumber).toContain("const adaIsi = tampil.length > 0;");
   });
 });
 

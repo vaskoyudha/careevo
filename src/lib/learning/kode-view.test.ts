@@ -85,10 +85,114 @@ describe("KodeView sebagai berkas sumber", () => {
     expect(sumber).toContain("aria-label");
   });
 
+  it("membuat area baca bisa diakses keyboard, dan hanya itu", () => {
+    // `EditorView.editable.of(false)` menulis `contenteditable="false"` pada
+    // `.cm-content` tetapi tidak pernah menulis `tabindex`; satu-satunya
+    // `tabIndex` yang ia pasang adalah `scrollDOM.tabIndex = -1`. Hasilnya
+    // `div[contenteditable=false]` tanpa `tabindex`: keluar dari urutan tab DAN
+    // menolak fokus terprogram. Blok kode yang lebih tinggi dari kotaknya —
+    // 5862px isi dalam kotak 432px — jadi hanya bisa digulir dengan tetikus.
+    // WCAG 2.1.1.
+    //
+    // Sifatnya diuji dari sumber karena `env: node` tanpa jsdom: tidak ada DOM
+    // di suite ini, dan `typecheck`/lint/build semuanya buta terhadap isi
+    // `contentAttributes`. Pola yang sama dipakai test "wadah kode tidak ikut
+    // bergulir" di berkas ini.
+    expect(sumber).toMatch(/editable \? \{\} : \{ tabindex: "0" \}/);
+    // Dan `contentAttributes` harus berada di dalam `sifat`, bukan facet terpisah
+    // di luar compartment — kalau tidak, `tabindex` dipasang sekali saat mount
+    // dan tidak ikut berubah bersama `editable`.
+    const sifat = sumber.match(/function sifat\([\s\S]*?\n\}/);
+    expect(sifat).not.toBeNull();
+    expect(sifat![0]).toContain("contentAttributes");
+  });
+
+  it("tidak membuka mode baca supaya bisa fokus", () => {
+    // Kontra dari test di atas. Menambah `tabindex` bukan membuat blok bisa
+    // diedit. `editable` dan `readOnly` tetap menentukan perubahan dokumen;
+    // kalau salah satu dilonggarkan demi membuat fokus bekerja, peserta bisa
+    // mengetik ke blok baca.
+    const sifat = sumber.match(/function sifat\([\s\S]*?\n\}/);
+    expect(sifat![0]).toContain("EditorState.readOnly.of(!editable)");
+    expect(sifat![0]).toContain("EditorView.editable.of(editable)");
+    // `editable` tidak boleh di-default-kan ke true di level modul; default
+    // komponennya `false` dan itu yang dipakai jalur baca.
+    expect(sumber).toMatch(/editable = false/);
+  });
+
+  it("memberi cincin fokus yang terlihat di permukaan gelap", () => {
+    // Tanpa ini, memperbaiki "tidak terjangkau" hanya menjadi "terjangkau tapi
+    // tak terlihat": `&.cm-focused { outline: "none" }` mematikan cincin bawaan
+    // CodeMirror, dan baseTheme CodeMirror menulis `outline: none` pada
+    // `.cm-content`, jadi tidak ada cincin apa pun yang tersisa. WCAG 2.4.7.
+    //
+    // Cincinnya `box-shadow` inset pada wadahnya, bukan `outline` pada
+    // `.cm-content`: outline di dalam kotak menutupi karakter pertama tiap
+    // baris, dan outline pada elemen di dalam `overflow: auto` terpotong tepi
+    // scroller. Warna `#7dd3fc` kontrasnya 5.34:1 terhadap `#06202f`.
+    const cincin = sumber.match(/"&:has\(\.cm-content\[tabindex\]\):focus-within": \{[\s\S]*?\}/);
+    expect(cincin).not.toBeNull();
+    expect(cincin![0]).toContain("boxShadow: \"inset 0 0 0 2px #7dd3fc\"");
+    // Selektornya harus memuat `tabindex`, supaya atribut yang sama dengan
+    // `contentAttributes` yang menjadi satu-satunya penanda mode baca.
+    expect(cincin![0]).toContain(".cm-content[tabindex]");
+  });
+
   it("tidak memakai pelengkapan otomatis", () => {
     // Autocomplete adalah non-tujuan spec. Memakainya menambah bobot bundel
     // tanpa diminta, jadi absennya harus terkunci test.
     expect(sumber).not.toContain("@codemirror/autocomplete");
     expect(sumber).not.toContain("autocompletion");
+  });
+});
+
+describe("BlokEditor memberi identitas lokal per blok", () => {
+  const editor = readFileSync(
+    fileURLToPath(
+      new URL("../../components/features/admin/courses/blok-editor.tsx", import.meta.url),
+    ),
+    "utf8",
+  );
+
+  it("tidak lagi meng-key daftar blok dengan blok.id", () => {
+    // Blok baru lahir dengan `id: ""` (`blokKosong(tipe, id = "")`), jadi
+    // semua blok yang belum disimpan berbagi id kosong: `key` React kembar
+    // (React membuang lalu membangun ulang subtree, jadi `EditorView` blok ikut
+    // hilang bersama undo history-nya), pasangan `htmlFor`/`id` blok kode
+    // semuanya menjadi `-stdin`/`-harapan`, dan `aria-label` bertabrakan.
+    expect(editor).not.toContain("key={item.id}");
+    expect(editor).toContain("key={kunci.dari(index)}");
+  });
+
+  it("tidak memakai blok.id untuk id DOM mana pun di editor", () => {
+    // Satu mekanisme, tiga gejala. Kalau hanya `key` yang diperbaiki, dua
+    // pasangan `htmlFor`/`id` blok kode tetap menunjuk textarea blok pertama
+    // — dan itu harus terlihat di diff ini, bukan di review berikutnya.
+    const sisa = editor.match(/`\$\{blok\.id\}/g) ?? [];
+    // Tidak boleh ada satu pun id DOM yang masih diturunkan dari `blok.id`.
+    // Sisa yang boleh ada hanya sebutan di komentar yang menjelaskan alasannya.
+    expect(sisa).toEqual([]);
+    expect(editor).toContain("htmlFor={`${identitas}-stdin`}");
+    expect(editor).toContain("id={`${identitas}-harapan`}");
+    expect(editor).toContain("label={`Kode contoh ${identitas}`}");
+  });
+
+  it("menyamakan kunci saat blok ditambah, dihapus, dan ditukar", () => {
+    // Kunci harus tetap sejajar posisional dengan `blok`; kalau tidak, satu
+    // blok bisa memakai identitas blok tetangganya. `perbarui` memang tidak
+    // menyentuh daftar karena mengganti isi tidak mengubah identitas.
+    expect(editor).toContain("kunci.tambah()");
+    expect(editor).toContain("kunci.hapus(index)");
+    expect(editor).toContain("kunci.tukar(index, tujuan)");
+  });
+
+  it("tidak menaruh identitas lokal ke dalam data yang disimpan", () => {
+    // Identitas hanya hidup di state editor. Field baru di `BlokHalaman` akan
+    // ikut ke `blokListSchema`, ke JSON hidden input, dan ke setiap renderer —
+    // untuk sesuatu yang tidak dibaca siapa pun di luar editor. Blok yang
+    // diserialisasi harus persis blok yang diedit, tanpa satu field tambahan.
+    expect(editor).not.toContain("kunciAwal");
+    const tape = editor.match(/JSON\.stringify\(/g) ?? [];
+    expect(tape).toEqual([]);
   });
 });

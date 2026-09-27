@@ -50,6 +50,23 @@ export interface Course {
  * hanya memetakan struktur ke elemen React: tidak ada HTML mentah yang perlu
  * disanitasi, sehingga lubang XSS tersimpan tetap tertutup. Repo ini tidak
  * punya sanitizer — lihat alasan yang sama di `materi-view.tsx`.
+ *
+ * **Union ini tidak perlu turunan dari daftar nilai di mana pun.** Dulu ada
+ * `TIPE_BLOK` di `@/lib/validation/blok` sebagai salinan dari daftar ini, dan
+ * salinan itu tidak dibaca siapa pun kecuali test-nya sendiri. Yang mengunci
+ * kedua sisi sebenarnya adalah `tsc`:
+ *
+ * - Sisi zod adalah `z.discriminatedUnion("tipe", …)` di `validation/blok.ts`.
+ *   Keduanya bertemu di `src/actions/halaman.ts:97` (`createHalaman` meminta
+ *   `BlokInput`), jadi memperlebar salah satunya gagal build di sana, bukan
+ *   gagal diam-diam.
+ * - Kelengkapan `switch` di `BlokView` (`halaman-view.tsx`) dan `IsiBlok`
+ *   (`blok-editor.tsx`) dijaga tipe balik `ReactElement` mereka, jadi tipe baru
+ *   tanpa `case` adalah TS2678.
+ *
+ * Karena itu menambah satu tipe berarti menyunting kedua sisi, dan
+ * `npm run typecheck` yang menjadi gerbangnya — bukan test yang mengulang
+ * literal yang sama.
  */
 export type TipeBlok =
   | "paragraf"
