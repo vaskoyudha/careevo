@@ -3,8 +3,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { MoreVertical } from "lucide-react";
 import { Search } from "./icons";
+import { MobileNavDrawer, type MobileNavItem } from "./mobile-nav-drawer";
 import { ExploreMenu } from "./explore-menu";
 import { AccountMenu, DashboardButton, learnerNavItems } from "./chrome-parts";
 import type { SessionPayload } from "@/lib/auth/types";
@@ -19,6 +21,13 @@ export function LearnerChrome({
 }) {
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileMenuTriggerRef = useRef<HTMLButtonElement>(null);
+  const mobileItems: MobileNavItem[] = learnerNavItems.map(({ href, label, icon }) => ({
+    href,
+    label,
+    icon,
+  }));
 
   useEffect(() => {
     const onScroll = () => {
@@ -38,6 +47,17 @@ export function LearnerChrome({
         Lewati ke konten utama
       </a>
       <div className={`chrome relative ${scrolled ? "is-scrolled" : "is-top"}`}>
+        <button
+          ref={mobileMenuTriggerRef}
+          type="button"
+          className="mobile-nav-trigger"
+          aria-label="Buka menu navigasi"
+          aria-expanded={mobileMenuOpen}
+          aria-controls="learner-mobile-navigation"
+          onClick={() => setMobileMenuOpen((value) => !value)}
+        >
+          <MoreVertical size={20} strokeWidth={2} aria-hidden="true" />
+        </button>
         <Link className="chrome-brand" href="/" aria-label="Careevo">
           <Image
             src="/careevo-logo.png"
@@ -99,6 +119,15 @@ export function LearnerChrome({
           <AccountMenu session={session} />
         </div>
       </div>
+      <MobileNavDrawer
+        id="learner-mobile-navigation"
+        open={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+        triggerRef={mobileMenuTriggerRef}
+        items={mobileItems}
+        session={session}
+        title="Navigasi belajar"
+      />
     </>
   );
 }
