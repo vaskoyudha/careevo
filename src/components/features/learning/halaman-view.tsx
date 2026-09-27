@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -213,6 +213,15 @@ function NavHalaman({
   );
 }
 
+/**
+ * Satu blok, satu bentuk.
+ *
+ * Tipe balik `ReactElement` itu **wajib**, bukan gaya. Tanpa tipe balik yang
+ * eksplisit, jalur yang jatuh keluar dari `switch` diserap `tsc` sebagai
+ * `undefined` yang sah, sehingga `TipeBlok` baru yang belum punya `case` di
+ * sini tidak menghasilkan error apa pun. Tipe balik itulah yang membuat blok
+ * yang hilang jadi error tipe; menghapusnya mematikan penjaga itu diam-diam.
+ */
 function BlokView({
   blok,
   jangkar,
@@ -221,7 +230,7 @@ function BlokView({
   blok: BlokHalaman;
   jangkar?: string;
   backlink: Map<string, BacklinkMasuk[]>;
-}) {
+}): ReactElement {
   const masuk = jangkar ? backlink.get(jangkar) : undefined;
 
   switch (blok.tipe) {
@@ -259,16 +268,24 @@ function BlokView({
           ))}
         </ul>
       );
-    case "kode":
+    case "kode": {
+      // Default dihitung sekali lalu dipakai dua kali. Chip dan editor harus
+      // sepakat bahasa mana yang dibaca; kalau chip memakai `blok.bahasa`
+      // mentah, blok tanpa bahasa tampil dengan header kosong.
+      const bahasa = blok.bahasa ?? "cpp";
       return (
         <figure className="overflow-hidden rounded-xl border border-gray-200">
           <figcaption className="flex items-center justify-between gap-2 border-b border-gray-200 bg-[#f5f7fa] px-3 py-1.5">
             <span className="font-mono text-[11px] font-semibold tracking-wider text-gray-500 uppercase">
-              {blok.bahasa === "cpp" ? "C++" : blok.bahasa}
+              {bahasa === "cpp" ? "C++" : bahasa}
             </span>
             <TombolSalin teks={blok.kode ?? ""} />
           </figcaption>
-          <KodeView kode={blok.kode ?? ""} bahasa={blok.bahasa ?? "cpp"} label="Kode contoh" />
+          <KodeView
+            kode={blok.kode ?? ""}
+            bahasa={bahasa}
+            label={`Kode contoh ${blok.id}`}
+          />
           {blok.outputHarapan ? (
             <div className="border-t border-gray-200 bg-white px-3 py-2">
               <p className="mb-1 text-[11px] font-semibold tracking-wider text-gray-500 uppercase">
@@ -281,6 +298,7 @@ function BlokView({
           ) : null}
         </figure>
       );
+    }
     case "gambar":
       return (
         <figure>
@@ -302,9 +320,25 @@ function BlokView({
  * dan kegagalan tidak boleh membuat halaman gagal gara-gara izin atau konteks
  * yang tidak aman. Karena itu tombolnya kembali ke keadaan semula sendiri
  * setelah dua detik, dengan atau tanpa pesan.
+ *
+ * Labelnya dibungkus `aria-live`, **bukan** `role="status"` pada tombolnya:
+ * `role="status"` akan menggantikan peran tombol, sehingga pembaca layar tidak
+ * lagi tahu itu tombol yang bisa ditekan. Dengan span di dalam, tombol tetap
+ * terbaca sebagai tombol dan perubahan labelnya diumumkan sebagai pesan status.
+ * Kalau keduanya dipasang, pesannya dibaca dua kali.
  */
 function TombolSalin({ teks }: { teks: string }) {
   const [salin, setSalin] = useState<"idle" | "ok" | "gagal">("idle");
+  const pengingat = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Tanpa pembatalan, dua penekanan dalam dua detik meninggalkan dua pengingat
+  // hidup: yang pertama memotong "Tersalin" sebelum janjinya, dan keduanya
+  // bertahan melewati halaman yang sudah ditutup.
+  useEffect(() => {
+    return () => {
+      if (pengingat.current) clearTimeout(pengingat.current);
+    };
+  }, []);
 
   return (
     <button
@@ -316,11 +350,14 @@ function TombolSalin({ teks }: { teks: string }) {
         } catch {
           setSalin("gagal");
         }
-        setTimeout(() => setSalin("idle"), 2000);
+        if (pengingat.current) clearTimeout(pengingat.current);
+        pengingat.current = setTimeout(() => setSalin("idle"), 2000);
       }}
       className="rounded-md px-1.5 py-0.5 text-[11px] font-medium text-gray-500 hover:text-[#0056D2]"
     >
-      {salin === "ok" ? "Tersalin" : salin === "gagal" ? "Gagal" : "Salin"}
+      <span aria-live="polite">
+        {salin === "ok" ? "Tersalin" : salin === "gagal" ? "Gagal" : "Salin"}
+      </span>
     </button>
   );
 }
