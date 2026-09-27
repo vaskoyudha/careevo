@@ -29,18 +29,24 @@ import { logoutAction } from "@/actions/auth";
 import type { SessionPayload } from "@/lib/auth/types";
 
 /**
- * Navbar atoms shared by the two learner navbars.
+ * Navbar atoms shared by the three bars that render a signed-in learner.
  *
- * `LearnerChrome` (light glass, morphs on scroll) and `AiMasteryNavbar` (dark
- * winged bar) are different bars, but they show the same destinations to the
- * same signed-in learner, and the account menu is a server-action logout plus
- * four links. Duplicating either would let the two drift — the failure mode
- * this repo has already paid for once, when the navbar grew a `ModeToggle` that
- * competed with `Belajar` instead of complementing it.
+ * `LearnerChrome` (light glass, morphs on scroll), `AiMasteryNavbar` (dark
+ * winged bar), and `Chrome` (marketing/public) are different bars, but they
+ * show the same account affordances to the same signed-in learner, and the
+ * account menu is a server-action logout plus four links. Duplicating either
+ * would let the three drift — the failure mode this repo has already paid for
+ * once, when the navbar grew a `ModeToggle` that competed with `Belajar`
+ * instead of complementing it.
  *
- * Deliberately NOT shared with `Chrome` (the marketing bar): its `navItems` is a
- * different, shorter list without `/belajar/jalur`. Two lists that look alike
- * are not the same list — do not merge them.
+ * `Chrome` is now the third consumer, because it used to print a hardcoded
+ * `Masuk`/`Daftar` pair to people who already had a session. Before that it
+ * never looked at auth at all, so "signed in" simply did not exist as an input
+ * to it.
+ *
+ * Deliberately NOT shared with `Chrome`: the `learnerNavItems` list itself.
+ * Its `navItems` is a different, shorter list without `/belajar/jalur`. Two
+ * lists that look alike are not the same list — do not merge them.
  */
 
 export type NavItem = {

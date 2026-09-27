@@ -3,12 +3,21 @@ import { ArrowUpRight } from "lucide-react";
 import { Chrome } from "@/components/ui/chrome";
 import { MarketingFooter } from "@/components/features/marketing/footer";
 import { geist, geistMono } from "@/components/features/marketing/fonts";
+import { getSession } from "@/lib/auth/session";
 
-export default function MarketingLayout({
+/**
+ * Layout marketing: beranda, `/bisnis`, `/business`, `/careevo-plus`.
+ *
+ * `getSession()` dipakai untuk keputusan navbar (menu akun vs Masuk/Daftar)
+ * dan hanya bisa dibaca di server — lihat catatan di `(public)/layout.tsx`.
+ */
+export default async function MarketingLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await getSession();
+
   return (
     <div
       className={`${geist.variable} ${geistMono.variable} min-h-screen bg-white text-gray-900`}
@@ -23,7 +32,7 @@ export default function MarketingLayout({
           <ArrowUpRight className="size-3.5" strokeWidth={2} />
         </Link>
       </div>
-      <Chrome />
+      <Chrome session={session} />
       <main id="main">{children}</main>
       <div className="marketing-type">
         <MarketingFooter />
