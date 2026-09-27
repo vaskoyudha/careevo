@@ -24,7 +24,7 @@
 - **Setiap permukaan yang menampilkan sinyal baru wajib membawa batasnya** (spec baris 188–199, P3). Halaman laporan yang mulai menampilkan label kamera harus ikut menampilkan `BATAS_SINYAL.kamera` (Task D Step 6).
 - **Ikuti langkah merah→hijau per task.** Kalau sebuah mutasi tidak membuat test merah, test itu tidak menutup logikanya. Mutation check wajib di setiap task kode (A, B, C, D).
 - **Gate per task:** `npm run check` (`typecheck` → `lint` → `skills:check` → `test`). Task yang menyentuh halaman server-rendered (`src/app`) juga menjalankan `npm run build`.
-- **Test integrasi tidak bisa dijalankan di environment ini.** `npm run test:db` gagal di config load — masalah lama yang tidak terkait plan ini. `./**/*.integration.test.ts` tetap **`tsc`-checked** (tsconfig `include: ["**/*.ts"]`), jadi signature yang berubah harus tetap dikompilasi di sana; hanya menjalankannya yang tertunda.
+- **Test integrasi: awalnya tidak bisa dijalankan, tapi sekarang sudah.** Saat plan ini ditulis `npm run test:db` gagal karena PostgreSQL belum listening di `:5432`; setelah DB hidup, suite-nya **lulus 13 file / 175 test** (termasuk `assessment-service.integration.test.ts`, 20 test), jadi keempat call site integrasi yang disentuh Task B Step 5 bukan sekadar lolos compile tapi **benar-benar dieksekusi**. DB test-nya ephemeral dan di-drop di teardown, jadi DB dev tidak tersentuh. `./**/*.integration.test.ts` tetap **`tsc`-checked** (tsconfig `include: ["**/*.ts"]`) — dua hal itu bukan pengganti satu sama lain.
 - **Commit lokal saja, jangan `push`** tanpa izin eksplisit.
 
 ---
@@ -209,7 +209,7 @@ git commit -m "fix(learning): tegakkan gerbang wajib_kamera di selesaikanMateriA
 - Consumes: `ambilRunAktif(userId, courseId): Promise<LearningRun | null>` (`repository.ts:336`), `listEventRun(runId): Promise<LearningEvent[]>` (`repository.ts:383`), `butuhKamera(kebijakan): boolean` (`akses.ts:89`).
 - Produces: `selesaikanModulKuisVerified(input)` menerima `wajibKamera: boolean` (**wajib**, bukan opsional); `KodeGalatAsesmen` bertambah `"perlu_kamera"`; `pesanGalatAsesmen` memetakan kode itu; action menurunkan `wajibKamera` server-side dari kebijakan kursus.
 
-> **Kenapa `wajibKamera` wajib (bukan opsional) dan kenapa ada test service baru.** `assessment.test.ts` memock service **seluruhnya**, jadi logika gerbang di dalam `selesaikanModulKuisVerified` tidak terjangkau di sana. Test integrasi sedang tidak bisa dijalankan (`npm run test:db` gagal di config load — masalah lama, bukan bagian plan ini). Karena itu gerbang diuji unit dengan pola `run-service.test.ts`: mock `./repository` + `./service` + `@/lib/courses/modul-resolver` + `@/lib/courses/store`, lalu import service sungguhan. Parameter-nya **wajib** supaya ada tepat satu jalur yang bisa melupakannya; konsekuensinya, empat call site di `assessment-service.integration.test.ts` harus ikut diperbarui (Step 5) karena `tsc` tetap meng-typecheck berkas `.integration.test.ts` walau `npm test` mengecualikannya.
+> **Kenapa `wajibKamera` wajib (bukan opsional) dan kenapa ada test service baru.** `assessment.test.ts` memock service **seluruhnya**, jadi logika gerbang di dalam `selesaikanModulKuisVerified` tidak terjangkau di sana. Suite integrasi **tidak bisa dijalankan saat plan ini ditulis** (`npm run test:db` gagal karena PostgreSQL belum hidup di `:5432`), jadi gerbang diuji unit dengan pola `run-service.test.ts`: mock `./repository` + `./service` + `@/lib/courses/modul-resolver` + `@/lib/courses/store`, lalu import service sungguhan. Suite integrasinya kini sudah jalan — lihat Global Constraints. Parameter-nya **wajib** supaya ada tepat satu jalur yang bisa melupakannya; konsekuensinya, empat call site di `assessment-service.integration.test.ts` harus ikut diperbarui (Step 5) karena `tsc` tetap meng-typecheck berkas `.integration.test.ts` walau `npm test` mengecualikannya.
 
 - [ ] **Step 1: Write the failing service test**
 
@@ -480,7 +480,7 @@ Expected: PASS — 4 test hijau.
         wajibKamera: false,
 ```
 
-Lalu jalankan `npm run typecheck` — harus hijau. **Jangan** menjalankan `npm run test:db` untuk memverifikasi langkah ini; suite itu sedang rusak di config load secara terpisah.
+Lalu jalankan `npm run typecheck` — harus hijau. Langkah ini sengaja **tidak** diverifikasi lewat `npm run test:db`: pada saat plan dieksekusi suite itu belum bisa dijalankan, dan menyalakannya di tengah langkah ini akan mencampur suite lain ke dalam vermainan. Suite-nya sekarang sudah lulus (lihat Global Constraints), jadi keempat call site terverifikasi dua kali: `tsc` dan eksekusi.
 
 - [ ] **Step 6: Write the failing action tests**
 
@@ -1264,7 +1264,7 @@ git commit -m "docs: catat aturan label jalur terverifikasi dan gerbang wajib_ka
 - **Tidak ada skor/bahaya/reputasi baru.** Aturan repo: sinyal integritas tidak pernah menurunkan skor.
 - **Tidak ada bandingan human-review** — spec terpisah (`2026-09-25-temuan-integritas-dan-banding-design.md`), belum diimplementasikan.
 - **Tidak ada nilai baru di `SumberPenyelesaian`.** Tipe itu adalah bentuk data yang tersimpan (`.data/performa`), bukan tampilan.
-- **Tidak ada test integrasi baru untuk gerbang kuis.** `npm run test:db` sedang rusak di config load secara terpisah; gerbang diuji unit di `assessment-service.test.ts`. Saat `test:db` diperbaiki, tambahkan kasus `wajib_kamera` dengan run sungguhan.
+- **Tidak ada test integrasi baru untuk gerbang kuis.** Gerbang diuji unit di `assessment-service.test.ts`. **Syarat untuk follow-up ini sudah terpenuhi:** `npm run test:db` kini lulus, jadi kasus `wajib_kamera` dengan run sungguhan — membuktikan gerbang membaca `kamera_mulai` dari `learning_events`, bukan dari mock — bisa langsung ditambahkan ke `assessment-service.integration.test.ts`.
 
 ## Verifikasi manual (wajib, bersama `careevo-browser-verify`)
 
