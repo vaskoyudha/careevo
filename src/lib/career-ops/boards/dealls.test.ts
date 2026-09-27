@@ -69,6 +69,21 @@ describe("dealls adapter", () => {
     expect(hasil?.bahan.apply_url).toBe("https://bit.ly/abc");
   });
 
+  it("mengambil tag dari kategori peran dan subkategori", async () => {
+    const hasil = await dealls.ambilDetail(
+      URL_DEALLS,
+      io(
+        halaman({
+          responsibilities: "<p>x</p>",
+          jobRoleCategory: { name: "Engineering (IT/Software)" },
+          jobRoleSubCategory: { name: "Enterprise Apps & Automation" },
+        }),
+      ),
+      { perusahaan: "ESB" },
+    );
+    expect(hasil?.tags).toEqual(["Engineering (IT/Software)", "Enterprise Apps & Automation"]);
+  });
+
   it("returns null when no query carries job text", async () => {
     expect(await dealls.ambilDetail(URL_DEALLS, io(halaman({ other: 1 })), { perusahaan: "X" })).toBeNull();
   });

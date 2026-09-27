@@ -22,8 +22,8 @@ interface DeallsData {
   requirements?: string | null;
   externalPlatformApplyUrl?: string | null;
   company?: { name?: string } | null;
-  jobRoleCategorySlug?: string | null;
-  categorySlug?: string | null;
+  jobRoleCategory?: { name?: string } | null;
+  jobRoleSubCategory?: { name?: string } | null;
 }
 
 /**
@@ -72,7 +72,7 @@ export const dealls: PapanAdapter = {
         company: perusahaan,
         employer_known: perusahaanTerkenal(perusahaan),
       },
-      tags: [data.jobRoleCategorySlug, data.categorySlug].filter(
+      tags: [data.jobRoleCategory?.name, data.jobRoleSubCategory?.name].filter(
         (t): t is string => typeof t === "string" && t.trim() !== "",
       ),
     };

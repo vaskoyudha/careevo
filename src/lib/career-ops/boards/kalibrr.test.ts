@@ -37,10 +37,10 @@ describe("kalibrr adapter", () => {
     expect(hasil?.bahan.company).toBe("PT Akhdani Reka Solusi");
   });
 
-  it("prefers an off-platform apply_redirect_url", async () => {
+  it("prefers an off-platform applyRedirectUrl", async () => {
     const hasil = await kalibrr.ambilDetail(
       URL_KALIBRR,
-      io(halaman({ description: "<p>x</p>", apply_redirect_url: "https://bit.ly/abc" })),
+      io(halaman({ description: "<p>x</p>", applyRedirectUrl: "https://bit.ly/abc" })),
       { perusahaan: "PT Foo" },
     );
     expect(hasil?.bahan.apply_url).toBe("https://bit.ly/abc");

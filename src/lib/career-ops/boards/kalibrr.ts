@@ -22,7 +22,9 @@ interface KalibrrJob {
   name?: string | null;
   description?: string | null;
   qualifications?: string | null;
-  apply_redirect_url?: string | null;
+  // Live `__NEXT_DATA__` uses camelCase here (`applyRedirectUrl`); the older
+  // design doc's `apply_redirect_url` does not exist on the payload.
+  applyRedirectUrl?: string | null;
   function?: string | null;
   company?: { code?: string; name?: string } | null;
 }
@@ -54,7 +56,7 @@ export const kalibrr: PapanAdapter = {
     return {
       bahan: {
         description,
-        apply_url: applyUrlOffPlatform(job.apply_redirect_url, url),
+        apply_url: applyUrlOffPlatform(job.applyRedirectUrl, url),
         company: perusahaan,
         employer_known: perusahaanTerkenal(perusahaan),
       },
