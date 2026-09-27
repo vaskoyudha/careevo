@@ -22,9 +22,28 @@ export const metadata = {
   description: "AI Mastery: tutor, buku, membaca, dan latihan.",
 };
 
-export default async function AiMasteryPage() {
+export default async function AiMasteryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ course?: string; capability?: string }>;
+}) {
   const session = await getSession();
   if (!session) redirect("/masuk");
+
+  const { course, capability } = await searchParams;
+
+  // Kontrak deep-link dari halaman kursus (lihat `kursus-ai-panel.tsx`):
+  // `/ai-mastery?course=<id>&capability=course_study`. Query ini hanyalah
+  // petunjuk untuk aplikasi AI Mastery — nilai asli diteruskan ke dalam frame
+  // supaya aplikasi itu sendiri yang memvalidasi kursusnya. Id yang tidak
+  // dikenalnya jatuh ke chat biasa, jadi deep-link ini tidak pernah memaksa
+  // halaman rusak.
+  const frameQuery = new URLSearchParams();
+  if (course) frameQuery.set("course", course);
+  if (capability) frameQuery.set("capability", capability);
+  const src = frameQuery.size
+    ? `${AI_MASTERY_WEB_URL}?${frameQuery.toString()}`
+    : AI_MASTERY_WEB_URL;
 
   return (
     <LearnerShell
@@ -33,7 +52,7 @@ export default async function AiMasteryPage() {
       shellClassName="ai-mastery-shell"
       chrome={<AiMasteryNavbar session={session} />}
     >
-      <AiMasteryFrame src={AI_MASTERY_WEB_URL} title="AI Mastery" />
+      <AiMasteryFrame src={src} title="AI Mastery" />
     </LearnerShell>
   );
 }
