@@ -12,6 +12,7 @@ import {
   type BacklinkMasuk,
 } from "@/lib/courses/blok";
 import { halamanUntukModul } from "@/lib/courses/halaman";
+import { KodeView } from "./kode-view";
 import type { BlokHalaman, Halaman, Modul, SegmenTeks, UkuranBlok } from "@/types/course";
 
 /**
@@ -258,6 +259,28 @@ function BlokView({
           ))}
         </ul>
       );
+    case "kode":
+      return (
+        <figure className="overflow-hidden rounded-xl border border-gray-200">
+          <figcaption className="flex items-center justify-between gap-2 border-b border-gray-200 bg-[#f5f7fa] px-3 py-1.5">
+            <span className="font-mono text-[11px] font-semibold tracking-wider text-gray-500 uppercase">
+              {blok.bahasa === "cpp" ? "C++" : blok.bahasa}
+            </span>
+            <TombolSalin teks={blok.kode ?? ""} />
+          </figcaption>
+          <KodeView kode={blok.kode ?? ""} bahasa={blok.bahasa ?? "cpp"} label="Kode contoh" />
+          {blok.outputHarapan ? (
+            <div className="border-t border-gray-200 bg-white px-3 py-2">
+              <p className="mb-1 text-[11px] font-semibold tracking-wider text-gray-500 uppercase">
+                Keluaran yang diharapkan
+              </p>
+              <pre className="overflow-x-auto font-mono text-[13px] whitespace-pre-wrap text-gray-700">
+                {blok.outputHarapan}
+              </pre>
+            </div>
+          ) : null}
+        </figure>
+      );
     case "gambar":
       return (
         <figure>
@@ -270,6 +293,36 @@ function BlokView({
         </figure>
       );
   }
+}
+
+/**
+ * Salin kode ke papan klip.
+ *
+ * Kegagalan papan klip diabaikan dengan sengaja. Menyalin adalah kenyamanan,
+ * dan kegagalan tidak boleh membuat halaman gagal gara-gara izin atau konteks
+ * yang tidak aman. Karena itu tombolnya kembali ke keadaan semula sendiri
+ * setelah dua detik, dengan atau tanpa pesan.
+ */
+function TombolSalin({ teks }: { teks: string }) {
+  const [salin, setSalin] = useState<"idle" | "ok" | "gagal">("idle");
+
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(teks);
+          setSalin("ok");
+        } catch {
+          setSalin("gagal");
+        }
+        setTimeout(() => setSalin("idle"), 2000);
+      }}
+      className="rounded-md px-1.5 py-0.5 text-[11px] font-medium text-gray-500 hover:text-[#0056D2]"
+    >
+      {salin === "ok" ? "Tersalin" : salin === "gagal" ? "Gagal" : "Salin"}
+    </button>
+  );
 }
 
 /**
