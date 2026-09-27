@@ -27,6 +27,12 @@ const eslintConfig = defineConfig([
     // from `src/lib/career-ops/`. Linting it here would flag thousands of
     // upstream-styled lines and fight the vendored copy.
     "engine/**",
+    // careevo runner: layanan eksekusi C++. Proses Node `.mjs` terpisah yang
+    // menjalankan podman, diorkestrasi dari route handler lewat HTTP dan
+    // karena itu di luar build graph Next. Aturannya milik Node, bukan aturan
+    // browser, jadi `nextTs` akan menilai kode Node dengan kriteria klien.
+    // Cara yang sama seperti `engine/**` di atas.
+    "src/lib/exec/runner/**",
     // career-ops reference clone: the original upstream checkout kept next to
     // the vendored engine. It is not part of Careevo (it is not even committed);
     // its own `web/` app has its own lint/tsconfig rules.
