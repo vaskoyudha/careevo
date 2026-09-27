@@ -49,7 +49,7 @@ export default async function SubmissionPage({
   const snapshot = versi?.contentSnapshot as { judul?: string | null; catatan?: string | null } | undefined;
 
   return (
-    <AppShell session={session} current="/belajar">
+    <AppShell session={session} current="/submission">
       <PageHead
         eyebrow="Submission"
         title={`Submission ${submission.id.slice(0, 8)}`}

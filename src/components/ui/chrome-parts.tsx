@@ -11,8 +11,6 @@ import {
   LayoutDashboard,
   LogOut,
   MessageSquare,
-  Route,
-  Send,
   Settings,
   Sparkle,
   UserRound,
@@ -45,8 +43,13 @@ import type { SessionPayload } from "@/lib/auth/types";
  * to it.
  *
  * Deliberately NOT shared with `Chrome`: the `learnerNavItems` list itself.
- * Its `navItems` is a different, shorter list without `/belajar/jalur`. Two
- * lists that look alike are not the same list — do not merge them.
+ * It currently holds the same five destinations as `Chrome`'s `navItems` — but
+ * only by coincidence. They were once different (the learner bar carried
+ * `/belajar/jalur` and `/submission`, both since moved to the dashboard
+ * sidebar), and they are free to diverge again: one list is signed-in
+ * wayfinding, the other is a marketing bar deciding at render time whether the
+ * visitor has a session. Two lists that look alike are not the same list — do
+ * not merge them.
  */
 
 export type NavItem = {
@@ -61,11 +64,6 @@ export const learnerNavItems: NavItem[] = [
     label: "Belajar",
     icon: <GraduationCap size={15} strokeWidth={1.5} aria-hidden="true" />,
   },
-  {
-    href: "/belajar/jalur",
-    label: "Jalur Belajar",
-    icon: <Route size={15} strokeWidth={1.5} aria-hidden="true" />,
-  },
   // AI Mastery is a destination, not a utility, so it belongs in this row with a
   // visible name beside the icon like every other item. It used to be an
   // icon-only button parked in `.chrome-actions`; read next to `Cari` and the
@@ -78,11 +76,6 @@ export const learnerNavItems: NavItem[] = [
     href: "/ai-mastery",
     label: "AI Mastery",
     icon: <MessageSquare size={15} strokeWidth={1.5} aria-hidden="true" />,
-  },
-  {
-    href: "/submission",
-    label: "Karya",
-    icon: <Send size={15} strokeWidth={1.5} aria-hidden="true" />,
   },
   {
     href: "/loker",
