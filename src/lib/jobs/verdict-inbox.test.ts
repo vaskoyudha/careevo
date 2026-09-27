@@ -154,3 +154,27 @@ describe("wiring jalur-klik verdict", () => {
     }
   });
 });
+
+describe("verdictBadge names the board it could not read", () => {
+  it("names the board when the row knows it", () => {
+    const v = verdictBadge(
+      baris({
+        papan: "Breezy",
+        enriched: false,
+        audit: audit("quarantined", ["data_tidak_terverifikasi"]),
+      }),
+    );
+    expect(v?.label).toBe("Belum diperiksa");
+    expect(v?.title).toContain("Breezy");
+    expect(v?.sinyal.join(" ")).toContain("Breezy");
+    expect(v?.terperiksa).toBe(false);
+  });
+
+  it("stays generic when the row does not know the board", () => {
+    const v = verdictBadge(
+      baris({ enriched: false, audit: audit("quarantined", ["data_tidak_terverifikasi"]) }),
+    );
+    expect(v?.title).not.toContain("undefined");
+    expect(v?.sinyal).toEqual(["Data lowongan belum bisa diambil dari papan aslinya"]);
+  });
+});
