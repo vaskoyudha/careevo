@@ -1031,7 +1031,8 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                     Cari & Temukan Lowongan Kerja Valid
                   </h2>
                   <p className="mt-3 text-sm sm:text-base text-neutral-600">
-                    Gunakan filter lokasi, gaji, atau cari kata kunci untuk menemukan pekerjaan idamanmu tanpa cemas scam.
+                    Tulis lowongan yang kamu mau dalam bahasa sehari-hari. Semua lowongan
+                    sudah diaudit Sentinel, jadi yang tampil tidak meminta biaya.
                   </p>
                 </div>
 
