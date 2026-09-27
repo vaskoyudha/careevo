@@ -97,7 +97,7 @@ location_filter:
   # URL hint returns `!strict`, i.e. reject (scan.mjs:526-537) — so a Glints row
   # with no location field would be thrown away. It is also inert on its own:
   # the engine only honours it when a restricting tier is set, and `allow` below
-  # is exactly that (scan.mjs:527-529). The default passes those rows instead.
+  # is exactly that (scan.mjs:527-528). The default passes those rows instead.
   #
   # `always_allow` rescues multi-location postings that name Indonesia, so
   # "Remote, Indonesia or Singapore" passes while "Remote, India" does not.
@@ -130,16 +130,28 @@ location_filter:
   # seed. Task 5 reads filtered_location from the receipt to price it.
   #
   # WHY A DENY-LIST IS NOT THE ANSWER, for whoever considers `block: [Germany,
-  # India, Singapore, ...]` next: a country deny-list is unmaintainable. It has
-  # to be right about every country on earth, it silently admits any country
-  # added to the world after it was written, and matching is substring-based on
-  # a location string the employer typed — so "Polish" also catches "Polish
-  # speaking required" and misses "Kraków". An allow-list of places we mean is
-  # wrong only by omission, which the 14-metro guard below catches; a
-  # deny-list is wrong by commission, which nothing catches. Prefer scoping the
-  # SOURCES (see the tracked_companies section) to letting a deny-list absorb
-  # the risk — which is why the mixed-market boards were removed rather than
-  # filtered.
+  # India, Singapore, ...]` next: a country deny-list is unmaintainable, and the
+  # engine's matching is not the reason — it is stricter than a deny-list deserves.
+  #
+  #   (a) it must be right about every country on earth;
+  #   (b) it silently admits any country added to the world after it was written;
+  #   (c) `block` is compiled exactly like `allow` — compileLocationKeywordList
+  #       (scan.mjs:351-353) maps compileLocationKeyword (scan.mjs:341-349),
+  #       which anchors on word boundaries — so every entry is a WHOLE-WORD bet
+  #       that misses in both directions. Verified against the real filter:
+  #         block: [poland] vs "notpoland"              -> no match
+  #         block: [poland] vs "kraków, poland"         -> match (via `poland`)
+  #         block: [poland] vs "warsaw"                 -> no match
+  #         block: [polish] vs "polish speaking required" -> match
+  #       So a posting that names only a CITY slips past no matter how many
+  #       countries you list, and a demonym entry rejects a phrase that is not a
+  #       location at all. Neither gap is closed by writing more entries.
+  #
+  # An allow-list of places we mean is wrong only by omission, which the 14-metro
+  # guard below catches; a deny-list is wrong by commission, which nothing
+  # catches. Prefer scoping the SOURCES (see the tracked_companies section) to
+  # letting a deny-list absorb the risk — which is why the mixed-market boards
+  # were removed rather than filtered.
   #
   # Two cases that need no decision: an EMPTY location passes (non-strict, and
   # that is the Glints-row case `strict` would have destroyed), and a bare
@@ -160,7 +172,8 @@ location_filter:
   #     (glints.mjs:136).
   #   - The ATS providers emit employer-entered free text, and two of them
   #     APPEND "Remote" to the location when the req is remote (smartrecruiters
-  #     .mjs:201, breezy.mjs:117-119); workable emits "<city>, <country>".
+  #     .mjs:201; breezy.mjs:116 for the 'Remote' literal, :119-121 for the
+  #     append); workable.mjs:209-210 emits "<city>, <country>".
   # So `allow` rejects, row by row, every non-Indonesian label — including the
   # "Remote" rows those three providers generate. Removing it would be removing
   # the filter, not simplifying it.
