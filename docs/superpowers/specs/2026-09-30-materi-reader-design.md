@@ -140,6 +140,44 @@ Panel tutor AI hanya dirender untuk peserta yang **sudah terdaftar**, sama seper
 sekarang (`detail-kursus.tsx:785`), dan `aiCourseId` di-resolve server lewat
 `selaraskanKursusAi` seperti di `belajar/[slug]/page.tsx`.
 
+#### Tutor AI — letaknya per modul, aturannya tetap per kursus
+
+Panel tutor **pindah ke dalam pane modul**, sehingga ia tampil bersama materi yang
+sedang dibaca alih-alih sebagai satu kotak di sidebar kursus. Yang menentukan boleh
+atau tidaknya **tetap kebijakan kursus**, lewat `boleh("bantuan_akademik")`:
+
+| `kebijakan.aturan_bantuan` | Tampilan di pane modul |
+|---|---|
+| `bebas` | Panel aktif |
+| `bertutor` | Panel aktif |
+| `tanpa_ai` | Panel tampil **nonaktif** + alasan |
+
+**Tidak ada aturan AI per modul, dan desain ini tidak menambahkannya.**
+`aturan_bantuan` hidup di `KebijakanCourse` (`types/course.ts:377`);
+`CheckpointMateri` — record per modul (`types/course.ts:386`) — hanya punya
+`batas_waktu_menit`, `mode`, dan `ref`, **tanpa field AI**. `putuskanAkses` untuk
+`bantuan_akademik` membaca kebijakan kursus saja dan tidak pernah melihat modul
+(`akses.ts:123`). Jadi "modul yang mengizinkan AI" = **kursus yang mengizinkan
+AI**; reader hanya memindahkan tempat panelnya, bukan memecah aturannya.
+
+Konsekuensi yang harus disadari: **tutor tidak disembunyikan di modul asesmen.**
+Modul dengan checkpoint `kuis`/`proyek` di kursus `bertutor` tetap menampilkan
+panel aktif, persis seperti hari ini. Menutupnya berdasarkan `mode` checkpoint akan
+mengubah mesin akses yang dikunci dan diam-diam mencabut fitur di kursus
+`bertutor` — itu perubahan perilaku, bukan pemindahan UI, jadi **di luar lingkup**
+(lihat §4).
+
+Panel tetap dirender saat `tanpa_ai` — **nonaktif**, dengan pesan dari
+`putuskanAkses` dipakai apa adanya. Alasan yang sudah ditulis di
+`kursus-ai-panel.tsx:15` tetap berlaku: peserta berhak tahu fitur itu ada dan kenapa
+ia tidak bisa dipakai. Karena reader menampilkan **satu modul pada satu waktu**,
+ini tetap satu panel per layar — bukan pengulangan.
+
+**Konteks yang dikirim ke tutor tetap lingkup kursus.** `tautanTutorAi(courseId)`
+hanya mengikat id kursus (`tutor-ai.ts`); posisi baca modul **tidak** ikut dikirim.
+Karena itu copy panel tidak boleh mengklaim tutor tahu modul yang sedang dibaca —
+ia tetap menyebut kursus ("konteks utuh kursus ini"), bukan "modul ini".
+
 ### 3.4 Penyelesaian modul
 
 Logika dua jalur disalin **apa adanya** dari `tandai()`
@@ -194,6 +232,12 @@ request (dipakai unit test).
 - **Tidak** menambah pencarian di bar fokus (navbar memang tidak punya search).
 - **Tidak** memigrasikan modul turunan menjadi modul tersimpan.
 - **Tidak** mengubah `--chrome-h` atau `.under-chrome`.
+- **Tidak** menambah aturan AI **per modul**. `aturan_bantuan` tetap milik
+  `KebijakanCourse`, dan `putuskanAkses` tetap tidak membaca modul. Tutor AI hanya
+  **dipindahkan** ke pane modul (§3.3); ia tidak digerbangi per checkpoint, dan
+  tidak dicabut di modul `kuis`/`proyek` kursus `bertutor`.
+- **Tidak** mengirim posisi baca/modul ke AI Mastery — kontrak `tautanTutorAi`
+  tetap hanya `courseId`.
 
 ## 5. Berkas
 
@@ -204,6 +248,8 @@ request (dipakai unit test).
 - `src/components/features/learning/materi-reader.tsx` — komposisi shell + rail + pane.
 - `src/components/features/learning/materi-rail.tsx` — daftar seluruh modul + sub-item.
 - `src/components/features/learning/materi-focus-bar.tsx` — bar fokus (judul, pil sesi, selesai).
+- `src/components/features/learning/materi-pane.tsx` — isi satu modul (halaman → lampiran →
+  kuis → tutor AI), tiap bagian di belakang gerbangnya.
 
 **Diubah**
 
@@ -212,6 +258,8 @@ request (dipakai unit test).
 - `kursus-subnav.tsx` — target CTA ke reader.
 - `src/actions/learning.ts`, `src/actions/enrollment.ts` — revalidate route reader.
 - `scripts/smoke.mjs` — tambah route reader ke array `routes`.
+- `kursus-ai-panel.tsx` — **tidak diubah logikanya** (menerima `akses` sebagai prop
+  yang sama); hanya pemanggilnya yang berpindah dari sidebar ke pane modul.
 
 ## 6. Gerbang dan pengujian
 
@@ -235,6 +283,10 @@ request (dipakai unit test).
    `selesaikanMateriAction`, dan jalur informal hanya untuk `opsional` /
    checkpoint `kuis`/`proyek` / pembatalan.
 5. Modul turunan (tanpa isi) merender CTA eksternal, bukan pane kosong.
+6. Tutor AI mengikuti **kebijakan kursus**, bukan checkpoint modul: kursus
+   `tanpa_ai` merender panel nonaktif di modul `materi` **maupun** `kuis`; kursus
+   `bertutor` merender panel aktif di modul `kuis`. Test ini mengunci §3.3 supaya
+   tidak ada yang diam-diam menambahkan gerbang per checkpoint.
 
 ## 7. Risiko
 
@@ -245,3 +297,5 @@ request (dipakai unit test).
 | Gerbang diam-diam lebih lemah | Mesin akses tidak disentuh; test #4 mengunci jalur |
 | Rail + pane berdesakan di mobile | Rail runtuh jadi panel di bawah `lg` |
 | Dua sumber "modul" (silabus vs reader) menyimpang | Keduanya membaca `modulUntukSumber` yang sama |
+| Tutor AI diam-diam jadi gerbang per modul | §3.3 mengunci aturannya di kursus; test #6 |
+| Copy panel tutor mengklaim tahu modul aktif | Kontrak `tautanTutorAi` hanya kirim `courseId`; copy menyebut kursus (§3.3) |
