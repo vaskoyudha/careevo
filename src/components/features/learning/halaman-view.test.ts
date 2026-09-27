@@ -19,6 +19,7 @@ import type { BlokHalaman, Halaman, Modul } from "@/types/course";
 function halamanDengan(blok: BlokHalaman[], judul = "Halaman Uji"): Halaman {
   return {
     id: "hal-1",
+    submodul_id: "sub-1",
     modul_id: "mod-1",
     course_id: "crs-1",
     judul,
@@ -31,8 +32,43 @@ function halamanDengan(blok: BlokHalaman[], judul = "Halaman Uji"): Halaman {
 
 function render(blok: BlokHalaman[], daftarHalaman?: Halaman[]) {
   const halaman = halamanDengan(blok);
-  const modul: Pick<Modul, "halaman"> = { halaman: daftarHalaman ?? [halaman] };
+  // Pager "halaman berikutnya" merata dari **bab**: halaman-halaman uji ini
+  // disajikan sebagai satu bab, bentuk yang sama dengan yang dilihat peserta.
+  const modul: Pick<Modul, "submodul"> = {
+    submodul: [
+      {
+        id: "sub-1",
+        modul_id: "mod-1",
+        course_id: "crs-1",
+        judul: "Bagian 1",
+        ringkasan: "",
+        urutan: 1,
+        halaman: daftarHalaman ?? [halaman],
+        created_at: "2026-09-24T00:00:00.000Z",
+        updated_at: "2026-09-24T00:00:00.000Z",
+      },
+    ],
+  };
   return renderToStaticMarkup(createElement(HalamanView, { modul, halaman }));
+}
+
+/** Modul satu-bab dari daftar halaman — bentuk yang dipakai pager. */
+function modulSatuBab(daftar: Halaman[]): Pick<Modul, "submodul"> {
+  return {
+    submodul: [
+      {
+        id: "sub-1",
+        modul_id: "mod-1",
+        course_id: "crs-1",
+        judul: "Bagian 1",
+        ringkasan: "",
+        urutan: 1,
+        halaman: daftar,
+        created_at: "2026-09-24T00:00:00.000Z",
+        updated_at: "2026-09-24T00:00:00.000Z",
+      },
+    ],
+  };
 }
 
 describe("HalamanView — format sebaris", () => {
@@ -211,7 +247,7 @@ describe("HalamanView — pager", () => {
   it("menautkan ke halaman berikutnya lewat query string", () => {
     const html = renderToStaticMarkup(
       createElement(HalamanView, {
-        modul: { halaman: [satu, dua] },
+        modul: modulSatuBab([satu, dua]),
         halaman: satu,
       }),
     );
@@ -224,7 +260,7 @@ describe("HalamanView — pager", () => {
     // dan membuang tulisan yang belum disimpan.
     const html = renderToStaticMarkup(
       createElement(HalamanView, {
-        modul: { halaman: [satu, dua] },
+        modul: modulSatuBab([satu, dua]),
         halaman: satu,
         onPindahHalaman: () => {},
       }),
@@ -235,7 +271,7 @@ describe("HalamanView — pager", () => {
 
   it("tidak menampilkan pager untuk halaman tunggal", () => {
     const html = renderToStaticMarkup(
-      createElement(HalamanView, { modul: { halaman: [satu] }, halaman: satu }),
+      createElement(HalamanView, { modul: modulSatuBab([satu]), halaman: satu }),
     );
     expect(html).not.toContain("Berikutnya");
   });

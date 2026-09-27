@@ -290,7 +290,8 @@ describe("enrollment actions", () => {
   it("menolak modul dengan checkpoint kuis", async () => {
     await daftarKursusAction("crs-3");
     // Modul tersimpan dengan checkpoint kuis: kelulusannya hanya sah dari kuis,
-    // jadi tombol "Tandai selesai" tidak boleh menembusnya.
+    // jadi penandaan informal (jalur yang dipakai penyelesaian otomatis untuk
+    // modul bacaan) tidak boleh menembusnya.
     const modulKuis = await createModul("crs-3", {
       judul: "Kuis Keamanan Dasar",
       ringkasan: "Uji pemahaman dasar OWASP lewat kuis tersimpan.",

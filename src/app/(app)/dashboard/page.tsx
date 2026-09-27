@@ -75,6 +75,10 @@ export default async function DashboardPage() {
   const minggu = mingguAktif(kehadiran.hariAktif, now);
   const lanjutkan = pilihCourseDilanjutkan(progresKursus);
   const targetJam = profile ? profile.weeklyHours : null;
+  // Huruf pertama nama, untuk avatar di tepi kiri band sapaan. Kosongnya nama
+  // adalah kondisi yang harus punya sesuatu yang bisa digambar, jadi ia jatuh ke
+  // "?" — bukan ke avatar kosong yang terbaca sebagai gambar yang gagal dimuat.
+  const inisial = session.nama.trim().charAt(0).toUpperCase() || "?";
 
   return (
     <AppShell session={session} current="/dashboard">
@@ -84,16 +88,29 @@ export default async function DashboardPage() {
           karena band-nya sekarang putih, chip-nya diberi isian biru tipis
           supaya tetap terbaca sebagai elemen terpisah. */}
       <section className="dash-hero mb-5 px-5 py-4">
-        <div className="dash-hero-inner flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
-          <div className="relative z-10 min-w-0">
-            <h1 className="text-[clamp(23px,2.6vw,30px)] leading-tight font-bold tracking-tight text-gray-900">
-              Halo, {session.nama}
-              <span className="ml-1.5 font-normal">👋</span>
-            </h1>
-            <p className="mt-1.5 max-w-[46ch] text-[13px] text-gray-600">
-              Terus belajar, kembangkan keterampilan, dan wujudkan masa depan
-              yang lebih baik.
-            </p>
+        <div className="dash-hero-inner flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
+          <div className="relative z-10 flex min-w-0 items-center gap-3.5">
+            {/* Avatar di tepi kiri band. Inisialnya dihitung dari nama yang
+                diberikan, bukan dari gambar profil: belum ada unggahan avatar di
+                alur onboarding, dan menampilkan gambar bawaan akan terbaca
+                sebagai "foto kamu" padahal bukan. Sengaja `aria-hidden` —
+                namanya sudah tertulis penuh di sapaan di sebelahnya, jadi
+                inisial di sini tidak menambah informasi apa pun bagi pembaca
+                layar. */}
+            <span className="dash-hero-avatar" aria-hidden="true">
+              {inisial}
+            </span>
+
+            <div className="min-w-0">
+              <h1 className="text-[clamp(23px,2.6vw,30px)] leading-tight font-bold tracking-tight text-gray-900">
+                Halo, {session.nama}
+                <span className="ml-1.5 font-normal">👋</span>
+              </h1>
+              <p className="mt-1.5 max-w-[46ch] text-[13px] text-gray-600">
+                Terus belajar, kembangkan keterampilan, dan wujudkan masa depan
+                yang lebih baik.
+              </p>
+            </div>
           </div>
 
           {/* Ajakan, bukan angka: judulnya menjelaskan arah, dan tautannya ke

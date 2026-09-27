@@ -61,13 +61,14 @@ export function SettingsForm({ nama, email, username }: { nama: string; email: s
           <span>Izinkan perekaman artefak proses (snapshot, prompt log) untuk sesi ini</span>
         </Label>
         <p className="caption muted">
-          Kamera dirancang hanya aktif di dalam sesi terverifikasi yang kamu setujui, dan tidak
-          pernah menyala di luarnya.
-          Hari ini pencatatan terbatas pada kejadian sesi — pindah tab, fokus, dan awal/akhir sesi;
-          pengaktifan kamera adalah bagian dari rancangan sesi terverifikasi dan belum berjalan di
-          aplikasi ini. Tidak ada rekaman tuts, tidak ada geolokasi, dan tidak ada deteksi identitas:
-          kamera tidak dipakai untuk mengenali wajah. Bukti sesi hanya dilihat peserta dan staf
-          berwenang, dan kamu bisa mengajukan keberatan lewat halaman pengaturan ini.
+          Kamera hanya aktif di dalam sesi terverifikasi yang kamu setujui, dan tidak pernah menyala
+          di luarnya. Pencatatan yang berjalan: pindah tab, fokus yang hilang, paste dan pintasan
+          yang terlarang, dan — hanya kalau kamu menyalakannya — apakah wajahmu ada di depan kamera.
+          Deteksi wajah berjalan di perangkatmu dan hanya angkanya yang dikirim; videonya tidak pernah meninggalkan
+          perangkat ini. Kamera tidak dipakai untuk mengenali wajah — ia menghitung ada/tidaknya
+          wajah, bukan siapa wajahnya. Tidak ada rekaman tuts dan tidak ada geolokasi. Bukti sesi
+          hanya dilihat peserta dan staf berwenang, dan kamu bisa mengajukan keberatan lewat
+          halaman pengaturan ini.
         </p>
         <Button
           type="button"

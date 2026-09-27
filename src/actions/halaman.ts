@@ -15,6 +15,7 @@ import {
   safeRevalidate,
 } from "@/lib/actions-common";
 import { halamanSchema, type HalamanFormData } from "@/lib/validation/halaman";
+import { cariHalamanDiModul } from "@/lib/courses/submodul";
 import type { Halaman } from "@/types/course";
 
 /**
@@ -74,6 +75,11 @@ export async function createHalamanAction(
 
   const courseId = String(formData.get("course_id") ?? "");
   const modulId = String(formData.get("modul_id") ?? "");
+  // Bab opsional di tingkat action: form lama yang belum punya pemilih bab tetap
+  // bisa menambah halaman, dan store menaruhnya di bab pertama modul (membuat
+  // bab itu bila perlu). Lihat catatan invariant di `createHalaman` store.
+  const submodulRaw = formData.get("submodul_id");
+  const submodulId = typeof submodulRaw === "string" && submodulRaw.trim() ? submodulRaw.trim() : null;
   if (!courseId) {
     return { ok: false, error: "ID Kursus tidak ditemukan." };
   }
@@ -94,9 +100,9 @@ export async function createHalamanAction(
   }
 
   try {
-    const halaman = await createHalaman(courseId, modulId, parsed.data as HalamanFormData);
+    const halaman = await createHalaman(courseId, modulId, submodulId, parsed.data as HalamanFormData);
     if (!halaman) {
-      return { ok: false, error: "Kursus atau modul tidak ditemukan dalam sistem." };
+      return { ok: false, error: "Kursus, modul, atau bab tidak ditemukan dalam sistem." };
     }
 
     revalidateKurikulum(courseId);
@@ -201,7 +207,7 @@ export async function deleteHalamanAction(
     return { ok: false, error: "Modul tidak ditemukan dalam sistem." };
   }
 
-  const existing = (modul.halaman ?? []).find((h) => h.id === id);
+  const existing = cariHalamanDiModul(modul, id);
   const judul = existing?.judul ?? id;
 
   const success = await deleteHalaman(courseId, modulId, id);

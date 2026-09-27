@@ -19,8 +19,16 @@ export async function generateMetadata({
  *
  * Halaman ini sengaja **tipis**. Shell-nya — bar fokus, rail, drawer tutor, dan
  * `CourseSessionProvider` — hidup di `materi/layout.tsx` supaya tidak di-remount
- * saat berpindah modul. Yang dikerjakan di sini hanya dua hal: menolak id modul
- * yang tidak ada di kurikulum saat ini, dan merender pane-nya.
+ * saat berpindah modul. Yang dikerjakan di sini hanya tiga hal: menolak id modul
+ * yang tidak ada di kurikulum saat ini, memilih halaman dari `?halaman=`, dan
+ * merender pane-nya.
+ *
+ * `?halaman=` dibaca **di sini**, bukan dengan `useSearchParams` di klien:
+ * halaman sudah punya `searchParams` dari Next, jadi satu nilai mengalir ke
+ * pane sebagai prop dan tidak ada hook klien yang perlu Suspense. Nilainya
+ * diteruskan **apa adanya** — id yang tidak dikenal diterjemahkan menjadi
+ * halaman pertama oleh `halamanDipilih()` di pane, yang juga dipakai panel
+ * silabus untuk menyorot barisnya.
  *
  * Modul dibaca ulang di sini karena halaman ini yang harus memvalidasi `modulId`
  * dan menyerahkan modulnya ke pane. Pembacaan kedua ini murah: store kursus
@@ -35,10 +43,13 @@ export async function generateMetadata({
  */
 export default async function MateriModulPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string; modulId: string }>;
+  searchParams: Promise<{ halaman?: string }>;
 }) {
   const { slug, modulId } = await params;
+  const { halaman } = await searchParams;
   const entri = await cariEntri(slug);
   if (!entri) notFound();
 
@@ -55,5 +66,5 @@ export default async function MateriModulPage({
   const modulAktif = modul.find((m) => m.id === modulId);
   if (!modulAktif) notFound();
 
-  return <MateriPane kursusId={entri.id} modul={modulAktif} />;
+  return <MateriPane kursusId={entri.id} modul={modulAktif} halamanAwal={halaman} />;
 }

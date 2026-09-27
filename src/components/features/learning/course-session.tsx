@@ -88,7 +88,28 @@ export interface SessionKonteks {
     visibilitas: "visible" | "hidden" | null,
     detail?: string,
   ) => Promise<boolean>;
+  /** True ketika kamera menyala di sesi ini (course `wajib_kamera`). */
+  kameraAktif: boolean;
+  /** Setter dari dialog izin; provider meneruskannya ke mesin akses. */
+  setKameraAktif: (aktif: boolean) => void;
+  /**
+   * Laporkan satu kejadian kamera ke server.
+   *
+   * Satu-satunya jalur penulisan kejadian kamera. `KameraIzin` tidak menyentuh
+   * server action langsung — ia memanggil ini — supaya `runId` tetap hanya
+   * hidup di provider dan tidak ada jalur kedua yang bisa menulis kejadian
+   * kamera tanpa run.
+   */
+  laporKamera: (jenis: JenisKejadianKamera, detail?: string) => void;
 }
+
+/** Kejadian yang hanya bisa lahir dari kamera (asal: `kamera`). */
+export type JenisKejadianKamera =
+  | "kamera_mulai"
+  | "kamera_berhenti"
+  | "kamera_gagal"
+  | "wajah_tidak_terdeteksi"
+  | "wajah_kedua";
 
 /** Jumlah kejadian per klasifikasi; dipakai panel untuk menampilkan hitungan. */
 function ringkas(daftar: KejadianSesi[]): { kejadian: number; celah: number } {
@@ -197,6 +218,15 @@ export function CourseSessionProvider({
   const [error, setError] = useState<string | null>(null);
   const [kejadian, setKejadian] = useState<KejadianSesi[]>(kejadianAwal ?? []);
   /**
+   * Status kamera untuk mesin akses.
+   *
+   * Klien, dan itu memang bukan penjaga otoritatif: server tetap memutuskan
+   * lewat `kamera_mulai` di `learning_events` (`kameraMenyalaPadaRun`). Yang
+   * dihitung di sini hanya supaya gerbang UI (`boleh`) tidak menutup pane yang
+   * server sudah izinkan — dan sebaliknya.
+   */
+  const [kameraAktif, setKameraAktif] = useState(false);
+  /**
    * Cermin `runId` yang bisa dibaca sinkron.
    *
    * Listener kejadian hidup di luar siklus render; membaca state `runId` dari
@@ -240,6 +270,34 @@ export function CourseSessionProvider({
   );
 
   /**
+   * Laporkan satu kejadian kamera ke server (`asal: "kamera"`).
+   *
+   * Terpisah dari `kirimSinyal` bukan karena bentuknya berbeda, melainkan
+   * karena `asal`-nya berbeda: kejadian ini turun dari model di perangkat,
+   * bukan dari listener peramban, dan laporan wajib membedakan keduanya (P3).
+   * Fire-and-forget seperti yang lain — pencatatan tidak boleh memblokir
+   * penghitungan frame.
+   */
+  const laporKamera = useCallback(
+    (jenis: JenisKejadianKamera, detail?: string) => {
+      const id = runRef.current;
+      if (!id) return;
+      void catatKejadianAction({
+        runId: id,
+        jenis,
+        visibilitas: "visible",
+        asal: "kamera",
+        ...(detail ? { detail } : {}),
+      })
+        .then((hasil) => {
+          if (hasil.ok && hasil.run) setKejadian(kejadianDariRun(hasil.run));
+        })
+        .catch(() => undefined);
+    },
+    [],
+  );
+
+  /**
    * Kirim satu sinyal browser ke server.
    *
    * Fire-and-forget seperti `kirimKejadian` — pencatatan tidak boleh memblokir
@@ -266,8 +324,7 @@ export function CourseSessionProvider({
     [],
   );
 
-  const mulai = useCallback(async () => {
-    setStatus("menyiapkan");
+  const mulai = useCallback(async () => {    setStatus("menyiapkan");
     setError(null);
     const hasil = await mulaiSesiAction(courseId);
     if (!hasil.ok || !hasil.bukti || !hasil.runId) {
@@ -403,8 +460,13 @@ export function CourseSessionProvider({
 
   const boleh = useCallback(
     (jenis: JenisKegiatan) =>
-      putuskanAkses({ jenisKegiatan: jenis, kebijakan, adaBuktiSesi: Boolean(bukti) }),
-    [kebijakan, bukti],
+      putuskanAkses({
+        jenisKegiatan: jenis,
+        kebijakan,
+        adaBuktiSesi: Boolean(bukti),
+        adaBuktiKamera: kameraAktif,
+      }),
+    [kebijakan, bukti, kameraAktif],
   );
 
   return (
@@ -418,6 +480,9 @@ export function CourseSessionProvider({
         error,
         kejadian,
         ringkasanKejadian: ringkas(kejadian),
+        kameraAktif,
+        setKameraAktif,
+        laporKamera,
         mulai,
         akhiri,
         boleh,
@@ -532,8 +597,8 @@ export function CourseSessionIndicator() {
  * hanya dirender di dalam panel modul yang punya lampiran. Modul turunan selalu
  * kosong (`punyaIsi` false di `detail-kursus.tsx`), jadi di seluruh kursus stok
  * tidak ada satu pun tombol untuk memulai sesi — sementara penyelesaian `materi`
- * di course `wajib` selalu ditolak server tanpa bukti. Hasilnya: tombol "Tandai
- * selesai" tampil lima kali dan tidak ada satu pun cara memenuhinya.
+ * di course `wajib` selalu ditolak server tanpa bukti. Hasilnya: tidak ada satu
+ * pun cara memenuhi syarat penyelesaian modul.
  *
  * Sesinya berlaku untuk seluruh course (`mulaiSesiAction(courseId)`), bukan per
  * modul, jadi ajakan ini memang letaknya di tingkat course — supaya selalu

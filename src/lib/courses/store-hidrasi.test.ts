@@ -217,16 +217,19 @@ describe("hidrasi store dari disk", () => {
   it("migrasi materi teks lama menjadi halaman saat dibaca dari disk", async () => {
     // Ini pengujian migrasi lewat jalur yang sebenarnya: berkas berisi materi
     // `teks` dari versi sebelumnya, dan store harus mempromosikannya menjadi
-    // halaman berformat tanpa skrip sekali jalan.
+    // halaman berformat tanpa skrip sekali jalan. Halaman itu masuk ke bab
+    // modulnya, karena `pastikanTermuat` menjalankan migrasi sub-modul lebih
+    // dulu.
     const { getCourseById } = await import("./store");
     const kursus = await getCourseById("crs-legacy-1");
     const mod = kursus?.modul?.[0];
 
     expect(mod?.materi).toEqual([]);
-    expect(mod?.halaman).toHaveLength(1);
-    expect(mod?.halaman?.[0].judul).toBe("Catatan Lama");
-    expect(mod?.halaman?.[0].blok[0].tipe).toBe("paragraf");
-    expect(mod?.halaman?.[0].blok[0].segmen?.[0].teks).toBe(
+    const halamanBab = mod?.submodul?.[0]?.halaman ?? [];
+    expect(halamanBab).toHaveLength(1);
+    expect(halamanBab[0].judul).toBe("Catatan Lama");
+    expect(halamanBab[0].blok[0].tipe).toBe("paragraf");
+    expect(halamanBab[0].blok[0].segmen?.[0].teks).toBe(
       "Catatan yang dulu ditulis sebagai materi teks.",
     );
   });

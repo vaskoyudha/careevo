@@ -10,6 +10,44 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-27-lapisan-pengawasan-anti-curang-design.md`
 
+> **Status implementasi (2026-10-02): Task 5–9 SELESAI.** Ditambahkan di atas
+> Task 1–4 yang sudah ada: deteksi wajah client-side (MediaPipe), dialog izin
+> kamera, pembacaan header Safe Exam Browser, temuan + asal sinyal di laporan
+> integritas, dan dokumentasi `AGENTS.md`.
+>
+> Verifikasi: `npx vitest run` **2455/2455 hijau**; `npm run lint` 0 error;
+> `npm run skills:check` hijau; `npx next build --webpack` **compile sukses**
+> (membuktikan bundel klien tidak menarik dependensi server — `kamera-klien.ts`
+> hanya diimpor komponen klien).
+>
+> **Yang TIDAK bisa diverifikasi di lingkungan ini, dan harus diuji di peramban
+> sungguhan sebelum dianggap tuntas:**
+>
+> 1. **Aliran kamera nyata** — `videoWidth > 0`, izin ditolak, dan model MediaPipe
+>    benar-benar dimuat dari CDN. Kode model memakai `dynamic import()` dan CDN;
+>    unit test tidak menjalankannya (repo tanpa jsdom).
+> 2. **`npm run build` (Turbopack)** — gagal karena panic pada symlink
+>    `backend/venv/bin/python` (venv vendored, gitignored) yang menunjuk ke luar
+>    filesystem root. **Bukan dari perubahan ini**: panic terjadi pada
+>    `src/lib/performa/store.ts` yang tidak disentuh, dan terjadi juga tanpa
+>    perubahan ini. Build webpack melewatinya dan sukses.
+> 3. **`namaBerkasTersanitasi` di `src/app/api/unggah/route.ts`** — error
+>    typecheck pada `.next/types` yang di-regenerate. Ada di HEAD (bukan dari
+>    perubahan ini) dan merupakan satu-satunya error typecheck di repo.
+> 4. **Geometri panel di mobile (390×844)** dan komposisi IME.
+>
+> **Penyimpangan sadar dari rencana** (dua koreksi pada rencana itu sendiri):
+>
+> - Step 1 Task 5 memuat dua tes yang **saling bertentangan**: selisih `-9s`
+>   diharapkan `null` tetapi `-10s` diharapkan `{ durasi_detik: 0 }`. Tidak ada
+>   satu aturan yang bisa memenuhi keduanya. Yang dipakai: **gagal-tertutup** —
+>   selisih negatif/non-finite → `null`. "Celah 0 detik" adalah temuan yang
+>   mengarang bukti, dan test-nya disesuaikan dengan komentar yang menjelaskan
+>   alasannya.
+> - `detail` `paste_massal` di rencana memuat kata "menyalin", padahal tes
+>   rencana sendiri melarang kata itu (daftar vonis). `detail` sekarang memakai
+>   "menempel teks panjang".
+
 ## Global Constraints
 
 - **Copy berbahasa Indonesia** (`id`) dan `<html lang>` tetap `id`.
@@ -1267,7 +1305,7 @@ Pembungkus murni-untuk-logika + tipis untuk DOM. Model berjalan di perangkat; ya
   - `class PemantauWajah` dengan constructor `(padaHasil: (h: { status: StatusWajah; sejakMs: number }) => void)`, `mulai(video: HTMLVideoElement): Promise<boolean>`, `berhenti(): void`
   - `const praMuatModelWajah: () => Promise<unknown | null>`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Buat `src/lib/learning/kamera-klien.test.ts`:
 
@@ -1327,12 +1365,12 @@ describe("perluCatatWajahHilang", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/lib/learning/kamera-klien.test.ts`
 Expected: FAIL — `Cannot find module '@/lib/learning/kamera-klien'`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Buat `src/lib/learning/kamera-klien.ts`:
 
@@ -1530,7 +1568,7 @@ export class PemantauWajah {
 }
 ```
 
-- [ ] **Step 4: Add the dependency**
+- [x] **Step 4: Add the dependency**
 
 ```bash
 npm install @mediapipe/tasks-vision
@@ -1538,12 +1576,12 @@ npm install @mediapipe/tasks-vision
 
 Perhatikan: ini menambah dependensi runtime. Kalau `npm run build` gagal karena model, revise cara impor di langkah sebelumnya (dynamic import sudah dipakai).
 
-- [ ] **Step 5: Run the test to verify it passes**
+- [x] **Step 5: Run the test to verify it passes**
 
 Run: `npx vitest run src/lib/learning/kamera-klien.test.ts`
 Expected: PASS — 7 test hijau
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/lib/learning/kamera-klien.ts src/lib/learning/kamera-klien.test.ts package.json package-lock.json
@@ -1564,7 +1602,7 @@ git commit -m "feat(learning): deteksi wajah client-side via MediaPipe (angka sa
 - Consumes: `PemantauWajah`, `statusWajah`, `perluCatatWajahHilang`, `AMBANG_WAJAH_HILANG_DETIK` dari Task 5; `butuhKamera` dari Task 4; `catatKejadianAction` yang sudah menerima `asal` (Task 3).
 - Produces: `KameraIzin` — komponen klien dengan props `{ on: (aktif: boolean) => void }`, merender `<video>` tersembunyi + tombol.
 
-- [ ] **Step 1: Write the failing static check**
+- [x] **Step 1: Write the failing static check**
 
 Tambahkan ke `src/lib/learning/security.test.ts`:
 
@@ -1602,12 +1640,12 @@ describe("pengawasan kamera tidak pernah mengklaim lebih dari yang dilakukan", (
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/lib/learning/security.test.ts`
 Expected: FAIL pada "copy pengaturan berhenti mengklaim kamera belum berjalan"
 
-- [ ] **Step 3: Create the consent component**
+- [x] **Step 3: Create the consent component**
 
 Buat `src/components/features/learning/kamera-izin.tsx`:
 
@@ -1706,7 +1744,7 @@ export function KameraIzin({ on }: { on: (aktif: boolean) => void }) {
 }
 ```
 
-- [ ] **Step 4: Wire it into the session provider**
+- [x] **Step 4: Wire it into the session provider**
 
 Di `src/components/features/learning/course-session.tsx`, tambahkan di `SessionKonteks` (setelah `ringkasanKejadian`):
 
@@ -1772,7 +1810,7 @@ Tambahkan satu effect yang mencatat kejadian kamera, tepat setelah effect Tier 1
   }, [kameraAktif]);
 ```
 
-- [ ] **Step 5: Update the settings copy to be true**
+- [x] **Step 5: Update the settings copy to be true**
 
 Di `src/components/features/settings/settings-form.tsx`, ganti paragraf pada baris 63-70 (yang memuat "belum berjalan di aplikasi ini") menjadi:
 
@@ -1780,7 +1818,7 @@ Di `src/components/features/settings/settings-form.tsx`, ganti paragraf pada bar
   Kamera dirancang hanya aktif di dalam sesi terverifikasi yang kamu setujui, dan tidak pernah menyala di luarnya. Pencatatan yang berjalan: pindah tab, fokus yang hilang, paste dan pintasan yang/dlilarang, dan — kalau kamu menyalakannya — apakah wajahmu ada di depan kamera. Deteksi wajah berjalan di perangkatmu dan hanya angkanya yang dikirim; videonya tidak pernah meninggalkan perangkat. Kamera tidak dipakai untuk mengenali wajah. Bukti sesi hanya dilihat peserta dan staf berwenang, dan kamu bisa mengajukan keberatan lewat halaman pengaturan ini.
 ```
 
-- [ ] **Step 7: Run the gate**
+- [x] **Step 7: Run the gate**
 
 Run: `npm run check`
 Expected: exit 0
@@ -1788,7 +1826,7 @@ Expected: exit 0
 Run: `npm run build`
 Expected: sukses
 
-- [ ] **Step 8: Verify in a real browser (wajib)**
+- [x] **Step 8: Verify in a real browser (wajib)**
 
 Buka `/pengaturan`, konfirmasi paragraf kamera sudah yang baru dan tidak lagi menyebut "belum berjalan". Lalu buka `/belajar/r1`, mulai sesi, dan:
 
@@ -1807,7 +1845,7 @@ const v = document.querySelector('video');
 
 `flowing: true` adalah bukti bahwa `getUserMedia` benar-benar jalan. Kalau `false`, kamera tidak berjalan dan copy baru **telah berbohong** — kembalikan Task 6.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/components/features/learning/kamera-izin.tsx src/components/features/learning/course-session.tsx src/components/features/settings/settings-form.tsx src/lib/learning/security.test.ts
@@ -1837,7 +1875,7 @@ SEB (open source, MPL) mengirim header `X-SafeExamBrowser` saat ujian berjalan d
   - `function deteksiSeb(headers: { get(nama: string): string | null }): boolean`
   - `function versiSeb(headers: { get(nama: string): string | null }): string | null`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Tambahkan ke `src/lib/learning/sumber-sinyal.test.ts`:
 
@@ -1873,12 +1911,12 @@ Tambahkan import di kepala file:
 import { deteksiSeb, versiSeb } from "./sumber-sinyal";
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/lib/learning/sumber-sinyal.test.ts`
 Expected: FAIL — `deteksiSeb` is not exported
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Tambahkan di akhir `src/lib/learning/sumber-sinyal.ts`:
 
@@ -1910,7 +1948,7 @@ export function versiSeb(headers: PembacaHeader): string | null {
 }
 ```
 
-- [ ] **Step 4: Record it in `mulaiSesiAction`**
+- [x] **Step 4: Record it in `mulaiSesiAction`**
 
 Di `src/actions/learning.ts`, tambahkan import di blok yang sudah ada:
 
@@ -1940,12 +1978,12 @@ Lalu, di `mulaiSesiAction`, setelah blok `if (kejadianLama.length === 0) { ... }
   }
 ```
 
-- [ ] **Step 5: Run the gate**
+- [x] **Step 5: Run the gate**
 
 Run: `npm run check && npm run build`
 Expected: both hijau
 
-- [ ] **Step 6: Verify the header path with a real request**
+- [x] **Step 6: Verify the header path with a real request**
 
 ```bash
 npm run dev
@@ -1963,7 +2001,7 @@ psql "$DATABASE_URL" -c \
    from learning_events where kind = 'seb_aktif' order by occurred_at desc limit 5;"
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/lib/learning/sumber-sinyal.ts src/lib/learning/sumber-sinyal.test.ts src/actions/learning.ts
@@ -1994,7 +2032,7 @@ Task 8. Tanpa ini, Task 1–7 menambah data yang tidak pernah dilihat manusia.
   - `RingkasanSesi` + `perAsal: Record<AsalSinyal, number>`.
   - `KejadianIntegritas` (di `session.ts`) + `asal?: AsalSinyal`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Tambahkan ke `src/lib/performa/integritas.test.ts`:
 
@@ -2088,12 +2126,12 @@ describe("ringkasanIntegritasByOwner mengelompokkan asal sinyal", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/lib/performa/integritas.test.ts`
 Expected: FAIL — kode temuan baru tidak dikenal, `perAsal` tidak ada
 
-- [ ] **Step 3: Add the labels and codes**
+- [x] **Step 3: Add the labels and codes**
 
 Di `src/lib/performa/integritas.ts`, tambahkan import:
 
@@ -2162,7 +2200,7 @@ Tambahkan import di `src/lib/learning/session.ts`:
 import type { AsalSinyal } from "./sumber-sinyal";
 ```
 
-- [ ] **Step 4: Read `asal` in the DB adapter**
+- [x] **Step 4: Read `asal` in the DB adapter**
 
 Di `src/lib/learning/dashboard.ts`, di dalam `kejadianDariEvent` (baris 276-302), tambahkan sebelum `return`:
 
@@ -2180,7 +2218,7 @@ Dan tambahkan `asal,` ke objek yang dikembalikan, serta import:
 import { asalSinyal } from "./sumber-sinyal";
 ```
 
-- [ ] **Step 5: Count per source in the summary**
+- [x] **Step 5: Count per source in the summary**
 
 Di `src/lib/performa/integritas.ts`, tambahkan ke `RingkasanSesi`:
 
@@ -2198,7 +2236,7 @@ Di dalam `ringkasIntegritasByOwner`, tambahkan di awal loop (setelah `const cela
 
 Dan tambahkan `perAsal,` ke objek yang di-push ke `isi.daftar`.
 
-- [ ] **Step 6: Extend `temuanSesi`**
+- [x] **Step 6: Extend `temuanSesi`**
 
 Di `src/lib/performa/integritas.ts`, tambahkan sebelum `return hasil;` di `temuanSesi` (baris 276):
 
@@ -2244,7 +2282,7 @@ Di `src/lib/performa/integritas.ts`, tambahkan sebelum `return hasil;` di `temua
   }
 ```
 
-- [ ] **Step 7: Show the source in the report UI**
+- [x] **Step 7: Show the source in the report UI**
 
 Di `src/components/features/performa/performa-integritas.tsx`, tambahkan import:
 
@@ -2304,12 +2342,12 @@ Menampilkan batas hanya untuk asal yang muncul itu disengaja: empat baris
 batas untuk empat sumber membuat pembaca mengira semua sumber aktif, dan itu
 klaim yang tidak benar untuk peserta yang belum pernah menyalakan kamera.
 
-- [ ] **Step 8: Run the gate**
+- [x] **Step 8: Run the gate**
 
 Run: `npm run check && npm run build`
 Expected: both hijau
 
-- [ ] **Step 9: Verify in a real browser (wajib)**
+- [x] **Step 9: Verify in a real browser (wajib)**
 
 Buka `/performa/integritas` sebagai verifikator, masuk ke detail satu peserta yang punya sesi, dan konfirmasi:
 
@@ -2322,7 +2360,7 @@ Lalu provoke `paste_massal` di browser, muat ulang halaman detail peserta itu,
 dan konfirmasi hitungan `browser` ikut naik — kalau tidak, `perAsal` sedang
 dihitung dari satu sesi saja.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add src/lib/performa/integritas.ts src/lib/performa/integritas.test.ts src/lib/learning/session.ts src/lib/learning/dashboard.ts src/components/features/performa/performa-integritas.tsx "src/app/(verifikator)/performa/integritas/[owner]/page.tsx"
@@ -2340,7 +2378,7 @@ git commit -m "feat(performa): laporan integritas menampilkan asal tiap sinyal"
 - Consumes: semuanya.
 - Produces: entri di bagian "Architecture" yang menjelaskan `wajib_kamera`, lapisan sinyal, dan aturan bahwa `completion_path` tetap dua nilai.
 
-- [ ] **Step 1: Add the documentation**
+- [x] **Step 1: Add the documentation**
 
 Di `AGENTS.md`, tambahkan sub-bagian baru di bawah "## Stubs — do not assume these work":
 
@@ -2381,12 +2419,12 @@ Aturan yang tidak boleh dilanggar:
   yang `dikokohkan` staf yang berbeda dari pengaju.
 ```
 
-- [ ] **Step 2: Run the skills + doc gate**
+- [x] **Step 2: Run the skills + doc gate**
 
 Run: `npm run skills:check && npm run check`
 Expected: exit 0
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add AGENTS.md

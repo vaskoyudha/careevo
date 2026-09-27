@@ -17,6 +17,7 @@ import { HalamanEditor } from "./halaman-editor";
 import { KuisModulEditor } from "./kuis-modul-editor";
 import { BATAS_HALAMAN_PER_MODUL } from "@/lib/validation/halaman";
 import { MODE_CHECKPOINT_LABEL } from "@/lib/courses/kebijakan";
+import { jumlahHalamanModul } from "@/lib/courses/submodul";
 import { kuisUntukModul } from "@/lib/courses/kuis";
 import type { Kuis, Modul, ModeCheckpoint } from "@/types/course";
 
@@ -74,7 +75,7 @@ export function ModulEditor({
         <ol className="space-y-2">
           {modul.map((m, index) => {
             const jumlahMateri = (m.materi ?? []).length;
-            const jumlahHalaman = (m.halaman ?? []).length;
+            const jumlahHalaman = jumlahHalamanModul(m);
             const jumlahKuis = (m.kuis ?? []).length;
             return (
               <li key={m.id} className="rounded-xl border border-gray-200 bg-white">

@@ -79,19 +79,48 @@ const BERKAS_DETAIL_INTEGRITAS = path.join(
   ROOT,
   "src/app/(verifikator)/performa/integritas/[owner]/page.tsx",
 );
+const BERKAS_HALAMAN_KURSUS = path.join(ROOT, "src/app/(app)/belajar/[slug]/page.tsx");
+const BERKAS_LAYOUT_READER = path.join(
+  ROOT,
+  "src/app/(focus)/belajar/[slug]/materi/layout.tsx",
+);
 
 describe("gerbang UI sesi terverifikasi", () => {
   it("halaman kursus selalu menawarkan cara memulai sesi", () => {
     // Modul turunan tidak punya lampiran, sehingga `CourseSessionGate` (tombol
     // "Mulai sesi" yang satunya lagi) tidak pernah ikut terender di sana. Tanpa
-    // ajakan tingkat-course ini, tombol "Tandai selesai" tampil tanpa ada satu
-    // pun cara memenuhi syaratnya — penyelesaian mustahil, tapi tetap tertolak
-    // server.
+    // ajakan tingkat-course ini, tidak ada satu pun cara memenuhi syarat
+    // penyelesaian modul `wajib` — penyelesaian otomatis di halaman terakhir
+    // mustahil berhasil, tapi tetap ditolak server.
     expect(readFileSync(BERKAS_DETAIL, "utf8")).toContain("<CourseSessionPrompt />");
     // Ajakan itu harus benar-benar memulai sesi, bukan sekadar label mati.
     expect(readFileSync(BERKAS_SESI, "utf8")).toMatch(
       /export function CourseSessionPrompt[\s\S]*?void mulai\(\)/,
     );
+  });
+
+  it("silabus me-seed sesi berjalan dari server, bukan mulai dari kosong", () => {
+    // Keluhan nyata: peserta memulai sesi di halaman kursus, lalu diminta
+    // memulai lagi saat masuk reader — dua kali verifikasi untuk satu
+    // `learning_runs`. Penyebabnya halaman kursus tidak pernah membaca run yang
+    // sedang berjalan, jadi provider-nya selalu menganggap "tidak ada sesi".
+    //
+    // Yang dijaga: halaman kursus **dan** komponen silabus sama-sama
+    // meneruskan seed sesi. Menghapus salah satunya mengembalikan bug itu.
+    const halaman = readFileSync(BERKAS_HALAMAN_KURSUS, "utf8");
+    expect(halaman).toContain("sesiReaderAwal");
+    expect(halaman).toContain("sesiAwal={sesiAwal}");
+    const silabus = readFileSync(BERKAS_DETAIL, "utf8");
+    expect(silabus).toMatch(/buktiAwal=\{sesiAwal\?\.bukti/);
+    expect(silabus).toMatch(/runIdAwal=\{sesiAwal\?\.runId/);
+  });
+
+  it("silabus dan reader memakai fungsi seed yang sama, bukan dua aturan", () => {
+    // Satu aturan kebijakan untuk kedua permukaan. Kalau halaman kursus menulis
+    // seed-nya sendiri, `policyVersion`-nya bisa menyimpang dari reader dan
+    // buktinya lalu ditolak server.
+    expect(readFileSync(BERKAS_HALAMAN_KURSUS, "utf8")).toContain("sesiReaderAwal({");
+    expect(readFileSync(BERKAS_LAYOUT_READER, "utf8")).toContain("sesiReaderAwal({");
   });
 
   it("kuis hanya dirender setelah keputusan akses mengizinkan", () => {
@@ -263,5 +292,62 @@ describe("laporan belajar dan laporan integritas tidak bercampur", () => {
     // tetap bisa dicari dari kedua sisi.
     expect(readFileSync(BERKAS_LAPORAN_BELAJAR, "utf8")).toContain("/performa/integritas/");
     expect(readFileSync(BERKAS_LAPORAN_INTEGRITAS, "utf8")).toContain("/performa/${encodeURIComponent");
+  });
+});
+
+describe("pengawasan kamera tidak pernah mengklaim lebih dari yang dilakukan", () => {
+  const BERKAS_KAMERA = path.join(ROOT, "src/lib/learning/kamera-klien.ts");
+  const BERKAS_IZIN = path.join(ROOT, "src/components/features/learning/kamera-izin.tsx");
+  const BERKAS_SETELAN = path.join(
+    ROOT,
+    "src/components/features/settings/settings-form.tsx",
+  );
+
+  it("kamera benar-benar meminta akses media", () => {
+    // Gate ini menjaga arah lain: copy tentang kamera harus berubah **setelah**
+    // `getUserMedia` benar-benar ada. Menghapus pemanggilan ini tanpa
+    // mengembalikan copy adalah membohongi peserta.
+    expect(readFileSync(BERKAS_KAMERA, "utf8")).toContain("getUserMedia");
+  });
+
+  it("menyalakan kamera selalu lewat dialog izin, bukan otomatis di mulai sesi", () => {
+    // Persetujuan rekam wajah berbeda dari "Mulai sesi". Kalau
+    // `CourseSessionProvider` pernah membuat `PemantauWajah` sendiri, kamera
+    // bisa menyala tanpa satu pun klik peserta. (Komponen izin yang memegang
+    // kamera, dan hanya dari klik — dijaga di bawah.)
+    const sesi = readFileSync(BERKAS_SESI, "utf8");
+    expect(sesi).not.toContain("PemantauWajah");
+    expect(sesi).not.toContain("mediaDevices");
+    const izin = readFileSync(BERKAS_IZIN, "utf8");
+    expect(izin).toContain("PemantauWajah");
+    expect(izin).toMatch(/onClick=\{\(\) => void nyalakan\(\)\}/);
+  });
+
+  it("copy pengaturan tidak lagi mengklaim kamera belum berjalan", () => {
+    // Guardian: selama `getUserMedia` ada, kalimat "belum berjalan" adalah
+    // kebohongan. Hapus kalimat itu — bukan tambahkan excuse.
+    expect(readFileSync(BERKAS_SETELAN, "utf8")).not.toContain("belum berjalan");
+  });
+
+  it("menyatakan kamera tidak merekam atau mengenali wajah", () => {
+    const isi = readFileSync(BERKAS_SETELAN, "utf8");
+    expect(isi).toContain("tidak dipakai untuk mengenali wajah");
+    expect(isi).toContain("tidak pernah meninggalkan");
+  });
+
+  it("tidak mengirim frame video ke server", () => {
+    // Yang dikirim hanya angka. Kalau ini jadi merah, ada jalur yang mengunggah
+    // gambar — dan itu butuh keputusan retensi yang belum pernah diambil.
+    const isi = readFileSync(BERKAS_KAMERA, "utf8");
+    expect(isi).not.toMatch(/toBlob|FormData|createImageBitmap|toDataURL/);
+  });
+
+  it("jumlah wajah disempitkan lebih dulu, bukan dikirim sebagai angka mentah", () => {
+    // `detail` sampai ke laporan; ia harus dibentuk dari status yang sudah
+    // disempitkan (`statusWajah`), bukan dari `detections.length` mentah.
+    const kamera = readFileSync(BERKAS_KAMERA, "utf8");
+    expect(kamera).toContain("statusWajah(");
+    const izin = readFileSync(BERKAS_IZIN, "utf8");
+    expect(izin).toContain("perluCatatWajahHilang");
   });
 });

@@ -74,7 +74,7 @@ async function selaraskanModul(kursusId: string, slug: string, indexModul: numbe
       const lama = halamanAda.find((h) => h.judul === seedHalaman.judul);
       const hasil = lama
         ? await updateHalaman(kursusId, modul.id, lama.id, isi)
-        : await createHalaman(kursusId, modul.id, isi);
+        : await createHalaman(kursusId, modul.id, null, isi);
       if (!hasil) throw new Error(`halaman gagal diselaraskan: ${prefiks}`);
     }
   }

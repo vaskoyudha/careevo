@@ -345,7 +345,7 @@ describe("POST /api/unggah — otorisasi course dan subjek", () => {
       path: "/uploads/lampiran.pdf",
       ukuran_bytes: 1024,
     });
-    const halaman = await createHalaman(COURSE_ID, modul!.id, { judul: "Halaman Satu" });
+    const halaman = await createHalaman(COURSE_ID, modul!.id, null, { judul: "Halaman Satu" });
 
     for (const subjek of [materi!.id, halaman!.id]) {
       const res = await POST(permintaan({ subjekId: subjek }));
@@ -365,7 +365,7 @@ describe("POST /api/unggah — otorisasi course dan subjek", () => {
       url: "https://contoh.example/v",
       durasi_min: 5,
     });
-    const halaman = await createHalaman(COURSE_ID, modul!.id, { judul: "Halaman" });
+    const halaman = await createHalaman(COURSE_ID, modul!.id, null, { judul: "Halaman" });
 
     const modulResolved = await modulUntuk(COURSE_ID);
     expect(subjekMilikCourse(modulResolved, modul!.id)).toBe(true);

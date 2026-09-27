@@ -1,6 +1,7 @@
 import { getCourseById, listKuis } from "./store";
 import { modulKursus, type ModulKursus, type SumberModul } from "./kurikulum";
 import { kuisUntukModul } from "./kuis";
+import { submodulUntukModul } from "./submodul";
 import type { Kuis, Modul } from "@/types/course";
 
 /**
@@ -22,28 +23,44 @@ import type { Kuis, Modul } from "@/types/course";
  *
  * `bank` diteruskan, bukan dibaca di sini, supaya bank soal hanya dimuat sekali
  * untuk seluruh kursus — bukan sekali per modul.
+ *
+ * ## `submodul` dan `halaman` dibangun dari satu pohon
+ *
+ * Keduanya diturunkan dari `m.submodul` di sini, bukan dari dua sumber: bila
+ * panel membaca `submodul` sementara pane membaca `halaman`, dua daftar itu akan
+ * menyimpang tanpa error dan peserta melihat daftar bab yang tidak cocok dengan
+ * halaman yang dirender. `halamanModul()` adalah perata tunggalnya.
  */
 function dariTersimpan(modul: Modul[], urlKursus: string, bank: Kuis[]): ModulKursus[] {
   return [...modul]
     .sort((a, b) => a.urutan - b.urutan)
-    .map((m) => ({
-      id: m.id,
-      judul: m.judul,
-      ringkasan: m.ringkasan,
-      durasi_min: m.durasi_min,
-      url: urlKursus,
-      materi: [...(m.materi ?? [])].sort((a, b) => a.urutan - b.urutan),
-      // Halaman ikut dibawa karena prosa kini tinggal di sana; tanpa ini,
-      // modul tersimpan akan tampak kosong di halaman belajar walau sudah diisi.
-      halaman: [...(m.halaman ?? [])].sort((a, b) => a.urutan - b.urutan),
-      // Id kuis diresolusi ke entri banknya di sini. Id yatim (kuisnya sudah
-      // dihapus) otomatis gugur lewat `kuisUntukModul`, jadi UI tidak pernah
-      // menerima referensi yang tidak bisa dirender.
-      kuis: kuisUntukModul(m, bank),
-      // Checkpoint juga harus ikut: kalau tidak, gerbang learner akan memakai
-      // default dan mengabaikan aturan pengerjaan yang dipilih admin.
-      checkpoint: m.checkpoint,
-    }));
+    .map((m) => {
+      const submodul = submodulUntukModul(m).map((s) => ({
+        ...s,
+        halaman: [...(s.halaman ?? [])].sort((a, b) => a.urutan - b.urutan),
+      }));
+
+      return {
+        id: m.id,
+        judul: m.judul,
+        ringkasan: m.ringkasan,
+        durasi_min: m.durasi_min,
+        url: urlKursus,
+        materi: [...(m.materi ?? [])].sort((a, b) => a.urutan - b.urutan),
+        submodul,
+        // Halaman diratakan dari `submodul` yang baru saja dibangun — bukan
+        // dibaca ulang dari `m`, supaya hasil ratanya pasti sama dengan pohon
+        // yang dipakai panel.
+        halaman: submodul.flatMap((s) => s.halaman),
+        // Id kuis diresolusi ke entri banknya di sini. Id yatim (kuisnya sudah
+        // dihapus) otomatis gugur lewat `kuisUntukModul`, jadi UI tidak pernah
+        // menerima referensi yang tidak bisa dirender.
+        kuis: kuisUntukModul(m, bank),
+        // Checkpoint juga harus ikut: kalau tidak, gerbang learner akan memakai
+        // default dan mengabaikan aturan pengerjaan yang dipilih admin.
+        checkpoint: m.checkpoint,
+      };
+    });
 }
 
 /**

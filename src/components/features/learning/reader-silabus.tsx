@@ -9,11 +9,11 @@ import {
 } from "react";
 import Link from "next/link";
 import { createPortal } from "react-dom";
-import { RiLayoutLeft2Line } from "@remixicon/react";
+import { RiArrowLeftLine, RiLayoutLeft2Line } from "@remixicon/react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { hitungProgres, irisModulSelesai, type ModulKursus } from "@/lib/courses/kurikulum";
-import { MateriRail } from "./materi-rail";
+import { MateriRail, type TampilanRail } from "./materi-rail";
 
 /**
  * Silabus reader: pemicu + progres di kiri bar fokus, dan panel setinggi layar.
@@ -181,6 +181,7 @@ export function IsiPanelSilabus({
   kursusPenyedia,
   modul,
   modulAktif,
+  halamanAktif,
   selesai,
   onTutup,
   panelRef,
@@ -192,6 +193,8 @@ export function IsiPanelSilabus({
   kursusPenyedia: string;
   modul: ModulKursus[];
   modulAktif: string;
+  /** Id halaman yang sedang dibaca (`?halaman=`), untuk penanda "kamu di sini". */
+  halamanAktif?: string;
   selesai: string[];
   onTutup: () => void;
   panelRef?: RefObject<HTMLElement | null>;
@@ -210,6 +213,22 @@ export function IsiPanelSilabus({
   const selesaiValid = irisModulSelesai(selesai, modul);
   const progres = hitungProgres(selesaiValid.length, modul.length);
   const berikutnya = modul.find((m) => !selesaiValid.includes(m.id)) ?? modul[0] ?? null;
+
+  /**
+   * Tampilan rail yang sedang aktif — **dimiliki kepala panel**, bukan rail.
+   *
+   * Pintu "Semua modul" hidup di kepala (di atas judul kursus), dan ia satu-satunya
+   * kontrol yang mengubah seluruh isi panel. Kalau state-nya tinggal di rail,
+   * kepala tidak punya cara tahu tampilan mana yang berlaku, dan tombolnya akan
+   * menawarkan kembali ke daftar saat daftar itu memang yang sedang tampil.
+   *
+   * Dimulai dari modul yang dibuka: "di mana saya" adalah pertanyaan pertama saat
+   * panel dibuka. Bila `modulAktif` tidak ada di kurikulum (id basi), yang benar
+   * adalah daftar kursus — bukan panel yang mengaku sedang di sebuah modul.
+   */
+  const [tampilan, setTampilan] = useState<TampilanRail>(
+    modul.some((m) => m.id === modulAktif) ? "modul" : "semua",
+  );
 
   return (
     <aside
@@ -231,15 +250,35 @@ export function IsiPanelSilabus({
       }}
     >
       <div className="reader-panel-head">
-        {/* Tombol tutupnya sebaris dengan **judul kursus**, bukan di baris label
-            sendiri. Baris "SILABUS" di atasnya hanya mengulang nama panel yang
-            sudah diumumkan `aria-label` di `<aside>`, jadi labelnya dibuang —
-            bukan disembunyikan: `sr-only` menyisakan teks yang tetap membaca di
-            barisnya sambil tidak menambah apa pun. Nama baris digantikan judul
-            kursusnya sendiri, dan tombolnya tetap paling kanan sehingga pembaca
-            layar mendengar judul dulu, lalu pintunya. */}
-        <div className="reader-panel-head-row">
-          <p className="reader-panel-judul">{kursusJudul}</p>
+        {/* Baris paling atas: pintu "Semua modul" di kiri, tombol tutup di
+            kanan — satu baris, satu garis optik.
+
+            Tombol tutupnya pindah ke sini (dulu sebaris dengan judul kursus)
+            karena keduanya adalah **kontrol panel**, bukan bagian dari isi: ia
+            menutup panel dan ia mengganti seluruh isinya. Menaruhnya di baris
+            yang sama dengan judul membuat judul berbagi baris dengan dua
+            maksud sekaligus, dan di panel yang sempit judulnya jadi terpotong
+            lebih cepat daripada yang diperlukan.
+
+            `margin-left: auto` pada tombolnya (lihat CSS) yang menahannya di
+            kanan, sehingga baris ini tetap benar saat pintu "Semua modul" tidak
+            dirender — di tampilan daftar kursus, tombol tutupnya sendirian dan
+            harus tetap rata kanan, bukan melompat ke kiri.
+
+            Pintu "Semua modul" hanya ada di tampilan modul: saat daftar kursus
+            yang tampil, menawarkan "kembali ke daftar kursus" berarti
+            menawarkan halaman yang sedang dibaca. */}
+        <div className="reader-panel-atas">
+          {tampilan === "modul" ? (
+            <button
+              type="button"
+              onClick={() => setTampilan("semua")}
+              className="reader-panel-semua"
+            >
+              <RiArrowLeftLine className="reader-panel-semua-ikon" aria-hidden="true" />
+              Semua modul
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={onTutup}
@@ -254,6 +293,10 @@ export function IsiPanelSilabus({
             <X size={26} strokeWidth={3.25} absoluteStrokeWidth aria-hidden="true" />
           </button>
         </div>
+
+        {/* Judul kursus berdiri sendiri: ia nama isi panel, bukan kontrol, jadi
+            ia tidak lagi berbagi baris dengan tombol tutup. */}
+        <p className="reader-panel-judul">{kursusJudul}</p>
         <p className="reader-panel-penyedia">{kursusPenyedia}</p>
         <ProgressSegmen
           jumlah={modul.length}
@@ -270,7 +313,11 @@ export function IsiPanelSilabus({
           slug={slug}
           modul={modul}
           modulAktif={modulAktif}
+          halamanAktif={halamanAktif}
           selesai={selesaiValid}
+          tampilan={tampilan}
+          onTampilan={setTampilan}
+          onNavigasi={onTutup}
         />
       </div>
 
@@ -313,6 +360,7 @@ export function ReaderPanelSilabus({
   kursusPenyedia,
   modul,
   modulAktif,
+  halamanAktif,
   selesai,
   buka,
   onTutup,
@@ -324,6 +372,8 @@ export function ReaderPanelSilabus({
   modul: ModulKursus[];
   /** Id modul yang sedang dibuka — satu baris ditandai `aria-current`. */
   modulAktif: string;
+  /** Id halaman yang sedang dibaca (`?halaman=`), bila ada. */
+  halamanAktif?: string;
   selesai: string[];
   buka: boolean;
   onTutup: () => void;
@@ -448,6 +498,7 @@ export function ReaderPanelSilabus({
         kursusPenyedia={kursusPenyedia}
         modul={modul}
         modulAktif={modulAktif}
+        halamanAktif={halamanAktif}
         selesai={selesai}
         onTutup={tutup}
         panelRef={panelRef}

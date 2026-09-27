@@ -8,15 +8,15 @@ import type { Halaman, Modul } from "@/types/course";
  *
  * Memakai `HalamanView` yang sama dengan halaman belajar, bukan renderer kedua
  * — pratinjau yang berbeda dari kenyataan lebih buruk daripada tidak ada
- * pratinjau. Karena `modul.halaman` di sini sengaja hanya berisi halaman yang
- * sedang disunting, pager tidak muncul dan tidak ada tautan keluar yang bisa
- * membuang tulisan yang belum disimpan.
+ * pratinjau. Karena modul di sini sengaja hanya memuat satu bab berisi halaman
+ * yang sedang disunting, pager tidak muncul dan tidak ada tautan keluar yang
+ * bisa membuang tulisan yang belum disimpan.
  */
 export function PratinjauHalaman({
   modul,
   halaman,
 }: {
-  modul: Modul;
+  modul: Pick<Modul, "submodul">;
   halaman: Halaman;
 }) {
   return (

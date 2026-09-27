@@ -191,13 +191,16 @@ describe("KejadianPanel — penjelasan tertutup secara default", () => {
 });
 
 describe("IsiPanelKejadian — penjelasan, pelaporan, dan catatan", () => {
-  it("menjelaskan apa yang dicatat dan apa yang belum", () => {
+  it("menjelaskan apa yang dicatat dan batas kamera tanpa mengklaim berlebih", () => {
     const isi = teks(renderIsi([BIASA]));
     expect(isi).toContain("Pindah tab, keluar layar penuh");
-    // Batas jujur soal kamera wajib tetap ada: panel yang mengklaim memantau
-    // lebih dari yang dilakukan kode akan berbohong ke peserta.
-    expect(isi).toContain("belum");
-    expect(isi).toContain("mengakses kameramu");
+    // Sejak kamera benar-benar diminta (Task 6), panel **tidak** boleh lagi
+    // mengklaim "belum mengakses kameramu" — itu kebohongan ke peserta.
+    // Batasnya sekarang bergeser: kamera hanya menyala kalau peserta
+    // menyalakannya, dan yang dikirim hanya angka.
+    expect(isi).not.toContain("belum");
+    expect(isi).toContain("hanya menyala kalau kamu menyalakannya sendiri");
+    expect(isi).toContain("bukan gambarnya");
   });
 
   it("menegaskan kejadian tidak otomatis menggagalkan penilaian", () => {
@@ -206,11 +209,15 @@ describe("IsiPanelKejadian — penjelasan, pelaporan, dan catatan", () => {
     expect(isi).toContain("tidak otomatis menggagalkan penilaian");
   });
 
-  it("menyediakan pelaporan kamera yang jelas tidak menyalakan kamera", () => {
+  it("menyediakan pelaporan gangguan kamera yang jelas tidak menyalakan kamera", () => {
     const isi = renderIsi([BIASA]);
-    expect(teks(isi)).toContain("Kamera: lapor apa yang kamu alami");
+    expect(teks(isi)).toContain("Kamera: lapor gangguan yang kamu alami");
     expect(teks(isi)).toContain("tidak menyalakan kamera");
     expect(teks(isi)).toContain("Laporkan gangguan");
+    // `kamera_mulai` **tidak** lagi bisa dilaporkan manual: sejak kamera nyata,
+    // satu-satunya sumbernya adalah `PemantauWajah`. Radio "Kamera menyala lagi"
+    // adalah cara memenuhi `wajib_kamera` tanpa kamera, jadi ia sengaja pergi.
+    expect(teks(isi)).not.toContain("Kamera menyala lagi");
   });
 
   it("mendaftar catatan terakhir beserta klasifikasinya", () => {

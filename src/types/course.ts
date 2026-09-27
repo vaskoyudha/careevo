@@ -152,12 +152,52 @@ export interface BlokHalaman {
  */
 export interface Halaman {
   id: string;
+  /**
+   * Sub-modul pemilik halaman ini.
+   *
+   * Halaman **selalu** berada di dalam sebuah sub-modul sejak tingkat itu ada:
+   * `Modul.halaman` digantikan `Modul.submodul[].halaman`. Field ini
+   * diduplikasi (bukan hanya diturunkan dari posisi array) karena halaman juga
+   * punya alamat sendiri (`?halaman=<id>`) dan renderer perlu tahu induknya
+   * tanpa menelusuri seluruh pohon modul.
+   */
+  submodul_id: string;
   modul_id: string;
   course_id: string;
   judul: string;
   /** 1-based dan eksplisit — sama seperti `Modul.urutan`. */
   urutan: number;
   blok: BlokHalaman[];
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Sub-modul — bab di dalam sebuah modul.
+ *
+ * Satu modul ("Eloquent, Migrasi, dan Validasi") biasanya berisi beberapa
+ * bagian yang masing-masing punya beberapa halaman. Sebelum tingkat ini ada,
+ * semua halaman menempel langsung ke modul, sehingga silabus tidak bisa
+ * menunjukkan "saya sedang di bagian mana".
+ *
+ * Halaman **bersarang** di sini, bukan menunjuk lewat id: sub-modul adalah
+ * pemiliknya, jadi menghapus sub-modul otomatis menghapus halamannya tanpa
+ * referensi yatim — alasan yang sama dengan `Modul.materi` dan `Modul.halaman`
+ * sebelumnya.
+ *
+ * Yang **tidak** dimiliki sub-modul: `kuis` dan lampiran `materi`. Keduanya
+ * tetap milik modul, karena penilaian dan checkpoint memang berhenti di tingkat
+ * modul (lihat `docs/superpowers/specs/2026-10-02-submodul-design.md`).
+ */
+export interface Submodul {
+  id: string;
+  modul_id: string;
+  course_id: string;
+  judul: string;
+  ringkasan: string;
+  /** 1-based dan eksplisit — sama seperti `Modul.urutan`. */
+  urutan: number;
+  halaman: Halaman[];
   created_at: string;
   updated_at: string;
 }
@@ -177,13 +217,19 @@ export interface Modul {
    */
   materi?: Materi[];
   /**
-   * Halaman berformat modul ini — inilah bagian yang "ditulis" admin.
+   * Sub-modul (bab) modul ini — masing-masing memuat halamannya sendiri.
    *
-   * Halaman dan materi hidup berdampingan: halaman untuk prosa, materi untuk
-   * lampiran (video/PDF). Memisahkan keduanya membuat masing-masing punya
-   * satu renderer dan satu jalur penyuntingan, bukan dua cara menulis prosa.
+   * Sejak tingkat sub-modul ada, **halaman tidak lagi menempel langsung di
+   * modul**: semuanya berada di dalam salah satu sub-modul. Karena itu
+   * `Modul.halaman` dihapus, bukan dipertahankan sebagai jalan kedua — dua
+   * tempat menyimpan halaman akan menyimpang tanpa error, dan pertanyaannya
+   * "halaman ini milik bagian mana" menjadi tidak terjawab.
+   *
+   * Kursus lama yang belum punya sub-modul dimigrasikan malas saat dibaca
+   * (`normalisasiSubmodulLama()` di `lib/courses/submodul.ts`): seluruh
+   * halaman modul dibungkus menjadi satu sub-modul bawaan.
    */
-  halaman?: Halaman[];
+  submodul?: Submodul[];
   /**
    * Id kuis dari bank soal yang dipasang di modul ini, urut sesuai tampilnya.
    *
@@ -407,11 +453,25 @@ export type BlokInput = Omit<BlokHalaman, "id"> & { id?: string };
 export interface CreateHalamanInput {
   judul: string;
   blok?: BlokInput[];
-  /** Bila kosong, store menaruhnya di urutan terakhir. */
+  /** Bila kosong, store menaruhnya di urutan terakhir bab itu. */
   urutan?: number;
 }
 
 export type UpdateHalamanInput = CreateHalamanInput;
+
+/**
+ * Pembuatan bab (sub-modul).
+ *
+ * `id`, `modul_id`, `course_id`, `urutan`, dan timestamp diisi store — sama
+ * seperti modul. `urutan` dari pemanggil diabaikan supaya tidak ada celah nomor.
+ */
+export interface CreateSubmodulInput {
+  judul: string;
+  ringkasan?: string;
+}
+
+/** Perubahan bab — hanya judul/ringkasan; halaman punya action sendiri. */
+export type UpdateSubmodulInput = Partial<CreateSubmodulInput>;
 
 /**
  * Input materi: tipe beserta payload-nya.

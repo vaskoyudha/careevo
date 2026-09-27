@@ -55,3 +55,29 @@ export const BATAS_SINYAL: Record<AsalSinyal, string> = {
 export function asalSinyal(jenis: KJenisKejadian): AsalSinyal {
   return Object.hasOwn(ASAL_SINYAL, jenis) ? ASAL_SINYAL[jenis] : "server";
 }
+
+/**
+ * Header yang dikirim Safe Exam Browser (SEB) ke LMS ketika ujian berjalan di
+ * dalamnya.
+ *
+ * SEB adalah aplikasi open source (MPL-2.0) yang mengunci komputer selama
+ * ujian: taskbar, Alt+Tab, Alt+F4, Ctrl+Alt+Del, cetak, dan navigasi browser
+ * dimatikan. Careevo **tidak membangun dan tidak menerbitkan** SEB — ia hanya
+ * membaca sinyal bahwa ujian memang berjalan di dalamnya.
+ *
+ * Sinyal ini opsional dan **tidak pernah wajib**: ketiadaan header berarti "tidak
+ * ada bukti", bukan "tidak dipakai". Lihat `BATAS_SINYAL.luar`.
+ */
+export const HEADER_SEB = "x-safeexambrowser";
+
+type PembacaHeader = { get(nama: string): string | null };
+
+/** True bila ada header SEB, apa pun isinya. */
+export function deteksiSeb(headers: PembacaHeader): boolean {
+  return headers.get(HEADER_SEB) !== null;
+}
+
+/** Nilai mentah header SEB (biasanya `SEB_3_5_0`), atau `null`. */
+export function versiSeb(headers: PembacaHeader): string | null {
+  return headers.get(HEADER_SEB);
+}

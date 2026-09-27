@@ -1,11 +1,18 @@
 import type { BlokHalaman, Course, Halaman, Modul } from "@/types/course";
 import { segmenKeTeks } from "./blok";
+import { halamanModul } from "./submodul";
 
 /**
  * Operasi murni atas halaman modul.
  *
  * Sama seperti `blok.ts`: **tidak boleh** menyentuh store atau `node:fs` —
  * berkas ini ikut masuk bundel klien lewat renderer halaman.
+ *
+ * Sejak tingkat sub-modul ada, halaman **tidak lagi** menempel langsung di
+ * modul: ia hidup di dalam `Modul.submodul[].halaman`. Berkas ini karena itu
+ * memakai `halamanModul()` dari `submodul.ts` untuk meratakan pohonnya, alih-alih
+ * membaca `modul.halaman` — satu tempat meratakan, supaya penomoran halaman di
+ * panel dan di pane tidak bisa berbeda.
  */
 
 /** Judul bawaan halaman ke-`urutan` (1-based). */
@@ -14,52 +21,101 @@ export function judulHalamanOtomatis(urutan: number): string {
 }
 
 /**
- * Halaman sebuah modul, terurut menaik.
+ * Halaman sebuah modul, terurut menaik — hasil ratanya dari seluruh sub-modul.
  *
- * Modul lama belum punya `halaman` sama sekali; `undefined` di sini berarti
+ * Modul lama belum punya sub-modul sama sekali; `undefined` di sini berarti
  * "tidak ada halaman", bukan error — dan kursus seperti itu tetap memakai modul
  * turunan seperti sebelumnya.
  */
-export function halamanUntukModul(modul: Pick<Modul, "halaman">): Halaman[] {
-  if (!modul.halaman?.length) return [];
-  return [...modul.halaman].sort((a, b) => a.urutan - b.urutan);
+export function halamanUntukModul(modul: Pick<Modul, "submodul">): Halaman[] {
+  return halamanModul(modul);
 }
 
 /** Cari satu halaman di dalam modul, atau `null`. */
-export function cariHalaman(modul: Pick<Modul, "halaman">, halamanId: string): Halaman | null {
-  return modul.halaman?.find((h) => h.id === halamanId) ?? null;
+export function cariHalaman(modul: Pick<Modul, "submodul">, halamanId: string): Halaman | null {
+  return halamanModul(modul).find((h) => h.id === halamanId) ?? null;
 }
 
 /** Nomor halaman (1-based) dalam modul, atau `null` bila tidak ada. */
-export function nomorHalaman(modul: Pick<Modul, "halaman">, halamanId: string): number | null {
-  const posisi = (modul.halaman ?? []).findIndex((h) => h.id === halamanId);
+export function nomorHalaman(modul: Pick<Modul, "submodul">, halamanId: string): number | null {
+  const posisi = halamanModul(modul).findIndex((h) => h.id === halamanId);
   return posisi === -1 ? null : posisi + 1;
 }
 
 /** Jawaban "modul ini punya halaman berformat?" — dipakai UI untuk memilih cabang render. */
-export function punyaHalaman(modul: Pick<Modul, "halaman">): boolean {
-  return (modul.halaman?.length ?? 0) > 0;
+export function punyaHalaman(modul: Pick<Modul, "submodul">): boolean {
+  return halamanModul(modul).length > 0;
 }
 
 /**
- * Jumlah kata di seluruh halaman modul — untuk memperkirakan waktu baca.
+ * Jumlah kata di **satu** halaman — untuk memperkirakan waktu baca.
  *
  * Dihitung dari teks polos segmen, jadi penanda format tidak ikut terhitung.
+ * Blok `kode` dan `gambar` tidak dihitung: kode dibaca dengan kecepatan yang
+ * sama sekali lain, dan gambar tidak punya kata sama sekali.
  */
-export function jumlahKata(modul: Pick<Modul, "halaman">): number {
+export function jumlahKataHalaman(halaman: Halaman): number {
   let total = 0;
-  for (const halaman of halamanUntukModul(modul)) {
-    for (const blok of halaman.blok) {
-      if (blok.tipe === "daftar") {
-        for (const butir of blok.butir ?? []) {
-          total += kataDari(segmenKeTeks(butir));
-        }
-      } else if (blok.tipe !== "gambar" && blok.tipe !== "kode") {
-        total += kataDari(segmenKeTeks(blok.segmen));
+  for (const blok of halaman.blok) {
+    if (blok.tipe === "daftar") {
+      for (const butir of blok.butir ?? []) {
+        total += kataDari(segmenKeTeks(butir));
       }
+    } else if (blok.tipe !== "gambar" && blok.tipe !== "kode") {
+      total += kataDari(segmenKeTeks(blok.segmen));
     }
   }
   return total;
+}
+
+/** Jumlah kata di seluruh halaman modul. Asalnya dari jumlah per halaman. */
+export function jumlahKata(modul: Pick<Modul, "submodul">): number {
+  return halamanUntukModul(modul).reduce((total, h) => total + jumlahKataHalaman(h), 0);
+}
+
+/**
+ * Kecepatan baca yang dipakai memperkirakan durasi, dalam kata per menit.
+ *
+ * Angka ini **eksplisit dan bisa diperdebatkan**, bukan tersembunyi di dalam
+ * rumus: ia satu-satunya asumsi di balik "≈N mnt", jadi mengubahnya berarti
+ * mengubah seluruh perkiraan yang ditampilkan. 200 kpm adalah laju baca diam
+ * yang umum untuk teks non-teknis.
+ */
+export const KATA_PER_MENIT = 200;
+
+/**
+ * Perkiraan menit baca satu halaman, dibulatkan **ke atas** dan minimal 1.
+ *
+ * Ini perkiraan, bukan janji: halaman yang isinya 74 kata (median katalog
+ * ter-seed) memang muncul sebagai "1 mnt", dan itu jawaban yang jujur. Karena
+ * itu pemakainya menuliskan tanda "≈" di UI — angka ini tidak boleh disajikan
+ * sebagai durasi yang diukur.
+ */
+export function perkiraanMenitBaca(halaman: Halaman): number {
+  return Math.max(1, Math.ceil(jumlahKataHalaman(halaman) / KATA_PER_MENIT));
+}
+
+/**
+ * Halaman yang harus ditampilkan untuk sebuah permintaan, atau `null` bila
+ * modulnya memang tidak punya halaman.
+ *
+ * **Ini satu-satunya tempat aturan "id basi → halaman pertama" hidup.** Panel
+ * silabus memakainya untuk menandai baris yang sedang dibuka, dan pane modul
+ * memakainya untuk memilih halaman yang dirender; dua salinan aturan ini akan
+ * menyimpang diam-diam — panel menyorot satu halaman sementara pane menampilkan
+ * halaman lain, tanpa error di mana pun.
+ *
+ * Id yang tidak ketemu **bukan** galat: `?halaman=` adalah masukan dari URL,
+ * dan tautan lama (atau halaman yang dihapus admin) harus jatuh ke halaman
+ * pertama, bukan menampilkan pane kosong.
+ */
+export function halamanDipilih(
+  modul: Pick<Modul, "submodul">,
+  halamanId?: string | null,
+): Halaman | null {
+  const daftar = halamanUntukModul(modul);
+  if (daftar.length === 0) return null;
+  return daftar.find((h) => h.id === halamanId) ?? daftar[0];
 }
 
 function kataDari(teks: string): number {
@@ -135,12 +191,20 @@ export function normalisasiHalamanLama(course: Course): Course {
 
     berubah = true;
 
+    // Bab pertama modul ini — sudah ada bila `normalisasiSubmodulLama` berjalan
+    // lebih dulu (urutan di `pastikanTermuat` memang begitu), dan dibuat di sini
+    // untuk modul yang punya materi `teks` tetapi belum punya halaman sama
+    // sekali, sehingga migrasi sub-modul melewatinya.
+    const pertama = m.submodul?.[0];
+    const idPertama = pertama?.id ?? `sub-${m.id}`;
+
     const dariMateri: Halaman[] = teks.map((item, index) => ({
       id: `hal-${item.id}`,
+      submodul_id: idPertama,
       modul_id: m.id,
       course_id: course.id,
       judul: item.judul?.trim() || judulHalamanOtomatis(index + 1),
-      // 0 supaya selalu berada sebelum halaman yang sudah ada; dirapikan
+      // 0-based supaya selalu berada sebelum halaman yang sudah ada; dirapikan
       // menjadi 1..n begitu digabung di bawah.
       urutan: index,
       blok: [
@@ -155,14 +219,29 @@ export function normalisasiHalamanLama(course: Course): Course {
       updated_at: item.updated_at ?? now,
     }));
 
-    const gabungan = [...dariMateri, ...(m.halaman ?? [])].map((h, index) => ({
-      ...h,
-      urutan: index + 1,
-    }));
+    const halamanPertama = [
+      ...dariMateri,
+      ...(pertama?.halaman ?? []),
+    ].map((h, index) => ({ ...h, submodul_id: idPertama, urutan: index + 1 }));
+
+    const submodul = [
+      {
+        id: idPertama,
+        modul_id: m.id,
+        course_id: course.id,
+        judul: pertama?.judul ?? "Bagian 1",
+        ringkasan: pertama?.ringkasan ?? "",
+        urutan: 1,
+        halaman: halamanPertama,
+        created_at: pertama?.created_at ?? now,
+        updated_at: now,
+      },
+      ...(m.submodul ?? []).slice(1),
+    ];
 
     return {
       ...m,
-      halaman: gabungan,
+      submodul,
       materi: (m.materi ?? []).filter((item) => !isMateriTeksLama(item)),
     };
   });

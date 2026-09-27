@@ -2,14 +2,22 @@
 
 import { useState, useTransition, useRef } from "react";
 import Link from "next/link";
-import { Lock, Rocket } from "lucide-react";
+import {
+  Check,
+  CircleCheck,
+  Clock,
+  FolderKanban,
+  ListChecks,
+  Lock,
+  Rocket,
+  SquareTerminal,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PitaHeaderDither } from "@/components/ui/pita-header-dither";
 import type { ModulKursus } from "@/lib/courses/kurikulum";
 import { levelLabel, tipeLabel } from "@/lib/onboarding/types";
 import { hitungProgres, irisModulSelesai } from "@/lib/courses/kurikulum";
-import { daftarKursusAction, tandaiModulAction } from "@/actions/enrollment";
-import { selesaikanMateriAction } from "@/actions/learning";
-import { pilihJalurPenyelesaian } from "./selesaikan-modul";
+import { daftarKursusAction } from "@/actions/enrollment";
 import {
   CourseSessionIndicator,
   CourseSessionPrompt,
@@ -22,6 +30,21 @@ import { DitheredHeroBackdrop } from "./dithered-hero-backdrop";
 import { SertifikatPanel } from "./sertifikat-panel";
 import { TabelPelanggaran } from "./tabel-pelanggaran";
 import type { KebijakanCourse } from "@/types/course";
+import type { KejadianIntegritas } from "@/lib/learning/session";
+
+/**
+ * Sesi terverifikasi yang sudah berjalan, sebagaimana di-seed server.
+ *
+ * Bentuknya sengaja sama dengan `sesiReaderAwal` (`reader-sesi.ts`): silabus dan
+ * reader memakai ukuran yang sama supaya tidak ada versi yang menyimpang saat
+ * field baru ditambahkan ke seed.
+ */
+export interface SesiAwalKursus {
+  bukti: string;
+  runId: string;
+  mulaiAt: string;
+  kejadian: KejadianIntegritas[];
+}
 
 export interface KursusTerkait {
   slug: string;
@@ -32,10 +55,24 @@ export interface KursusTerkait {
   is_free: boolean;
 }
 
+/**
+ * Challenge praktik yang ditawarkan di ujung silabus.
+ *
+ * `level`, `estimate_min`, dan `criteria` adalah **field yang sama** dari
+ * `TaskFixture` yang dibaca halaman challenge (`/challenge/[id]`), bukan nilai
+ * turunan: kartu di silabus harus menyebut kriteria penilaian yang persis sama
+ * dengan yang dinilai di ruang kerjanya, dan menyalin ringkasannya di sini akan
+ * membuat dua daftar yang bisa menyimpang. Namanya sengaja mengikuti fixture
+ * (`criteria`, bukan `kriteria`) supaya pemetaan di halaman tidak perlu
+ * menerjemahkan apa pun.
+ */
 export interface TugasTerkait {
   id: string;
   title: string;
   brief: string;
+  level: string;
+  estimate_min: number;
+  criteria: string[];
 }
 
 /**
@@ -113,6 +150,25 @@ function rupiah(nilai: number) {
 }
 
 /**
+ * Tiga langkah dari completion terverifikasi sampai credential terbit.
+ *
+ * Urutannya bukan copy pemasaran: ia rantai yang sudah dikunci di AGENTS.md —
+ * completion terverifikasi membuka Project, karya masuk ke verifikator, badge +
+ * atestasi terbit setelah diputuskan. Langkah 1 ditandai selesai **dari
+ * `terkunci`**, bukan dihitung ulang di sini: `terkunci` datang dari satu
+ * pembacaan `kelayakanKursusSubmission` di server, sama dengan yang menggerbang
+ * kotak sertifikat di sidebar, jadi langkah ini tidak bisa mengklaim "selesai"
+ * sementara sertifikatnya masih terkunci.
+ */
+function langkahProject(terkunci: boolean) {
+  return [
+    { judul: "Tuntaskan modul", catatan: "Lewat sesi terverifikasi", selesai: !terkunci },
+    { judul: "Kumpulkan karya", catatan: "Form project di course ini", selesai: false },
+    { judul: "Review verifikator", catatan: "Badge dan atestasi terbit", selesai: false },
+  ];
+}
+
+/**
  * Bungkus ruang belajar dengan provider sesi.
  *
  * `kebijakan` diteruskan dari server: provider memakainya untuk memutuskan akses
@@ -131,6 +187,7 @@ export function DetailKursus({
   proyek,
   sertifikat,
   catatanIntegritas,
+  sesiAwal,
 }: {
   kursus: DetailKursusData;
   modul: ModulKursus[];
@@ -155,9 +212,29 @@ export function DetailKursus({
    * seperti "sudah diperiksa dan bersih".
    */
   catatanIntegritas?: BarisPelanggaran[] | null;
+  /**
+   * Sesi terverifikasi yang masih berjalan, di-seed **server** (bentuknya sama
+   * dengan `sesiReaderAwal`).
+   *
+   * Tanpa ini, provider di silabus selalu mulai dari keadaan "tidak ada sesi":
+   * peserta yang memulai sesi di halaman kursus lalu memuat ulang, atau yang
+   * kembali dari reader (sesi berjalan di sana), melihat ajakan "Mulai sesi"
+   * lagi — padahal `learning_runs` punya run aktif untuk course ini. Itu
+   * memaksa satu klik "Mulai" tambahan hanya untuk masuk kembali ke reader, dan
+   * itulah keluhan "kenapa diminta verifikasi dua kali".
+   *
+   * `null` berarti memang tidak ada sesi berjalan, bukan gagal baca.
+   */
+  sesiAwal?: SesiAwalKursus | null;
 }) {
   return (
-    <CourseSessionProvider courseId={kursus.id} kebijakan={kebijakan}>
+    <CourseSessionProvider
+      courseId={kursus.id}
+      kebijakan={kebijakan}
+      buktiAwal={sesiAwal?.bukti ?? null}
+      runIdAwal={sesiAwal?.runId ?? null}
+      kejadianAwal={sesiAwal?.kejadian ?? []}
+    >
       <RuangBelajar
         kursus={kursus}
         modul={modul}
@@ -204,14 +281,19 @@ function RuangBelajar({
   sertifikat: RingkasanSertifikat;
   catatanIntegritas: BarisPelanggaran[] | null;
 }) {
-  const [selesai, setSelesai] = useState<string[]>(() =>
-    irisModulSelesai(selesaiAwal, modul),
-  );
+  /**
+   * Progres baca dari server. **Bukan state**: penyelesaian modul sudah tidak
+   * lagi ditandai dari halaman ini. Satu-satunya tempat peserta menekan "Tandai
+   * selesai" adalah bar fokus reader (`materi-shell.tsx`), tempat modulnya benar-
+   * benar dibaca dan sesi terverifikasi berjalan. Karena itu tidak ada
+   * `setSelesai` di sini — daftar ini hanya dibaca untuk menghitung progres,
+   * mencentang nomor modul, dan memilih sasaran "Lanjutkan".
+   */
+  const selesaiValid = irisModulSelesai(selesaiAwal, modul);
   const [sudahDaftar, setSudahDaftar] = useState(terdaftar);
   const [pesan, setPesan] = useState<string | null>(null);
   const [butuhPlus, setButuhPlus] = useState(false);
   const [pending, startTransition] = useTransition();
-  const [modulSibuk, setModulSibuk] = useState<string | null>(null);
   /**
    * Keputusan akses untuk tombol "Tanya tutor AI".
    *
@@ -231,24 +313,33 @@ function RuangBelajar({
    * `adaBuktiSesi`: tutor AI adalah bantuan belajar, bukan penyelesaian, jadi
    * sesi terverifikasi tidak menjadi syaratnya.
    */
-  const { boleh, kebijakan, bukti } = useCourseSession();
+  const { boleh } = useCourseSession();
   const keputusanBantuan = boleh("bantuan_akademik");
-  const selesaiValid = irisModulSelesai(selesai, modul);
   const progres = hitungProgres(selesaiValid.length, modul.length);
   const jumlahHalaman = modul.reduce((total, m) => total + (m.halaman?.length ?? 0), 0);
   /**
-   * Sasaran "Lanjutkan" — modul pertama yang belum selesai, dihitung klien.
+   * Sasaran "Lanjutkan" — modul pertama yang belum selesai.
    *
-   * Dihitung dari `selesaiValid` (bukan `selesaiAwal`) supaya tombolnya ikut
-   * bergerak setelah satu modul ditandai selesai tanpa muat ulang penuh. `?? modul[0]`
-   * menutup dua kasus: semua modul sudah selesai (maka "Ulas modul" mengulang dari
-   * awal) dan daftar modul yang kosong (maka `#kurikulum` tetap jadi jangkar
-   * terakhir yang masuk akal — silabusnya sendiri).
+   * `?? modul[0]` menutup dua kasus: semua modul sudah selesai (maka "Ulas
+   * modul" mengulang dari awal) dan daftar modul yang kosong (maka `#kurikulum`
+   * tetap jadi jangkar terakhir yang masuk akal — silabusnya sendiri).
    */
   const modulBerikutnya = modul.find((m) => !selesaiValid.includes(m.id)) ?? modul[0];
   const hrefLanjut = modulBerikutnya
     ? `/belajar/${kursus.slug}/materi/${modulBerikutnya.id}`
     : "#kurikulum";
+  /**
+   * Daftar langkah Project dan indeks langkah yang sedang aktif.
+   *
+   * Langkah aktif adalah langkah **pertama yang belum selesai** — jadi saat
+   * Project terkunci ia menunjuk langkah 1 (`Tuntaskan modul`), dan saat Project
+   * terbuka ia pindah ke langkah 2 (`Kumpulkan karya`), tepat di bawah tombol
+   * "Kerjakan project". Dihitung sekali di sini, bukan di dalam JSX, supaya
+   * penanda `selesai` dan penanda "sedang di sini" tidak bisa saling
+   * bertentangan.
+   */
+  const langkahProyek = langkahProject(proyek.terkunci);
+  const indeksLangkahAktif = langkahProyek.findIndex((langkah) => !langkah.selesai);
   /**
    * Blok header course, jadi trigger sub-header lengket.
    *
@@ -267,62 +358,18 @@ function RuangBelajar({
     });
 
   /**
-   * Tandai/batalkan satu modul selesai.
+   * Tombol "Tandai selesai" **tidak ada di sini** — dan sekarang tidak ada di
+   * mana pun.
    *
-   * Jalur dipilih **saat klik** (bukan disimpan di state, supaya perubahan sesi
-   * tidak membuat state basi memilih jalur yang salah) oleh
-   * `pilihJalurPenyelesaian` — satu-satunya tempat aturan itu hidup, dipakai juga
-   * oleh reader (`useSelesaikanModul`). Di sini hanya **pelaksanaannya** yang
-   * khas permukaan ini:
-   *
-   * - `terverifikasi` (`wajib` + checkpoint `materi`, bukan pembatalan) →
-   *   `selesaikanMateriAction`, satu-satunya jalur yang memverifikasi bukti sesi
-   *   di server. Server yang menentukan hasilnya: bukti sah → modul selesai;
-   *   tanpa bukti → server menolak dengan pesan gerbangnya sendiri
-   *   (`PESAN_POLICY.wajib`) dan modul tetap belum selesai. Di jalur ini tidak
-   *   ada penulisan optimistis — hanya `hasil.ok` yang menambah centang.
-   * - `informal` (checkpoint `kuis`/`proyek`, kursus `opsional`, atau pembatalan)
-   *   → `tandaiModulAction`, supaya modul kuis tetap tersimpan sebagai progres
-   *   informal dan kursus non-verifikasi tidak berubah perilakunya. Jalur ini
-   *   **optimistis**: centangnya dipasang lebih dulu lalu dikembalikan bila
-   *   server menolak, sehingga klik terasa seketika. Perbedaan perlakuan ini
-   *   memang milik permukaan ini — reader sengaja tidak menulis optimistis, dan
-   *   yang dibagi hanya keputusannya.
+   * Halaman ini silabus: daftar modul yang mengantar ke reader. Yang menandai
+   * modul selesai adalah reader itu sendiri (`materi-shell.tsx`), begitu halaman
+   * terakhir modulnya tercapai dan `useSelesaikanModul` memilih jalurnya —
+   * tempat modulnya benar-benar dibaca dan sesi terverifikasi berjalan.
+   * Sebelumnya halaman ini memegang salinan pelaksanaannya sendiri
+   * (`pilihJalurPenyelesaian` + `selesaikanMateriAction` + `tandaiModulAction`);
+   * salinan itu dibuang bersama tombolnya, jadi aturan jalur penyelesaian kini
+   * hidup di satu permukaan saja.
    */
-  const tandai = (modul: ModulKursus, sudah: boolean) =>
-    startTransition(async () => {
-      const jalur = pilihJalurPenyelesaian({ kebijakan, checkpoint: modul.checkpoint, sudah });
-      if (jalur === "informal") {
-        setModulSibuk(modul.id);
-        setSelesai((daftar) =>
-          sudah ? daftar.filter((id) => id !== modul.id) : [...daftar, modul.id],
-        );
-        const hasil = await tandaiModulAction(kursus.id, modul.id);
-        setModulSibuk(null);
-        if (!hasil.ok) {
-          setSelesai((daftar) =>
-            sudah ? [...daftar, modul.id] : daftar.filter((id) => id !== modul.id),
-          );
-          setPesan(hasil.error ?? null);
-        }
-        return;
-      }
-
-      // Jalur terverifikasi: bukti sesi dari provider diteruskan apa adanya.
-      // Bukti kosong bukan alasan mengganti jalur — server yang menolak, dan
-      // pesannya dipakai apa adanya; klien bukan penjaga otoritatif.
-      const hasil = await selesaikanMateriAction({
-        courseId: kursus.id,
-        modulId: modul.id,
-        bukti: bukti ?? "",
-      });
-      if (hasil.ok) {
-        setSelesai((daftar) => [...daftar, modul.id]);
-        setPesan(null);
-      } else {
-        setPesan(hasil.error ?? null);
-      }
-    });
 
   return (
     <div className="min-w-0 overflow-x-clip bg-white">
@@ -469,7 +516,7 @@ function RuangBelajar({
             </div>
             <ol className="space-y-3">
               {modul.map((m, index) => {
-                const sudah = selesai.includes(m.id);
+                const sudah = selesaiValid.includes(m.id);
                 const daftarMateri = m.materi ?? [];
                 const daftarHalaman = [...(m.halaman ?? [])].sort((a, b) => a.urutan - b.urutan);
                 const daftarKuis = m.kuis ?? [];
@@ -507,47 +554,55 @@ function RuangBelajar({
                               {daftarKuis.length > 0 ? ` · ${daftarKuis.length} kuis` : ""}
                             </span>
                           ) : null}
-                          {punyaIsi ? (
-                            /* Silabus, bukan ruang baca: baris ini mengantar ke
-                               reader milik modul — satu halaman penuh dengan
-                               rail, bar fokus, dan drawer tutor. Gerbang sesi
-                               lampiran/kuis hidup di sana (`materi-pane.tsx`),
-                               sehingga tidak ada lagi state `modulTerbuka` di
-                               sini yang bisa tertinggal basi saat sesi berubah. */
-                            <Link
-                              href={`/belajar/${kursus.slug}/materi/${m.id}`}
-                              className="font-medium text-[#0056D2] hover:underline"
-                            >
-                              Buka materi
-                            </Link>
-                          ) : (
-                            <a
-                              href={m.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="font-medium text-[#0056D2]"
-                            >
-                              Buka materi ↗
-                            </a>
-                          )}
                         </p>
                       </div>
-                      {sudahDaftar ? (
-                        <button
-                          type="button"
-                          onClick={() => tandai(m, sudah)}
-                          disabled={pending || modulSibuk === m.id}
-                          aria-pressed={sudah}
-                          className={cn(
-                            "shrink-0 cursor-pointer rounded-full border px-3 py-2.5 text-xs font-semibold disabled:opacity-60",
-                            sudah
-                              ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                              : "border-gray-300 bg-white text-gray-600 hover:bg-gray-50",
-                          )}
-                        >
-                          {sudah ? "Selesai" : "Tandai selesai"}
-                        </button>
-                      ) : null}
+                      {/* Satu aksi, paling kanan: masuk ke modulnya. Tombolnya
+                          memakai kelas navbar yang sama (`chrome-btn
+                          chrome-btn-brand`) seperti `DashboardButton`, tombol
+                          `Daftar`, dan tombol maju di bar kaki reader — bukan
+                          salinan warnanya, sehingga tinggi, radius, bayangan,
+                          dan `transform` hover/active-nya identik dengan CTA
+                          navbar. Dulu ini tautan teks kecil di dalam baris meta;
+                          di sana ia terbaca sebagai keterangan, bukan sebagai
+                          pintu masuk modul.
+
+                          `!h-11` menaikkan tinggi 40px bawaan `chrome-btn` ke
+                          lantai sentuh 44px DESIGN.md. Padding dan `font-size`
+                          **tidak** dipaksa: `chrome-btn-brand` membawa
+                          `13.5px` dan padding optisnya sendiri (`0 1.35rem 0
+                          1rem`), dan memaksanya ke angka karangan justru
+                          mengembalikan ketidakcocokan dengan navbar yang sedang
+                          dihindari.
+
+                          `punyaIsi` memilih **tujuan**-nya, bukan gayanya: modul
+                          berisi halaman/kuis/lampiran masuk ke reader
+                          (`/belajar/<slug>/materi/<id>`), sedangkan modul yang
+                          hanya punya tautan luar membuka sumbernya di tab baru —
+                          karena itu panah ↗ tetap ada di varian itu.
+
+                          Tombol "Tandai selesai" **tidak** di sini: modul
+                          ditandai selesai oleh reader begitu halaman terakhirnya
+                          tercapai, tempat modulnya benar-benar dibaca dan sesi
+                          terverifikasi berjalan. Silabus hanya mengantar. */}
+                      <div className="shrink-0 self-center">
+                        {punyaIsi ? (
+                          <Link
+                            href={`/belajar/${kursus.slug}/materi/${m.id}`}
+                            className="chrome-btn chrome-btn-brand !h-11"
+                          >
+                            Buka materi
+                          </Link>
+                        ) : (
+                          <a
+                            href={m.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="chrome-btn chrome-btn-brand !h-11"
+                          >
+                            Buka materi ↗
+                          </a>
+                        )}
+                      </div>
                     </div>
                   </li>
                 );
@@ -606,9 +661,16 @@ function RuangBelajar({
                   <p className="mt-2 text-xs text-gray-500">
                     {selesaiValid.length} dari {modul.length} modul selesai
                   </p>
+                  {/* Sudut `--radius-md` (14px), bukan pil. Ini kontrol produk di
+                      dalam kartu — bukan CTA marketing — dan DESIGN.md line 66
+                      memisahkan keduanya ("rounded pill for focused marketing
+                      actions, 14px radius for product controls"). Bentuk yang sama
+                      dipakai CTA panel silabus reader (`.reader-panel-cta`), jadi
+                      tombol "Lanjutkan" tidak lagi terbaca sebagai keluarga lain
+                      dari tombol navbar yang bersebelahan dengannya. */}
                   <Link
                     href={hrefLanjut}
-                    className="mt-4 block rounded-full bg-gray-900 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-gray-700"
+                    className="mt-4 block rounded-[var(--radius-md)] bg-gray-900 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-gray-700"
                   >
                     {progres === 100 ? "Ulas kembali modul" : "Lanjutkan belajar"}
                   </Link>
@@ -678,62 +740,254 @@ function RuangBelajar({
         </div>
 
         {tugas ? (
-          <section aria-labelledby="judul-praktik" className="rounded-2xl bg-gradient-to-br from-blue-800 to-blue-500 px-6 py-8 text-white lg:px-10">
-            <h2 id="judul-praktik" className="text-xl font-bold tracking-tight text-white">
-              Uji pemahaman lewat challenge praktik
-            </h2>
-            <p className="mt-1 max-w-xl text-sm text-white/85">{tugas.brief}</p>
-            <Link
-              href={`/challenge/${tugas.id}`}
-              className="mt-4 inline-flex rounded-full bg-white px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50"
-            >
-              Kerjakan: {tugas.title}
-            </Link>
+          /*
+           * Tantangan praktik — pita dither + dua kolom.
+           *
+           * Sebelumnya: satu panel biru datar (`from-blue-800 to-blue-500`)
+           * dengan tiga baris teks dan pil putih. Tiga hal salah sekaligus, dan
+           * ketiganya sudah pernah dicatat di repo ini:
+           *
+           *  1. **Ramp birunya di tangan.** Setiap permukaan biru lain di repo
+           *     mengambil gradiennya dari satu sumber (resep kartu dashboard,
+           *     `PitaHeaderDither`, `--brand-grad`); panel ini menulis
+           *     `from-blue-800 to-blue-500` sendiri, jadi birunya bebas
+           *     menyimpang. Sekarang media-nya `PitaHeaderDither` — resep yang
+           *     sama dengan header `/belajar` dan panel "Cocok Untukmu".
+           *  2. **Tinta putih di atas field terang.** Media dither itu terang;
+           *     putih di atasnya ~1.1:1. Karena itu isinya tinta gelap
+           *     (`#0a3d62`), bukan `text-white`.
+           *  3. **Nol informasi tentang tugasnya.** Judul challenge saja tidak
+           *     memberi tahu apa yang akan dinilai. `criteria` dari fixture yang
+           *     sama dengan ruang kerja challenge sekarang tampil di sini, jadi
+           *     peserta tahu standar penilaiannya sebelum menekan tombol.
+           *
+           * Isi duduk di **lembar putih yang MENUMPUK pitanya** (`relative z-10
+           * -mt-4 rounded-t-2xl bg-white`) — perangkat yang sama dengan kartu
+           * katalog (`-mt-8`) dan panel rekomendasi loker (`-mt-4`), hanya
+           * dengan tinggi pita 72px yang sama dengan panel itu. Keempat
+           * kelasnya satu paket: `-mt-4` sebesar radius 16px, jadi seluruh
+           * lengkungnya menyingkap pita di belakangnya; tanpa negatif margin,
+           * `bg-white`, atau `z-10` bentuknya diam-diam kembali jadi kotak
+           * putih persegi.
+           */
+          <section
+            aria-labelledby="judul-praktik"
+            className="overflow-hidden rounded-2xl border border-[rgba(147,197,253,0.45)] bg-white shadow-[0_1px_2px_rgba(10,61,98,0.04),0_10px_24px_-16px_rgba(10,61,98,0.18)]"
+          >
+            <PitaHeaderDither className="h-[72px]">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-white/70 text-[#0a3d62] ring-1 ring-[#0a3d62]/15">
+                  <SquareTerminal aria-hidden className="size-4" />
+                </span>
+                <h2
+                  id="judul-praktik"
+                  className="truncate text-[14.5px] font-bold tracking-tight text-[#0a3d62]"
+                >
+                  Challenge praktik
+                </h2>
+              </div>
+
+              {/* Judul pita saja. Level dan estimasi **tidak** di sini: keduanya
+                  akan hilang di bawah `sm` kalau ditempatkan di pita 72px, dan
+                  informasi yang muncul hanya di lebar tertentu adalah
+                  informasi yang hilang separuh waktu. Keduanya pindah ke baris
+                  meta di badan kartu, jadi lebar layar tidak pernah menentukan
+                  apa yang bisa dibaca. */}
+            </PitaHeaderDither>
+
+            <div className="relative z-10 -mt-4 rounded-t-2xl bg-white px-5 pt-6 pb-6 lg:px-8 lg:pb-7">
+              <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end lg:gap-8">
+                <div className="min-w-0">
+                  <p className="text-lg font-bold tracking-tight text-gray-900">
+                    Uji pemahaman lewat satu tugas nyata
+                  </p>
+
+                  {/* Level dan estimasi adalah field fixture yang sama dengan
+                      yang ditampilkan di `/challenge/[id]`, bukan angka
+                      karangan. Keduanya di sini, bukan di pita, supaya terbaca
+                      di semua lebar. */}
+                  <p className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                    <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-[11px] font-semibold text-[#0056D2] ring-1 ring-blue-100">
+                      {levelLabel(tugas.level)}
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-md bg-gray-50 px-2 py-1 text-[11px] font-semibold text-gray-700 ring-1 ring-gray-200">
+                      <Clock aria-hidden className="size-3" />
+                      {tugas.estimate_min} mnt
+                    </span>
+                  </p>
+
+                  <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-gray-600">
+                    {tugas.brief}
+                  </p>
+
+                  <p className="mt-5 flex items-center gap-2 text-[11px] font-semibold tracking-[0.14em] text-gray-500 uppercase">
+                    <ListChecks aria-hidden className="size-3.5 text-[#0056D2]" />
+                    Yang dinilai
+                  </p>
+                  <ul className="mt-2.5 grid gap-2 sm:grid-cols-2">
+                    {tugas.criteria.map((kriteria) => (
+                      <li
+                        key={kriteria}
+                        className="flex items-start gap-2 text-sm leading-snug text-gray-700"
+                      >
+                        <CircleCheck
+                          aria-hidden
+                          className="mt-0.5 size-4 shrink-0 text-emerald-600"
+                        />
+                        <span>{kriteria}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Satu aksi utama, di kanan dan sejajar dasar kolom teks.
+                    `chrome-btn chrome-btn-brand` — kelas navbar yang nyata,
+                    sama seperti tombol "Buka materi" di daftar modul di atas,
+                    bukan salinan warnanya. Padding optisnya (`0 1.35rem 0 1rem`)
+                    sengaja **tidak** ditimpa: DESIGN.md mencatatnya sebagai
+                    bawaan kelas itu, dan `max-width: 560px` di `globals.css`
+                    sudah meruntuhkannya jadi simetris di layar kecil. */}
+                <div className="shrink-0">
+                  <Link
+                    href={`/challenge/${tugas.id}`}
+                    className="chrome-btn chrome-btn-brand !h-11"
+                  >
+                    Kerjakan: {tugas.title}
+                  </Link>
+                </div>
+              </div>
+            </div>
           </section>
         ) : null}
 
         <section
           aria-labelledby="judul-proyek"
           className={cn(
-            "rounded-2xl border px-6 py-8 lg:px-10",
-            proyek.terkunci ? "border-gray-200 bg-white" : "border-emerald-200 bg-emerald-50/60",
+            "rounded-2xl border bg-white shadow-[0_1px_2px_rgba(10,61,98,0.04),0_10px_24px_-16px_rgba(10,61,98,0.18)]",
+            proyek.terkunci ? "border-[rgba(147,197,253,0.45)]" : "border-emerald-200",
           )}
         >
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="min-w-0 max-w-2xl">
-              <p
-                className={cn(
-                  "text-xs font-semibold tracking-wider uppercase",
-                  proyek.terkunci ? "text-gray-500" : "text-emerald-700",
-                )}
-              >
-                Project course
-              </p>
-              <h2 id="judul-proyek" className="mt-1 text-xl font-bold tracking-tight text-gray-900">
-                {proyek.judul}
-              </h2>
-              <p className="mt-1 text-sm leading-relaxed text-gray-600">{proyek.ringkasan}</p>
+          <div className="px-5 py-6 lg:px-8 lg:py-7">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="flex min-w-0 items-start gap-3.5">
+                {/* Lencana ikon, bukan sekadar teks eyebrow. Keadaan kunci
+                    dibawa oleh dua hal sekaligus — ikonnya dan warnanya —
+                    supaya "terkunci" terbaca dari bentuk sebelum kalimatnya
+                    dibaca. */}
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "grid size-10 shrink-0 place-items-center rounded-xl ring-1",
+                    proyek.terkunci
+                      ? "bg-gray-50 text-gray-500 ring-gray-200"
+                      : "bg-emerald-50 text-emerald-700 ring-emerald-200",
+                  )}
+                >
+                  {proyek.terkunci ? <Lock className="size-4.5" /> : <FolderKanban className="size-4.5" />}
+                </span>
+                <div className="min-w-0">
+                  <p
+                    className={cn(
+                      "text-[11px] font-semibold tracking-[0.14em] uppercase",
+                      proyek.terkunci ? "text-gray-500" : "text-emerald-700",
+                    )}
+                  >
+                    Project course
+                  </p>
+                  <h2
+                    id="judul-proyek"
+                    className="mt-1 text-xl font-bold tracking-tight text-gray-900"
+                  >
+                    {proyek.judul}
+                  </h2>
+                </div>
+              </div>
+
+              {proyek.terkunci ? (
+                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600">
+                  <Lock className="size-3.5" aria-hidden="true" /> Terkunci
+                </span>
+              ) : (
+                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+                  <CircleCheck className="size-3.5" aria-hidden="true" /> Siap dikerjakan
+                </span>
+              )}
             </div>
+
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-gray-600">
+              {proyek.ringkasan}
+            </p>
+
+            {/* Alur sampai sertifikat — bukan hiasan, melainkan urutan nyata
+                dari AGENTS.md: completion terverifikasi membuka Project, karya
+                masuk ke verifikator, badge + atestasi terbit setelah diputuskan.
+                Langkah pertama ditandai selesai **justru karena** `terkunci`
+                bernilai salah: panel ini tidak menghitung ulang apa pun, ia
+                membaca satu nilai server yang sama dengan kotak sertifikat di
+                sidebar. */}
+            <div
+              className={cn(
+                "mt-5 rounded-xl border px-4 py-4",
+                proyek.terkunci ? "border-gray-200 bg-gray-50/70" : "border-emerald-100 bg-emerald-50/50",
+              )}
+            >
+              <p className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.14em] text-gray-500 uppercase">
+                <Rocket className="size-3.5 text-[#0056D2]" aria-hidden="true" />
+                Alur sampai sertifikat
+              </p>
+              <ol className="mt-3 grid gap-3 sm:grid-cols-3 sm:gap-4">
+                {langkahProyek.map((langkah, index) => (
+                  <li key={langkah.judul} className="flex items-start gap-2.5">
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "mt-0.5 grid size-6 shrink-0 place-items-center rounded-full text-[11px] font-bold",
+                        langkah.selesai
+                          ? "bg-emerald-500 text-white"
+                          : index === indeksLangkahAktif
+                            ? "bg-white text-[#0056D2] ring-2 ring-[#0056D2]/30"
+                            : "bg-gray-100 text-gray-400 ring-1 ring-gray-200",
+                      )}
+                    >
+                      {langkah.selesai ? <Check className="size-3.5" /> : index + 1}
+                    </span>
+                    <span className="min-w-0">
+                      <span
+                        className={cn(
+                          "block text-sm font-semibold",
+                          langkah.selesai || index === indeksLangkahAktif
+                            ? "text-gray-900"
+                            : "text-gray-500",
+                        )}
+                      >
+                        {langkah.judul}
+                      </span>
+                      <span className="mt-0.5 block text-xs leading-relaxed text-gray-500">
+                        {langkah.catatan}
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+
             {proyek.terkunci ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600">
-                <Lock className="size-3.5" aria-hidden="true" /> Terkunci
-              </span>
+              <p className="mt-4 text-sm leading-relaxed text-gray-500">
+                {terdaftar
+                  ? "Selesaikan semua modul lewat jalur terverifikasi untuk membuka pengumpulan karya. Progres informal tidak membuka Project."
+                  : "Daftar dan selesaikan semua modul lewat jalur terverifikasi untuk membuka pengumpulan karya."}
+              </p>
             ) : (
-              <Link
-                href={`/belajar/${kursus.slug}/karya`}
-                className="inline-flex items-center gap-1.5 rounded-full bg-[#0056D2] px-4 py-2 text-sm font-semibold text-white hover:bg-[#00419e]"
-              >
-                <Rocket className="size-4" aria-hidden="true" /> Kerjakan project
-              </Link>
+              <div className="mt-4">
+                <Link
+                  href={`/belajar/${kursus.slug}/karya`}
+                  className="chrome-btn chrome-btn-brand !h-11 gap-2"
+                >
+                  <Rocket className="size-4" aria-hidden="true" /> Kerjakan project
+                </Link>
+              </div>
             )}
           </div>
-          {proyek.terkunci ? (
-            <p className="mt-3 text-sm text-gray-500">
-              {terdaftar
-                ? "Selesaikan semua modul lewat sesi terverifikasi untuk membuka pengumpulan karya."
-                : "Daftar dan selesaikan semua modul lewat sesi terverifikasi untuk membuka pengumpulan karya."}
-            </p>
-          ) : null}
         </section>
 
         {terkait.length > 0 ? (

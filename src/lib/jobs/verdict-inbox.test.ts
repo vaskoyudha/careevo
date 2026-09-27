@@ -54,6 +54,67 @@ describe("verdictBadge", () => {
     expect(v?.label).toBe("Perlu ditinjau");
   });
 
+  it("membawa angka audit nyata supaya popup bisa menggambar bar", () => {
+    const v = verdictBadge(
+      baris({
+        enriched: true,
+        audit: {
+          ...audit("quarantined", ["link_apk", "link_pendek"]),
+          fee_flags: ["link_apk"],
+          trust_flags: ["link_pendek"],
+          trust_score: 75,
+          trust_level: "medium",
+        },
+      }),
+    );
+
+    expect(v?.trustScore).toBe(75);
+    expect(v?.trustLevel).toBe("medium");
+    // Dua keluarga sinyal dihitung terpisah, tidak digabung jadi satu angka.
+    expect(v?.sinyalPermintaan).toBe(1);
+    expect(v?.sinyalStruktur).toBe(1);
+
+    // Laporan harus menandai KEDUA pemeriksaan itu sebagai flag — inilah yang
+    // membuat bar dan daftar sinyal tidak bisa berbeda.
+    expect(v?.pemeriksaan.map((p) => p.status)).toEqual(["flag", "flag", "unavailable"]);
+  });
+
+  it("hanya mengklaim `lolos` untuk aturan yang benar-benar dijalankan", () => {
+    const v = verdictBadge(baris({ enriched: true, audit: audit("clean", []) }));
+
+    const status = Object.fromEntries(v!.pemeriksaan.map((p) => [p.label, p.status]));
+    // Content + structural dijalan `auditLoker` setiap kali, jadi "lolos" sah.
+    expect(status["Pola permintaan biaya & data pribadi"]).toBe("lolos");
+    expect(status["Struktur tautan lamaran"]).toBe("lolos");
+    // Email & usia domain TIDAK pernah dijalankan untuk baris inbox:
+    // `auditBaris` mengirim `company_email: null` dan `domain_age_days: null`.
+    // Menandainya "lolos" akan menaruh centang di atas aturan yang tak pernah jalan.
+    expect(status["Email & usia domain perusahaan"]).toBe("unavailable");
+  });
+
+  it("baris `!terperiksa` tidak punya rincian pemeriksaan sama sekali", () => {
+    const v = verdictBadge(
+      baris({ enriched: false, audit: audit("quarantined", ["data_tidak_terverifikasi"]) }),
+    );
+    // Daftar "lolos" di sini akan mengarang laporan audit yang tak pernah jalan.
+    expect(v?.pemeriksaan).toEqual([]);
+  });
+
+  it("TIDAK membawa skor untuk baris yang belum terperiksa", () => {
+    // `takTeraudit` mengisi `trust_score: 0` sebagai placeholder; meneruskan
+    // angka itu ke UI akan menggambar bar 0/100 di atas lowongan yang belum
+    // pernah dibaca siapa pun.
+    const v = verdictBadge(
+      baris({ enriched: false, audit: audit("quarantined", ["data_tidak_terverifikasi"]) }),
+    );
+
+    expect(v?.terperiksa).toBe(false);
+    expect(v?.trustScore).toBeUndefined();
+    expect(v?.trustLevel).toBeUndefined();
+    expect(v?.sinyalPermintaan).toBeUndefined();
+    expect(v?.sinyalStruktur).toBeUndefined();
+  });
+
   it("TIDAK menuduh lowongan yang gagal di-enrichment", () => {
     const v = verdictBadge(
       baris({ enriched: false, audit: audit("quarantined", ["data_tidak_terverifikasi"]) }),
@@ -129,6 +190,16 @@ describe("wiring jalur-klik verdict", () => {
     const sumber = baca("src/components/features/jobs/popup-detail-loker.tsx");
     expect(sumber).toMatch(/verdict\.sinyal\.map\(/);
     expect(sumber).toMatch(/verdict\.terperiksa/);
+  });
+
+  it("popup merender laporan visual, bukan teks polos", () => {
+    const popup = baca("src/components/features/jobs/popup-detail-loker.tsx");
+    expect(popup).toMatch(/<LaporanSentinel\s+verdict=\{verdict\}/);
+
+    // Laporan tidak boleh menggambar apa pun untuk baris yang belum dibaca.
+    // Bar 0/100 di atas lowongan yang tak pernah diaudit adalah tuduhan.
+    const laporan = baca("src/components/features/jobs/laporan-sentinel.tsx");
+    expect(laporan).toMatch(/if \(!verdict\.terperiksa \|\| verdict\.pemeriksaan\.length === 0\) return null/);
   });
 
   it("badge popup memakai label verdict, bukan label bawaan StatusBadge", () => {

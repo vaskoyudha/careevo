@@ -32,6 +32,7 @@ Four trees are excluded from `tsconfig.json` and `eslint.config.mjs`. Do not lin
 - `npm run seed:kursus` — adds the Indonesian-market course catalog to `data/courses.json` (idempotent by slug; add-only). Needs a running server to restart before the per-process course cache sees the new rows.
 - `npm run seed:konten` — seeds **module content for the whole catalog** (pages + one quiz per module) so every course is workable, not just a list of empty derived modules. Idempotent by slug/module-title/page-title/quiz-title; never deletes. Content lives in `scripts/seed/konten/` (see its `README.md`); the invariants are locked by `src/lib/courses/seed-konten.test.ts`. Also restart the server afterwards (same per-process cache).
 - `npm run seed:konten:verifikasi -- [baseUrl]` — opens every published course over HTTP and asserts each renders a non-empty curriculum. `npm run seed:konten:kode` — runs every `dapatDijalankan: true` code block through the real C++ runner and diffs `stdout` against `outputHarapan`. `npm run seed:konten:kerja -- [slug]` — drives one course to completion through the real assessment services (enroll → session → quiz → module complete) against the dev DB.
+- `npm run enrich:inbox` — one-off, idempotent backfill of the URL-keyed job enrichment cache (`.data/job-cache/enrichment.json`) for every inbox row already in `data/pipeline.md`. The post-scan step only enriches rows a scan just added, so rows that predate the cache render "Belum diperiksa" forever until this runs. Needs network; skips rows already cached.
 - `npx vitest run src/lib/scoring/scoring.test.ts` — one test file. `npx vitest run -t "A1:"` — one test by name. `npx vitest run --config vitest.integration.config.mts src/lib/outbox/worker.integration.test.ts` — one integration file.
 - `npm run smoke -- [baseUrl]`, `npm run e2e:onboarding -- [baseUrl]` — need a running server. Smoke derives its route count from the `routes` array; don't hardcode one.
 
@@ -40,6 +41,8 @@ Fresh checkout: `npm ci` (`node_modules` is not checked in). npm with `package-l
 ### Leave the whole stack running
 
 The user asked for this explicitly. "Full web" is the whole stack, not just `next dev`:
+
+**Preferred: `npm run dev:full`** — starts Careevo and AI Mastery together (checks `:8011`/PostgreSQL first, reports whether the `:3790` bundle is stale versus its sources), and one Ctrl-C stops exactly the processes it started. It never kills a dev server or systemd unit that was already running. Use it instead of hand-launching the two servers; the table below is what it manages.
 
 | Port | What must be up |
 |---|---|
@@ -124,7 +127,7 @@ Rules an agent is most likely to break:
 Empty PostgreSQL does not explain the other two, and vice versa.
 
 1. **PostgreSQL** — identity, RBAC, sessions, `audit_events`, outbox, and the learning/assessment tables. Migrating *away* from the stores below is per-domain, not one cutover (plan §2.2).
-2. **File stores in `.data/`** (gitignored) — resume, performa, `book`, `latihan`, `mastery`, jobstreet cache, career-ops inbox. `src/lib/resume`, `src/lib/performa`.
+2. **File stores in `.data/`** (gitignored) — resume, performa, `book`, `latihan`, `mastery`, `sessions`, `tutor`, the URL-keyed job enrichment cache (`job-cache`), and the career-ops data root (`career-ops/`). `src/lib/resume`, `src/lib/performa`. The job cache is **keyed by normalized URL** (`src/lib/career-ops/job-cache.ts`), not by Jobstreet id: a missing or corrupt cache is an *empty* cache, never a throw, and a row whose fetch failed is left out entirely rather than written half-enriched.
 3. **`data/courses.json` + `data/kuis.json`** (gitignored) — courses and quizzes, with a **per-process cache** (`src/lib/courses/storage.ts`). A long-running `next dev` will not see a course another process wrote until you restart the server. Restart the server, not Postgres. The outbox is *not* like this — it is a table, so newly written rows are visible immediately.
 
 ## Architecture — decisions that are locked, not style
@@ -158,7 +161,8 @@ From `docs/backend-production-plan.md` §2.2. Breaking these is a regression eve
 - **The panel's contents ARE now computed from the catalog** (commit `bc5f0e4`). `src/lib/courses/explore-facets.ts` is the single source: every facet item's `jumlah` comes from the same `explore-queries.ts` functions the target pages use, so the menu and the page can't disagree, and items with `0` programs are dropped (count surfaced via `tanpaIsi`). `explore-facets.test.ts` walks the App Router to catch hrefs that 404. `explore-taxonomy.ts` still supplies the raw label/href vocabulary the facets read from. Do not add a second hand-maintained Explore list. `EXPLORE_FALLBACKS.freeCourses` stays **unlinked**: the registry has no `price` field, so "gratis" cannot be answered from the catalog.
 - The third bar, `AiMasteryNavbar` (`ai-mastery-navbar.tsx`), is `/ai-mastery` only: same light colour and items, but **wings** at its top corners and **no `is-scrolled` state** — the framed app owns its scrolling, so the document never scrolls and a morph would have an unreachable state. The wings are ported from the notch bar in `vyns.ko/decks/01-hero-deck.html` (`.projects-notch-bar`): two pseudo-elements parked *outside* the bar's top corners, each a `--wing` square with a transparent circle punched out, so square-minus-circle is a concave "ear". Do **not** redraw them as an SVG path across the top edge — that was tried and cannot work, because the path must span the full bar and any dip deep enough to read as a wing eats the surface the nav row sits on (a 38px dip on a 64px bar leaves 26px, so links spill above the fill and the shadow halo cuts through them). The notch is additive and costs the bar no height. Three consequences: the bar's width subtracts `2 * var(--wing)` so the ears don't hang off the viewport; the bar sits **flush** at the top (`margin: 0 auto` — a `margin-top` leaves a band of page above that reads as a mistake, and as the shell's first-child margin it also collapses through the parent); and `--app-chrome-h`, published by `shellClassName="ai-mastery-shell"`, is therefore just the bar's height — **85px** under 769px (wraps to two rows), **64px** above.
 - `Chrome` = public/marketing. `LearnerChrome` = logged-in learner. Learner pages (`/belajar`, `/belajar/[slug]`, `/belajar/[slug]/karya/*`, `/profil`, `/ai-mastery`) use `LearnerShell` (top bar), **never** `AppShell` (sidebar) — `AppShell` is for dashboard-style pages (dashboard, progres, jelajah, admin, review, audit, challenge, loker detail).
-- **Exception:** `/belajar/mastery`, `/belajar/buku`, `/belajar/latihan` are focus-mode workspaces in `(focus)` with **no** navbar; they render their own full-height shell and own their own scrolling. Do not "fix" them with `LearnerShell`. (`/belajar/tutor` was a fourth; removed in favour of the framed app at `/ai-mastery`.)
+- **Exception:** `/belajar/mastery`, `/belajar/buku`, `/belajar/latihan`, and the **materi reader** at `/belajar/[slug]/materi/[modulId]` are focus-mode workspaces in `(focus)` with **no** navbar; they render their own full-height shell and own their own scrolling. Do not "fix" them with `LearnerShell`. (`/belajar/tutor` was a fourth; removed in favour of the framed app at `/ai-mastery`.)
+- **The materi reader is where a module is actually completed.** `/belajar/[slug]` is now a syllabus only: "Buka materi" links to the reader (`detail-kursus.tsx`), and the "Tandai selesai" button was removed from it. The reader's shell — `MateriFocusBar` + syllabus panel + `TutorDrawer` (a cross-origin iframe) + `CourseSessionProvider` — lives in `materi/layout.tsx`, **not** `page.tsx`, so switching modules never remounts the provider or reloads the tutor iframe mid-turn (a verified session in progress would be lost). The pane reads `?halaman=` from Next's `searchParams` and routes it through `halamanDipilih()` (`src/lib/courses/halaman.ts`), the single place both the pane and the syllabus panel use to pick the active page. Module completion goes through `useSelesaikanModul` / `pilihJalurPenyelesaian` (`src/components/features/learning/selesaikan-modul.ts`), which is the **only** place that decides informal-vs-verified and only **routes**; the server decides via `selesaikanMateriAction` / `tandaiModulAction`. Completion is automatic when the last page is reached (`modulSelesaiMembaca`), not a button. Plan/spec: `docs/superpowers/{plans,specs}/2026-09-30-materi-reader*.md`.
 - **The nav row is centred by two equal flanks, not by `margin: auto`.** `.nav-float` is `flex: 0 0 auto`, so `.nav-float`'s centre lands on the viewport's only if the left and right flanks are the same width. `LearnerChrome` gets that for free because `.chrome-brand` and `.chrome-actions` are both `flex: 1 1 0`. `AiMasteryNavbar` wraps the brand in a div (it carries the optional `pageLabel` chip), and **that wrapper is the left flank** — it needs `flex-1` too. Without it the left flank collapses to the logo's width while `.chrome-actions` keeps growing, and the nav renders off-centre (measured 97px left at 1280px). Below ~1024px the nav is wider than the available space so the flanks cannot be equal; the residual offset there is pre-existing and shared by both bars, not this rule's business.
 - Page tops under the transparent bar must be light, so dark text stays readable.
 - **The bar's height is `--chrome-h`, and a hero that sits *under* the bar gets `under-chrome` — never a hand-written negative margin.** `.chrome` is `position: sticky`, so it consumes real height in flow: **66px** at >= 769px (48px logo + 2x8px padding + 2x1px border) and **62px** below (44px tap target + the same). A page whose hero should start at y=0 must be pulled up by exactly that, or the gap shows the page background — and because `is-top` is transparent by design, the band is visible *through* the bar. This shipped as three independent literals, all wrong: `-mt-[60px]` in `vertex-kerja-view.tsx` and `program-detail-view.tsx` left a 6px white band on `/loker`, `/kerja`, `/professional-certificates/*` and `/specializations/*`, and `--learner-chrome-height: 104px` in `.learner-shell--overlay` buried 42px of `/belajar/[slug]`'s hero *under* the bar on mobile — the mobile bar does not wrap, it drops `nav-float`/`chrome-actions` and keeps one 44px row. So: one measurement in `globals.css`, consumed by `.under-chrome` and by `.learner-shell--overlay > main`; `--learner-chrome-height` survives only as an alias because `belajar-home.tsx` adds it to hero padding. `src/app/chrome-offset.test.ts` locks it, because typecheck/lint/vitest/build are all blind to pixels. `AiMasteryNavbar` is deliberately outside this: it is 64px and publishes `--app-chrome-h`.
@@ -193,6 +197,54 @@ Aturan yang dikunci:
 
 - `next.config.ts` lifts security headers from `src/lib/security/headers.ts`, and `experimental.serverActions.bodySizeLimit` must stay `>= MAKS_UKURAN_BYTE` in `src/app/api/unggah/route.ts` or the two disagree (the route carries the real message).
 
+## Lapisan pengawasan anti-curang
+
+Sesi terverifikasi punya **empat lapisan deteksi**, semuanya tercatat sebagai
+kejadian di `learning_events` dan **tidak pernah** menurunkan skor atau reputasi.
+
+| Lapisan | Sinyal | Asal |
+|---|---|---|
+| 0 (dasar) | `pindah_tab`, `fokus_hilang` | `browser` |
+| 1 (browser) | `keluar_fullscreen`, `paste_massal`, `pintasan_terlarang`, `salin_terlarang` | `browser` |
+| 2 (kamera) | `wajah_tidak_terdeteksi`, `wajah_kedua` | `kamera` |
+| 3 (luar) | `seb_aktif` (Safe Exam Browser) | `luar` |
+
+Aturan yang tidak boleh dilanggar:
+
+- **`JENIS_KEJADIAN_SAH` (`src/lib/learning/akses.ts`) adalah daftar tunggal.**
+  Jenis baru = satu entri baru. Validasi wire (`catatKejadianAction`) sudah
+  membacanya, jadi tidak ada daftar kedua.
+- **`asalSinyal` selalu wajib.** `ASAL_SINYAL` memetakan tiap jenis ke
+  `browser`/`kamera`/`luar`/`server`, dan `BATAS_SINYAL` menyatakan batasnya.
+  Tanpa asal, "wajah kedua" (model) dan "keluar tab" (self-report) dibaca
+  sekuat satu sama lain — dan itu tidak benar. `kejadianDariEvent` menurunkan
+  asal untuk baris lama, bukan membuangnya.
+- **Klasifikasi browser adalah fungsi murni** (`pengawasan-klien.ts`), bukan
+  logika di dalam `addEventListener`: repo tidak punya harness render, jadi
+  logika listener tidak pernah teruji.
+- **`wajib_kamera` menambah nilai `AturanPengawasan`, bukan `completion_path`.**
+  Kolom `completion_path` punya CHECK constraint database dan hanya punya dua
+  nilai; jalur kamera **diturunkan** dari kejadian run.
+- **Kamera tidak pernah aktif secara default** dan butuh persetujuan terpisah
+  dari "Mulai sesi". Menolaknya pada course `wajib` biasa tidak kehilangan akses
+  belajar. Kamera hanya disalakan `KameraIzin` (`kamera-izin.tsx`), satu-satunya
+  pemegang `PemantauWajah` di `src/` — `CourseSessionProvider` tidak pernah
+  membuatnya sendiri, dan `security.test.ts` menjaga itu.
+- **`kamera_mulai` tidak lagi bisa dilaporkan manual.** Radio "Kamera menyala
+  lagi" sudah dihapus dari `kejadian-panel.tsx`; satu-satunya sumber kejadian itu
+  adalah `PemantauWajah` yang benar-benar memanggil `getUserMedia`. Sebelum ini,
+  `wajib_kamera` bisa dipenuhi dengan mengklik radio tanpa kamera — dan itu
+  membuat `AGENTS.md` yang mengatakan "never from a client boolean" tidak benar.
+- **Frame kamera tidak pernah dikirim ke server.** Hanya angka turunan yang
+  dikirim (`detail`); `kamera-klien.ts` tidak memuat `toBlob`/`FormData`/
+  `createImageBitmap`/`toDataURL`, dan `security.test.ts` menjaganya.
+- **Tidak ada sinyal yang menghukum otomatis.** Menambah jenis kejadian baru
+  berarti menambah kolom laporan, bukan menambah bobot `KATALOG_PELANGGARAN`.
+- **SEB hanya dibaca, tidak dibangun.** `deteksiSeb` membaca header
+  `X-SafeExamBrowser`; ketiadaan header berarti "tidak ada bukti", bukan "tidak
+  dipakai". Panggilan `headers()` hidup di dalam cabang run baru supaya jalur
+  lanjutkan-sesi tidak membayarnya.
+
 ## Progres per kursus — satu helper, jangan dua
 
 `listProgresKursus()` (`src/lib/learning/progres-kursus.ts`) adalah **satu-satunya** tempat menghitung "kursus ini sudah berapa modul selesai, berapa persennya" untuk UI. Dua pemanggil: `/progres` (halaman, `AppShell` + sidebar) dan section "Pembelajaran saya" di `/belajar`. Keduanya **wajib** memakainya — jangan menulis loop `modulUntukSumber` + `progresKursusDb` + `hitungProgres` sendiri di halaman atau komponen baru, karena dua hitungan akan menyimpang diam-diam saat kurikulum berubah.
@@ -215,6 +267,7 @@ Script `scripts/e2e-onboarding.mjs` **sudah usang dan tidak bisa dipakai sebagai
 - **`careevo-attribution`** — MIT notice requirements for code ported from career-ops. Both vendor trees carry their own licences.
 - **`career-ops-port`** — what was adopted from career-ops, what was rejected. Before proposing further integration. (`docs/career-ops-architecture-study.md` is historical.)
 - **`career-ops-engine`** — driving the vendored `engine/`: exit-2-is-success, which of `pipeline.md` / `scan-history.tsv` / `scan-runs.tsv` answers what, the append race that duplicates postings. Before running/debugging a scan or changing what the inbox reads.
+- **`emil-design-eng`** — Emil Kowalski's UI-polish philosophy (animation decisions, easing, `:active` feedback). Fetch-on-demand from `emilkowalski/skills` (`skills-lock.json` records the pinned hash); the only skill that is *not* repo-specific. Use its required Before/After markdown table when reviewing UI code.
 
 A skill with invalid frontmatter fails **silently** — `npm run skills:check` is the validator (`scripts/validate-skills.mjs`, which imports the direct dep `js-yaml`).
 

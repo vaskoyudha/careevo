@@ -13,8 +13,8 @@ describe("probe inbox audit state", () => {
     let verdictNull = 0;
     const statuses: Record<string, number> = {};
     const labels: Record<string, number> = {};
-    let contohTanpaAudit: string[] = [];
-    let contohVerdictNull: string[] = [];
+    const contohTanpaAudit: string[] = [];
+    const contohVerdictNull: string[] = [];
 
     for (const r of rows) {
       if (!r.audit) {

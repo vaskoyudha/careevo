@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { JENIS_KEJADIAN_SAH } from "./akses";
-import { ASAL_SINYAL, BATAS_SINYAL, asalSinyal, type AsalSinyal } from "./sumber-sinyal";
+import {
+  ASAL_SINYAL,
+  BATAS_SINYAL,
+  asalSinyal,
+  deteksiSeb,
+  versiSeb,
+  type AsalSinyal,
+} from "./sumber-sinyal";
 
 describe("asalSinyal", () => {
   it("memetakan tiap jenis yang sah ke tepat satu asal", () => {
@@ -58,5 +65,35 @@ describe("BATAS_SINYAL", () => {
   it("menyatakan bahwa deteksi kamera bisa salah dan tidak mengidentifikasi orang", () => {
     expect(BATAS_SINYAL.kamera).toContain("bisa salah");
     expect(BATAS_SINYAL.kamera).toContain("tidak mengidentifikasi");
+  });
+});
+
+describe("deteksiSeb", () => {
+  const headers = (peta: Record<string, string>) => ({
+    get: (nama: string) => peta[nama.toLowerCase()] ?? null,
+  });
+
+  it("mengenali sesi yang berjalan di SEB", () => {
+    expect(deteksiSeb(headers({ "x-safeexambrowser": "1" }))).toBe(true);
+  });
+
+  it("tidak mengenali sesi di browser biasa", () => {
+    // Tidak adanya header **tidak** berarti SEB tidak dipakai — hanya berarti kita
+    // tidak punya bukti. Keduanya dibedakan di laporan lewat `asal` sinyal.
+    expect(deteksiSeb(headers({}))).toBe(false);
+  });
+
+  it("membaca versi SEB untuk disimpan sebagai detail", () => {
+    expect(versiSeb(headers({ "x-safeexambrowser": "SEB_3_5_0" }))).toBe("SEB_3_5_0");
+  });
+
+  it("mengembalikan null versi saat tidak ada", () => {
+    expect(versiSeb(headers({}))).toBeNull();
+  });
+
+  it("mengenali header walau isinya kosong", () => {
+    // SEB versi lama mengirim header tanpa nilai; kehadirannya sudah cukup
+    // sebagai sinyal bahwa ujian berjalan di dalamnya.
+    expect(deteksiSeb(headers({ "x-safeexambrowser": "" }))).toBe(true);
   });
 });

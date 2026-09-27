@@ -1,4 +1,5 @@
 import type { KejadianIntegritas, SessionRun } from "@/lib/learning/session";
+import { asalSinyal, type AsalSinyal } from "@/lib/learning/sumber-sinyal";
 
 /**
  * Pembacaan integritas untuk laporan staf.
@@ -30,6 +31,13 @@ export interface RingkasanSesi {
   catatan: KejadianIntegritas[];
   /** Rincian per jenis kejadian, untuk tabel di halaman detail. */
   perJenis: Array<{ jenis: KejadianIntegritas["jenis"]; label: string; jumlah: number }>;
+  /**
+   * Jumlah kejadian per asal sinyal — dasar untuk "dari mana angka ini".
+   *
+   * Wajib ada supaya "keluar tab 3×" (self-report peramban) dan "wajah kedua
+   * 3×" (turunan model) tidak pernah dibaca sekuat satu sama lain (P3).
+   */
+  perAsal: Record<AsalSinyal, number>;
 }
 
 export interface RingkasanIntegritas {
@@ -60,6 +68,15 @@ export function ringkasIntegritasByOwner(runs: SessionRun[]): Map<string, Ringka
     isi.kejadian += kejadian;
     isi.celah += celah;
     if (run.status === "kedaluwarsa") isi.kedaluwarsa += 1;
+
+    // Hitungan per asal, dari aturan yang sama dengan label di laporan: baris
+    // lama tanpa `asal` jatuh ke `asalSinyal(jenis)` — `server` untuk
+    // `sesi_dimulai`/`sesi_diakhiri`, dan asal yang benar untuk sinyal lain yang
+    // ditulis sebelum field `asal` ada. Membuangnya akan membuat total baris di
+    // laporan tidak sama dengan jumlah kejadian yang ditampilkan.
+    const perAsal: Record<AsalSinyal, number> = { browser: 0, kamera: 0, luar: 0, server: 0 };
+    for (const k of run.kejadian) perAsal[k.asal ?? asalSinyal(k.jenis)] += 1;
+
     isi.daftar.push({
       run_id: run.id,
       course_id: run.course_id,
@@ -71,6 +88,7 @@ export function ringkasIntegritasByOwner(runs: SessionRun[]): Map<string, Ringka
       persetujuan: statusPersetujuan(run),
       kejadian,
       celah,
+      perAsal,
       catatan: [...run.kejadian].sort((a, b) => a.at.localeCompare(b.at)),
       perJenis: [...new Set(run.kejadian.map((k) => k.jenis))]
         .map((j) => ({
@@ -112,7 +130,11 @@ export type KodeTemuan =
   | "pindah_tab"
   | "fokus_hilang"
   | "celah_pengawasan"
-  | "kedaluwarsa";
+  | "kedaluwarsa"
+  | "keluar_fullscreen"
+  | "paste_massal"
+  | "pintasan_terlarang"
+  | "wajah_kedua";
 
 /**
  * Status persetujuan akses kamera.
@@ -277,6 +299,50 @@ export function temuanSesi(run: SessionRun): Temuan[] {
       kode: "kedaluwarsa",
       label: "Sesi dibiarkan kedaluwarsa",
       detail: "Diotomatis lewat batas waktu, bukan ditutup oleh peserta.",
+    });
+  }
+
+  const fullscreen = run.kejadian.filter((k) => k.jenis === "keluar_fullscreen").length;
+  if (fullscreen > 0) {
+    hasil.push({
+      kode: "keluar_fullscreen",
+      label: `Keluar layar penuh ${fullscreen}×`,
+      detail: "Tidak diketahui apa yang dibuka: keluar dari layar penuh tidak berarti kehilangan fokus.",
+    });
+  }
+
+  const paste = run.kejadian.filter((k) => k.jenis === "paste_massal");
+  if (paste.length > 0) {
+    const terpanjang = paste.reduce((m, k) => {
+      const n = Number(k.detail?.match(/^(\d+)/)?.[1] ?? 0);
+      return n > m ? n : m;
+    }, 0);
+    hasil.push({
+      kode: "paste_massal",
+      label: `Paste panjang ${paste.length}×`,
+      // "Menempel teks panjang tanpa mengetik berbeda dari menulis" — bukan
+      // "menyalin": kata itu ada di daftar vonis yang dilarang test, dan
+      // menggunakannya di sini akan membuat laporan mengambil kesimpulan yang
+      // datanya tidak dukung.
+      detail: `Panjang terpanjang ${terpanjang} karakter. Menempel teks panjang berbeda dari mengetik sendiri, tetapi menempel catatan sendiri juga mungkin.`,
+    });
+  }
+
+  const pintasan = run.kejadian.filter((k) => k.jenis === "pintasan_terlarang").length;
+  if (pintasan > 0) {
+    hasil.push({
+      kode: "pintasan_terlarang",
+      label: `Pintasan terlarang ${pintasan}×`,
+      detail: "Tidak diketahui pintasan mana yang dipakai atau untuk apa.",
+    });
+  }
+
+  const wajahKedua = run.kejadian.filter((k) => k.jenis === "wajah_kedua").length;
+  if (wajahKedua > 0) {
+    hasil.push({
+      kode: "wajah_kedua",
+      label: `Wajah kedua terdeteksi ${wajahKedua}×`,
+      detail: "Tidak diketahui siapa orang kedua itu atau apakah ia sengaja masuk frame.",
     });
   }
 

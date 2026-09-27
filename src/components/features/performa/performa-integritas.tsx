@@ -13,7 +13,7 @@ import type { BarisIntegritas } from "@/lib/performa/ringkasan";
  * pernah menyatakan seseorang melakukan curang. Penilaian itu milik manusia.
  */
 export const PERINGATAN_INTEGRITAS = [
-  "Tidak ada rekaman kamera. Kamera tidak pernah diminta.",
+  "Tidak ada rekaman kamera kecuali peserta menyalakannya sendiri.",
   "Ini catatan, bukan pelanggaran. Tidak diketahui apa yang dibuka saat keluar tab.",
   "Angka ini tidak menurunkan skor, kelulusan, atau reputasi.",
 ] as const;

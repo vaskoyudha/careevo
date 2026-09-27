@@ -26,7 +26,12 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { closestPromoIndex } from "@/lib/learning/hero-promo";
+import {
+  closestPromoIndex,
+  promoCardOffset,
+  promoSnapLeft,
+  type PromoCardMeasure,
+} from "@/lib/learning/hero-promo";
 import { DitheredHeroBackdrop } from "./dithered-hero-backdrop";
 import { LandingBtnLink } from "@/components/ui/landing-btn";
 import { CatalogCourseCard, ProviderMark } from "@/components/ui/catalog-course-card";
@@ -140,25 +145,40 @@ const HERO_PROMO_THEMES: Record<
 function HeroPromoCards() {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [activeSlide, setActiveSlide] = useState(0);
+  const [seret, setSeret] = useState({ geser: false });
+  const seretRef = useRef({ pointerId: -1, x: 0, scrollLeft: 0, geser: false });
+
+  /**
+   * The cards in **scroll space** — the coordinate system `scrollLeft` lives in.
+   *
+   * One measurement for the active dot, the dot buttons and the drag settle.
+   * `hero-promo.ts` takes these numbers; measuring them in three places is how a
+   * carousel ends up at a position its own dots disagree with.
+   */
+  const ukurKartu = useCallback((): PromoCardMeasure[] => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return [];
+    const scrollerRect = scroller.getBoundingClientRect();
+    return Array.from(
+      scroller.querySelectorAll<HTMLElement>("[data-promo-card]"),
+    ).map((card) => {
+      const cardRect = card.getBoundingClientRect();
+      return {
+        left: scroller.scrollLeft + cardRect.left - scrollerRect.left,
+        width: cardRect.width,
+      };
+    });
+  }, []);
+
+  const kurangGerak = useCallback(() => prefersReducedMotion(), []);
 
   useEffect(() => {
     const scroller = scrollerRef.current;
     if (!scroller) return;
 
     const updateActiveSlide = () => {
-      const scrollerRect = scroller.getBoundingClientRect();
-      const cards = Array.from(
-        scroller.querySelectorAll<HTMLElement>("[data-promo-card]"),
-      ).map((card) => {
-        const cardRect = card.getBoundingClientRect();
-        return {
-          left: scroller.scrollLeft + cardRect.left - scrollerRect.left,
-          width: cardRect.width,
-        };
-      });
-
       setActiveSlide(
-        closestPromoIndex(scroller.scrollLeft, scroller.clientWidth, cards),
+        closestPromoIndex(scroller.scrollLeft, scroller.clientWidth, ukurKartu()),
       );
     };
 
@@ -170,32 +190,138 @@ function HeroPromoCards() {
       scroller.removeEventListener("scroll", updateActiveSlide);
       window.removeEventListener("resize", updateActiveSlide);
     };
-  }, []);
+  }, [ukurKartu]);
 
   const scrollToSlide = (index: number) => {
     const scroller = scrollerRef.current;
-    const card =
-      scroller?.querySelectorAll<HTMLElement>("[data-promo-card]")[index];
-    if (!scroller || !card) return;
-
-    const scrollerRect = scroller.getBoundingClientRect();
-    const cardRect = card.getBoundingClientRect();
-    const maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
-    const cardCenterInScroll =
-      scroller.scrollLeft +
-      cardRect.left -
-      scrollerRect.left +
-      cardRect.width / 2;
-    const left = Math.min(
-      maxScroll,
-      Math.max(0, cardCenterInScroll - scroller.clientWidth / 2),
-    );
-    const reduceMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
+    if (!scroller) return;
 
     setActiveSlide(index);
-    scroller.scrollTo({ left, behavior: reduceMotion ? "auto" : "smooth" });
+    scroller.scrollTo({
+      left: promoCardOffset(index, scroller.clientWidth, ukurKartu()),
+      behavior: kurangGerak() ? "auto" : "smooth",
+    });
+  };
+
+  /**
+   * Hands snapping back to CSS after a drag.
+   *
+   * The drag turns `scroll-snap-type` **off** (see `seretKartu`), so something
+   * has to turn it back on or the carousel would never snap again. `scrollend`
+   * is that trigger: the settle glide's target is itself a snap point, so
+   * restoring mid-glide is a no-op, and restoring on the frame after the glide
+   * would leave one frame of un-snapped scroll.
+   *
+   * `scrollend` does not fire when the glide has nowhere to go — a drag that
+   * ends exactly on a snap point scrolls 0px — so that case restores at once
+   * rather than leaving snapping permanently off. Engines without `scrollend`
+   * take the same immediate path.
+   */
+  const pulihkanSnap = (target: number) => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+
+    const pulihkan = () => {
+      scroller.style.scrollSnapType = "";
+    };
+
+    if (
+      kurangGerak() ||
+      Math.abs(target - scroller.scrollLeft) < 1 ||
+      !("onscrollend" in scroller)
+    ) {
+      pulihkan();
+      return;
+    }
+
+    scroller.addEventListener("scrollend", pulihkan, { once: true });
+  };
+
+  /**
+   * Drag-to-scroll, mouse only.
+   *
+   * Touch already pans natively, and taking the pointer there would trade
+   * momentum scrolling for a 1:1 drag, so `pointerType` is the gate — the same
+   * gate the category row below uses. Three details are load-bearing:
+   *
+   * - a 6px threshold before anything moves, so an ordinary click on a card is
+   *   never mistaken for a drag;
+   * - capture is taken on the FIRST drag move, not on pointerdown. Capturing
+   *   early retargets the synthesised click to the capturing element, so a
+   *   plain click on a card stopped navigating at all — capture has to wait
+   *   until we know this is a drag;
+   * - the click that lands after a drag is swallowed (`tangkapKlik`): without
+   *   it, releasing over a card navigates to that card;
+   * - `el.scrollLeft = …` rather than `scrollBy`, since the browser has already
+   *   applied its own drag delta by the time `pointermove` lands.
+   *
+   * And one detail this row needs that the category row does not: the drag must
+   * **turn `scroll-snap-type` off**. With `snap-mandatory` and centred cards the
+   * browser rewrites every raw write back to the nearest snap point, so a 1:1
+   * drag is impossible — measured, a drag walked in 30px steps read back
+   * `0,0,0,0,0,0,0,0,509,509`. Snapping comes back in `pulihkanSnap` on release.
+   */
+  const mulaiSeret = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== "mouse" || event.button !== 0) return;
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    seretRef.current = {
+      pointerId: event.pointerId,
+      x: event.clientX,
+      scrollLeft: scroller.scrollLeft,
+      geser: false,
+    };
+  };
+
+  const seretKartu = (event: React.PointerEvent<HTMLDivElement>) => {
+    const state = seretRef.current;
+    if (state.pointerId !== event.pointerId) return;
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    const dx = event.clientX - state.x;
+    if (!state.geser) {
+      if (Math.abs(dx) < 6) return;
+      state.geser = true;
+      // Only now, once this is known to be a drag, is capture safe to take.
+      scroller.setPointerCapture(event.pointerId);
+      scroller.style.scrollSnapType = "none";
+      setSeret({ geser: true });
+    }
+    scroller.scrollLeft = state.scrollLeft - dx;
+  };
+
+  const selesaiSeret = (event: React.PointerEvent<HTMLDivElement>) => {
+    const state = seretRef.current;
+    if (state.pointerId !== event.pointerId) return;
+    const scroller = scrollerRef.current;
+    if (scroller?.hasPointerCapture(event.pointerId)) {
+      scroller.releasePointerCapture(event.pointerId);
+    }
+    seretRef.current = { pointerId: -1, x: 0, scrollLeft: 0, geser: false };
+    setSeret({ geser: false });
+
+    // A plain click never disabled snapping, so it has nothing to settle.
+    if (!scroller || !state.geser) return;
+
+    // Settle on the card the drag ended nearest. Shares `closestPromoIndex`
+    // with the active dot, so the dot that lights up is the card we land on.
+    const target = promoSnapLeft(
+      scroller.scrollLeft,
+      scroller.clientWidth,
+      ukurKartu(),
+    );
+    scroller.scrollTo({
+      left: target,
+      behavior: kurangGerak() ? "auto" : "smooth",
+    });
+    pulihkanSnap(target);
+  };
+
+  const tangkapKlik = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!seretRef.current.geser) return;
+    event.preventDefault();
+    event.stopPropagation();
+    seretRef.current.geser = false;
   };
 
   return (
@@ -205,12 +331,29 @@ function HeroPromoCards() {
     >
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="overflow-hidden rounded-[1.5rem] bg-white p-2.5 shadow-[0_24px_70px_-42px_rgba(10,61,98,0.48)] ring-1 ring-[#dbe5ea] sm:p-3">
+          {/* `tabIndex` on a scroll container is the documented way to make it
+              keyboard-scrollable; arrow keys otherwise do nothing here. The drag
+              handlers and the click-swallowing capture are mouse-only in effect
+              (`mulaiSeret` rejects non-mouse pointers, so touch keeps native
+              panning and momentum) — same contract as the category row below. */}
           <div
             ref={scrollerRef}
             role="region"
             aria-label="Kartu promosi belajar"
             tabIndex={0}
-            className="flex snap-x snap-mandatory gap-2.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            onPointerDown={mulaiSeret}
+            onPointerMove={seretKartu}
+            onPointerUp={selesaiSeret}
+            onPointerCancel={selesaiSeret}
+            onClickCapture={tangkapKlik}
+            onDragStart={(event) => event.preventDefault()}
+            className={cn(
+              "flex snap-x snap-mandatory gap-2.5 overflow-x-auto select-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+              // A mouse has no native drag-to-scroll, so `grab` is the only cue
+              // that the row moves. Touch keeps its native momentum.
+              "touch-pan-x cursor-grab",
+              seret.geser && "cursor-grabbing",
+            )}
           >
             {HERO_PROMO_CARDS.map((card) => {
               const theme = HERO_PROMO_THEMES[card.tone];
@@ -220,8 +363,9 @@ function HeroPromoCards() {
                   key={card.title}
                   data-promo-card
                   href={card.href}
+                  draggable={false}
                   className={cn(
-                    "group relative isolate min-h-[15rem] w-[86vw] max-w-[34rem] shrink-0 snap-start overflow-hidden rounded-[1.15rem] transition-[transform,box-shadow] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-1 hover:no-underline hover:shadow-[0_18px_34px_-24px_rgba(10,61,98,0.5)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0056D2] focus-visible:ring-offset-2 motion-reduce:transform-none sm:h-[17rem] sm:w-[68vw] sm:max-w-none sm:basis-[70%] lg:basis-[47%]",
+                    "group relative isolate min-h-[15rem] w-[86vw] max-w-[34rem] shrink-0 snap-center overflow-hidden rounded-[1.15rem] transition-[transform,box-shadow] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-1 hover:no-underline hover:shadow-[0_18px_34px_-24px_rgba(10,61,98,0.5)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0056D2] focus-visible:ring-offset-2 motion-reduce:transform-none sm:h-[17rem] sm:w-[68vw] sm:max-w-none sm:basis-[70%] lg:basis-[47%]",
                     theme.surface,
                   )}
                 >
@@ -229,9 +373,10 @@ function HeroPromoCards() {
                     src={card.image}
                     alt=""
                     fill
+                    draggable={false}
                     sizes="(max-width: 640px) 86vw, (max-width: 1024px) 68vw, 47vw"
                     className={cn(
-                      "object-cover transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.04] motion-reduce:transform-none",
+                      "pointer-events-none object-cover transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.04] motion-reduce:transform-none",
                       card.imagePosition,
                     )}
                     priority={card.tone === "ink"}
@@ -1734,6 +1879,259 @@ const FAQS = [
  * the same white as the type. Text inherits `--font`, stays sharp at any size,
  * and it drops two third-party image requests from the page.
  */
+/**
+ * "Hasil karier" social-proof panel.
+ *
+ * The figures are self-reported learner outcomes, so they are presentation
+ * copy, not a server-computed fixture. Each proportional bar animates only once
+ * the panel scrolls into view, resolved through one shared observer, and every
+ * figure jumps straight to its final value under `prefers-reduced-motion`.
+ */
+const CAREER_OUTCOMES: {
+  value: number;
+  label: string;
+  icon: LucideIcon;
+}[] = [
+  { value: 91, label: "Melaporkan lompatan karier positif", icon: Rocket },
+  { value: 84, label: "Meningkat kepercayaan dirinya", icon: Sparkles },
+  { value: 72, label: "Menerapkan skill baru di tempat kerja", icon: Briefcase },
+];
+
+function prefersReducedMotion() {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
+/**
+ * Fires once when the element first enters the viewport. The observer callback
+ * is the only thing that sets state, so it stays a real subscription rather
+ * than a synchronous setState in the effect body.
+ */
+function useInViewOnce<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || visible) return;
+
+    // Without IntersectionObserver (or for reduced motion, where global CSS
+    // already zeroes the transition) reveal on the next frame instead.
+    if (prefersReducedMotion() || typeof IntersectionObserver === "undefined") {
+      const frame = requestAnimationFrame(() => setVisible(true));
+      return () => cancelAnimationFrame(frame);
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setVisible(true);
+            observer.disconnect();
+            break;
+          }
+        }
+      },
+      { threshold: 0.2 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [visible]);
+
+  return { ref, visible };
+}
+
+/** Counts 0 → `target` on an ease-out curve that matches the ring. */
+function useCountUp(target: number, active: boolean, duration = 900) {
+  const [value, setValue] = useState(0);
+
+  useEffect(() => {
+    if (!active) return;
+
+    // Reduced motion skips the tween and lands on the final figure, but still
+    // after a frame so the effect body never sets state synchronously.
+    if (prefersReducedMotion()) {
+      const frame = requestAnimationFrame(() => setValue(target));
+      return () => cancelAnimationFrame(frame);
+    }
+
+    let frame = 0;
+    const start = performance.now();
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setValue(target * eased);
+      if (t < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [active, target, duration]);
+
+  return value;
+}
+
+function CareerOutcomeStat({
+  value,
+  label,
+  icon: Icon,
+  active,
+  showDivider,
+}: {
+  value: number;
+  label: string;
+  icon: LucideIcon;
+  active: boolean;
+  showDivider: boolean;
+}) {
+  const current = useCountUp(value, active, 850);
+
+  return (
+    <div
+      className={cn(
+        "flex flex-col",
+        showDivider && "sm:border-l sm:border-[#93c5fd]/40 sm:pl-6",
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <span className="text-3xl font-bold tracking-tight text-[#0056D2] tabular-nums">
+          {Math.round(current)}%
+        </span>
+        <Icon className="size-4 text-[#2ec4b6]" aria-hidden="true" />
+      </div>
+      <p className="mt-1.5 text-xs leading-snug text-gray-600">{label}</p>
+      <div className="mt-3 h-1 w-full max-w-[128px] overflow-hidden rounded-full bg-[#dbeafe]">
+        <div
+          className="h-full origin-left rounded-full bg-gradient-to-r from-[#2ec4b6] to-[#4c8dff] transition-transform duration-[850ms] ease-out-strong"
+          style={{ transform: `scaleX(${active ? value / 100 : 0})` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function CareerOutcomePanel() {
+  const { ref, visible } = useInViewOnce<HTMLDivElement>();
+
+  return (
+    <div
+      ref={ref}
+      className={cn(
+        "relative isolate overflow-hidden rounded-[28px] border border-[rgba(147,197,253,0.38)] bg-white shadow-[0_1px_2px_rgba(10,61,98,0.04),0_10px_24px_-16px_rgba(10,61,98,0.14)] transition-[opacity,transform] duration-[600ms] ease-out-strong",
+        visible ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0",
+      )}
+    >
+      {/* Below `lg` the artwork is a BLOCK above the copy, not a backdrop. Two
+          reasons: at 390px a full-bleed `object-cover` would blow a 390px
+          slice of the 1715px source up until the ring filled the card and sat
+          squarely behind the headline; and between `sm` and `lg` the row is
+          simply too narrow to hold the copy and the ring side by side — at
+          768px even the third stat column lands on the ring's centre. In flow,
+          the copy starts under the artwork instead. It shows the artwork's top
+          76% — enough to keep the drawn `91%` and HASIL POSITIF whole — and
+          fades into white at its bottom edge, because the ring continues past
+          that edge and a hard cut through a cyan arc reads as a rendering
+          fault. From `lg` up the artwork becomes the card's backdrop, so there
+          is no edge left to hide. */}
+      <div className="relative aspect-[1715/700] w-full lg:absolute lg:inset-0 lg:aspect-auto">
+        <Image
+          src="/images/belajar/hasil-karier-hero.webp"
+          alt=""
+          fill
+          unoptimized
+          sizes="(min-width: 1024px) 1216px, 100vw"
+          className="object-cover object-top lg:object-[72%_50%]"
+        />
+        <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-b from-transparent to-white lg:hidden" />
+      </div>
+      {/* The artwork was drawn with its own number over its own ring, and this
+          panel keeps a headline that repeats it. Where the artwork is a BLOCK
+          (below `lg`) both are short enough to sit in sequence, so the drawn
+          figure stays whole. Where it is a BACKDROP (`lg`+, and the copy runs
+          over its left side) the figure would land behind the drawdown bars,
+          so it is pushed under the pale right-hand sky — `object-[72%_50%]` —
+          leaving only the ring visible beside the copy. This wash reinforces
+          that: it is the left-hand white-out that holds the headline, the bars
+          and the bars' navy labels over the pale LEFT half the artwork already
+          had.
+
+          Measured on the source at 1715x917: the pale left half sits near
+          #ddf0fd and the brightest pixel in it is pure white, against which
+          the navy labels still clear 7.5:1; the only saturated pixels are the
+          ring (x>=882px) and the arrow tail (bottom-right). The palette is
+          already this surface's family, so the wash is tuned by eye against
+          the real card rather than re-derived from the source. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 hidden bg-[linear-gradient(90deg,rgba(255,255,255,0.9)_0%,rgba(255,255,255,0.84)_28%,rgba(255,255,255,0.34)_50%,rgba(255,255,255,0)_64%)] lg:block"
+      />
+
+      {/* At `lg`+ the two-column template survives with a single child: the
+          artwork itself occupies the right column visually, and the first
+          track holds the copy to the left 55% so it never runs under the ring
+          — the same slot the removed SVG ring used to fill. Below `lg` the
+          copy is capped at 34rem instead, which is what keeps the prose from
+          stretching to a full card width once it is a single column. */}
+      <div className="relative grid items-center gap-10 px-6 py-10 sm:px-10 sm:py-12 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-14 lg:px-14 lg:py-16">
+        <div className="max-w-[34rem] lg:max-w-none">
+          <span className="inline-flex items-center gap-2 rounded-full border border-[#93c5fd] bg-[#e3eefd] px-3 py-1 text-[10px] font-bold tracking-[0.08em] text-[#0056D2] uppercase sm:text-[11px] sm:tracking-[0.14em]">
+            <span className="size-1.5 shrink-0 rounded-full bg-[#2ec4b6]" />
+            Hasil pembelajaran yang terbukti
+          </span>
+
+          <h2
+            id="hasil-karier-heading"
+            className="mt-5 text-3xl leading-[1.1] font-medium tracking-[-0.02em] text-[#0a3d62] sm:text-4xl lg:text-[2.75rem]"
+          >
+            91% peserta meraih kemajuan karier yang nyata
+          </h2>
+
+          <p className="mt-4 max-w-xl text-base leading-relaxed text-gray-600">
+            Lulusan Careevo melaporkan tawaran kerja baru, promosi jabatan,
+            kenaikan produktivitas, serta portofolio karya yang tervalidasi
+            industri.
+          </p>
+
+          <div className="mt-9 grid gap-6 sm:grid-cols-3 sm:gap-0 sm:max-w-[540px]">
+            {CAREER_OUTCOMES.map((item, index) => (
+              <CareerOutcomeStat
+                key={item.label}
+                value={item.value}
+                label={item.label}
+                icon={item.icon}
+                active={visible}
+                showDivider={index > 0}
+              />
+            ))}
+          </div>
+
+          {/* `LandingBtnLink` is the shared recipe for the navbar `Daftar`
+              ramp — it resolves `.grad-btn` → `--brand-grad`, so this CTA is
+              the same blue→white gradient as the navbar and not a fourth
+              hand-spelling of it. The flat `#0056D2` fill it replaces was the
+              one filled CTA in this panel that did not take the ramp. */}
+          <div className="mt-9">
+            <LandingBtnLink href="/careevo-plus" className="group">
+              Pelajari selengkapnya
+              <ArrowRight className="size-4 transition-transform duration-[200ms] ease-out-strong group-hover:translate-x-0.5" />
+            </LandingBtnLink>
+          </div>
+
+          {/* The panel has no right column any more: the artwork that filled it
+              is now the backdrop, and it still shows the same `91%` / HASIL
+              POSITIF. Only the provenance note survives, and it belongs under
+              the CTA rather than floating over the ring — the ring's own
+              number is what it qualifies. */}
+          <p className="mt-6 text-xs leading-relaxed text-gray-600">
+            Berdasarkan laporan mandiri lulusan Careevo.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PromoLockup({
   suffix,
   boxed = false,
@@ -2501,69 +2899,11 @@ export function BelajarHome({
       </section>
 
       <section
-        aria-label="Hasil Karier Positif"
-        className="border-t border-gray-200 bg-white py-14"
+        aria-labelledby="hasil-karier-heading"
+        className="border-t border-gray-200 bg-white py-14 sm:py-16"
       >
-        <div className="mx-auto grid w-full max-w-7xl items-center gap-10 px-4 sm:px-6 lg:grid-cols-12 lg:px-8">
-          <div className="lg:col-span-7">
-            <span className="text-xs font-bold tracking-wider text-[#0056D2] uppercase">
-              HASIL PEMBELAJAR YANG TERBUKTI
-            </span>
-            <h2 className={cn("mt-2", HOME_SECTION_HEADING_CLASS)}>
-              91% peserta meraih hasil karier yang positif
-            </h2>
-            <p className="mt-4 text-base leading-relaxed text-gray-600">
-              Lulusan Careevo melaporkan tawaran pekerjaan baru, promosi
-              kenaikan jabatan, peningkatan produktivitas, serta portofolio
-              karya nyata yang tervalidasi.
-            </p>
-
-            <div className="mt-6 grid grid-cols-3 gap-4 border-t border-gray-100 pt-6">
-              <div>
-                <p className="text-2xl font-bold text-[#0056D2] sm:text-3xl">
-                  91%
-                </p>
-                <p className="mt-1 text-xs text-gray-600">
-                  Meraih lompatan karier positif
-                </p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-[#0056D2] sm:text-3xl">
-                  84%
-                </p>
-                <p className="mt-1 text-xs text-gray-600">
-                  Peningkatan kepercayaan diri
-                </p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-[#0056D2] sm:text-3xl">
-                  72%
-                </p>
-                <p className="mt-1 text-xs text-gray-600">
-                  Menerapkan skill langsung di tempat kerja
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-8">
-              <Link
-                href="/careevo-plus"
-                className="inline-flex rounded-lg bg-[#0056D2] px-6 py-3 text-sm font-semibold text-white hover:bg-[#00419e] active:scale-[0.98]"
-              >
-                Pelajari selengkapnya
-              </Link>
-            </div>
-          </div>
-
-          <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-[#f5f7fa] p-4 lg:col-span-5">
-            <Image
-              src="https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/2FoYK9aUFG5lwb7ihssz9x/823a1b48f0261955624a7ecf75873b8f/Coursera-graph_2x.png?auto=format%2C%20compress&dpr=1&w=444&h=298&q=40&fit=clip"
-              alt="Grafik dampak karier peserta"
-              fill
-              sizes="(max-width: 1024px) 100vw, 40vw"
-              className="object-contain"
-            />
-          </div>
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+          <CareerOutcomePanel />
         </div>
       </section>
 

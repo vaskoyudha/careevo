@@ -41,8 +41,8 @@ beforeEach(() => {
 describe("createHalaman", () => {
   it("menomori halaman berurutan 1..n", async () => {
     const modul = await createModul(COURSE_ID, isiModul("A"));
-    await createHalaman(COURSE_ID, modul!.id, { judul: "Satu" });
-    await createHalaman(COURSE_ID, modul!.id, { judul: "Dua" });
+    await createHalaman(COURSE_ID, modul!.id, null, { judul: "Satu" });
+    await createHalaman(COURSE_ID, modul!.id, null, { judul: "Dua" });
 
     const daftar = await listHalaman(COURSE_ID, modul!.id);
     expect(daftar.map((h) => h.urutan)).toEqual([1, 2]);
@@ -51,7 +51,7 @@ describe("createHalaman", () => {
 
   it("mengisi id blok yang belum punya id", async () => {
     const modul = await createModul(COURSE_ID, isiModul("A"));
-    const halaman = await createHalaman(COURSE_ID, modul!.id, {
+    const halaman = await createHalaman(COURSE_ID, modul!.id, null, {
       judul: "Satu",
       blok: [heading("Tujuan")],
     });
@@ -64,7 +64,7 @@ describe("createHalaman", () => {
 
   it("mempertahankan id blok yang sudah ada", async () => {
     const modul = await createModul(COURSE_ID, isiModul("A"));
-    const halaman = await createHalaman(COURSE_ID, modul!.id, {
+    const halaman = await createHalaman(COURSE_ID, modul!.id, null, {
       judul: "Satu",
       blok: [{ id: "blk-tetap", tipe: "paragraf", segmen: [{ teks: "Isi." }] }],
     });
@@ -73,45 +73,54 @@ describe("createHalaman", () => {
 
   it("memangkas spasi di judul", async () => {
     const modul = await createModul(COURSE_ID, isiModul("A"));
-    const halaman = await createHalaman(COURSE_ID, modul!.id, { judul: "  Rapi  " });
+    const halaman = await createHalaman(COURSE_ID, modul!.id, null, { judul: "  Rapi  " });
     expect(halaman!.judul).toBe("Rapi");
   });
 
   it("mengembalikan null untuk modul yang tidak ada", async () => {
-    expect(await createHalaman(COURSE_ID, "mod-palsu", { judul: "X" })).toBeNull();
+    expect(await createHalaman(COURSE_ID, "mod-palsu", null, { judul: "X" })).toBeNull();
   });
 });
 
 describe("createModul dengan jumlah halaman", () => {
-  it("membuat halaman kosong sebanyak yang diminta", async () => {
+  it("membuat halaman kosong sebanyak yang diminta, di dalam satu bab bawaan", async () => {
     const modul = await createModul(COURSE_ID, { ...isiModul("Berhalaman"), jumlah_halaman: 3 });
 
-    const halaman = modul!.halaman ?? [];
+    // Sejak tingkat sub-modul ada, halaman dibuat **di dalam** bab: modul baru
+    // dimulai dengan satu bab yang bisa dipecah, bukan halaman yatim.
+    expect(modul!.submodul).toHaveLength(1);
+    const halaman = modul!.submodul![0].halaman;
     expect(halaman).toHaveLength(3);
     expect(halaman.map((h) => h.judul)).toEqual(["Halaman 1", "Halaman 2", "Halaman 3"]);
     expect(halaman.map((h) => h.urutan)).toEqual([1, 2, 3]);
+    // Invariant: tak satu pun halaman tanpa bab.
+    expect(halaman.every((h) => h.submodul_id === modul!.submodul![0].id)).toBe(true);
   });
 
-  it("membuat tanpa halaman bila jumlahnya nol atau tidak disebut", async () => {
+  it("tetap membuat satu bab meski tanpa halaman", async () => {
+    // Babnya ada sejak modul dibuat: itulah titik awal yang benar untuk admin
+    // yang akan menulis, dan menghindari modul "tanpa struktur" di editor.
     const nol = await createModul(COURSE_ID, { ...isiModul("Nol"), jumlah_halaman: 0 });
-    expect(nol!.halaman).toEqual([]);
+    expect(nol!.submodul).toHaveLength(1);
+    expect(nol!.submodul![0].halaman).toEqual([]);
 
     const absen = await createModul(COURSE_ID, isiModul("Absen"));
-    expect(absen!.halaman).toEqual([]);
+    expect(absen!.submodul).toHaveLength(1);
+    expect(absen!.submodul![0].halaman).toEqual([]);
   });
 
   it("menolak jumlah negatif dengan memperlakukannya sebagai nol", async () => {
     // Validasi sebenarnya ada di gerbang zod; store tetap tidak boleh
     // menghasilkan rentang negatif kalau nilainya lolos.
     const modul = await createModul(COURSE_ID, { ...isiModul("Negatif"), jumlah_halaman: -5 });
-    expect(modul!.halaman).toEqual([]);
+    expect(modul!.submodul![0].halaman).toEqual([]);
   });
 });
 
 describe("updateHalaman", () => {
   it("mengganti judul dan isi sekaligus", async () => {
     const modul = await createModul(COURSE_ID, isiModul("A"));
-    const awal = await createHalaman(COURSE_ID, modul!.id, { judul: "Awal" });
+    const awal = await createHalaman(COURSE_ID, modul!.id, null, { judul: "Awal" });
 
     const hasil = await updateHalaman(COURSE_ID, modul!.id, awal!.id, {
       judul: "Diubah",
@@ -128,7 +137,7 @@ describe("updateHalaman", () => {
   it("tidak menyentuh blok bila `blok` tidak dikirim", async () => {
     // Dipakai saat admin hanya mengganti judul tanpa mengirim ulang isinya.
     const modul = await createModul(COURSE_ID, isiModul("A"));
-    const awal = await createHalaman(COURSE_ID, modul!.id, {
+    const awal = await createHalaman(COURSE_ID, modul!.id, null, {
       judul: "Awal",
       blok: [heading("Tetap")],
     });
@@ -140,7 +149,7 @@ describe("updateHalaman", () => {
 
   it("mengganti blok seluruhnya bila `blok` dikirim", async () => {
     const modul = await createModul(COURSE_ID, isiModul("A"));
-    const awal = await createHalaman(COURSE_ID, modul!.id, {
+    const awal = await createHalaman(COURSE_ID, modul!.id, null, {
       judul: "Awal",
       blok: [heading("Lama")],
     });
@@ -161,9 +170,9 @@ describe("updateHalaman", () => {
 describe("deleteHalaman", () => {
   it("menghapus halaman dan merapikan urutan sisanya", async () => {
     const modul = await createModul(COURSE_ID, isiModul("A"));
-    const satu = await createHalaman(COURSE_ID, modul!.id, { judul: "Satu" });
-    await createHalaman(COURSE_ID, modul!.id, { judul: "Dua" });
-    await createHalaman(COURSE_ID, modul!.id, { judul: "Tiga" });
+    const satu = await createHalaman(COURSE_ID, modul!.id, null, { judul: "Satu" });
+    await createHalaman(COURSE_ID, modul!.id, null, { judul: "Dua" });
+    await createHalaman(COURSE_ID, modul!.id, null, { judul: "Tiga" });
 
     expect(await deleteHalaman(COURSE_ID, modul!.id, satu!.id)).toBe(true);
 
@@ -191,8 +200,8 @@ describe("deleteHalaman", () => {
 describe("geserHalaman", () => {
   it("menukar posisi dan menomori ulang mengikuti posisi array", async () => {
     const modul = await createModul(COURSE_ID, isiModul("A"));
-    const satu = await createHalaman(COURSE_ID, modul!.id, { judul: "Satu" });
-    await createHalaman(COURSE_ID, modul!.id, { judul: "Dua" });
+    const satu = await createHalaman(COURSE_ID, modul!.id, null, { judul: "Satu" });
+    await createHalaman(COURSE_ID, modul!.id, null, { judul: "Dua" });
 
     const hasil = await geserHalaman(COURSE_ID, modul!.id, satu!.id, "turun");
     expect(hasil!.map((h) => h.judul)).toEqual(["Dua", "Satu"]);
@@ -203,8 +212,8 @@ describe("geserHalaman", () => {
 
   it("memindahkan halaman dari bawah ke atas", async () => {
     const modul = await createModul(COURSE_ID, isiModul("A"));
-    await createHalaman(COURSE_ID, modul!.id, { judul: "Satu" });
-    const dua = await createHalaman(COURSE_ID, modul!.id, { judul: "Dua" });
+    await createHalaman(COURSE_ID, modul!.id, null, { judul: "Satu" });
+    const dua = await createHalaman(COURSE_ID, modul!.id, null, { judul: "Dua" });
 
     const hasil = await geserHalaman(COURSE_ID, modul!.id, dua!.id, "naik");
     expect(hasil!.map((h) => h.judul)).toEqual(["Dua", "Satu"]);
@@ -212,8 +221,8 @@ describe("geserHalaman", () => {
 
   it("tidak berubah saat sudah di ujung", async () => {
     const modul = await createModul(COURSE_ID, isiModul("A"));
-    const satu = await createHalaman(COURSE_ID, modul!.id, { judul: "Satu" });
-    await createHalaman(COURSE_ID, modul!.id, { judul: "Dua" });
+    const satu = await createHalaman(COURSE_ID, modul!.id, null, { judul: "Satu" });
+    await createHalaman(COURSE_ID, modul!.id, null, { judul: "Dua" });
 
     // Bukan error — hanya tidak ada perubahan.
     const hasil = await geserHalaman(COURSE_ID, modul!.id, satu!.id, "naik");
@@ -229,9 +238,9 @@ describe("geserHalaman", () => {
     // Berkas dari disk bisa tidak rapi; sumber urutan harus posisi array
     // setelah sort, bukan field `urutan` yang disimpan apa adanya.
     const modul = await createModul(COURSE_ID, isiModul("A"));
-    const a = await createHalaman(COURSE_ID, modul!.id, { judul: "A" });
-    await createHalaman(COURSE_ID, modul!.id, { judul: "B" });
-    await createHalaman(COURSE_ID, modul!.id, { judul: "C" });
+    const a = await createHalaman(COURSE_ID, modul!.id, null, { judul: "A" });
+    await createHalaman(COURSE_ID, modul!.id, null, { judul: "B" });
+    await createHalaman(COURSE_ID, modul!.id, null, { judul: "C" });
 
     // Pindahkan A ke bawah dua kali: A,B,C -> B,A,C -> B,C,A
     await geserHalaman(COURSE_ID, modul!.id, a!.id, "turun");
@@ -244,7 +253,7 @@ describe("geserHalaman", () => {
 describe("getHalaman", () => {
   it("menemukan halaman berdasarkan id", async () => {
     const modul = await createModul(COURSE_ID, isiModul("A"));
-    const halaman = await createHalaman(COURSE_ID, modul!.id, { judul: "Cari Aku" });
+    const halaman = await createHalaman(COURSE_ID, modul!.id, null, { judul: "Cari Aku" });
     expect((await getHalaman(COURSE_ID, modul!.id, halaman!.id))?.judul).toBe("Cari Aku");
   });
 

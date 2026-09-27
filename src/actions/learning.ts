@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { getSession } from "@/lib/auth/session";
 import { getCourseById } from "@/lib/courses/store";
 import { progresKursusDb, selesaikanKursusDb, tandaiModulDb } from "@/lib/learning/service";
@@ -23,6 +24,7 @@ import {
   type KJenisKejadian,
 } from "@/lib/learning/akses";
 import { BATAS_SESI_BAWAAN_MENIT, type SessionRun } from "@/lib/learning/session";
+import { deteksiSeb, versiSeb } from "@/lib/learning/sumber-sinyal";
 import { kebijakanDefault } from "@/lib/courses/kebijakan";
 import type { Course, KebijakanCourse } from "@/types/course";
 
@@ -159,6 +161,32 @@ export async function mulaiSesiAction(courseId: string): Promise<SesiActionState
       jenis: "sesi_dimulai",
       visibilitas: "visible",
     });
+
+    // Sesi yang berjalan di Safe Exam Browser dilaporkan sekali per run, tepat
+    // seperti `sesi_dimulai`. Sinyal ini informatif — ia tidak mengubah
+    // keputusan akses, dan course `wajib_kamera` tetap butuh kamera, bukan SEB.
+    // `headers()` hidup di dalam cabang run baru: pada run yang dilanjutkan ia
+    // tidak menambah apa pun, dan membaca header di jalur panas tiap klik "Mulai
+    // sesi" hanya menambah biaya tanpa hasil. Ia juga **tidak boleh** menggagalkan
+    // sesi: di luar request scope (unit test) `headers()` melempar, dan sinyal
+    // tambahan yang opsional bukan alasan pembatalan `mulaiSesiAction`.
+    let versiSEB: string | null = null;
+    try {
+      const hdr = await headers();
+      if (deteksiSeb(hdr)) versiSEB = versiSeb(hdr) ?? "tanpa versi";
+    } catch {
+      versiSEB = null;
+    }
+    if (versiSEB !== null) {
+      await catatKejadianDb({
+        principal: session,
+        runId: run.id,
+        jenis: "seb_aktif",
+        visibilitas: "visible",
+        asal: "luar",
+        detail: `Safe Exam Browser ${versiSEB}`,
+      });
+    }
   }
 
   const kejadian =

@@ -9,8 +9,10 @@ import {
 } from "@remixicon/react";
 import { cn } from "@/lib/utils";
 import { LABEL_ATURAN_BANTUAN } from "@/lib/courses/kebijakan";
+import { butuhKamera } from "@/lib/learning/akses";
 import type { KJenisKejadian } from "@/lib/learning/akses";
 import { useCourseSession } from "./course-session";
+import { KameraIzin } from "./kamera-izin";
 
 /**
  * Panel kejadian integritas untuk sesi terverifikasi yang sedang berjalan.
@@ -84,15 +86,21 @@ function waktu(titik: string): string {
  * Diekspor untuk test (lihat catatan modul di atas).
  */
 export function IsiPanelKejadian() {
-  const { kejadian, laporKejadian } = useCourseSession();
+  const { kejadian, laporKejadian, kebijakan, setKameraAktif, laporKamera } = useCourseSession();
   /**
    * Jenis laporan terakhir yang dipilih peserta.
    *
    * Panel hanya punya satu tombol "Laporkan gangguan", jadi jenisnya diambil
    * dari pilihan radio di atasnya. `kamera_gagal` adalah default karena itu
    * keluhan yang paling sering memicu panel ini dibuka.
+   *
+   * Isinya sengaja **hanya gangguan** — `kamera_mulai` sudah tidak ada di sini:
+   * sejak kamera benar-benar diminta (`KameraIzin`), kejadian itu lahir dari
+   * `PemantauWajah` yang benar-benar menyalakan kamera, bukan dari radio yang
+   * bisa diklik tanpa kamera apa pun. Menyisakannya berarti satu peserta bisa
+   * memenuhi syarat `wajib_kamera` dengan mengklik, bukan dengan menyalakan.
    */
-  const [jenisLaporan, setJenisLaporan] = useState<"kamera_gagal" | "kamera_berhenti" | "kamera_mulai">(
+  const [jenisLaporan, setJenisLaporan] = useState<"kamera_gagal" | "kamera_berhenti">(
     "kamera_gagal",
   );
   const [pesan, setPesan] = useState<string | null>(null);
@@ -111,7 +119,6 @@ export function IsiPanelKejadian() {
         : "Laporan belum bisa dicatat — sesi mungkin sudah berakhir atau koneksi terputus. Coba lagi, atau hubungi pengajar.",
     );
   };
-
   return (
     <>
       <p className="text-[12.5px] leading-relaxed text-gray-700">
@@ -120,24 +127,30 @@ export function IsiPanelKejadian() {
         mengurangi reputasimu.
       </p>
       <p className="mt-2 text-[11.5px] leading-relaxed text-gray-500">
-        Yang dicatat saat ini: pindah tab, fokus yang hilang, keluar layar penuh, dan pola
-        menempel/menyalin teks panjang. Careevo{" "}
-        <strong className="font-semibold text-gray-700">belum</strong> mengakses kameramu — tidak
-        ada aliran gambar yang dibuka, tidak ada wajah yang direkam, dan tidak ada yang dianalisis.
-        Laporan kamera di bawah hanya mencatat apa yang kamu alami sendiri, supaya pengajar tahu
-        konteksnya.
+        Yang dicatat: pindah tab, fokus yang hilang, keluar layar penuh, dan pola
+        menempel/menyalin teks panjang. Kamera hanya menyala kalau kamu menyalakannya sendiri —
+        tidak ada aliran gambar yang dibuka tanpa izinmu, dan yang dikirim ke server hanya angkanya
+        (ada/tidaknya wajah), bukan gambarnya. Deteksi berjalan di perangkatmu.
       </p>
+
+      {/* Persetujuan kamera yang sebenarnya. Hanya dirender saat course menuntut
+          kamera (`wajib_kamera`); pada course `wajib` biasa kamera tetap
+          opsional dan tidak pernah muncul sebagai syarat. */}
+      {butuhKamera(kebijakan) ? (
+        <div className="mt-3">
+          <KameraIzin on={setKameraAktif} lapor={laporKamera} />
+        </div>
+      ) : null}
 
       <fieldset className="mt-3.5 rounded-lg border border-gray-200 bg-gray-50 p-3">
         <legend className="px-1 text-[11px] font-semibold text-gray-600">
-          Kamera: lapor apa yang kamu alami
+          Kamera: lapor gangguan yang kamu alami
         </legend>
         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-2">
           {(
             [
               ["kamera_gagal", "Kamera tidak mau menyala"],
               ["kamera_berhenti", "Kamera sempat mati"],
-              ["kamera_mulai", "Kamera menyala lagi"],
             ] as const
           ).map(([nilai, label]) => (
             <label

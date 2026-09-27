@@ -1671,7 +1671,7 @@ async function main() {
       }
 
       for (const [h, halamanSeed] of modulSeed.halaman.entries()) {
-        const jadiHalaman = await createHalaman(kursus.id, dibuatModul.id, {
+        const jadiHalaman = await createHalaman(kursus.id, dibuatModul.id, null, {
           judul: halamanSeed.judul,
           urutan: h + 1,
           blok: halamanSeed.blok.map((b, i) => keBlok(b, `${kursus.slug}-m${m + 1}-h${h + 1}`, i)),

@@ -21,7 +21,7 @@ import type { EditableProfile } from "@/lib/profile/types";
 import { joinName } from "@/lib/profile/types";
 import type { Resume } from "@/lib/resume/types";
 import type { EntriKatalog } from "@/lib/courses/katalog";
-import type { JobFixture } from "@/lib/fixtures";
+import type { RekomendasiLoker } from "@/lib/onboarding/rekomendasi";
 import type { SessionPayload } from "@/lib/auth/types";
 
 const DEFAULT_COVER = "/profil/cover-default.jpg";
@@ -74,7 +74,7 @@ export function ProfileView({
   editable: EditableProfile | null;
   resume: Resume;
   kursus: EntriKatalog[];
-  loker: JobFixture[];
+  loker: RekomendasiLoker[];
 }) {
   const displayName = editable
     ? joinName(editable.firstName, editable.lastName) || session.nama

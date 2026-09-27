@@ -15,6 +15,7 @@ import {
 } from "@/lib/actions-common";
 import { modulSchema, updateModulSchema } from "@/lib/validation/modul";
 import { jumlahHalamanSchema } from "@/lib/validation/halaman";
+import { jumlahHalamanModul } from "@/lib/courses/submodul";
 import type { Modul } from "@/types/course";
 
 export interface ModulActionState {
@@ -102,7 +103,7 @@ export async function createModulAction(
       return { ok: false, error: "Kursus tidak ditemukan dalam sistem." };
     }
 
-    const dibuat = modul.halaman?.length ?? 0;
+    const dibuat = jumlahHalamanModul(modul);
     revalidateKurikulum(courseId);
     return {
       ok: true,

@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it, expect } from "vitest";
-import { pilihJalurPenyelesaian } from "./selesaikan-modul";
-import type { CheckpointMateri, KebijakanCourse } from "@/types/course";
+import { pilihJalurPenyelesaian, modulSelesaiMembaca } from "./selesaikan-modul";
+import type { CheckpointMateri, Halaman, KebijakanCourse, Submodul } from "@/types/course";
 
 /**
  * Keputusan jalur penyelesaian — murni, jadi diuji langsung.
@@ -27,6 +27,26 @@ function kebijakan(aturan: KebijakanCourse["aturan_pengawasan"]): KebijakanCours
 const MATERI: CheckpointMateri = { batas_waktu_menit: 30, mode: "materi" };
 const KUIS: CheckpointMateri = { batas_waktu_menit: 30, mode: "kuis" };
 const PROYEK: CheckpointMateri = { batas_waktu_menit: 30, mode: "proyek" };
+
+/**
+ * Sumber tanpa komentar — untuk pemeriksaan **struktur**.
+ *
+ * Berkas yang diperiksa di bawah menjelaskan keputusan-keputusannya panjang
+ * lebar dalam prosa Indonesia, dan prosa itu menyebut justru nama-nama yang
+ * tidak boleh muncul di kode (mis. komentar di `detail-kursus.tsx` yang
+ * menerangkan kenapa salinan `selesaikanMateriAction` dibuang). Menguji teks
+ * mentah berarti tesnya gagal karena dokumentasinya bagus, dan menghapus
+ * komentarnya agar hijau justru menghilangkan alasan keputusan itu. Jadi yang
+ * diperiksa adalah kode, bukan prosa.
+ *
+ * Komentar blok dan `//` baris (yang didahului spasi/awal baris, supaya
+ * `https://` di dalam string tidak dimakan) dibuang.
+ */
+function tanpaKomentar(teks: string): string {
+  return teks
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|\s)\/\/.*$/gm, "$1");
+}
 
 describe("pilihJalurPenyelesaian", () => {
   it("memilih `terverifikasi` untuk course `wajib` dengan checkpoint `materi`", () => {
@@ -121,20 +141,179 @@ describe("pilihJalurPenyelesaian", () => {
     // komposisi di luar sini" — bukan perilaku satu pemanggilan.
     const akar = path.resolve(__dirname, "../../..");
     const helper = readFileSync(path.resolve(__dirname, "selesaikan-modul.ts"), "utf8");
-    const halamanKursus = readFileSync(
-      path.join(akar, "components/features/learning/detail-kursus.tsx"),
-      "utf8",
+    // Kedua berkas komponen menjelaskan keputusan ini panjang-lebar di
+    // komentarnya — menyebut justru nama-nama yang tidak boleh ada di kode.
+    // Menguji teks mentah berarti tesnya gagal karena dokumentasinya bagus, jadi
+    // komentarnya dibuang dulu (pola yang sama dengan `materi-shell.test.ts`).
+    const shellReader = tanpaKomentar(
+      readFileSync(
+        path.join(akar, "components/features/learning/materi-shell.tsx"),
+        "utf8",
+      ),
+    );
+    const halamanKursus = tanpaKomentar(
+      readFileSync(
+        path.join(akar, "components/features/learning/detail-kursus.tsx"),
+        "utf8",
+      ),
     );
 
-    // Halaman kursus memakai helper, dan **tidak** lagi mengomposisikan
+    // Reader memakai jalurnya lewat hook, dan **tidak** mengomposisikan
     // `wajibSesiTerverifikasi` dengan `checkpointTerverifikasi` sendiri — pola
     // itulah yang dulu disalin, dan pola itulah yang diperiksa.
-    expect(halamanKursus).toContain("pilihJalurPenyelesaian(");
-    expect(halamanKursus).not.toMatch(/wajibSesiTerverifikasi\([^)]*\)\s*&&/);
-    expect(halamanKursus).not.toContain("checkpointTerverifikasi(");
+    expect(shellReader).toContain("useSelesaikanModul(");
+    expect(shellReader).not.toMatch(/wajibSesiTerverifikasi\([^)]*\)\s*&&/);
+    expect(shellReader).not.toContain("checkpointTerverifikasi(");
+
+    // Halaman kursus **tidak lagi** memegang salinan pelaksanaannya sendiri:
+    // penyelesaian modul hanya dijalankan reader (otomatis di halaman terakhir),
+    // jadi jalur penyelesaian tidak punya permukaan kedua yang bisa menyimpang.
+    expect(halamanKursus).not.toContain("pilihJalurPenyelesaian(");
+    expect(halamanKursus).not.toContain("selesaikanMateriAction");
+    expect(halamanKursus).not.toContain("tandaiModulAction");
 
     // Helper tetap yang mengomposisikannya — kalau tidak, ia berhenti jadi
     // mesin keputusannya dan tes di atasnya tidak lagi menguji apa pun.
     expect(helper).toMatch(/wajibSesiTerverifikasi\(kebijakan\)\s*&&\s*checkpointTerverifikasi\(efektif\)/);
+  });
+});
+
+/**
+ * Pemicu penyelesaian otomatis — "sudah selesai membaca?".
+ *
+ * Ini yang menggantikan tombol "Tandai selesai", jadi yang dikunci di sini
+ * adalah **kapan** pemicunya menyala: halaman terakhir modul bacaan. Salah di
+ * sini berarti modul ditandai selesai terlalu dini (halaman pertama modul
+ * panjang), atau tidak pernah (halaman terakhir tidak dikenali) — keduanya
+ * senyap, tanpa error di mana pun.
+ */
+
+function halaman(id: string, urutan: number): Halaman {
+  return {
+    id,
+    submodul_id: "s1",
+    modul_id: "m1",
+    course_id: "crs-1",
+    judul: `Halaman ${urutan}`,
+    urutan,
+    blok: [],
+    created_at: "2026-01-01T00:00:00.000Z",
+    updated_at: "2026-01-01T00:00:00.000Z",
+  };
+}
+
+function modul(...ids: string[]): Submodul[] {
+  return [
+    {
+      id: "s1",
+      modul_id: "m1",
+      course_id: "crs-1",
+      judul: "Bagian 1",
+      ringkasan: "",
+      urutan: 1,
+      halaman: ids.map((id, i) => halaman(id, i + 1)),
+      created_at: "2026-01-01T00:00:00.000Z",
+      updated_at: "2026-01-01T00:00:00.000Z",
+    },
+  ];
+}
+
+/** Modul bacaan bertiga halaman, satu bab. */
+const MODUL_TIGA = { submodul: modul("h1", "h2", "h3") };
+const MODUL_SATU = { submodul: modul("h1") };
+
+describe("modulSelesaiMembaca", () => {
+  it("menyala di halaman terakhir", () => {
+    expect(
+      modulSelesaiMembaca({
+        checkpoint: MATERI,
+        modul: MODUL_TIGA,
+        halamanId: "h3",
+      }),
+    ).toBe(true);
+  });
+
+  it("tidak menyala di halaman sebelum halaman terakhir", () => {
+    for (const id of ["h1", "h2"]) {
+      expect(
+        modulSelesaiMembaca({
+          checkpoint: MATERI,
+          modul: MODUL_TIGA,
+          halamanId: id,
+        }),
+      ).toBe(false);
+    }
+  });
+
+  it("modul satu halaman selesai begitu halaman itu dibuka", () => {
+    expect(
+      modulSelesaiMembaca({
+        checkpoint: MATERI,
+        modul: MODUL_SATU,
+        halamanId: "h1",
+      }),
+    ).toBe(true);
+  });
+
+  it("memperlakukan id halaman basi sebagai halaman pertama, bukan halaman terakhir", () => {
+    // Aturannya sama dengan `halamanDipilih()`: `?halaman=` yang tidak ketemu
+    // jatuh ke halaman pertama. Kalau id basi malah dibaca sebagai "terakhir",
+    // membuka tautan lama akan menandai modul panjang selesai.
+    expect(
+      modulSelesaiMembaca({
+        checkpoint: MATERI,
+        modul: MODUL_TIGA,
+        halamanId: "sudah-dihapus",
+      }),
+    ).toBe(false);
+    // `undefined`/`null` sama: berarti halaman pertama.
+    expect(
+      modulSelesaiMembaca({
+        checkpoint: MATERI,
+        modul: MODUL_TIGA,
+        halamanId: null,
+      }),
+    ).toBe(false);
+  });
+
+  it("tidak pernah menyala untuk modul kuis/proyek — penyelesaiannya bukan peristiwa membaca", () => {
+    // Modul kuis diselesaikan lewat penilaiannya sendiri; menandainya dari
+    // halaman terakhir akan melewati gerbang asesmen, dan server menolaknya.
+    for (const cp of [KUIS, PROYEK]) {
+      expect(
+        modulSelesaiMembaca({
+          checkpoint: cp,
+          modul: MODUL_TIGA,
+          halamanId: "h3",
+        }),
+      ).toBe(false);
+    }
+  });
+
+  it("tidak menyala untuk modul tanpa halaman (turunan)", () => {
+    // Modul turunan tidak punya prosa; tidak ada "halaman terakhir" untuk
+    // dicapai, jadi tidak ada pemicu — penyelesaiannya memang bukan peristiwa
+    // membaca.
+    expect(
+      modulSelesaiMembaca({
+        checkpoint: MATERI,
+        modul: { submodul: [] },
+        halamanId: "h1",
+      }),
+    ).toBe(false);
+  });
+
+  it("tidak menerima kebijakan — jalur tetap urusan pemanggil", () => {
+    // Dijaga **tipe**: menambahkan field `kebijakan` ke parameter berarti
+    // pemanggil berikutnya akan menyaring dengannya, dan course `wajib` tanpa
+    // sesi jadi tidak pernah mencoba menyelesaikan modulnya. `tsc` tidak bisa
+    // menolak field yang belum ada, jadi dijaga dari sumber — pola yang sama
+    // dengan pemeriksaan signature `pilihJalurPenyelesaian` di atas.
+    const sumber = readFileSync(path.resolve(__dirname, "selesaikan-modul.ts"), "utf8");
+    const signature = sumber.slice(
+      sumber.indexOf("export function modulSelesaiMembaca"),
+      sumber.indexOf("}): boolean {"),
+    );
+    expect(signature).not.toContain("kebijakan");
   });
 });

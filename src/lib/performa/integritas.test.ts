@@ -206,3 +206,115 @@ describe("durasiMenit", () => {
     expect(durasiMenit(rusak)).toBeNull();
   });
 });
+
+describe("temuanSesi untuk sinyal lapisan baru", () => {
+  const cari = (daftar: ReturnType<typeof temuanSesi>, kode: string) =>
+    daftar.find((t) => t.kode === kode);
+
+  it("menyatakan keluar layar penuh tanpa menyebut navigasi", () => {
+    const t = cari(
+      temuanSesi(run({ id: "s1", owner: "o@x.test", kejadian: [kejadian("keluar_fullscreen", "kejadian")] })),
+      "keluar_fullscreen",
+    );
+    expect(t?.label).toBe("Keluar layar penuh 1×");
+    // Yang diketahui: keluar dari layar penuh. Yang tidak: apa yang dibuka.
+    expect(t?.detail).toContain("Tidak diketahui");
+  });
+
+  it("menyatakan paste massal beserta panjangnya", () => {
+    const t = cari(
+      temuanSesi(
+        run({
+          id: "s1",
+          owner: "o@x.test",
+          kejadian: [{ ...kejadian("paste_massal", "kejadian"), detail: "400 karakter, jeda 30s" }],
+        }),
+      ),
+      "paste_massal",
+    );
+    expect(t?.label).toContain("Paste panjang");
+    expect(t?.detail).toContain("400");
+  });
+
+  it("menyatakan pintasan terlarang sebagai hitungan saja", () => {
+    const t = cari(
+      temuanSesi(
+        run({
+          id: "s1",
+          owner: "o@x.test",
+          kejadian: [kejadian("pintasan_terlarang", "kejadian"), kejadian("pintasan_terlarang", "kejadian")],
+        }),
+      ),
+      "pintasan_terlarang",
+    );
+    expect(t?.label).toBe("Pintasan terlarang 2×");
+    expect(t?.detail).toContain("Tidak diketahui");
+  });
+
+  it("menyatakan wajah kedua sebagai catatan, bukan tuduhan", () => {
+    const t = cari(
+      temuanSesi(run({ id: "s1", owner: "o@x.test", kejadian: [kejadian("wajah_kedua", "kejadian")] })),
+      "wajah_kedua",
+    );
+    // Kata "wajah kedua" adalah fakta terukur; "ada orang lain yang membantu"
+    // adalah kesimpulan yang **tidak** boleh keluar dari aritmetika.
+    expect(t?.detail).toContain("Tidak diketahui");
+    expect(t?.detail).not.toContain("membantu");
+  });
+
+  it("tidak memakai kata vonis untuk sinyal baru mana pun", () => {
+    const semua = temuanSesi(
+      run({
+        id: "s1",
+        owner: "o@x.test",
+        kejadian: [
+          kejadian("keluar_fullscreen", "kejadian"),
+          kejadian("paste_massal", "kejadian"),
+          kejadian("pintasan_terlarang", "kejadian"),
+          kejadian("wajah_kedua", "kejadian"),
+        ],
+      }),
+    );
+    for (const t of semua) {
+      for (const kata of ["curang", "menyalin", "mencontek", "penyalahgunaan", "bersalah", "membantu"]) {
+        expect(`${t.label} ${t.detail}`.toLowerCase()).not.toContain(kata);
+      }
+    }
+  });
+
+  it("tidak menampilkan temuan sinyal baru saat jenisnya memang tidak ada", () => {
+    // Kebalikan dari empat tes di atas: absennya sinyal bukan temuan. Laporan
+    // yang menampilkan "Paste panjang 0×" membuat setiap peserta terlihat
+    // punya catatan.
+    const daftar = temuanSesi(run({ id: "s1", owner: "o@x.test" }));
+    for (const kode of ["keluar_fullscreen", "paste_massal", "pintasan_terlarang", "wajah_kedua"]) {
+      expect(cari(daftar, kode)).toBeUndefined();
+    }
+  });
+});
+
+describe("ringkasanIntegritasByOwner mengelompokkan asal sinyal", () => {
+  it("memisahkan sinyal peramban dari turunan kamera", () => {
+    const peta = ringkasIntegritasByOwner([
+      run({
+        id: "s1",
+        owner: "o@x.test",
+        kejadian: [
+          { ...kejadian("pindah_tab", "kejadian"), asal: "browser" },
+          { ...kejadian("wajah_kedua", "kejadian"), asal: "kamera" },
+        ],
+      }),
+    ]);
+    const isi = peta.get("o@x.test");
+    expect(isi?.daftar[0]?.perAsal.browser).toBe(1);
+    expect(isi?.daftar[0]?.perAsal.kamera).toBe(1);
+  });
+
+  it("menghitung kejadian tanpa asal sebagai sinyal server", () => {
+    // Baris lama (sebelum `asal` ada) tidak boleh hilang dari hitungan.
+    const peta = ringkasIntegritasByOwner([
+      run({ id: "s1", owner: "o@x.test", kejadian: [kejadian("sesi_dimulai", "kejadian")] }),
+    ]);
+    expect(peta.get("o@x.test")?.daftar[0]?.perAsal.server).toBe(1);
+  });
+});

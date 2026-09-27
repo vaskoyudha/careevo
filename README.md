@@ -303,7 +303,16 @@ Aplikasi utama berjalan di port `3000`. Mode penuh AI Mastery dapat memerlukan p
 | `8011` | Backend FastAPI AI Mastery dari `backend/` |
 | `5432` | PostgreSQL |
 
-`npm run dev` root tidak menyalakan seluruh stack ini. Ikuti dokumentasi di `features/sijago/` dan `backend/` untuk runtime tambahannya.
+`npm run dev` root tidak menyalakan seluruh stack ini. Untuk menyalakan Careevo **dan** web AI Mastery sekaligus, dengan satu Ctrl-C yang membereskan keduanya:
+
+```bash
+npm run dev:full              # Careevo + AI Mastery
+npm run dev:full -- --no-sijago   # hanya Careevo
+```
+
+Skrip itu memeriksa PostgreSQL (`DATABASE_URL`) dan backend `:8011` lebih dulu, memulai unit systemd `sijago-backend.service` bila backend mati, memperingatkan bila bundel `:3790` lebih tua dari sumber di `features/sijago/`, lalu menyalakan Careevo dan AI Mastery sebagai process group masing-masing. Port dapat ditimpa lewat `CAREERVO_PORT`, `AI_MASTERY_PORT`, dan `AI_MASTERY_BACKEND_PORT`.
+
+Dua hal yang **tidak** dilakukannya, karena keduanya disengaja: backend `:8011` adalah unit systemd yang berjalan lintas sesi, jadi ia tidak ikut dimatikan; dan dev server yang sudah berjalan dipakai apa adanya, bukan dimatikan lalu dinyalakan ulang. Skrip tidak pernah mematikan apa pun yang tidak ia nyalakan sendiri. Ikuti dokumentasi di `features/sijago/` dan `backend/` untuk runtime tambahannya.
 
 ## Dokumentasi
 

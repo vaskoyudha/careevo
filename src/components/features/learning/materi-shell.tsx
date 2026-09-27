@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useCourseSession, CourseSessionPrompt } from "./course-session";
 import { MateriFocusBar } from "./materi-focus-bar";
 import { ReaderPanelSilabus } from "./reader-silabus";
 import { MateriFootBar } from "./materi-foot-bar";
 import { TutorDrawer } from "./tutor-drawer";
 import { KejadianPanel } from "./kejadian-panel";
-import { useSelesaikanModul } from "./selesaikan-modul";
+import { useSelesaikanModul, modulSelesaiMembaca } from "./selesaikan-modul";
 import type { ModulKursus } from "@/lib/courses/kurikulum";
 import type { KebijakanCourse } from "@/types/course";
 
@@ -63,7 +63,7 @@ export function MateriShell({
   tutorSrc: string;
   children: ReactNode;
 }) {
-  const { boleh } = useCourseSession();
+  const { boleh, bukti } = useCourseSession();
   const [drawerBuka, setDrawerBuka] = useState(false);
 
   /**
@@ -86,29 +86,57 @@ export function MateriShell({
    * kurikulum kosong.
    */
   const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   /**
-   * Panel silabus tertutup saat pindah modul.
+   * Halaman yang sedang dibaca, dibaca dari URL — bukan dari state.
    *
-   * Alasan state ini tidak bisa dibiarkan: panelnya menutupi seluruh layar. Kalau
-   * ia tetap terbuka setelah tautan modul ditekan, peserta mendarat di modul baru
-   * dengan panel yang masih menutupi pane-nya — modul yang baru saja dipilih
-   * **tidak terlihat**. Shell hidup di `layout.tsx` dan **tidak di-remount** saat
-   * berpindah modul (justru itu jaminan utamanya), jadi state ini juga tidak
-   * di-reset sendiri.
+   * Halaman adalah bagian dari alamat (`?halaman=<id>`, bentuk yang sama dengan
+   * yang ditulis pager di `halaman-view.tsx`), jadi tidak ada salinan state di
+   * klien yang bisa menyimpang dari URL. Yang penting: panel silabus memakai id
+   * yang sama untuk menyorot baris sub-item, sehingga penanda "kamu di sini"
+   * tidak bisa menunjuk halaman lain daripada yang dirender pane.
+   *
+   * `null` berarti "tidak ada parameter". Panel yang menerjemahkannya menjadi
+   * halaman pertama — ia yang tahu modul mana yang aktif, jadi ia yang punya
+   * modul untuk bertanya; shell tidak.
+   */
+  const halamanAktif = searchParams.get("halaman");
+
+  /**
+   * Panel silabus tertutup saat berpindah **halaman**, bukan saat berpindah modul.
+   *
+   * Berpindah halaman berarti "saya mau membaca yang ini": panelnya menutupi
+   * seluruh layar, jadi ia harus menyingkir atau halaman yang baru dipilih tidak
+   * terlihat. Itu juga alasan panelnya tidak boleh dibiarkan terbuka setelah
+   * tautan halaman ditekan.
+   *
+   * Berpindah **modul** justru sebaliknya sejak panel punya tampilan per-modul:
+   * memilih modul dari daftar "Semua modul" adalah langkah menelusuri, dan panel
+   * yang menutup di situ melewati langkah yang paling berguna — memperlihatkan
+   * bab modul yang baru dipilih. Jadi penutupan atas perpindahan modul **dihapus**
+   * di sini, dan `materi-rail.tsx` yang memutuskan kapan peserta benar-benar
+   * minta keluar (tautan halaman, "Buka materi", CTA kaki panel — semuanya
+   * memanggil `onNavigasi`/`onTutup` sendiri).
+   *
+   * Karena itu pemicunya bukan `tujuan` saja: yang ditutup adalah perpindahan
+   * yang **pathname-nya sama** tetapi `?halaman`-nya berubah. `pathname` saja
+   * tidak cukup (pindah halaman dalam satu modul tidak mengubahnya), dan
+   * `?halaman` saja juga tidak (pindah modul menghapus query itu, sehingga
+   * terlihat seperti perpindahan halaman).
    *
    * Reset-nya dilakukan **saat render**, bukan di dalam effect — pola "sesuaikan
    * state saat prop berubah" yang didokumentasikan React. Memanggil `setState`
    * sinkron di dalam effect memicu render berantai dan ditolak lint
-   * (`react-hooks/set-state-in-effect`); di sini cukup bandingkan `pathname`
-   * dengan nilai render sebelumnya, dan turunkan `silabusBuka` ke `false` hanya
-   * bila ia sedang terbuka. Navigasi lewat keyboard, `router.push`, atau tombol
-   * kembali peramban sama-sama menutupnya.
+   * (`react-hooks/set-state-in-effect`); di sini cukup bandingkan dengan nilai
+   * render sebelumnya.
    */
-  const [pathnameSebelumnya, setPathnameSebelumnya] = useState(pathname);
-  if (pathnameSebelumnya !== pathname) {
-    setPathnameSebelumnya(pathname);
-    if (silabusBuka) setSilabusBuka(false);
+  const tujuan = `${pathname}?${halamanAktif ?? ""}`;
+  const [tujuanSebelumnya, setTujuanSebelumnya] = useState(tujuan);
+  if (tujuanSebelumnya !== tujuan) {
+    const pathnameSama = tujuanSebelumnya.split("?")[0] === pathname;
+    setTujuanSebelumnya(tujuan);
+    if (pathnameSama && silabusBuka) setSilabusBuka(false);
   }
 
   /**
@@ -175,8 +203,8 @@ export function MateriShell({
    * render dengan modul dan render tanpa modul, dan React melempar
    * "rendered fewer hooks than expected". Karena itu argumennya dibuat tahan
    * `undefined` (`modulAktif?.id ?? ""`); nilainya tidak pernah dipakai saat
-   * tidak ada modul, sebab `jalankan` hanya terpanggil dari tombol bar yang
-   * tidak dirender di cabang itu.
+   * tidak ada modul, sebab `jalankan` hanya terpanggil dari effect di bawah yang
+   * dijaga `modulAktif`.
    */
   const { jalankan, pending, pesan } = useSelesaikanModul({
     courseId: kursusId,
@@ -185,12 +213,72 @@ export function MateriShell({
     checkpoint: modulAktif?.checkpoint,
   });
 
+  const sudahSelesai = modulAktif ? selesai.includes(modulAktif.id) : false;
+
+  /**
+   * Kunci pemicu terakhir yang sudah ditembakkan.
+   *
+   * `pending` saja **tidak cukup** menjaga dari penembakan ganda: pada jalur
+   * informal, `tandaiModulAction` adalah **toggle**, dan `useTransition` bisa
+   * melaporkan `pending` kembali `false` sebelum `router.refresh()` mengalirkan
+   * `selesai` yang baru. Di celah itu effect berjalan lagi dan menembak kedua
+   * kali — modul yang baru saja ditandai selesai jadi **batal** lagi. Ref ini
+   * menutup celah itu: satu kunci hanya ditembak sekali.
+   *
+   * Kuncinya memuat **ada/tidaknya `bukti`**, bukan hanya id halaman: pada
+   * course `wajib` tanpa sesi, penembakan pertama ditolak server; begitu peserta
+   * memulai sesi (`bukti` terisi) sementara masih di halaman terakhir, kuncinya
+   * berubah dan penyelesaian dicoba lagi — tanpa ini, penolakan pertama
+   * mengunci modul itu selamanya.
+   */
+  const pemicuTerakhir = useRef<string | null>(null);
+
+  /**
+   * Penyelesaian modul **otomatis** saat halaman terakhirnya tercapai.
+   *
+   * Inilah pengganti tombol "Tandai selesai": begitu peserta tiba di halaman
+   * terakhir modul bacaan, modulnya ditandai selesai sendiri — tanpa konfirmasi,
+   * karena "sudah selesai membaca" adalah kesimpulan dari posisi baca, bukan
+   * pilihan yang harus ditegaskan ulang. Keputusan **apakah** penyelesaiannya sah
+   * tetap milik `useSelesaikanModul`/server; effect ini hanya memicu pada
+   * halaman terakhir, dan server yang menolak (mis. course `wajib` tanpa sesi)
+   * mengembalikan `pesan` yang dirender bar fokus.
+   *
+   * Kenapa effect, bukan render: `jalankan` menulis (memanggil server action).
+   * Memanggilnya saat render akan menembakkan satu request per render, dan React
+   * boleh me-render berkali-kali. Effect berjalan sekali per perubahan
+   * ketergantungan.
+   *
+   * Kenapa `!sudahSelesai` jadi syarat: begitu server menandai selesai,
+   * `router.refresh()` mengalirkan `selesai` baru ke shell, `sudahSelesai` jadi
+   * `true`, dan effect berhenti memicu. `pending` ikut dijaga supaya transisi
+   * yang sedang berjalan tidak ditembak dua kali; sisa celahnya ditutup
+   * `pemicuTerakhir` (lihat catatannya).
+   */
+  useEffect(() => {
+    if (!modulAktif) return;
+    if (sudahSelesai || pending) return;
+    if (
+      !modulSelesaiMembaca({
+        checkpoint: modulAktif.checkpoint,
+        modul: modulAktif,
+        halamanId: halamanAktif,
+      })
+    ) {
+      return;
+    }
+    const kunci = `${modulAktif.id}:${halamanAktif ?? ""}:${bukti ? "sesi" : "tanpa-sesi"}`;
+    if (pemicuTerakhir.current === kunci) return;
+    pemicuTerakhir.current = kunci;
+    jalankan(false);
+  }, [modulAktif, halamanAktif, kebijakan, sudahSelesai, pending, bukti, jalankan]);
+
   // Kalau kurikulum kosong, tidak ada modul yang bisa ditampilkan. Ini bukan
   // keadaan yang seharusnya terjadi pada kursus yang bisa dibuka, tetapi
   // mengembalikan `null` lebih jujur daripada merender bar tanpa modul.
   if (!modulAktif) return <>{children}</>;
 
-  const sudah = selesai.includes(modulAktif.id);
+  const sudah = sudahSelesai;
 
   return (
     /**
@@ -218,7 +306,6 @@ export function MateriShell({
         modulSemua={modul}
         selesai={selesai}
         sudah={sudah}
-        onTandai={() => jalankan(sudah)}
         pending={pending}
         drawerBuka={drawerBuka}
         onToggleDrawer={() => setDrawerBuka((v) => !v)}
@@ -302,6 +389,7 @@ export function MateriShell({
         kursusPenyedia={kursusPenyedia}
         modul={modul}
         modulAktif={modulAktif.id}
+        halamanAktif={halamanAktif ?? undefined}
         selesai={selesai}
         buka={silabusBuka}
         onTutup={() => setSilabusBuka(false)}

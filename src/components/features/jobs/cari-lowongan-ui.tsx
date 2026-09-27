@@ -63,7 +63,122 @@ export type VerdictLoker = {
   status?: "clean" | "quarantined" | "rejected";
   /** false = data lowongan tidak bisa diambil, jadi belum pernah diaudit. */
   terperiksa: boolean;
+  /**
+   * Angka nyata dari `nilaiKepercayaan` (0–100), untuk bar di popup.
+   *
+   * `undefined` untuk baris yang belum terperiksa: `takTeraudit` mengisi
+   * `trust_score: 0` sebagai placeholder "belum diukur", bukan hasil ukur.
+   * Menampilkan bar 0/100 untuk lowongan yang tak pernah dibaca adalah tuduhan
+   * yang tidak bisa dibuktikan — hal yang sama yang dilarang `verdictBadge`
+   * lewat `terperiksa`.
+   */
+  trustScore?: number;
+  trustLevel?: "high" | "medium" | "low";
+  /**
+   * Breakdown keluarga sinyal, dihitung dari `SentinelOutput`, bukan diarang:
+   * `fee_flags` = permintaan (fee, transfer, APK); `trust_flags` = struktur
+   * tautan (link pendek, domain, URL tidak valid). Dua axis yang berbeda dan
+   * sengaja tidak digabung, supaya "20 sinyal" tidak menyembunyikan bahwa
+   * semuanya berasal dari satu sebab.
+   */
+  sinyalPermintaan?: number;
+  sinyalStruktur?: number;
+  /**
+   * Rincian pemeriksaan yang benar-benar dijalankan Sentinel untuk baris ini.
+   *
+   * **Ada empat status, bukan dua, dan itu inti kejujuran laporan ini.** Dua
+   * status ("lolos" / "flag") akan memaksa pemeriksaan yang TIDAK dijalankan
+   * menyamar sebagai lulus — persis kesalahan yang `terperiksa` sudah ajarkan
+   * sekali. `netral` berarti "tidak ada yang bisa dikatakan"; `unavailable`
+   * berarti "data untuk pemeriksaan ini tidak pernah ada". Keduanya dipakai
+   * untuk hal yang papan lowongan tidak sediakan:
+   *
+   *   - `email_pribadi` dan `domain_baru` tidak pernah bisa menyala untuk baris
+   *     inbox: `auditBaris` selalu mengirim `company_email: null` dan
+   *     `domain_age_days: null` (`inbox-audit.ts:76-77`), jadi aturan-email dan
+   *     aturan-umur-domain di `auditLoker` TIDAK dijalankan sama sekali.
+   *   - Nama perusahaan hanya bisa dipastikan bila adapter mengisinya; ketiadaan
+   *     flag berarti "tidak ada sinyal", bukan "perusahaan terbukti asli".
+   *
+   * `unavailable` ditambahkan karena "tidak dicek" dan "tidak ada masalah" adalah
+   * dua jawaban berbeda. Menyatukannya menaruh tanda centang yang menenangkan di
+   * atas pemeriksaan yang justru tidak pernah dijalankan.
+   */
+  pemeriksaan: PemeriksaanSentinel[];
 };
+
+/** Status satu baris pemeriksaan audit. */
+export type StatusPemeriksaan = "lolos" | "flag" | "netral" | "unavailable";
+
+export interface PemeriksaanSentinel {
+  /** Nama pemeriksaan, sudah dibaca orang. */
+  label: string;
+  status: StatusPemeriksaan;
+  /** Penjelasan singkat terutama untuk `unavailable` dan `netral`. */
+  catatan?: string;
+}
+
+/**
+ * Turunkan rincian pemeriksaan dari `SentinelOutput`.
+ *
+ * **Hanya membaca apa yang ada di output — tidak menghitung ulang apa pun.**
+ * `auditLoker` adalah satu-satunya tempat aturan hidup; kalau pemeriksaan di sini
+ * punya logikanya sendiri, laporan dan verdict bisa berbeda tanpa error. Jadi
+ * ini murni "flag mana yang muncul, lalu kelompok mana", dan setiap
+ * klaim "lolos" hanya dibuat untuk aturan yang dijamin `auditLoker` jalankan
+ * setiap kali (deteksi fee di deskripsi + `nilaiKepercayaan` di tautan).
+ */
+function turunkanPemeriksaan(audit: NonNullable<Baris["audit"]>): PemeriksaanSentinel[] {
+  const ada = new Set(audit.flags);
+  const cek: PemeriksaanSentinel[] = [];
+
+  // 1. Content family — `deteksiFee` di deskripsi. Dijalan setiap kali
+  //    `auditLoker` dipanggil, jadi "lolos" di sini sahih.
+  cek.push({
+    label: "Pola permintaan biaya & data pribadi",
+    status: audit.fee_flags.length > 0 ? "flag" : "lolos",
+    catatan:
+      audit.fee_flags.length > 0
+        ? `${audit.fee_flags.length} dari 6 modus ditemukan di deskripsi`
+        : "6 modus Indonesia (biaya administrasi, rekening pribadi, APK, tiket travel, seragam, KTP/OTP) tidak ditemukan",
+  });
+
+  // 2. Structural family — `nilaiKepercayaan` di URL lamaran. Dijalan setiap
+  //    kali, jadi "lolos" sahih. Inilah yang menurunkan `trust_score`.
+  cek.push({
+    label: "Struktur tautan lamaran",
+    status: audit.trust_flags.length > 0 ? "flag" : "lolos",
+    catatan:
+      audit.trust_flags.length > 0
+        ? `${audit.trust_flags.length} masalah struktural pada tautan`
+        : "Tautan valid, bukan link pendek, domain cocok dengan nama perusahaan",
+  });
+
+  // 3. Identity — HANYA boleh "lolos" kalau adapter benar-benar mengisinya.
+  //    Kehilangan flag berarti "tidak ada sinyal", bukan "terverifikasi", jadi
+  //    statusnya `netral`: tidak pernah mengklaim lulus tanpa bukti.
+  if (ada.has("perusahaan_tidak_terverifikasi")) {
+    cek.push({
+      label: "Nama perusahaan",
+      status: "flag",
+      catatan: "Nama perusahaan tidak bisa diverifikasi",
+    });
+  } else if (ada.has("email_pribadi")) {
+    cek.push({
+      label: "Email perusahaan",
+      status: "flag",
+      catatan: "Email perusahaan memakai email pribadi",
+    });
+  } else {
+    cek.push({
+      label: "Email & usia domain perusahaan",
+      status: "unavailable",
+      catatan: "Papan lowongan tidak menyediakan data ini, jadi aturannya tidak dijalankan",
+    });
+  }
+
+  return cek;
+}
 
 /**
  * Verdict satu baris, dalam bahasa manusia. Dihidupkan di sini, bukan di `inbox-list.tsx`, karena
@@ -98,12 +213,17 @@ export function verdictBadge(row: Baris): VerdictLoker | null {
           : "Data lowongan belum bisa diambil dari papan aslinya",
       ],
       terperiksa: false,
+      // Baris yang belum pernah dibaca TIDAK punya rincian pemeriksaan: satu
+      // daftar "lolos" di sini akan persis mengarang laporan yang tidak pernah
+      // dijalankan. Badge-nya sudah jujur ("Belum diperiksa").
+      pemeriksaan: [],
     };
   }
 
   // `flags` bisa kosong hanya untuk `clean`; `quarantined`/`rejected` selalu
   // punya minimal satu, tapi `||` menjaga agar badge tidak menampilkan "Sinyal: ".
   const sinyal = row.audit.flags.map(labelSinyal);
+  const pemeriksaan = turunkanPemeriksaan(row.audit);
 
   if (row.audit.status === "clean") {
     return {
@@ -113,6 +233,11 @@ export function verdictBadge(row: Baris): VerdictLoker | null {
       title: "Tidak ditemukan pola penipuan pada lowongan ini.",
       sinyal,
       terperiksa: true,
+      trustScore: row.audit.trust_score,
+      trustLevel: row.audit.trust_level,
+      sinyalPermintaan: row.audit.fee_flags.length,
+      sinyalStruktur: row.audit.trust_flags.length,
+      pemeriksaan,
     };
   }
 
@@ -124,6 +249,11 @@ export function verdictBadge(row: Baris): VerdictLoker | null {
     title: sinyal.length > 0 ? `Sinyal: ${sinyal.join(" · ")}` : "Ada sinyal yang perlu diperiksa lebih lanjut.",
     sinyal,
     terperiksa: true,
+    trustScore: row.audit.trust_score,
+    trustLevel: row.audit.trust_level,
+    sinyalPermintaan: row.audit.fee_flags.length,
+    sinyalStruktur: row.audit.trust_flags.length,
+    pemeriksaan,
   };
 }
 

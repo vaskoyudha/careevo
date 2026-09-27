@@ -33,8 +33,23 @@ vi.mock("next/navigation", () => ({ notFound: mocks.notFound }));
 vi.mock("@/lib/courses/katalog", () => ({ cariEntri: mocks.cariEntri }));
 vi.mock("@/lib/courses/modul-resolver", () => ({ modulUntukSumber: mocks.modulUntukSumber }));
 vi.mock("@/components/features/learning/materi-pane", () => ({
-  MateriPane: ({ modul }: { modul: { id: string; judul: string } }) =>
-    createElement("section", { "data-test-modul": modul.id, "data-test-judul": modul.judul }),
+  // `halamanAwal` ikut dirender sebagai atribut: halaman ini **tidak** memilih
+  // halamannya sendiri — ia hanya meneruskan `?halaman=` apa adanya, dan itu
+  // satu-satunya hal yang perlu dijaga di sini (pemilihan halaman diuji di
+  // `halaman.test.ts` lewat `halamanDipilih`, dan render pane-nya di
+  // `materi-pane.test.ts`).
+  MateriPane: ({
+    modul,
+    halamanAwal,
+  }: {
+    modul: { id: string; judul: string };
+    halamanAwal?: string;
+  }) =>
+    createElement("section", {
+      "data-test-modul": modul.id,
+      "data-test-judul": modul.judul,
+      "data-test-halaman": halamanAwal ?? "",
+    }),
 }));
 
 const { default: MateriModulPage } = await import("./page");
@@ -67,18 +82,30 @@ beforeEach(() => {
  * indikator loading. Pola yang dipakai di sini adalah memanggil komponennya
  * sebagai fungsi (bukan lewat `createElement`), lalu merender hasilnya yang
  * sudah jadi elemen sinkron. Itu yang dijalankan Next untuk komponen server.
+ *
+ * `searchParams` dioper terpisah karena halaman membacanya untuk memilih
+ * halaman: `{}` berarti "tanpa `?halaman=`".
  */
-async function renderPage(slug: string, modulId: string): Promise<string> {
+async function renderPage(
+  slug: string,
+  modulId: string,
+  searchParams: { halaman?: string } = {},
+): Promise<string> {
   const elemen = await MateriModulPage({
     params: Promise.resolve({ slug, modulId }),
+    searchParams: Promise.resolve(searchParams),
   });
   return renderToStaticMarkup(elemen);
 }
 
 /** Jalankan halaman; `notFound` melempar, jadi tangkap dan laporkan sebagai 404. */
-async function renderPageTerkendali(slug: string, modulId: string): Promise<string> {
+async function renderPageTerkendali(
+  slug: string,
+  modulId: string,
+  searchParams: { halaman?: string } = {},
+): Promise<string> {
   try {
-    return await renderPage(slug, modulId);
+    return await renderPage(slug, modulId, searchParams);
   } catch (err) {
     if (err instanceof Error && err.message === "NEXT_NOT_FOUND") return "";
     throw err;
@@ -118,5 +145,29 @@ describe("MateriModulPage", () => {
     // Id yang tidak cocok dengan modul mana pun bukan berarti "modul pertama".
     // Menghapus assertion ini (mis. mengganti `notFound()` dengan `?? modul[0]`)
     // membuat halaman diam-diam menampilkan modul yang salah.
+  });
+
+  it("meneruskan ?halaman= apa adanya ke pane", async () => {
+    // Halaman ini **tidak** memvalidasi id halamannya: `halamanDipilih()` di
+    // dalam pane yang memutuskan, karena panel silabus memakai fungsi yang sama
+    // untuk menyorot barisnya. Kalau halaman ini ikut menyaring, dua tempat
+    // mulai menjawab "halaman mana yang tampil" — dan panel bisa menyorot baris
+    // yang berbeda dari yang dirender pane, tanpa error di mana pun.
+    mocks.cariEntri.mockResolvedValue(ENTRI);
+    mocks.modulUntukSumber.mockResolvedValue(MODUL);
+
+    const html = await renderPage("kursus-uji", "crs-1-m1", { halaman: "hal-2" });
+    expect(html).toContain('data-test-halaman="hal-2"');
+  });
+
+  it("mengoper halaman kosong saat tidak ada ?halaman=", async () => {
+    // `undefined` bukan "" — dan yang penting di sini adalah pane menerima
+    // ketiadaan itu, bukan halaman pertama yang dipilih di sini: pane yang tahu
+    // modulnya, jadi pane yang tahu halaman pertamanya.
+    mocks.cariEntri.mockResolvedValue(ENTRI);
+    mocks.modulUntukSumber.mockResolvedValue(MODUL);
+
+    const html = await renderPage("kursus-uji", "crs-1-m1");
+    expect(html).toContain('data-test-halaman=""');
   });
 });

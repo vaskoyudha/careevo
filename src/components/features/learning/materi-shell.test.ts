@@ -99,38 +99,80 @@ describe("struktur reader — shell tinggal di layout", () => {
     expect(sumber).toMatch(/pesan=\{pesan\}/);
   });
 
-  it("panel silabus ditutup saat pindah modul, dan fokusnya dikembalikan", () => {
+  it("memulai penyelesaian modul otomatis di halaman terakhir — tanpa tombol", () => {
     /**
-     * Keadaan yang dijaga: shell hidup di `layout.tsx` dan **tidak di-remount**
-     * saat berpindah modul — justru itu jaminan utama branch ini. Konsekuensinya
-     * state `silabusBuka` juga tidak di-reset sendiri, jadi panel silabus yang
-     * terbuka akan menutupi pane modul yang baru dipilih — modulnya benar-benar
-     * tidak terlihat. Penutupannya harus eksplisit.
+     * Ini penggantinya tombol "Tandai selesai": penyelesaian dipicu effect saat
+     * `modulSelesaiMembaca` benar, bukan oleh klik peserta. Karena repo ini
+     * lingkungan `node` tanpa jsdom, effect **tidak berjalan** di
+     * `renderToStaticMarkup` — jadi yang dikunci di sini adalah bentuk
+     * pengawatannya, pola yang sama dengan efek penutup panel silabus.
+     *
+     * Yang gagal tanpa tes ini: seseorang mengembalikan tombol konfirmasi, atau
+     * memindahkan pemicunya ke render (menembak satu request per render). Keduanya
+     * hijau di seluruh suite lain.
+     */
+    const sumber = tanpaKomentar(BERKAS_SHELL);
+    // Pemicunya memakai predikat murni, bukan pemeriksaan halaman terakhir yang
+    // disalin di shell.
+    expect(sumber).toContain("modulSelesaiMembaca(");
+    // Dan ia benar-benar memanggil jalur penyelesaian yang memutuskan
+    // informal/terverifikasi — bukan menulis tanda sendiri.
+    expect(sumber).toMatch(/if \(\s*!modulSelesaiMembaca\(/);
+    expect(sumber).toMatch(/jalankan\(false\)/);
+    // Bar tidak lagi menerima callback konfirmasi.
+    expect(sumber).not.toContain("onTandai");
+  });
+
+  it("panel silabus ditutup saat pindah halaman, dan fokusnya dikembalikan", () => {
+    /**
+     * Keadaan yang dijaga: panel silabus menutupi seluruh layar, jadi ia harus
+     * menyingkir saat peserta memilih sesuatu untuk **dibaca** — kalau tidak,
+     * halaman yang baru saja dipilih tidak terlihat.
+     *
+     * Sejak panel punya tampilan per-modul, **perpindahan modul tidak lagi
+     * menutupnya**: memilih modul dari daftar "Semua modul" adalah langkah
+     * menelusuri, dan panel yang menutup di situ melewati langkah paling berguna
+     * (memperlihatkan bab modul yang baru dipilih). Jadi pemicunya dipersempit ke
+     * perpindahan yang pathname-nya **sama** tetapi `?halaman`-nya berubah.
      *
      * Kenapa diperiksa dari sumber, bukan dari render: repo ini lingkungan
      * `node` tanpa jsdom, jadi efek **tidak berjalan** di `renderToStaticMarkup`.
      * Properti "navigasi menutup panel" hanya bisa dibuktikan di peramban; yang
-     * bisa dikunci di sini adalah bentuk efeknya — ia bergantung pada `pathname`
-     * (identitas tujuan, bukan sinyal sekali pakai), sehingga tidak bergantung
-     * pada rail memberitahu shell, dan ia mengembalikan fokus ke tombolnya.
+     * bisa dikunci di sini adalah bentuk efeknya — ia bergantung pada identitas
+     * tujuan (pathname **beserta** `?halaman`), sehingga tidak bergantung pada
+     * rail memberitahu shell, dan ia mengembalikan fokus ke tombolnya.
      *
-     * Assertion sengaja sempit: `useEffect` yang benar-benar ada, dengan
-     * `pathname` dan `modulBuka` di daftar dependensinya, dan `focus()` di
-     * dalamnya. Kalau efeknya diganti menjadi sesuatu tanpa dependensi, atau
-     * fokusnya dihapus, test ini merah.
+     * `?halaman` **wajib** ikut: berpindah halaman di dalam modul yang sama tidak
+     * mengubah pathname, jadi pemicu yang hanya membaca pathname tidak akan
+     * menutup panelnya sama sekali.
      */
-    const sumber = isi(BERKAS_SHELL);
-    // Penutupan oleh navigasi di-reset saat render (bukan setState di dalam
-    // effect — itu memicu render berantai dan ditolak lint), dengan `pathname`
-    // sebagai pemicunya. Assertion-nya sempit: cabang reset membandingkan
-    // pathname, lalu menutup panel hanya bila sedang terbuka.
-    expect(sumber).toMatch(/pathnameSebelumnya !== pathname/);
-    expect(sumber).toMatch(/if \(silabusBuka\) setSilabusBuka\(false\)/);
+    const sumber = tanpaKomentar(BERKAS_SHELL);
+    expect(sumber).toMatch(/const tujuan = `\$\{pathname\}\?\$\{halamanAktif \?\? ""\}`/);
+    expect(sumber).toMatch(/tujuanSebelumnya !== tujuan/);
+    // Yang menutup hanya perpindahan **di dalam modul yang sama**.
+    expect(sumber).toMatch(/const pathnameSama = tujuanSebelumnya\.split\("\?"\)\[0\] === pathname/);
+    expect(sumber).toMatch(/if \(pathnameSama && silabusBuka\) setSilabusBuka\(false\)/);
+    // Dan **tidak** ada lagi penutupan tanpa syarat atas setiap perubahan tujuan:
+    // itulah yang membuat panel menutup hanya karena modulnya berganti.
+    expect(sumber).not.toMatch(/if \(silabusBuka\) setSilabusBuka\(false\)/);
     // Fokus kembali setelah transisi terbuka → tertutup. `Escape` sendiri hidup
     // di `reader-silabus.tsx` (panelnya), jadi di sini hanya pengembalian fokus
     // milik shell yang bisa dijaga.
     expect(sumber).toMatch(/baruTertutup = silabusSebelumnya\.current && !silabusBuka/);
     expect(sumber).toMatch(/tombolSilabusRef\.current\?\.focus\(\)/);
+  });
+
+  it("meneruskan ?halaman= ke panel silabus supaya barisnya bisa disorot", () => {
+    /**
+     * Penanda "kamu di sini" di panel silabus berasal dari **satu** nilai: id
+     * halaman di URL. Kalau shell berhenti meneruskannya, panelnya memakai
+     * `undefined`, yang terbaca sebagai "halaman pertama" — jadi peserta yang
+     * membaca halaman 2 akan melihat halaman 1 tersorot, tanpa error apa pun.
+     */
+    const sumber = tanpaKomentar(BERKAS_SHELL);
+    expect(sumber).toMatch(/const searchParams = useSearchParams\(\)/);
+    expect(sumber).toMatch(/searchParams\.get\("halaman"\)/);
+    expect(sumber).toMatch(/halamanAktif=\{halamanAktif \?\? undefined\}/);
   });
 });
 
@@ -142,10 +184,17 @@ describe("struktur reader — shell tinggal di layout", () => {
  * hook aslinya membaca konteks App Router yang tidak ada di luar peramban.
  */
 const pathname = vi.hoisted(() => ({ nilai: "/belajar/kursus-uji/materi/crs-1-m1" }));
+/** Query string yang "sedang dibuka" — bentuknya `?halaman=<id>` atau kosong. */
+const search = vi.hoisted(() => ({ nilai: "" }));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => pathname.nilai,
   useRouter: () => ({ refresh: () => {} }),
+  // Shell membaca `?halaman=` untuk (a) menyorot baris sub-item yang benar di
+  // panel silabus dan (b) menutup panelnya saat berpindah halaman. Hook aslinya
+  // membaca konteks App Router yang tidak ada di lingkungan `node` ini, jadi ia
+  // wajib dipalsukan seperti `usePathname`.
+  useSearchParams: () => new URLSearchParams(search.nilai),
 }));
 
 const { CourseSessionProvider } = await import("./course-session");
@@ -211,7 +260,7 @@ function barFokus(html: string): string {
 
 describe("MateriShell", () => {
   /**
-   * Modul mana yang aktif, dibaca dari **tombol penyelesaian di bar**.
+   * Status penyelesaian modul, dibaca dari **tanda baca di bar**.
    *
    * Dulu properti ini diamati lewat judul modul di bar (`>Mendalami React<`).
    * Blok judul itu sudah dihapus dari bar — judul kursusnya mengulang pemicu
@@ -219,28 +268,27 @@ describe("MateriShell", () => {
    * pengamatan itu ikut hilang bersama elemennya.
    *
    * Sinyal penggantinya berasal dari nilai yang sama: `sudah` di bar adalah
-   * `selesai.includes(modulAktif.id)`, jadi tombolnya berubah mengikuti modul
-   * yang **benar-benar diresolusi** dari pathname. Itu justru lebih tepat
-   * daripada mencocokkan judul: sebuah teks bisa muncul dari tempat lain di
-   * dokumen, sedangkan `aria-pressed` di bar hanya bisa benar kalau modulnya
-   * benar.
+   * `selesai.includes(modulAktif.id)`, jadi tanda bacanya berubah mengikuti
+   * modul yang **benar-benar diresolusi** dari pathname. Sejak tombol konfirmasi
+   * dibuang, tanda itu berupa `<span role="status">`: `Selesai` saat modulnya
+   * tercatat selesai, `Belum selesai` selainnya.
    *
    * Caranya: tandai **satu** modul selesai, lalu tuntut bar berbunyi `Selesai`
    * untuk modul itu. Arah sebaliknya diuji juga — tanpa assertion negatifnya,
    * bar yang selalu berbunyi `Selesai` akan lolos.
    */
   function labelTombolSelesai(html: string): string {
-    return barFokus(html).includes(">Selesai</button>") ? "Selesai" : "Tandai selesai";
+    return barFokus(html).includes(">Selesai</span>") ? "Selesai" : "Belum selesai";
   }
 
   it("memilih modul aktif dari segmen terakhir pathname", () => {
     pathname.nilai = "/belajar/kursus-uji/materi/crs-1-m2";
-    // Hanya m2 yang selesai. Kalau shell jatuh ke modul pertama (m1), tombolnya
-    // berbunyi "Tandai selesai" dan test ini merah.
+    // Hanya m2 yang selesai. Kalau shell jatuh ke modul pertama (m1), tandanya
+    // berbunyi "Belum selesai" dan test ini merah.
     expect(labelTombolSelesai(render({ selesai: ["crs-1-m2"] }))).toBe("Selesai");
     // Arah sebaliknya: yang selesai modul **lain**, jadi bar tidak boleh
     // mengklaim modul aktif sudah selesai.
-    expect(labelTombolSelesai(render({ selesai: ["crs-1-m1"] }))).toBe("Tandai selesai");
+    expect(labelTombolSelesai(render({ selesai: ["crs-1-m1"] }))).toBe("Belum selesai");
   });
 
   it("mendekode id modul yang ter-encode di URL", () => {
@@ -358,7 +406,7 @@ describe("MateriShell", () => {
     pathname.nilai = "/belajar/kursus-uji/materi/crs-1-m1";
     // Daftar modulnya hidup di panel (`portal`, tidak ada saat tertutup), jadi
     // satu-satunya tempat status "selesai" bisa dilihat tanpa membuka panel
-    // adalah tombol "Tandai selesai" di bar — dan itulah yang dijaga di sini.
+    // adalah tanda baca di bar — dan itulah yang dijaga di sini.
     expect(barFokus(render({ selesai: ["crs-1-m1"] }))).toContain("Selesai");
   });
 });

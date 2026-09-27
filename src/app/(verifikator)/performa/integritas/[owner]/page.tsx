@@ -17,6 +17,7 @@ import {
   type RingkasanIntegritas,
 } from "@/lib/performa/integritas";
 import { barisIntegritas } from "@/lib/performa/ringkasan";
+import { BATAS_SINYAL, type AsalSinyal } from "@/lib/learning/sumber-sinyal";
 import { listRunStaf } from "@/lib/learning/run-service";
 import { sessionRunDariDb } from "@/lib/learning/dashboard";
 
@@ -70,6 +71,19 @@ export default async function IntegritasDetailPage({
   const ringkas = ringkasan.get(emailPemilik);
   const daftarPersetujuan = (ringkas?.daftar ?? []).map((s) => s.persetujuan);
   const izin = gabungPersetujuan(daftarPersetujuan);
+
+  // Jumlah sinyal per asal, dijumlahkan di seluruh sesi — bukan hanya sesi
+  // terbaru. Menjumlahkan per sesi di dalam JSX membuat angka yang sama ditulis
+  // ulang per sesi, dan yang dirender cuma sesi pertama: peserta dengan lima
+  // sesi akan melihat hitungan yang salah lima kali.
+  const perAsal = (Object.keys(BATAS_SINYAL) as AsalSinyal[]).reduce(
+    (acc, asal) => {
+      acc[asal] = ringkas?.daftar.reduce((n, s) => n + s.perAsal[asal], 0) ?? 0;
+      return acc;
+    },
+    {} as Record<AsalSinyal, number>,
+  );
+  const asalTerpakai = (Object.keys(perAsal) as AsalSinyal[]).filter((a) => perAsal[a] > 0);
 
   /**
    * Catatan integritas yang sudah diputuskan, plus skor yang dihasirkan dari
@@ -221,7 +235,30 @@ export default async function IntegritasDetailPage({
                 {izin.label} — {izin.detail}
               </span>
             </li>
+            <li className="list-app-row">
+              <span className="row-title">Asal sinyal</span>
+              <span className="text-xs text-muted-foreground">
+                {asalTerpakai.length === 0
+                  ? "—"
+                  : asalTerpakai.map((asal) => `${perAsal[asal]} ${asal}`).join(" · ")}
+              </span>
+            </li>
           </ul>
+          {/*
+            Batas asal hanya untuk asal yang benar-benar muncul: empat baris
+            batas untuk empat sumber membuat pembaca mengira semuanya aktif, dan
+            itu klaim yang tidak benar untuk peserta yang belum pernah menyalakan
+            kamera.
+          */}
+          {asalTerpakai.length > 0 ? (
+            <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
+              {asalTerpakai.map((asal) => (
+                <li key={asal}>
+                  <span className="font-medium">{asal}:</span> {BATAS_SINYAL[asal]}
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </section>
 
         <section className="card" aria-labelledby="integritas-riwayat">

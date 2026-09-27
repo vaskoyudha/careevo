@@ -5,6 +5,7 @@ import { CourseSessionProvider } from "./course-session";
 import { MateriPane } from "./materi-pane";
 import { kebijakanDefault } from "@/lib/courses/kebijakan";
 import type { ModulKursus } from "@/lib/courses/kurikulum";
+import type { Halaman, Submodul } from "@/types/course";
 
 /**
  * Pane modul — diuji lewat HTML hasil render.
@@ -16,8 +17,23 @@ import type { ModulKursus } from "@/lib/courses/kurikulum";
  * membuatnya benar-benar menguji gerbangnya, bukan sekadar meneruskan nilai.
  */
 
+function bab(id: string, halamanDaftar: Halaman[]): Submodul {
+  return {
+    id,
+    modul_id: "crs-1-m1",
+    course_id: "crs-1",
+    judul: "Bagian 1",
+    ringkasan: "",
+    urutan: 1,
+    halaman: halamanDaftar,
+    created_at: "",
+    updated_at: "",
+  };
+}
+
 const HALAMAN = {
   id: "hal-1",
+  submodul_id: "sub-m1",
   modul_id: "crs-1-m1",
   course_id: "crs-1",
   judul: "Pengantar",
@@ -33,7 +49,11 @@ const MODUL: ModulKursus = {
   ringkasan: "r",
   durasi_min: 10,
   url: "https://contoh.test",
+  // `halaman` (rata) dan `submodul` (pohon) sama-sama dibawa oleh `ModulKursus`
+  // hasil resolver. Di sini keduanya diisi konsisten: `halamanDipilih` membaca
+  // pohonnya, jadi fixture yang hanya mengisi `halaman` akan menjawab `null`.
   halaman: [HALAMAN],
+  submodul: [bab("sub-m1", [HALAMAN])],
   materi: [
     {
       id: "mat-1",
@@ -66,8 +86,13 @@ const MODUL: ModulKursus = {
  * `putuskanAkses` menjawab `perlu_sesi` untuk `materi` dan `kuis`.
  *
  * `modul` bisa diganti supaya cabang modul turunan (tanpa isi) ikut teruji.
+ * `halamanAwal` adalah nilai `?halaman=` apa adanya dari `page.tsx`.
  */
-function render(bukti: string | null, modul: ModulKursus = MODUL) {
+function render(
+  bukti: string | null,
+  modul: ModulKursus = MODUL,
+  halamanAwal?: string | null,
+) {
   // `children` lewat properti, bukan argumen ketiga: di React 19 types
   // `children` wajib pada `CourseSessionProvider` dan bentuk tiga-argumen gagal
   // `npm run typecheck` (TS2769). Sama seperti helper Task 3 dan Task 5.
@@ -76,7 +101,7 @@ function render(bukti: string | null, modul: ModulKursus = MODUL) {
     kebijakan: kebijakanDefault(),
     buktiAwal: bukti,
     runIdAwal: bukti ? "run-1" : null,
-    children: createElement(MateriPane, { kursusId: "crs-1", modul }),
+    children: createElement(MateriPane, { kursusId: "crs-1", modul, halamanAwal }),
   };
   return renderToStaticMarkup(createElement(CourseSessionProvider, isi));
 }
@@ -118,5 +143,57 @@ describe("MateriPane", () => {
     const html = render("token.abc", turunan);
     expect(html).toContain("Ringkasan turunan.");
     expect(html).toContain("https://contoh.test/turunan");
+  });
+});
+
+/**
+ * Halaman yang dirender berasal dari **URL** (`?halaman=`), bukan state lokal.
+ *
+ * Itu yang membuat satu halaman bisa dibagikan, tombol kembali peramban bekerja,
+ * dan panel silabus bisa menyorot baris yang sama. Dua sifat yang dijaga di sini:
+ * id yang dikenal dirender, dan id yang tidak dikenal jatuh ke halaman **pertama**
+ * (aturan `halamanDipilih`, bukan `null` yang akan menampilkan pane tanpa prosa).
+ */
+describe("MateriPane — halaman dari URL", () => {
+  const HALAMAN_SATU = { ...HALAMAN, id: "hal-1", judul: "Halaman Satu", urutan: 1 };
+  const HALAMAN_DUA = {
+    ...HALAMAN,
+    id: "hal-2",
+    judul: "Halaman Dua",
+    urutan: 2,
+    blok: [{ id: "b2", tipe: "paragraf" as const, segmen: [{ teks: "Isi kedua." }] }],
+  };
+  const DUA_HALAMAN: ModulKursus = {
+    ...MODUL,
+    halaman: [HALAMAN_SATU, HALAMAN_DUA],
+    submodul: [bab("sub-m1", [HALAMAN_SATU, HALAMAN_DUA])],
+  };
+
+  it("merender halaman pertama saat tidak ada ?halaman=", () => {
+    const html = render("token.abc", DUA_HALAMAN);
+    expect(html).toContain("Halaman Satu");
+    expect(html).not.toContain("Isi kedua.");
+  });
+
+  it("merender halaman yang diminta ?halaman=", () => {
+    const html = render("token.abc", DUA_HALAMAN, "hal-2");
+    expect(html).toContain("Halaman Dua");
+    expect(html).toContain("Isi kedua.");
+  });
+
+  it("jatuh ke halaman pertama saat ?halaman= basi", () => {
+    // `?halaman=` adalah masukan dari URL: tautan lama atau halaman yang dihapus
+    // admin bukan galat, dan pane tanpa prosa bukan jawaban yang benar.
+    const html = render("token.abc", DUA_HALAMAN, "hal-yang-sudah-dihapus");
+    expect(html).toContain("Halaman Satu");
+  });
+
+  it("memberi pager sebagai tautan ?halaman=, bukan tombol ber-state", () => {
+    // Tanpa `onPindahHalaman`, pager merender `Link`. Kalau pane kembali
+    // mengoper callback-nya, tautan itu hilang — dan dengan itu, sifat
+    // "halaman bisa dibagikan" yang jadi alasan perubahan ini.
+    const html = render("token.abc", DUA_HALAMAN);
+    expect(html).toContain("Halaman berikutnya: Halaman Dua");
+    expect(html).toContain("?halaman=");
   });
 });

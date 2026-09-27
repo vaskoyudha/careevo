@@ -5,6 +5,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { IsiPanelSilabus, ReaderSilabusLeading } from "./reader-silabus";
 import type { ModulKursus } from "@/lib/courses/kurikulum";
+import type { Halaman, Submodul } from "@/types/course";
 
 /**
  * Silabus reader — pemicu + progres di bar, dan panel setinggi layar.
@@ -33,9 +34,61 @@ function tanpaKomentar(berkas: string): string {
     .replace(/(^|\s)\/\/.*$/gm, "$1");
 }
 
+/**
+ * Kurikulum panel.
+ *
+ * Dua modul **berisi** (halaman/kuis) dan satu modul turunan tanpa isi, karena
+ * itulah dua bentuk baris yang ada sekarang: modul berisi jadi tombol
+ * pembentang, modul turunan tetap tautan. Data dengan hanya satu bentuk akan
+ * membuat separuh perilakunya tidak pernah diuji.
+ */
+function bab(id: string, urutan: number, halamanDaftar: Halaman[]): Submodul {
+  return {
+    id,
+    modul_id: "crs-1-m1",
+    course_id: "crs-1",
+    judul: `Bagian ${urutan}`,
+    ringkasan: "",
+    urutan,
+    halaman: halamanDaftar,
+    created_at: "",
+    updated_at: "",
+  };
+}
+
+const HALAMAN = {
+  id: "hal-1",
+  submodul_id: "sub-m1",
+  modul_id: "crs-1-m1",
+  course_id: "crs-1",
+  judul: "Pengantar",
+  urutan: 1,
+  blok: [],
+  created_at: "",
+  updated_at: "",
+};
+
 const MODUL: ModulKursus[] = [
-  { id: "crs-1-m1", judul: "Orientasi", ringkasan: "r", durasi_min: 10, url: "https://a.test" },
-  { id: "crs-1-m2", judul: "Inti", ringkasan: "r", durasi_min: 10, url: "https://a.test" },
+  {
+    id: "crs-1-m1",
+    judul: "Orientasi",
+    ringkasan: "r",
+    durasi_min: 10,
+    url: "https://a.test",
+    submodul: [bab("sub-m1", 1, [HALAMAN])],
+  },
+  {
+    id: "crs-1-m2",
+    judul: "Inti",
+    ringkasan: "r",
+    durasi_min: 10,
+    url: "https://a.test",
+    submodul: [
+      bab("sub-m2", 1, [
+        { ...HALAMAN, id: "hal-2", submodul_id: "sub-m2", modul_id: "crs-1-m2", judul: "Rangkuman" },
+      ]),
+    ],
+  },
   { id: "crs-1-m3", judul: "Penutup", ringkasan: "r", durasi_min: 10, url: "https://a.test" },
 ];
 
@@ -58,7 +111,10 @@ function renderLeading(selesai: string[] = [], buka = false) {
  * memberi HTML. Isi panelnya justru yang membawa properti yang diuji di sini;
  * portal dan perilaku papan ketiknya dijaga lewat sumber di bawah.
  */
-function renderPanel(over: { selesai?: string[]; modulAktif?: string } = {}) {
+
+function renderPanel(
+  over: { selesai?: string[]; modulAktif?: string; halamanAktif?: string } = {},
+) {
   return renderToStaticMarkup(
     createElement(IsiPanelSilabus, {
       slug: "kursus-uji",
@@ -66,6 +122,7 @@ function renderPanel(over: { selesai?: string[]; modulAktif?: string } = {}) {
       kursusPenyedia: "Careevo",
       modul: MODUL,
       modulAktif: over.modulAktif ?? "crs-1-m1",
+      halamanAktif: over.halamanAktif,
       selesai: over.selesai ?? [],
       onTutup: () => {},
     }),
@@ -296,15 +353,81 @@ describe("ReaderPanelSilabus", () => {
     expect(tanpaKomentar(BERKAS)).toContain("<MateriRail");
   });
 
-  it("memuat seluruh kurikulum dan menandai modul yang sedang dibuka", () => {
+  it("menyempitkan panel ke modul yang dibuka", () => {
     const html = renderPanel({ modulAktif: "crs-1-m2" });
-    // Semua modul, dengan tautan reader-nya, dari komponen rail yang sama.
-    expect(html).toContain('nav aria-label="Daftar modul"');
-    expect(html).toContain('href="/belajar/kursus-uji/materi/crs-1-m1"');
-    expect(html).toContain('href="/belajar/kursus-uji/materi/crs-1-m3"');
-    // `aria-current="page"` hanya pada satu baris — yang aktif.
+    // Judul panel = nama modul yang dibuka (dipakai juga sebagai nama nav).
+    expect(html).toContain('nav aria-label="Inti"');
+    // Modul lain tidak lagi dirender di tampilan ini — daftarnya pindah ke
+    // pintu "Semua modul" di kepala panel.
+    expect(html).not.toContain("Orientasi");
+    expect(html).not.toContain("Penutup");
+    expect(html).toContain("Semua modul");
+    // Bab modulnya yang tampil, lengkap dengan halamannya.
+    expect(html).toContain("Bagian 1");
+    expect(html).toContain("Rangkuman");
+    // `aria-current="page"` hanya pada satu **baris halaman**; baris bab memakai
+    // `"true"`, yang artinya lain ("bab ini memuat halaman yang sedang dibaca").
     expect(html.match(/aria-current="page"/g) ?? []).toHaveLength(1);
-    expect(html).toMatch(/<a [^>]*aria-current="page"[^>]*href="\/belajar\/kursus-uji\/materi\/crs-1-m2"/);
+    expect(html.match(/aria-current="true"/g) ?? []).toHaveLength(1);
+  });
+
+  it("memberi sudut `--radius-md`, bukan pil", () => {
+    /**
+     * DESIGN.md memisahkan dua bentuk: "rounded pill for focused marketing
+     * actions, 14px radius for product controls". Tombol ini **kontrol produk**
+     * di dalam panel, bukan CTA marketing — dan ia bersebelahan dengan tombol
+     * navbar (yang terukur 13px/12px), jadi pil 999px terbaca sebagai keluarga
+     * yang berbeda.
+     *
+     * Dikunci dari CSS karena `typecheck`/`vitest` buta terhadap piksel. Nilai
+     * tokennya sendiri (14px) diukur di peramban, bukan disalin dari sini: ada
+     * dua daftar token yang saling menimpa untuk nama yang sama.
+     */
+    const tombol = CSS.match(/\.reader-panel-semua \{[\s\S]*?\n\}/)?.[0] ?? "";
+    expect(tombol).toMatch(/border-radius:\s*var\(--radius-md\)/);
+    expect(tombol).not.toMatch(/border-radius:\s*999px/);
+  });
+
+  it("menaruh pintu 'Semua modul' di kepala panel, di atas judul kursus", () => {
+    /**
+     * Kontrol itu mengubah **seluruh** isi panel, jadi tempatnya di kepala —
+     * bukan di dalam daftar, tempat ia terbaca sebagai bagian dari daftar yang
+     * sedang ditampilkan. Dikunci dari urutan DOM: `typecheck`/`vitest` buta
+     * terhadap posisi.
+     */
+    const html = renderPanel({ modulAktif: "crs-1-m2" });
+    const iSemua = html.indexOf("reader-panel-semua");
+    const iJudul = html.indexOf("reader-panel-judul");
+    expect(iSemua).toBeGreaterThan(-1);
+    expect(iJudul).toBeGreaterThan(-1);
+    expect(iSemua).toBeLessThan(iJudul);
+  });
+
+  it("tidak menawarkan 'Semua modul' saat daftar kursus yang sedang tampil", () => {
+    // Menawarkan "kembali ke daftar kursus" saat daftar itu yang tampil berarti
+    // menawarkan halaman yang sedang dibaca.
+    const html = renderPanel({ modulAktif: "mod-yang-sudah-dihapus" });
+    expect(html).toContain('nav aria-label="Daftar modul"');
+    expect(html).not.toContain("reader-panel-semua");
+  });
+
+  it("meneruskan halaman aktif ke rail untuk penanda 'kamu di sini'", () => {
+    // Penanda itu hanya muncul kalau id halamannya benar-benar mengalir ke rail;
+    // tanpa itu, `?halaman=` yang sedang dibaca tidak tersorot di panel.
+    const html = renderPanel({ modulAktif: "crs-1-m2", halamanAktif: "hal-2" });
+    expect(html).toMatch(
+      /aria-current="page"[^>]*href="\/belajar\/kursus-uji\/materi\/crs-1-m2\?halaman=hal-2"/,
+    );
+  });
+
+  it("jatuh ke daftar seluruh modul saat modul aktifnya tidak dikenal", () => {
+    // Id modul yang sudah dihapus admin tidak boleh menghasilkan panel kosong:
+    // yang benar adalah daftar kursus, tempat peserta bisa memilih modul lain.
+    const html = renderPanel({ modulAktif: "mod-yang-sudah-dihapus" });
+    expect(html).toContain('nav aria-label="Daftar modul"');
+    expect(html).toContain("Orientasi");
+    expect(html).toContain("Inti");
+    expect(html).toContain("Penutup");
   });
 
   it("mengulang judul, penyedia, dan progres supaya konteksnya tidak hilang", () => {
@@ -331,32 +454,51 @@ describe("ReaderPanelSilabus", () => {
     expect(html).toContain("3 dari 3 modul · 100%");
   });
 
-  it("menaruh judul kursus di kiri dan tombol tutupnya rata kanan", () => {
+  it("menaruh tombol tutup di baris kontrol teratas, rata kanan", () => {
     // Susunannya adalah janji visual, dan `typecheck`/`vitest` tidak melihat
-    // piksel: kalau urutan DOM-nya kembali dibalik, tombolnya merapat ke tepi
-    // kiri — sudut tempat pintu *masuk* biasanya berada, bukan tempat pintu
-    // keluar. Pembaca layar pun mendengar judulnya dulu, baru tombolnya.
-    const html = renderPanel();
-    const iJudul = html.indexOf("reader-panel-judul");
+    // piksel. Yang dijaga: tombol tutupnya satu baris dengan pintu "Semua modul"
+    // — keduanya kontrol panel — dan berada **sesudahnya** di DOM, sehingga
+    // pembaca layar mendengar "Semua modul" dulu, lalu pintunya.
+    const html = renderPanel({ modulAktif: "crs-1-m2" });
+    const iSemua = html.indexOf("reader-panel-semua");
     const iTombol = html.indexOf("reader-panel-toggle");
-    expect(iJudul).toBeGreaterThan(-1);
-    expect(iTombol).toBeGreaterThan(iJudul);
-    // Keduanya satu baris kepala, bukan dua blok bertumpuk.
+    expect(iSemua).toBeGreaterThan(-1);
+    expect(iTombol).toBeGreaterThan(iSemua);
+    // Satu baris, bukan dua blok bertumpuk.
     expect(html).toMatch(
-      /reader-panel-head-row[\s\S]*?reader-panel-judul[\s\S]*?reader-panel-toggle/,
+      /reader-panel-atas[\s\S]*?reader-panel-semua[\s\S]*?reader-panel-toggle/,
     );
-    // Yang memakukan tombolnya ke tepi kanan adalah `space-between` pada baris;
-    // tanpa itu keduanya hanya berdesakan di kiri.
-    const baris = CSS.match(/\.reader-panel-head-row \{[\s\S]*?\n\}/)?.[0] ?? "";
-    expect(baris).toMatch(/justify-content:\s*space-between/);
+    // Judul kursus **keluar** dari baris kontrol itu: ia nama isi panel, bukan
+    // kontrol. Kalau ia kembali ke baris yang sama, baris itu memikul dua maksud
+    // dan judulnya terpotong lebih cepat di panel sempit.
+    const barisAtas = html.match(/reader-panel-atas[\s\S]*?<\/div>/)?.[0] ?? "";
+    expect(barisAtas).not.toContain("reader-panel-judul");
+    expect(html.indexOf("reader-panel-judul")).toBeGreaterThan(iTombol);
+    // Yang menahan tombolnya di kanan adalah `margin-left: auto` pada tombolnya,
+    // bukan `space-between` pada barisnya: baris ini juga dirender **tanpa**
+    // pintu "Semua modul" (tampilan daftar kursus), dan `space-between` akan
+    // menaruh tombol tunggal itu di kiri.
+    const baris = CSS.match(/\.reader-panel-atas \{[\s\S]*?\n\}/)?.[0] ?? "";
+    expect(baris).not.toMatch(/justify-content:\s*space-between/);
+    const tombol = CSS.match(/\.reader-panel-toggle \{[\s\S]*?\n\}/)?.[0] ?? "";
+    expect(tombol).toMatch(/margin-left:\s*auto/);
     // `margin: 0` di judul bukan kerapian — lembar dasar memberi setiap `<p>`
-    // `margin: 0 0 1rem`, dan sebagai flex child margin itu ikut ke dalam kotak
-    // baris: barisnya terukur 58px, bukan 42px, dan `align-items: center`
-    // memusatkan tombol pada kotak yang lebih tinggi itu sehingga X-nya turun
-    // ~8px dari garis mata judul. Diuji dari CSS karena inilah yang menjaga
-    // keduanya satu garis.
+    // `margin: 0 0 1rem`, dan sebagai anak flex margin itu ikut ke dalam kotaknya.
     const judul = CSS.match(/\.reader-panel-judul \{[\s\S]*?\n\}/)?.[0] ?? "";
     expect(judul).toMatch(/margin:\s*0;/);
+  });
+
+  it("tombol tutupnya tetap rata kanan saat pintu 'Semua modul' tidak ada", () => {
+    // Di tampilan daftar kursus, baris kontrolnya hanya berisi tombol tutup.
+    // `justify-content: space-between` pada barisnya akan menaruhnya di kiri —
+    // karena itu yang menahannya di kanan adalah `margin-left: auto` milik
+    // tombolnya sendiri, dan itu yang dikunci di sini.
+    const html = renderPanel({ modulAktif: "mod-yang-sudah-dihapus" });
+    expect(html).not.toContain("reader-panel-semua");
+    expect(html).toContain("reader-panel-atas");
+    expect(html).toContain("reader-panel-toggle");
+    const tombol = CSS.match(/\.reader-panel-toggle \{[\s\S]*?\n\}/)?.[0] ?? "";
+    expect(tombol).toMatch(/margin-left:\s*auto/);
   });
 
   it("membuang baris label SILABUS dari kepala panel", () => {
@@ -413,6 +555,22 @@ describe("ReaderPanelSilabus", () => {
     expect(hover).toMatch(/var\(--brand-grad-hover\)/);
     // Bentuk lamanya (`--primary` datar) tidak boleh kembali di CTA ini.
     expect(cta).not.toMatch(/background:\s*var\(--primary\)/);
+  });
+
+  it("CTA-nya bersudut `--radius-md`, bukan pil", () => {
+    /**
+     * Permintaannya eksplisit: samakan bentuk CTA ini dengan tombol navbar
+     * (`Masuk`/`Daftar`), bukan pil penuh. Aturannya sudah ada di DESIGN.md
+     * line 66 — "rounded pill for focused marketing actions, 14px radius for
+     * product controls" — dan `.reader-panel-semua` di panel yang sama sudah
+     * memakai `--radius-md` karena alasan itu.
+     *
+     * Dikunci dari CSS karena `typecheck`/`vitest` buta terhadap piksel, dan
+     * bentuknya bisa kembali jadi 999px tanpa satu pun error di tempat lain.
+     */
+    const cta = CSS.match(/\.reader-panel-cta \{[\s\S]*?\n\}/)?.[0] ?? "";
+    expect(cta).toMatch(/border-radius:\s*var\(--radius-md\)/);
+    expect(cta).not.toMatch(/border-radius:\s*999px/);
   });
 
   it("memberi nama aksesibel pada dialog dan tombol tutupnya", () => {

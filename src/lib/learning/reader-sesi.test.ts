@@ -84,12 +84,18 @@ describe("sesiReaderAwal", () => {
         jenis: "sesi_dimulai",
         jenis_klasifikasi: "kejadian",
         visibilitas: null,
+        // `asal` selalu ikut sekarang: baris yang payload-nya tidak punya
+        // `asal` diturunkan dari jenisnya di `kejadianDariEvent`, bukan
+        // dibiarkan `undefined`. Tanpa ini, laporan per-asal kehilangan
+        // kejadian historis dan "keluar tab" dibaca sekuat "wajah kedua".
+        asal: "server",
       },
       {
         at: "2026-09-30T00:01:00.000Z",
         jenis: "kamera_gagal",
         jenis_klasifikasi: "celah",
         visibilitas: null,
+        asal: "kamera",
       },
     ]);
 

@@ -44,6 +44,11 @@ function tanpaKomentar(berkas: string): string {
  *    statusnya tidak bisa dipercaya. Bitnya satu per modul, dan id basi tidak
  *    boleh menggelembungkan angka — aturan yang sama dengan
  *    `irisModulSelesai` di `listProgresKursus()`.
+ * 4. Penyelesaian modul **bukan** tombol. Modul menandai dirinya selesai saat
+ *    halaman terakhirnya tercapai (`materi-shell.tsx`), jadi yang tinggal di bar
+ *    hanyalah tanda bacanya. Test di bawah mengunci bahwa tidak ada `<button>`
+ *    konfirmasi yang tersisa — menghadirkan kembali tombol "Tandai selesai"
+ *    berarti mengembalikan langkah konfirmasi yang sengaja dibuang.
  */
 
 const MODUL_AKTIF: ModulKursus = {
@@ -82,7 +87,6 @@ function render(
       modulSemua: KURIKULUM,
       selesai: silabus?.selesai ?? [],
       sudah: false,
-      onTandai: () => {},
       pending: false,
       drawerBuka: false,
       onToggleDrawer: () => {},
@@ -186,9 +190,9 @@ describe("MateriFocusBar", () => {
     const tutor = tombol(html, 'aria-controls="drawer-tutor"');
     expect(tutor).toContain('aria-expanded="false"');
     // Dihitung dari **atribut** `disabled=""`, bukan substring "disabled":
-    // kelas Tailwind `disabled:opacity-60` pada tombol "Tandai selesai" juga
-    // memuat kata itu, sehingga `not.toContain("disabled")` gagal pada kode
-    // yang benar dan `toContain("disabled")` lulus tanpa membuktikan apa pun.
+    // kelas Tailwind `disabled:opacity-60` pada tombol lain juga memuat kata
+    // itu, sehingga `not.toContain("disabled")` gagal pada kode yang benar dan
+    // `toContain("disabled")` lulus tanpa membuktikan apa pun.
     expect(html.match(/disabled=""/g) ?? []).toHaveLength(0);
   });
 
@@ -199,13 +203,30 @@ describe("MateriFocusBar", () => {
     // hijau walau baris kuningnya dihapus — dan baris itulah yang diklaim tes ini.
     expect(html).toContain('aria-label="Aturan course ini melarang bantuan AI."');
     expect(teks(html)).toContain("Aturan course ini melarang bantuan AI.");
-    // Tepat satu tombol nonaktif — tombol tutor. "Tandai selesai" tidak
-    // (`pending` false), jadi jumlahnya membedakan keduanya.
+    // Tepat satu tombol nonaktif — tombol tutor. Sejak tombol konfirmasi
+    // penyelesaian dibuang, tutor satu-satunya tombol yang bisa mati di bar.
     expect(html.match(/disabled=""/g) ?? []).toHaveLength(1);
   });
 
-  it("menampilkan tombol tandai selesai saat modul belum selesai", () => {
-    expect(render({ tipe: "bebas" })).toContain("Tandai selesai");
+  it("menampilkan tanda baca penyelesaian, bukan tombol konfirmasi", () => {
+    // Permintaan yang sebenarnya: jangan minta peserta menegaskan ulang apa yang
+    // sudah dilakukannya. Modul ditandai selesai sendiri saat halaman terakhirnya
+    // tercapai, jadi tidak boleh ada tombol "Tandai selesai" di sini — menghitung
+    // tombol di bar membedakan "tanda baca" dari "aksi".
+    const html = teks(render({ tipe: "bebas" }));
+    expect(html).not.toContain("Tandai selesai");
+    // Modul yang belum selesai tetap menyatakan keadaannya, supaya peserta tahu
+    // statusnya tanpa tombol.
+    expect(html).toContain("Belum selesai");
+  });
+
+  it("tidak merender tombol konfirmasi penyelesaian sama sekali", () => {
+    // Diperiksa dari sumber, bukan HTML: yang dijaga adalah **tidak adanya**
+    // elemen `<button>` yang memicu `onTandai`. Mengembalikannya berarti
+    // mengembalikan langkah konfirmasi yang sengaja dibuang.
+    const sumber = tanpaKomentar(BERKAS_BAR);
+    expect(sumber).not.toContain("onTandai");
+    expect(sumber).not.toContain("Tandai selesai");
   });
 
   it("tidak merender baris penolakan saat `pesan` kosong", () => {

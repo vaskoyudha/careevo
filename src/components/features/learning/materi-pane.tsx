@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import { HalamanView } from "./halaman-view";
 import { MateriView } from "./materi-view";
 import { KuisView } from "./kuis-view";
 import { CourseSessionGate, useCourseSession } from "./course-session";
 import type { ModulKursus } from "@/lib/courses/kurikulum";
+import { halamanDipilih } from "@/lib/courses/halaman";
+import { modulPunyaIsi } from "@/lib/courses/silabus";
 import type { TipeMateri } from "@/types/course";
 
 /**
@@ -34,28 +35,35 @@ const LABEL_TIPE: Record<TipeMateri, string> = {
  * keputusannya dihitung saat render (bukan disimpan di state), gerbangnya tidak
  * bisa tertinggal basi ketika sesi dimulai atau diakhiri.
  *
- * Halaman yang sedang dibaca juga state lokal di sini. Dulu ia di shell, tetapi
- * shell ada di `layout.tsx` yang tidak punya akses ke `modulId` anaknya — dan
- * pager halaman memang milik satu modul, jadi tempatnya di sini.
+ * Halaman yang sedang dibaca datang dari **URL** (`?halaman=<id>`, dibaca
+ * `page.tsx` dan dioper sebagai `halamanAwal`), bukan dari state lokal. Itu yang
+ * membuat satu halaman bisa dibagikan, tombol kembali peramban bekerja, dan
+ * panel silabus bisa menyorot baris yang benar: keduanya membaca alamat yang
+ * sama. Pager di `HalamanView` menulis bentuk yang sama, jadi tidak ada dua cara
+ * berpindah halaman. Aturan "id basi → halaman pertama" hidup di
+ * `halamanDipilih()`, satu tempat untuk pane maupun panel.
  *
  * Panel tutor AI **tidak** di sini: ia pindah ke drawer (spec §3.7).
  */
-export function MateriPane({ kursusId, modul }: { kursusId: string; modul: ModulKursus }) {
+export function MateriPane({
+  kursusId,
+  modul,
+  halamanAwal,
+}: {
+  kursusId: string;
+  modul: ModulKursus;
+  /** Nilai `?halaman=` apa adanya; `undefined`/basi berarti halaman pertama. */
+  halamanAwal?: string | null;
+}) {
   const { boleh } = useCourseSession();
   const keputusanLampiran = boleh("materi");
   const keputusanKuis = boleh("kuis");
 
-  const [halamanTerpilih, setHalamanTerpilih] = useState<string | null>(null);
-
-  const daftarHalaman = [...(modul.halaman ?? [])].sort((a, b) => a.urutan - b.urutan);
   const daftarMateri = modul.materi ?? [];
   const daftarKuis = modul.kuis ?? [];
-  // Halaman yang ditampilkan: yang dipilih peserta, atau halaman pertama.
-  const halamanAktif =
-    daftarHalaman.find((h) => h.id === halamanTerpilih) ?? daftarHalaman[0] ?? null;
-  const adaIsi = daftarHalaman.length > 0 || daftarMateri.length > 0 || daftarKuis.length > 0;
+  const halamanAktif = halamanDipilih(modul, halamanAwal);
 
-  if (!adaIsi) {
+  if (!modulPunyaIsi(modul)) {
     // Modul turunan tidak punya isi tersimpan. Ia tidak berpura-pura punya pane
     // kosong: yang benar adalah mengantar ke materi eksternalnya.
     return (
@@ -77,10 +85,10 @@ export function MateriPane({ kursusId, modul }: { kursusId: string; modul: Modul
   return (
     <div className="space-y-6">
       {/* Prosa selalu bebas: membaca bukan penyelesaian, jadi tidak ada gerbang
-          di atas `HalamanView`. */}
-      {halamanAktif ? (
-        <HalamanView modul={modul} halaman={halamanAktif} onPindahHalaman={setHalamanTerpilih} />
-      ) : null}
+          di atas `HalamanView`. Pager di dalamnya **tidak** diberi
+          `onPindahHalaman`: tanpa callback ia merender `Link` ke
+          `?halaman=<id>`, dan itulah yang membuat halaman punya alamat. */}
+      {halamanAktif ? <HalamanView modul={modul} halaman={halamanAktif} /> : null}
 
       {daftarKuis.length > 0 ? (
         <section className="space-y-3">

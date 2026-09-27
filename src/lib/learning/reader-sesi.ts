@@ -60,7 +60,8 @@ function kejadianTerakhir(events: LearningEvent[]): KejadianIntegritas[] {
  * versi kebijakan sudah bergeser, hasilnya `null` dan UI menampilkan gerbang
  * biasa. Menandatangani bukti untuk run yang tidak sah justru lebih buruk
  * daripada tidak ada sesi: peserta melihat modul yang tampak bisa diselesaikan,
- * lalu ditolak server saat menekan "Tandai selesai".
+ * lalu ditolak server saat penyelesaian otomatisnya dijalankan di halaman
+ * terakhir.
  *
  * `owner` di dalam token adalah `users.id` yang di-lowercase — definisi yang
  * sama dengan `pemilikBukti` di `run-service.ts:69`, yang tidak diekspor. Dua

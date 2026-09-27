@@ -2,8 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { BookOpen, Loader2, Route, X } from "lucide-react";
+import { Loader2, Route, X } from "lucide-react";
 import {
   buatJalurLokerInboxAction,
   detailLokerInboxAction,
@@ -11,6 +10,8 @@ import {
   type JalurInboxState,
 } from "@/actions/loker-inbox-persiapan";
 import { KartuDetailLoker } from "@/components/features/jobs/kartu-detail-loker";
+import { LaporanSentinel } from "@/components/features/jobs/laporan-sentinel";
+import { CatalogCourseCard } from "@/components/ui/catalog-course-card";
 import { ShieldCheck } from "lucide-react";
 import type { VerdictLoker } from "@/components/features/jobs/cari-lowongan-ui";
 
@@ -142,11 +143,16 @@ export function PopupDetailLoker({
                 aria-label="Hasil audit Sentinel"
                 className="border-b border-neutral-200 bg-white px-6 py-5 sm:px-7"
               >
-                <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                <h3 className="flex items-center gap-2 text-xs font-semibold tracking-wider text-[#0056D2] uppercase">
                   <ShieldCheck className="size-4" aria-hidden />
                   Hasil audit Sentinel
                 </h3>
 
+                {/* Verdict + alasan di atas kontainer laporan: ini jawaban
+                    langsung dari pertanyaan "apakah ini aman?", sementara kartu
+                    biru di bawahnya adalah BUKTI jawabannya. Kalau judul ikut
+                    masuk ke kartu, dua tingkat ini menyatu, dan yang paling tinggi
+                    (judul 11px uppercase) justru jadi yang paling redup. */}
                 {verdict.sinyal.length > 0 ? (
                   <ul className="mt-2.5 space-y-1.5">
                     {verdict.sinyal.map((s) => (
@@ -164,6 +170,8 @@ export function PopupDetailLoker({
                     {verdict.title}
                   </p>
                 )}
+
+                <LaporanSentinel verdict={verdict} />
 
                 {!verdict.terperiksa ? (
                   <p className="mt-2.5 text-[11px] leading-relaxed text-neutral-500">
@@ -196,32 +204,24 @@ export function PopupDetailLoker({
                   menuntut apa pun.
                 </p>
               ) : (
-                <ul className="mt-3 grid gap-2 sm:grid-cols-3">
+                /* Kartu katalog yang sama dengan `/belajar` dan dashboard, hanya
+                   dalam varian `compact` — di dialog ini tinggi kartu ikut
+                   menentukan tinggi panel, jadi sampulnya 16:9 dan bodinya rapat.
+                   Yang membedakan dari kartu katalog biasa adalah baris meta: di
+                   sini isinya alasan model untuk lowongan ini, bukan `level · menit`.
+                   `undefined` (tanpa model) mengembalikan baris bawaan itu, jadi
+                   daftar deterministik tetap tampil utuh — lihat `loker-persiapan`. */
+                <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {state.kursus.map(({ entry, alasan }) => (
-                    <li key={entry.id}>
-                      <Link
+                    <li key={entry.id} className="h-full">
+                      <CatalogCourseCard
+                        resource={entry}
                         href={`/belajar/${entry.slug}`}
-                        className="group flex h-full items-start gap-2 rounded-lg border border-neutral-200 bg-white p-3 transition-colors hover:border-[#388AF3]/50"
-                      >
-                        <BookOpen
-                          className="mt-0.5 size-4 shrink-0 text-[#0056D2]"
-                          aria-hidden
-                        />
-                        <span className="min-w-0">
-                          <span className="block text-sm font-semibold text-neutral-900 group-hover:text-[#0056D2]">
-                            {entry.title}
-                          </span>
-                          {alasan ? (
-                            <span className="mt-1 block text-[11px] leading-relaxed text-neutral-600">
-                              {alasan}
-                            </span>
-                          ) : entry.tags.length > 0 ? (
-                            <span className="mt-0.5 block text-[11px] text-neutral-500">
-                              {entry.tags.join(" · ")}
-                            </span>
-                          ) : null}
-                        </span>
-                      </Link>
+                        className="h-full"
+                        compact
+                        metaLine={alasan}
+                        metaTitle={alasan}
+                      />
                     </li>
                   ))}
                 </ul>

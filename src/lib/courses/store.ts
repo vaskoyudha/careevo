@@ -8,21 +8,30 @@ import type {
   CreateKuisInput,
   CreateMateriInput,
   CreateModulInput,
+  CreateSubmodulInput,
   Halaman,
   Kuis,
   Materi,
   Modul,
+  Submodul,
   UpdateCourseInput,
   UpdateHalamanInput,
   UpdateKuisInput,
   UpdateMateriInput,
   UpdateModulInput,
+  UpdateSubmodulInput,
 } from "@/types/course";
 import { HARGA } from "@/lib/pricing";
 import { muatCourses, muatKuis, simpanCourses, simpanKuis } from "./storage";
 import { judulHalamanOtomatis, normalisasiHalamanLama } from "./halaman";
 import { kebijakanDefault } from "./kebijakan";
 import { promosiKuisLama } from "./kuis";
+import {
+  halamanModul,
+  judulSubmodulOtomatis,
+  normalisasiSubmodulLama,
+  submodulUntukModul,
+} from "./submodul";
 
 export const INITIAL_COURSES: Course[] = [
   {
@@ -244,12 +253,19 @@ async function pastikanTermuat(): Promise<void> {
   const bankDariDisk = (await muatKuis()) ?? [];
 
   let bank = bankDariDisk;
-  // Dua migrasi malas, satu lintasan:
-  // - materi `teks`  → halaman berformat
-  // - materi `kuis`  → bank soal + referensi `Modul.kuis`
-  // Keduanya idempoten, jadi terpanggil berulang tidak menggandakan apa pun.
+  // Tiga migrasi malas, satu lintasan. **Urutannya mengikat:**
+  // - materi `teks`  → halaman berformat  (`normalisasiHalamanLama`)
+  // - modul lama     → modul ber-sub-modul (`normalisasiSubmodulLama`)
+  // - materi `kuis`  → bank soal + referensi `Modul.kuis` (`promosiKuisLama`)
+  // Struktur didahulukan atas isi: `normalisasiSubmodulLama` membungkus seluruh
+  // `Modul.halaman` menjadi satu bab, sehingga promosi materi `teks` yang
+  // berjalan sesudahnya hanya perlu menambahkan halamannya ke bab yang sudah ada
+  // — bukan membuat bab sendiri sambil menebak apakah bab itu sudah dibuat
+  // migrasi lain.
+  // Ketiganya idempoten, jadi terpanggil berulang tidak menggandakan apa pun.
   const kursus = dariDisk.map((course) => {
-    const denganHalaman = normalisasiHalamanLama(course);
+    const bersubmodul = normalisasiSubmodulLama(course);
+    const denganHalaman = normalisasiHalamanLama(bersubmodul);
     const hasil = promosiKuisLama(denganHalaman, bank);
     bank = hasil.bank;
     return hasil.course;
@@ -540,9 +556,17 @@ export async function createModul(courseId: string, input: CreateModulInput): Pr
     urutan: sekarang.length + 1,
     durasi_min: Number(input.durasi_min) || 0,
     materi: [],
-    // Halaman awal dibuat sekaligus di sini — satu penulisan untuk modul
-    // beserta halamannya, bukan satu penulisan per halaman.
-    halaman: halamanAwal(courseId, modulId, input.jumlah_halaman ?? 0, now),
+    // Satu bab bawaan, dengan `jumlah_halaman` halaman kosong di dalamnya.
+    //
+    // Modul tanpa bab sama sekali akan menampilkan daftar halaman langsung
+    // (bentuk lama), tetapi modul baru adalah tempat admin **mulai** menyusun,
+    // dan titik awal yang benar sejak tingkat sub-modul ada adalah satu bab yang
+    // bisa dipecah — bukan halaman-halaman yatim yang harus dikelompokkan ulang
+    // belakangan.
+    submodul: submodulAwal(courseId, modulId, 1, now).map((sub) => ({
+      ...sub,
+      halaman: halamanKosong(sub.id, modulId, courseId, input.jumlah_halaman ?? 0, now),
+    })),
     // Checkpoint default = cek pemahaman materi. Modul baru jadi aman secara
     // default tanpa memaksa admin mengisi apa pun; tanpa ini modul baru tidak
     // punya batas pengerjaan sama sekali.
@@ -800,9 +824,10 @@ export async function deleteMateri(
 // Halaman berformat
 // ---------------------------------------------------------------------------
 //
-// Halaman hidup bersarang di dalam modul (`Modul.halaman`), sama seperti materi:
-// menghapus modul otomatis menghapus halamannya. `urutan` selalu dinormalkan
-// store, jadi pemanggil tidak pernah menentukan nomor.
+// Halaman hidup bersarang di dalam **bab** (`Modul.submodul[].halaman`), bukan
+// langsung di modul: menghapus bab otomatis menghapus halamannya, dan menghapus
+// modul otomatis menghapus babnya. `urutan` selalu dinormalkan store, jadi
+// pemanggil tidak pernah menentukan nomor.
 
 /**
  * Beri id pada blok yang belum punya, dan rapikan field tipe.
@@ -823,12 +848,14 @@ function blokTersimpan(blok: BlokInput[] | undefined): BlokHalaman[] {
 function halamanBaru(
   courseId: string,
   modulId: string,
+  submodulId: string,
   urutan: number,
   input: CreateHalamanInput,
   now: string,
 ): Halaman {
   return {
     id: idBaru("hal"),
+    submodul_id: submodulId,
     modul_id: modulId,
     course_id: courseId,
     judul: input.judul.trim(),
@@ -839,11 +866,60 @@ function halamanBaru(
   };
 }
 
-/** Halaman sebuah modul, terurut menaik. */
+/** Bab kosong berurutan untuk sebuah modul. */
+function submodulAwal(
+  courseId: string,
+  modulId: string,
+  jumlah: number,
+  now: string,
+): Submodul[] {
+  const aman = Math.max(0, Math.floor(Number(jumlah) || 0));
+  return Array.from({ length: aman }, (_, i) => ({
+    id: idBaru("sub"),
+    modul_id: modulId,
+    course_id: courseId,
+    judul: judulSubmodulOtomatis(i + 1),
+    ringkasan: "",
+    urutan: i + 1,
+    halaman: [],
+    created_at: now,
+    updated_at: now,
+  }));
+}
+
+/** `jumlah` halaman kosong berurutan di dalam sebuah bab. */
+function halamanKosong(
+  submodulId: string,
+  modulId: string,
+  courseId: string,
+  jumlah: number,
+  now: string,
+): Halaman[] {
+  const aman = Math.max(0, Math.floor(Number(jumlah) || 0));
+  return Array.from({ length: aman }, (_, i) => ({
+    id: idBaru("hal"),
+    submodul_id: submodulId,
+    modul_id: modulId,
+    course_id: courseId,
+    judul: judulHalamanOtomatis(i + 1),
+    urutan: i + 1,
+    blok: [],
+    created_at: now,
+    updated_at: now,
+  }));
+}
+
+/**
+ * Halaman sebuah modul, terurut — hasil rata dari seluruh babnya.
+ *
+ * Signature-nya dipertahankan meski bentuk simpanannya berubah: pemanggil
+ * (action halaman, panel pratinjau, `jumlahKata`) ingin "halaman modul",
+ * sedangkan keberadaan bab adalah urusan dalam store. `modul_id` tetap ada di
+ * tiap halaman, jadi daftar ini tidak butuh penelusuran tambahan.
+ */
 export async function listHalaman(courseId: string, modulId: string): Promise<Halaman[]> {
   const modul = await getModul(courseId, modulId);
-  if (!modul?.halaman) return [];
-  return [...modul.halaman].sort((a, b) => a.urutan - b.urutan);
+  return modul ? halamanModul(modul) : [];
 }
 
 export async function getHalaman(
@@ -855,9 +931,218 @@ export async function getHalaman(
   return daftar.find((h) => h.id === halamanId);
 }
 
+/** Cari bab di dalam modul berikut posisinya, atau `null`. */
+function cariSubmodul(
+  modul: Modul,
+  submodulId: string,
+): { submodul: Submodul; posisi: number } | null {
+  const posisi = (modul.submodul ?? []).findIndex((s) => s.id === submodulId);
+  if (posisi === -1) return null;
+  return { submodul: (modul.submodul ?? [])[posisi], posisi };
+}
+
+// ---------------------------------------------------------------------------
+// Sub-modul (bab)
+// ---------------------------------------------------------------------------
+
+/** Bab-bab sebuah modul, terurut. Modul tanpa bab → `[]`. */
+export async function listSubmodul(courseId: string, modulId: string): Promise<Submodul[]> {
+  const modul = await getModul(courseId, modulId);
+  return modul ? submodulUntukModul(modul) : [];
+}
+
+export async function getSubmodul(
+  courseId: string,
+  modulId: string,
+  submodulId: string,
+): Promise<Submodul | undefined> {
+  const modul = await getModul(courseId, modulId);
+  if (!modul) return undefined;
+  return cariSubmodul(modul, submodulId)?.submodul;
+}
+
+/** Bab baru selalu ditaruh di akhir modulnya — `urutan` dari pemanggil diabaikan. */
+export async function createSubmodul(
+  courseId: string,
+  modulId: string,
+  input: CreateSubmodulInput,
+): Promise<Submodul | null> {
+  await pastikanTermuat();
+  const index = coursesState.findIndex((c) => c.id === courseId);
+  if (index === -1) return null;
+
+  const kursus = coursesState[index];
+  const ketemu = cariModul(kursus, modulId);
+  if (!ketemu) return null;
+
+  const now = new Date().toISOString();
+  const lama = ketemu.modul.submodul ?? [];
+  const submodul: Submodul = {
+    id: idBaru("sub"),
+    modul_id: modulId,
+    course_id: courseId,
+    judul: input.judul.trim(),
+    ringkasan: input.ringkasan?.trim() ?? "",
+    urutan: lama.length + 1,
+    halaman: [],
+    created_at: now,
+    updated_at: now,
+  };
+
+  const daftar = kursus.modul ?? [];
+  const berikut = [...daftar];
+  berikut[ketemu.posisi] = {
+    ...ketemu.modul,
+    submodul: [...lama, submodul],
+    updated_at: now,
+  };
+  coursesState[index] = { ...kursus, modul: berikut, updated_at: now };
+  await simpan();
+  return submodul;
+}
+
+/**
+ * Ubah judul/ringkasan sebuah bab — **bukan** halamannya.
+ *
+ * Halaman punya action sendiri (`updateHalaman`) karena isinya bisa panjang;
+ * menumpangkannya ke sini berarti satu payload besar untuk perubahan satu baris
+ * judul.
+ */
+export async function updateSubmodul(
+  courseId: string,
+  modulId: string,
+  submodulId: string,
+  input: UpdateSubmodulInput,
+): Promise<Submodul | null> {
+  await pastikanTermuat();
+  const index = coursesState.findIndex((c) => c.id === courseId);
+  if (index === -1) return null;
+
+  const kursus = coursesState[index];
+  const ketemu = cariModul(kursus, modulId);
+  if (!ketemu) return null;
+
+  const ditemukan = cariSubmodul(ketemu.modul, submodulId);
+  if (!ditemukan) return null;
+
+  const now = new Date().toISOString();
+  const lama = ditemukan.submodul;
+  const diganti: Submodul = {
+    ...lama,
+    judul: input.judul !== undefined ? input.judul.trim() : lama.judul,
+    ringkasan: input.ringkasan !== undefined ? input.ringkasan.trim() : lama.ringkasan,
+    updated_at: now,
+  };
+
+  const submodulBerikut = [...(ketemu.modul.submodul ?? [])];
+  submodulBerikut[ditemukan.posisi] = diganti;
+
+  const daftar = kursus.modul ?? [];
+  const berikut = [...daftar];
+  berikut[ketemu.posisi] = {
+    ...ketemu.modul,
+    submodul: submodulBerikut,
+    updated_at: now,
+  };
+  coursesState[index] = { ...kursus, modul: berikut, updated_at: now };
+  await simpan();
+  return diganti;
+}
+
+/** Hapus sebuah bab beserta seluruh halamannya, lalu nomori ulang sisanya. */
+export async function deleteSubmodul(
+  courseId: string,
+  modulId: string,
+  submodulId: string,
+): Promise<boolean> {
+  await pastikanTermuat();
+  const index = coursesState.findIndex((c) => c.id === courseId);
+  if (index === -1) return false;
+
+  const kursus = coursesState[index];
+  const ketemu = cariModul(kursus, modulId);
+  if (!ketemu) return false;
+
+  const lama = ketemu.modul.submodul ?? [];
+  if (!lama.some((s) => s.id === submodulId)) return false;
+
+  const now = new Date().toISOString();
+  // Nomori ulang mengikuti posisi array, bukan nilai `urutan` yang tersimpan —
+  // alasan yang sama dengan `nomoriUlang` untuk modul.
+  const submodulBerikut = lama
+    .filter((s) => s.id !== submodulId)
+    .map((s, i) => ({ ...s, urutan: i + 1 }));
+
+  const daftar = kursus.modul ?? [];
+  const berikut = [...daftar];
+  berikut[ketemu.posisi] = {
+    ...ketemu.modul,
+    submodul: submodulBerikut,
+    updated_at: now,
+  };
+  coursesState[index] = { ...kursus, modul: berikut, updated_at: now };
+  await simpan();
+  return true;
+}
+
+/** Tukar sebuah bab dengan tetangganya, lalu nomori ulang. */
+export async function geserSubmodul(
+  courseId: string,
+  modulId: string,
+  submodulId: string,
+  arah: "naik" | "turun",
+): Promise<Submodul[] | null> {
+  await pastikanTermuat();
+  const index = coursesState.findIndex((c) => c.id === courseId);
+  if (index === -1) return null;
+
+  const kursus = coursesState[index];
+  const ketemu = cariModul(kursus, modulId);
+  if (!ketemu) return null;
+
+  const daftar = [...(ketemu.modul.submodul ?? [])].sort((a, b) => a.urutan - b.urutan);
+  const posisi = daftar.findIndex((s) => s.id === submodulId);
+  if (posisi === -1) return null;
+
+  const tujuan = arah === "naik" ? posisi - 1 : posisi + 1;
+  if (tujuan < 0 || tujuan >= daftar.length) return daftar;
+
+  [daftar[posisi], daftar[tujuan]] = [daftar[tujuan], daftar[posisi]];
+  const now = new Date().toISOString();
+  const hasil = daftar.map((s, i) => ({ ...s, urutan: i + 1 }));
+
+  const modulBerikut = [...(kursus.modul ?? [])];
+  modulBerikut[ketemu.posisi] = {
+    ...ketemu.modul,
+    submodul: hasil,
+    updated_at: now,
+  };
+  coursesState[index] = { ...kursus, modul: modulBerikut, updated_at: now };
+  await simpan();
+  return hasil;
+}
+
+// ---------------------------------------------------------------------------
+// Halaman
+// ---------------------------------------------------------------------------
+
+/**
+ * Tambah halaman ke sebuah bab.
+ *
+ * `submodulId` boleh kosong: sejak halaman hidup di dalam bab, pemanggil yang
+ * belum sadar sub-modul (form lama, blok kode pratinjau) tetap harus bisa
+ * menambah halaman. Kosong berarti **bab pertama modul**, dan bila modulnya
+ * belum punya bab sama sekali, satu bab dibuat di sini.
+ *
+ * Membuat bab secara implisit itu disengaja: invariant "setiap halaman punya
+ * bab" harus dipegang store, bukan pemanggil. Halaman yang lahir tanpa bab
+ * tidak akan pernah dirender `halamanModul`, jadi ia akan tampak sebagai
+ * halaman yang hilang tanpa error di mana pun.
+ */
 export async function createHalaman(
   courseId: string,
   modulId: string,
+  submodulId: string | null | undefined,
   input: CreateHalamanInput,
 ): Promise<Halaman | null> {
   await pastikanTermuat();
@@ -869,19 +1154,43 @@ export async function createHalaman(
   if (!ketemu) return null;
 
   const now = new Date().toISOString();
-  const daftar = kursus.modul ?? [];
+
+  // Bab tujuan, atau bab pertama, atau — bila modulnya benar-benar belum punya
+  // bab — bab baru yang dibuat di sini.
+  let semua = ketemu.modul.submodul ?? [];
+  let posisiBab = submodulId
+    ? semua.findIndex((s) => s.id === submodulId)
+    : semua.findIndex((_, i) => i === 0);
+
+  if (posisiBab === -1) {
+    if (submodulId) return null; // id eksplisit yang tidak ada: bukan bab baru.
+    const baru = submodulAwal(courseId, modulId, 1, now)[0];
+    semua = [...semua, baru];
+    posisiBab = semua.length - 1;
+  }
+
+  const bab = semua[posisiBab];
   const halaman = halamanBaru(
     courseId,
     modulId,
-    (ketemu.modul.halaman ?? []).length + 1,
+    bab.id,
+    (bab.halaman ?? []).length + 1,
     input,
     now,
   );
 
+  const submodulBerikut = [...semua];
+  submodulBerikut[posisiBab] = {
+    ...bab,
+    halaman: [...(bab.halaman ?? []), halaman],
+    updated_at: now,
+  };
+
+  const daftar = kursus.modul ?? [];
   const berikut = [...daftar];
   berikut[ketemu.posisi] = {
     ...ketemu.modul,
-    halaman: [...(ketemu.modul.halaman ?? []), halaman],
+    submodul: submodulBerikut,
     updated_at: now,
   };
   coursesState[index] = { ...kursus, modul: berikut, updated_at: now };
@@ -904,12 +1213,16 @@ export async function updateHalaman(
   const ketemu = cariModul(kursus, modulId);
   if (!ketemu) return null;
 
-  const lama = ketemu.modul.halaman ?? [];
-  const posisi = lama.findIndex((h) => h.id === halamanId);
-  if (posisi === -1) return null;
+  const semua = ketemu.modul.submodul ?? [];
+  const posisiBab = semua.findIndex((s) => (s.halaman ?? []).some((h) => h.id === halamanId));
+  if (posisiBab === -1) return null;
+
+  const bab = semua[posisiBab];
+  const halamanLama = bab.halaman ?? [];
+  const posisiHalaman = halamanLama.findIndex((h) => h.id === halamanId);
+  const sebelumnya = halamanLama[posisiHalaman];
 
   const now = new Date().toISOString();
-  const sebelumnya = lama[posisi];
   const diganti: Halaman = {
     ...sebelumnya,
     judul: input.judul.trim(),
@@ -920,18 +1233,25 @@ export async function updateHalaman(
     updated_at: now,
   };
 
-  const halamanBerikut = [...lama];
-  halamanBerikut[posisi] = diganti;
+  const halamanBerikut = [...halamanLama];
+  halamanBerikut[posisiHalaman] = diganti;
+
+  const submodulBerikut = [...semua];
+  submodulBerikut[posisiBab] = { ...bab, halaman: halamanBerikut, updated_at: now };
 
   const daftar = kursus.modul ?? [];
   const berikut = [...daftar];
-  berikut[ketemu.posisi] = { ...ketemu.modul, halaman: halamanBerikut, updated_at: now };
+  berikut[ketemu.posisi] = {
+    ...ketemu.modul,
+    submodul: submodulBerikut,
+    updated_at: now,
+  };
   coursesState[index] = { ...kursus, modul: berikut, updated_at: now };
   await simpan();
   return diganti;
 }
 
-/** Hapus satu halaman beserta isinya, lalu nomori ulang sisanya. */
+/** Hapus satu halaman beserta isinya, lalu nomori ulang sisanya di bab itu. */
 export async function deleteHalaman(
   courseId: string,
   modulId: string,
@@ -945,31 +1265,41 @@ export async function deleteHalaman(
   const ketemu = cariModul(kursus, modulId);
   if (!ketemu) return false;
 
-  const lama = ketemu.modul.halaman ?? [];
-  if (!lama.some((h) => h.id === halamanId)) return false;
+  const semua = ketemu.modul.submodul ?? [];
+  const posisiBab = semua.findIndex((s) => (s.halaman ?? []).some((h) => h.id === halamanId));
+  if (posisiBab === -1) return false;
 
+  const bab = semua[posisiBab];
   const now = new Date().toISOString();
   // Nomori ulang mengikuti posisi array — bukan urutan hasil sort, karena
   // array inilah yang menentukan posisi sebenarnya setelah penghapusan.
-  const halamanBerikut = lama
+  const halamanBerikut = (bab.halaman ?? [])
     .filter((h) => h.id !== halamanId)
     .map((h, i) => ({ ...h, urutan: i + 1 }));
 
+  const submodulBerikut = [...semua];
+  submodulBerikut[posisiBab] = { ...bab, halaman: halamanBerikut, updated_at: now };
+
   const daftar = kursus.modul ?? [];
   const berikut = [...daftar];
-  berikut[ketemu.posisi] = { ...ketemu.modul, halaman: halamanBerikut, updated_at: now };
+  berikut[ketemu.posisi] = {
+    ...ketemu.modul,
+    submodul: submodulBerikut,
+    updated_at: now,
+  };
   coursesState[index] = { ...kursus, modul: berikut, updated_at: now };
   await simpan();
   return true;
 }
 
 /**
- * Tukar satu halaman dengan tetangganya, lalu nomori ulang.
+ * Tukar satu halaman dengan tetangganya **di dalam babnya**, lalu nomori ulang.
  *
- * Sumber urutan adalah **posisi array setelah sort**, bukan field `urutan`:
- * berkas dari disk bisa tidak rapi, dan bertukar berdasarkan nilai basi justru
- * membatalkan pertukaran — pelajaran yang sama dengan `geserModul`.
- * Mengembalikan daftar terbaru, atau `null` bila kursus/modul/halaman tak ada.
+ * Pertukaran dibatasi pada satu bab: halaman tidak berpindah bab lewat geser,
+ * sebab berpindah bab berarti berpindah bagian baca dan itu keputusan yang
+ * berbeda (ada action pindah tersendiri bila nanti dibutuhkan). Membatasi di
+ * sini juga membuat batas "sudah di ujung" terasa benar bagi pengguna — halaman
+ * terakhir sebuah bab memang tidak punya tetangga bawah di bab itu.
  */
 export async function geserHalaman(
   courseId: string,
@@ -985,7 +1315,12 @@ export async function geserHalaman(
   const ketemu = cariModul(kursus, modulId);
   if (!ketemu) return null;
 
-  const daftar = [...(ketemu.modul.halaman ?? [])].sort((a, b) => a.urutan - b.urutan);
+  const semua = ketemu.modul.submodul ?? [];
+  const posisiBab = semua.findIndex((s) => (s.halaman ?? []).some((h) => h.id === halamanId));
+  if (posisiBab === -1) return null;
+
+  const bab = semua[posisiBab];
+  const daftar = [...(bab.halaman ?? [])].sort((a, b) => a.urutan - b.urutan);
   const posisi = daftar.findIndex((h) => h.id === halamanId);
   if (posisi === -1) return null;
 
@@ -999,31 +1334,18 @@ export async function geserHalaman(
   const now = new Date().toISOString();
   const hasil = daftar.map((h, i) => ({ ...h, urutan: i + 1 }));
 
+  const submodulBerikut = [...semua];
+  submodulBerikut[posisiBab] = { ...bab, halaman: hasil, updated_at: now };
+
   const modulBerikut = [...(kursus.modul ?? [])];
-  modulBerikut[ketemu.posisi] = { ...ketemu.modul, halaman: hasil, updated_at: now };
+  modulBerikut[ketemu.posisi] = {
+    ...ketemu.modul,
+    submodul: submodulBerikut,
+    updated_at: now,
+  };
   coursesState[index] = { ...kursus, modul: modulBerikut, updated_at: now };
   await simpan();
   return hasil;
-}
-
-/** Buat `jumlah` halaman kosong berurutan untuk sebuah modul baru. */
-function halamanAwal(
-  courseId: string,
-  modulId: string,
-  jumlah: number,
-  now: string,
-): Halaman[] {
-  const aman = Math.max(0, Math.floor(Number(jumlah) || 0));
-  return Array.from({ length: aman }, (_, i) => ({
-    id: idBaru("hal"),
-    modul_id: modulId,
-    course_id: courseId,
-    judul: judulHalamanOtomatis(i + 1),
-    urutan: i + 1,
-    blok: [],
-    created_at: now,
-    updated_at: now,
-  }));
 }
 
 // ---------------------------------------------------------------------------

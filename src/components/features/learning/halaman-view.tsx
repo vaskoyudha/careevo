@@ -56,14 +56,15 @@ export function HalamanView({
   className,
 }: {
   /**
-   * Hanya `halaman` yang dibutuhkan, bukan `Modul` penuh.
+   * Hanya `submodul` yang dibutuhkan, bukan `Modul` penuh.
    *
    * Modul tersimpan (`Modul`) dan modul yang dipakai UI learner (`ModulKursus`)
    * adalah dua tipe berbeda, dan renderer ini dipakai keduanya. Menuntut `Modul`
    * penuh akan memaksa salah satu sisi membangun field yang tidak pernah
-   * dipakai renderer ini.
+   * dipakai renderer ini. Yang dibutuhkan di sini hanyalah pohon babnya, karena
+   * pager "halaman berikutnya" diratakan dari sana.
    */
-  modul: Pick<Modul, "halaman">;
+  modul: Pick<Modul, "submodul">;
   halaman: Halaman;
   /**
    * Cara berpindah halaman.
@@ -77,10 +78,11 @@ export function HalamanView({
   onPindahHalaman?: (halamanId: string) => void;
   className?: string;
 }) {
-  const halamanModul = halamanUntukModul(modul);
-  const index = halamanModul.findIndex((h) => h.id === halaman.id);
-  const sebelumnya = index > 0 ? halamanModul[index - 1] : null;
-  const berikutnya = index >= 0 && index < halamanModul.length - 1 ? halamanModul[index + 1] : null;
+  const semuaHalaman = halamanUntukModul(modul);
+  const index = semuaHalaman.findIndex((h) => h.id === halaman.id);
+  const sebelumnya = index > 0 ? semuaHalaman[index - 1] : null;
+  const berikutnya =
+    index >= 0 && index < semuaHalaman.length - 1 ? semuaHalaman[index + 1] : null;
 
   // Jangkar dan backlink dihitung sekali, bukan per blok: keduanya harus
   // memandang seluruh halaman untuk bisa benar.
@@ -100,7 +102,7 @@ export function HalamanView({
       <article className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-7">
         <header className="mb-5 border-b border-gray-100 pb-4">
           <p className="text-[11px] font-semibold tracking-wider text-gray-500 uppercase">
-            Halaman {index >= 0 ? index + 1 : "?"} dari {halamanModul.length}
+            Halaman {index >= 0 ? index + 1 : "?"} dari {semuaHalaman.length}
           </p>
           <h2 className="mt-1 text-2xl font-bold tracking-tight text-gray-900">{halaman.judul}</h2>
         </header>
@@ -143,7 +145,7 @@ export function HalamanView({
         )}
       </article>
 
-      {halamanModul.length > 1 ? (
+      {semuaHalaman.length > 1 ? (
         <nav aria-label="Navigasi halaman" className="flex items-center justify-between gap-3">
           {sebelumnya ? (
             <NavHalaman

@@ -35,12 +35,21 @@ import { ReaderSilabusLeading } from "./reader-silabus";
  * `putuskanAkses`, mengikuti alasan yang sudah ditulis di `kursus-ai-panel.tsx`.
  *
  * `pesan` adalah penolakan **penyelesaian modul** dari server. Ia wajib tampil:
- * tanpa baris ini, "Tandai selesai" di kursus `wajib` tanpa sesi terverifikasi
- * tampak tidak melakukan apa pun, karena server menolaknya dengan
+ * tanpa baris ini, penyelesaian otomatis di kursus `wajib` tanpa sesi
+ * terverifikasi tampak tidak melakukan apa pun, karena server menolaknya dengan
  * `PESAN_POLICY.wajib` yang tidak pernah terbaca. Pesannya dirender **apa
  * adanya** — ia datang dari mesin akses server, dan memparafrase copy gerbang di
  * klien adalah cara paling mudah membuat dua permukaan berbeda ucapan untuk
  * penolakan yang sama.
+ *
+ * **Tidak ada tombol "Tandai selesai".** Modul ditandai selesai **oleh dirinya
+ * sendiri** begitu peserta mencapai halaman terakhirnya (`materi-shell.tsx`);
+ * yang tinggal di sini hanya **tanda bacanya**, bukan pemicunya. Sebuah tombol
+ * konfirmasi di titik itu meminta peserta menegaskan sesuatu yang sudah
+ * dilakukannya — membaca sampai habis — dan permintaan yang sama persis
+ * (halaman terakhir) tidak boleh punya dua jawaban berbeda tergantung apakah
+ * tombolnya ditekan. Bar karena itu hanya menerima `sudah` dan `pending`:
+ * keduanya keadaan yang dilaporkan, bukan aksi yang dijalankan.
  *
  * Bar ini **tidak** memuat ajakan memulai sesi (`CourseSessionPrompt`); itu
  * duduk di kolom baca, tepat di atas kartu materi. `sticky` di sini bukan
@@ -54,7 +63,6 @@ export function MateriFocusBar({
   modulSemua,
   selesai,
   sudah,
-  onTandai,
   pending,
   drawerBuka,
   onToggleDrawer,
@@ -79,8 +87,17 @@ export function MateriFocusBar({
   modulSemua: ModulKursus[];
   /** Id modul yang sudah selesai; dari server, bukan dihitung di sini. */
   selesai: string[];
+  /** True bila modul aktif sudah bertanda selesai di server. */
   sudah: boolean;
-  onTandai: () => void;
+  /**
+   * True selagi penyelesaian modul otomatis sedang diproses server.
+   *
+   * Bar ini tidak lagi memicu penyelesaian — yang melakukannya adalah pencapaian
+   * halaman terakhir di `materi-shell.tsx`. `pending` tinggal supaya tanda bacanya
+   * jujur: ada jeda nyata antara "peserta tiba di halaman terakhir" dan "server
+   * mencatatnya", dan selama jeda itu menampilkan "Selesai" berarti mengklaim
+   * sesuatu yang belum tersimpan.
+   */
   pending: boolean;
   drawerBuka: boolean;
   onToggleDrawer: () => void;
@@ -188,25 +205,42 @@ export function MateriFocusBar({
             )}
           </button>
 
-          <button
-            type="button"
-            onClick={onTandai}
-            disabled={pending}
-            aria-pressed={sudah}
+          {/* Tanda baca penyelesaian modul — **bukan** tombol.
+
+              Modul ditandai selesai oleh dirinya sendiri begitu halaman
+              terakhirnya tercapai (`materi-shell.tsx`), jadi yang tersisa di
+              sini hanyalah mencerminkan keadaannya. Ikonnya tetap `RiCheckLine`
+              supaya bahasa visual "selesai" tidak berubah, tetapi elemennya
+              `<span>`, bukan `<button>`: tidak ada aksi yang bisa dijalankan,
+              dan tombol yang tidak melakukan apa pun lebih buruk daripada tanda
+              yang jujur.
+
+              `aria-live="polite"` dipasang di elemennya karena perubahannya
+              datang dari navigasi, bukan dari fokus: pembaca layar perlu
+              mendengar "Selesai" tanpa berpindah fokus ke sini. `role="status"`
+              sengaja **tidak** dipakai — bar ini punya baris status lain (teks
+              penolakan server), dan `role="status"` di sini berbenturan dengan
+              aturan "status kosong tidak boleh diumumkan" yang sudah dikunci
+              test sibling. */}
+          <span
+            aria-live="polite"
             className={cn(
-              "inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border px-3 text-[13px] font-semibold transition-colors disabled:opacity-60",
+              "inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-[13px] font-semibold transition-colors",
               sudah
                 ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50",
+                : "border-gray-200 bg-gray-50 text-gray-500",
             )}
           >
             {pending ? (
               <RiLoader4Line className="size-3.5 animate-spin" aria-hidden="true" />
             ) : (
-              <RiCheckLine className="size-3.5" aria-hidden="true" />
+              <RiCheckLine
+                className={cn("size-3.5", !sudah && "text-gray-400")}
+                aria-hidden="true"
+              />
             )}
-            {sudah ? "Selesai" : "Tandai selesai"}
-          </button>
+            {pending ? "Menyimpan…" : sudah ? "Selesai" : "Belum selesai"}
+          </span>
         </div>
       </div>
 
@@ -220,9 +254,10 @@ export function MateriFocusBar({
           yang harus dijawab, jadi posisinya sudah menjelaskan diri.
 
           Yang tetap di sini hanya dua baris **satu kalimat**: penolakan
-          completion dari server dan alasan tutor ditolak. Keduanya menyertain
-          aksi di bar itu sendiri, jadi harus terlihat di tempat tombolnya
-          ditekan. */}
+          penyelesaian dari server dan alasan tutor ditolak. Keduanya menyertai
+          keadaan yang sedang ditampilkan bar itu sendiri — tanda baca
+          penyelesaian dan tombol tutor — jadi harus terlihat bersama tandanya,
+          bukan tersembunyi di bawah kartu materi yang sudah digulir jauh. */}
       {!bolehTutor && aksesTutor.tipe === "ditolak" ? (
         <p className="flex items-center gap-1.5 border-t border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] text-amber-900 sm:px-5">
           <RiSparkling2Fill className="size-3 shrink-0" aria-hidden="true" />

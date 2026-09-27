@@ -15,6 +15,7 @@ import { tipeLabel } from "@/lib/onboarding/types";
 import { ringkasanPelanggaranCourseDb } from "@/lib/integritas/service";
 import { tasks } from "@/lib/fixtures";
 import { selaraskanKursusAi } from "@/lib/learning/tutor-ai-kursus";
+import { sesiReaderAwal } from "@/lib/learning/reader-sesi";
 
 export async function generateMetadata({
   params,
@@ -137,6 +138,29 @@ export default async function DetailKursusPage({
     ? await ringkasanPelanggaranCourseDb(session.userId, entri.id)
     : null;
 
+  /**
+   * Sesi terverifikasi yang masih berjalan, di-seed dari server.
+   *
+   * Ini yang menghentikan "verifikasi dua kali": provider di halaman ini dulu
+   * selalu mulai dari keadaan tanpa sesi, sehingga peserta yang memulai sesi di
+   * sini lalu memuat ulang halaman — atau kembali dari reader, tempat sesinya
+   * sebenarnya berjalan — melihat ajakan "Mulai sesi" lagi padahal
+   * `learning_runs` sudah punya run aktif. Pembacaan ini memakai fungsi yang
+   * sama dengan reader (`sesiReaderAwal`), jadi kedua permukaan tidak bisa
+   * menyimpang: satu aturan kebijakan, satu bentuk seed.
+   *
+   * Digerbangi `enrollment`: `sesiReaderAwal` menandatangani bukti dari run
+   * milik peserta, dan menanyakannya untuk course yang belum diikuti hanyalah
+   * satu query yang dijamin `null`.
+   */
+  const sesiAwal = enrollment
+    ? await sesiReaderAwal({
+        userId: session.userId,
+        courseId: entri.id,
+        policyVersion: (kursusAsli?.kebijakan ?? kebijakanDefault()).versi,
+      })
+    : null;
+
   return (
     <LearnerShell session={session} overlayMain>
       <DetailKursus
@@ -161,7 +185,18 @@ export default async function DetailKursusPage({
         terdaftar={Boolean(enrollment)}
         selesaiAwal={selesaiAwal}
         terkait={terkait}
-        tugas={tugas ? { id: tugas.id, title: tugas.title, brief: tugas.brief } : null}
+        tugas={
+          tugas
+            ? {
+                id: tugas.id,
+                title: tugas.title,
+                brief: tugas.brief,
+                level: tugas.level,
+                estimate_min: tugas.estimate_min,
+                criteria: tugas.criteria,
+              }
+            : null
+        }
         aiCourseId={aiCourseId}
         proyek={{
           terkunci: layakProject === null,
@@ -181,6 +216,7 @@ export default async function DetailKursusPage({
         // "wajib"`) supaya gerbang tidak diam-diam terbuka.
         kebijakan={kursusAsli?.kebijakan ?? kebijakanDefault()}
         catatanIntegritas={catatanIntegritas}
+        sesiAwal={sesiAwal}
       />
     </LearnerShell>
   );

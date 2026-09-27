@@ -148,11 +148,17 @@ export async function daftarKursusAction(courseId: string): Promise<PendaftaranA
 }
 
 /**
- * Selesaikan/selesaikan-batal satu modul lewat tombol informal "Tandai selesai".
+ * Selesaikan/selesaikan-batal satu modul lewat penandaan **informal**.
+ *
+ * Dulu ini adalah endpoint tombol "Tandai selesai" di bar fokus reader. Tombol
+ * itu sudah dibuang — modul menandai dirinya selesai saat halaman terakhirnya
+ * tercapai (`materi-shell.tsx` → `modulSelesaiMembaca`) — tetapi action ini
+ * tetap ada karena ia satu-satunya jalur **informal** yang dipakai penyelesaian
+ * otomatis itu: course `opsional`, checkpoint `kuis`/`proyek`, dan pembatalan.
  *
  * Penandaan informal ini hanya sah untuk modul yang checkpoint efektifnya
  * `materi`. Modul kuis/proyek harus dilalui checkpoint-nya sendiri: tanpa
- * penolakan di sini, peserta bisa menandai modul kuis selesai dari tombol ini
+ * penolakan di sini, peserta bisa menandai modul kuis selesai dari jalur ini
  * saja dan melewati lampiran/gerbang yang dibangun untuknya — gerbang sesi
  * yang otoritatif (`selesaikanMateriAction`) jadi tidak ada artinya.
  *

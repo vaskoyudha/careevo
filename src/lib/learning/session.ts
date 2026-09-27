@@ -3,6 +3,7 @@ import { mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { bacaSecret } from "@/lib/config/secrets";
 import { klasifikasiKejadian, type KJenisKejadian } from "./akses";
+import type { AsalSinyal } from "./sumber-sinyal";
 
 /**
  * Penyimpanan sesi belajar — **server-only**.
@@ -35,6 +36,13 @@ export interface KejadianIntegritas {
   jenis: KJenisKejadian;
   jenis_klasifikasi: "kejadian" | "celah";
   visibilitas: "visible" | "hidden" | null;
+  /**
+   * Asal sinyal, sudah tervalidasi server terhadap empat asal yang sah
+   * (`run-service.asalValid`). `undefined` untuk baris lama yang ditulis
+   * sebelum field ini ada — pembaca harus memperlakukannya sebagai `server`,
+   * bukan membuangnya.
+   */
+  asal?: AsalSinyal;
   detail?: string;
 }
 

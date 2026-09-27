@@ -39,6 +39,7 @@ import {
 import type { LearningEvent, LearningRun, ModuleProgressRow } from "@/lib/db/schema";
 import type { BarisPembelajaran } from "@/lib/performa/ringkasan";
 import { jalurDariBukti, type JalurTerlihat } from "@/lib/performa/jalur-selesai";
+import { asalSinyal, type AsalSinyal } from "@/lib/learning/sumber-sinyal";
 import type { EnrollmentStaf } from "@/lib/learning/repository";
 
 /* ------------------------------------------------------------------ *
@@ -313,6 +314,15 @@ export function kejadianDariEvent(event: LearningEvent): KejadianIntegritas | nu
       ? payload.visibilitas
       : null;
   const tersimpan = payload.jenis_klasifikasi;
+  // `asal` dibaca apa adanya bila salah satu dari empat nilai yang sah; kalau
+  // tidak, ia **diturunkan** dari jenisnya — bukan ditebak `"server"`. Baris
+  // lama (sebelum field ini ada) tetap punya asal yang benar lewat jalur ini,
+  // jadi laporan per-asal tidak kehilangan kejadian historis.
+  const asalMentah = payload.asal;
+  const asal: AsalSinyal =
+    asalMentah === "browser" || asalMentah === "kamera" || asalMentah === "luar" || asalMentah === "server"
+      ? asalMentah
+      : asalSinyal(jenis);
 
   return {
     at: iso(event.occurredAt),
@@ -322,6 +332,7 @@ export function kejadianDariEvent(event: LearningEvent): KejadianIntegritas | nu
         ? tersimpan
         : klasifikasiKejadian(jenis, visibilitas),
     visibilitas,
+    asal,
     ...(typeof payload.detail === "string" && payload.detail.length > 0
       ? { detail: payload.detail.slice(0, 300) }
       : {}),

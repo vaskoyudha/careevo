@@ -1602,11 +1602,57 @@ h6 {
 
 /* The head owns the sidebar's **top** breathing room.
    The panel is `inset: 0 auto 0 0` and `100dvh` tall, so it is flush with both
-   screen edges and this padding is the only space above the title — at the old
-   `1rem` the course title started 16px from the top of the viewport and read as
-   if it had been cropped rather than placed. `1.5rem` gives the block a top
-   margin without moving the close button off the title's optical line (both are
-   in the same flex row, so they move together). */
+   screen edges and this padding is the only space above the top control row — at
+   the old `1rem` the course title started 16px from the top of the viewport and
+   read as if it had been cropped rather than placed. */
+/* Pintu "Semua modul" — the panel's one whole-content control, so it is a filled
+   primary button rather than a text link: at the top of the panel a plain
+   `#0056D2` line reads as a label, not as something that changes everything
+   below it. It takes the same `--brand-*` ramp as `.reader-panel-cta`, the
+   navbar `Daftar` button and `.btn-primary` — the rule DESIGN.md states for
+   filled primary actions. Flat `#0056D2`/`--primary` stays correct for inline
+   links and focus rings; only filled buttons take the ramp.
+
+   Radius: `--radius-md` (14px), **not** a pill. DESIGN.md line 66 splits the two
+   shapes — "rounded pill for focused marketing actions, 14px radius for product
+   controls" — and this is a product control inside a panel, not a marketing CTA.
+   It also has to sit next to the navbar buttons it visually rhymes with: the
+   navbar `Masuk`/`Daftar` buttons render at 13px/12px, so a 999px pill here read
+   as a different family entirely. Measured in the browser, not guessed. */
+.reader-panel-semua {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 34px;
+  /* No `margin-bottom`: spacing below this row belongs to `.reader-panel-atas`.
+     A vertical margin here would also join the flex item's box, and
+     `align-items: center` would then centre the *margin box* — lifting the pill
+     ~7px above the close button's centre line, which is exactly the misalignment
+     this row exists to avoid. */
+  padding: 0 0.9rem;
+  border: 1px solid var(--brand-border);
+  border-radius: var(--radius-md);
+  background: var(--brand-grad);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--brand-shadow);
+  transition: background 180ms ease-out;
+}
+
+.reader-panel-semua:hover,
+.reader-panel-semua:focus-visible {
+  background: var(--brand-grad-hover);
+  border-color: var(--brand-border-hover);
+  color: #fff;
+}
+
+.reader-panel-semua-ikon {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
 .reader-panel-head {
   display: flex;
   flex-direction: column;
@@ -1615,17 +1661,33 @@ h6 {
   border-bottom: 1px solid var(--border);
 }
 
-/* Judul left, close button right. `justify-content: space-between` pins the
-   button to the panel's right edge using the row's own width — the same
-   mechanism `.mobile-nav-drawer-head` uses, so the two surfaces agree. `center`
-   keeps the icon on the title's optical centre line when the title wraps to two
-   or three lines. */
-.reader-panel-head-row {
+/* Baris kontrol teratas: "Semua modul" di kiri, tombol tutup di kanan.
+   `margin-left: auto` pada tombolnya (bukan `justify-content: space-between`)
+   yang menahannya di kanan — dengan `space-between`, baris yang hanya berisi
+   tombol tutup (tampilan daftar kursus, tanpa pintu "Semua modul") akan
+   menempatkannya di **kiri**. `align-items: center` menjaga keduanya pada satu
+   garis optik meski tingginya berbeda (34px vs 44px). */
+.reader-panel-atas {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 0.5rem;
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.6rem;
+}
+
+/* Judul kursus tidak lagi berbagi baris dengan tombol tutup: ia nama isi panel,
+   bukan kontrol. `min-width: 0` tetap perlu agar judul panjang membungkus di
+   dalam panel, bukan meluber keluar.
+
+   `margin: 0` masih load-bearing, bukan kerapian: lembar dasar memberi setiap
+   `<p>` margin bawah `1rem`, dan sebagai anak flex margin itu ikut ke dalam
+   kotaknya — jarak antar-blok di kepala ini datang dari `gap` miliknya sendiri. */
+.reader-panel-judul {
+  min-width: 0;
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--text);
 }
 
 /* A bare icon, no card. The box this used to be — 1px border, `--card` fill,
@@ -1642,6 +1704,15 @@ h6 {
   width: 44px;
   height: 44px;
   flex: 0 0 44px;
+  /* Pins the button to the right edge of the top control row. `margin-left:
+     auto` — not `justify-content: space-between` on the row — because this row
+     also renders with the close button alone (the course-list view has no
+     "Semua modul"), and `space-between` would put it on the **left** there.
+     `margin-right: -0.6rem` cancels the head's 1rem side padding optically:
+     the 44px box's glyph is centred, so without it the X reads ~8px in from
+     the panel's right edge rather than flush with the content below. */
+  margin-left: auto;
+  margin-right: -0.35rem;
   border: 0;
   border-radius: 12px;
   background: transparent;
@@ -1656,24 +1727,7 @@ h6 {
 }
 
 /* `min-width: 0` so a long course title shrinks and wraps inside the row
-   instead of overflowing it; `flex: 1 1 auto` claims the space the 44px button
-   does not use, so the title is what absorbs a narrow panel, not the button.
-
-   `margin: 0` is load-bearing, not tidying: the base sheet gives every `<p>` a
-   `1rem` bottom margin, and as a flex child that margin joins the item's box —
-   the row measured 58px instead of 42px and `align-items: center` centred the
-   button against the taller box, sitting the X 8px below the title's optical
-   line. Zeroing it is what makes the two share a centre. The block gaps in this
-   head come from its own `gap`, so no margin is needed here. */
-.reader-panel-judul {
-  flex: 1 1 auto;
-  min-width: 0;
-  margin: 0;
-  font-size: 1.02rem;
-  font-weight: 700;
-  line-height: 1.3;
-  color: var(--text);
-}
+   instead of overflowing it. */
 
 .reader-panel-penyedia {
   font-size: 0.8rem;
@@ -1718,13 +1772,22 @@ h6 {
    and is *not* AA-safe for the white label — if contrast ever has to pass, the
    label or a text shadow changes, never the ramp. Flat `#0056D2`/`--primary`
    remains correct for inline links and focus rings; only filled buttons take
-   the ramp. */
+   the ramp.
+
+   Radius: `--radius-md` (14px), **not** a 999px pill. This is a *product
+   control* inside a panel, and DESIGN.md line 66 splits the two shapes —
+   "rounded pill for focused marketing actions, 14px radius for product
+   controls". It is also the same panel as `.reader-panel-semua`, which already
+   dropped its pill for exactly this reason, and it sits beside the navbar
+   `Masuk`/`Daftar` buttons (measured 13px/12px): a 999px pill here read as a
+   different family from the buttons it rhymes with. Measured in the browser,
+   not guessed. */
 .reader-panel-cta {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 44px;
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--brand-border);
   background: var(--brand-grad);
   color: #fff;
@@ -5200,6 +5263,29 @@ button.tag:hover {
   box-shadow: var(--dash-card-shadow);
 }
 
+/* The avatar on the band's left. The greeting used to start flush with the
+   band's padding, which left the participant's own face out of the one place
+   they are already looking. Tinted rather than solid brand blue because the
+   `Profilmu` tile right below it already wears a solid avatar for the same
+   person — two different avatars of one learner, on one screen, would read as
+   two accounts. The white-plus-blue ring keeps the circle from sitting on the
+   white surface as an unanchored dot. */
+.dashboard-shell .dash-hero-avatar {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  background: var(--dash-icon-bg);
+  box-shadow: 0 0 0 3px #ffffff, 0 0 0 4px rgba(147, 197, 253, 0.45);
+  color: var(--dash-head-ink, #007aff);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+
 /* ===== DASHBOARD BENTO GRID =====
    The dashboard is a bento mosaic, not a uniform 3-up. Tiles differ in size so
    the grid has a reading order: a row of three stat tiles, then a certificate
@@ -5270,6 +5356,36 @@ button.tag:hover {
   .dashboard-shell .dash-sel-progres {
     grid-area: progres;
   }
+}
+
+/* ===== DASHBOARD RECOMMENDATION TRAY =====
+   The "Dipilih untukmu" recommendations — courses AND job postings — sit inside
+   one blue tray instead of floating as loose cards on the white panel. The tray
+   owns the group's colour so the cards read as one curated set; the course cards
+   keep their own white surface (`.dash-reco-card` cancels the tray gradient) so
+   each still lifts off the blue rather than blending into it. The job cards below
+   carry their own `bg-white` in Tailwind, so they need no override.
+
+   The fill is the same pale sky the dashboard cards fall into (`--dash-card-*`)
+   stepped a shade deeper, so the tray belongs to the card family instead of
+   introducing a fifth blue. */
+.dashboard-shell .dash-reco-tray {
+  border-radius: 16px;
+  border: 1px solid var(--dash-card-border);
+  background-image: linear-gradient(
+    170deg,
+    #eef6ff 0%,
+    #e1effd 55%,
+    var(--dash-card-bottom) 100%
+  );
+  padding: 16px;
+}
+
+/* Cards inside the tray are opaque white, so the tray gradient never shows
+   through them — only in the gutters around the set. Keeps the fall visible
+   where it should read as the container, not in the card fills. */
+.dashboard-shell .dash-reco-tray .dash-reco-card {
+  background-color: #ffffff;
 }
 
 /* ===== MARKETING LANDING (SaaSly patterns) ===== */

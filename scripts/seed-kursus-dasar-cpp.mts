@@ -846,7 +846,7 @@ async function selaraskanModul(kursus: Course, indexModul: number, seed: ModulSe
       const hasil = await updateHalaman(kursus.id, modul.id, lama.id, isi);
       if (!hasil) throw new Error(`halaman gagal diperbarui: ${prefiks}`);
     } else {
-      dipakai.add((await createHalaman(kursus.id, modul.id, isi))?.id ?? "");
+      dipakai.add((await createHalaman(kursus.id, modul.id, null, isi))?.id ?? "");
     }
   }
 

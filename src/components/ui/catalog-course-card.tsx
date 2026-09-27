@@ -307,6 +307,23 @@ export interface CourseCardShellProps {
   tagLabel?: string;
   /** Teks footer kanan, mis. "Gratis" / "Careevo Plus". */
   footerNote?: string;
+  /**
+   * Varian kecil: sampul 16:9 (bukan 4:3), badan `p-3`, dan `metaLine` dijepit
+   * tiga baris. Untuk kartu di dalam panel yang sudah sempit — misalnya satu
+   * dialog, bukan grid halaman — di mana tinggi kartu ikut menentukan tinggi
+   * panel, bukan hanya lebar kolomnya.
+   *
+   * Yang TIDAK berubah: anatominya. Sampul + pill kredensial, baris penyedia,
+   * judul yang membiru saat hover, baris meta, footer berpisah garis. Kartu
+   * kecil harus tetap terbaca sebagai kartu katalog yang sama, bukan kartu baru.
+   *
+   * `min-h` judul ikut dilepas karena hanya menyamakan tinggi blok judul antar
+   * kartu; footer tetap rata bawah lewat `mt-auto`, jadi footer kartu tidak
+   * bergeser. Tingginya disamakan oleh `h-full` di pemanggil.
+   */
+  compact?: boolean;
+  /** Tooltip untuk `metaLine` yang terpotong `line-clamp`. */
+  metaTitle?: string;
   /** Konteks ukuran: rail memakai lebar tetap, grid membiarkan kartu melebar. */
   className?: string;
   titleClassName?: string;
@@ -323,8 +340,10 @@ export function CourseCardShell({
   rating,
   reviews,
   metaLine,
+  metaTitle,
   tagLabel,
   footerNote,
+  compact = false,
   className,
   titleClassName,
   imageSizes = "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw",
@@ -339,7 +358,10 @@ export function CourseCardShell({
       <Link
         href={href}
         aria-label={`Lihat detail ${title}`}
-        className="relative block aspect-[4/3] w-full overflow-hidden bg-gray-100 hover:no-underline"
+        className={cn(
+          "relative block w-full overflow-hidden bg-gray-100 hover:no-underline",
+          compact ? "aspect-[16/9]" : "aspect-[4/3]",
+        )}
       >
         <ThumbMedia src={thumbnail} alt={title} provider={provider} sizes={imageSizes} />
         {credentialType ? (
@@ -349,7 +371,12 @@ export function CourseCardShell({
         ) : null}
       </Link>
 
-      <div className="relative z-10 -mt-8 flex flex-1 flex-col rounded-t-2xl bg-white p-4">
+      <div
+        className={cn(
+          "relative z-10 -mt-8 flex flex-1 flex-col rounded-t-2xl bg-white",
+          compact ? "p-3" : "p-4",
+        )}
+      >
         <div className="mb-2 flex items-center gap-2">
           <ProviderMark logo={providerLogo} provider={provider} />
           <span className="truncate text-xs font-medium text-gray-600">{provider}</span>
@@ -357,7 +384,8 @@ export function CourseCardShell({
 
         <h3
           className={cn(
-            "mb-1.5 line-clamp-2 min-h-[2.6rem] text-sm font-bold text-gray-900 group-hover:text-[#0056D2]",
+            "mb-1.5 line-clamp-2 text-sm font-bold text-gray-900 group-hover:text-[#0056D2]",
+            !compact && "min-h-[2.6rem]",
             titleClassName,
           )}
         >
@@ -377,7 +405,14 @@ export function CourseCardShell({
           </div>
         ) : null}
 
-        {metaLine ? <p className="mb-3 text-[11px] text-gray-500">{metaLine}</p> : null}
+        {metaLine ? (
+          <p
+            className={cn("mb-3 text-[11px] text-gray-500", compact && "line-clamp-3")}
+            title={metaTitle}
+          >
+            {metaLine}
+          </p>
+        ) : null}
 
         <div className="mt-auto flex items-center justify-between border-t border-gray-100 pt-3">
           {tagLabel ? (
@@ -400,16 +435,31 @@ export function CatalogCourseCard({
   resource,
   href,
   className,
+  compact = false,
+  metaLine,
+  metaTitle,
 }: {
   resource: ResourceFixture;
   href: string;
   className?: string;
+  /** Varian kecil; lihat `CourseCardShellProps.compact`. */
+  compact?: boolean;
+  /**
+   * Mengganti baris meta bawaan (`level · menit`) — dipakai saat pemanggil punya
+   * teks yang lebih penting untuk konteksnya, mis. alasan kursus ini cocok untuk
+   * satu lowongan. `undefined` tetap memakai baris bawaan, jadi pemanggil yang
+   * tidak punya teksnya tidak perlu tahu apa pun soal meta katalog.
+   */
+  metaLine?: string;
+  /** Tooltip untuk `metaLine` yang terpotong `line-clamp`. */
+  metaTitle?: string;
 }) {
   const meta = courseMetaFor(resource);
   return (
     <CourseCardShell
       href={href}
       className={className}
+      compact={compact}
       title={resource.title}
       provider={resource.provider}
       providerLogo={meta.providerLogo}
@@ -417,7 +467,8 @@ export function CatalogCourseCard({
       credentialType={meta.credentialType}
       rating={meta.rating}
       reviews={meta.reviews}
-      metaLine={`${levelLabel(resource.level)} · ${resource.duration_min} mnt`}
+      metaLine={metaLine ?? `${levelLabel(resource.level)} · ${resource.duration_min} mnt`}
+      metaTitle={metaTitle}
       tagLabel={resource.tags[0] ?? "Teknologi"}
       footerNote={resource.is_free ? "Gratis" : "Careevo Plus"}
     />
