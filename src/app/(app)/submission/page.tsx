@@ -18,7 +18,7 @@ export default async function SubmissionListPage() {
   ]);
 
   return (
-    <AppShell session={session} current="/belajar">
+    <AppShell session={session} current="/submission">
       <PageHead eyebrow="Karya" title="Submission saya" lead="Kirim hasil karya dari kursus yang selesai dan terverifikasi." />
       <BuatSubmissionForm pilihan={pilihan} />
       <section className="card" style={{ marginTop: "1.25rem" }} aria-labelledby="daftar-submission">
