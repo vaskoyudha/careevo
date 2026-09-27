@@ -85,7 +85,8 @@ function isAttempt(value: unknown): value is Attempt {
     typeof c.correct === "boolean" &&
     typeof c.at === "string" &&
     !Number.isNaN(Date.parse(c.at)) &&
-    (c.source === "session" || c.source === "review")
+    (c.source === "session" || c.source === "review") &&
+    (c.provenance === undefined || c.provenance === "dinilai" || c.provenance === "dideklarasikan")
   );
 }
 
