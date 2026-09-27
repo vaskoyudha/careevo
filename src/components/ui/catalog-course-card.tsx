@@ -245,8 +245,14 @@ function ProviderMark({ logo, provider }: { logo?: string; provider: string }) {
   );
 }
 
-/** Sampul 16:9; jatuh ke blok merek penyedia saat gambar tidak ada atau gagal. */
-function ThumbMedia({
+/**
+ * Sampul 16:9; jatuh ke blok merek penyedia saat gambar tidak ada atau gagal.
+ *
+ * Diekspor supaya kartu progres di `/progres` memakai aturan yang sama — satu
+ * tempat yang menentukan apa yang terjadi ketika sampul hilang atau host-nya
+ * tidak bisa dimuat, bukan dua.
+ */
+export function ThumbMedia({
   src,
   alt,
   provider,

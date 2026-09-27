@@ -30,8 +30,12 @@ export function StartLearningGrid({
       <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
         <p className="flex items-center gap-2 text-[13px] text-gray-600">
           Paling populer, ramah pemula
+          {/* "Ubah" mengubah minat yang jadi dasar pilihan kursus di sini, jadi
+              tujuannya formulir minat — sama seperti "Ubah minat" di dashboard.
+              Awalnya menunjuk `/belajar/jalur`, yang tidak pernah menyangkut minat
+              sama sekali. */}
           <Link
-            href="/belajar/jalur"
+            href="/onboarding?edit=1"
             className="inline-flex items-center gap-1 font-medium text-[#0056D2]"
           >
             <Pencil className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />

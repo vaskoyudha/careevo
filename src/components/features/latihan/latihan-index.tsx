@@ -69,11 +69,11 @@ export function LatihanIndex({
     <div className="flex min-h-dvh flex-col bg-background">
       <header className="mx-auto w-full max-w-4xl px-6 pt-6 pb-0">
         <Link
-          href="/belajar/jalur"
+          href="/progres"
           className="inline-flex items-center gap-1.5 text-[13px] text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft size={14} strokeWidth={1.7} aria-hidden="true" />
-          Jalur Belajar
+          Progres
         </Link>
         <h1 className="mt-3 text-3xl font-bold tracking-tight text-foreground">Latihan Soal</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">

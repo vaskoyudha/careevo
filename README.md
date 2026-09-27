@@ -118,7 +118,8 @@ Tujuan karier → Jalur belajar → Kursus / modul / kuis
 
 - `/` — halaman marketing.
 - `/masuk`, `/daftar`, `/onboarding` — autentikasi dan onboarding.
-- `/belajar`, `/belajar/[slug]`, `/belajar/jalur` — katalog dan jalur belajar.
+- `/belajar`, `/belajar/[slug]` — katalog dan isi kursus.
+- `/progres` — daftar semua kursus yang diambil beserta persentase dan jumlah modul. Rute lama `/belajar/jalur` masih redirect ke sini.
 - `/dashboard`, `/profil`, `/p/[username]` — dashboard dan profil publik.
 - `/loker`, `/loker/inbox` — pencarian dan inbox lowongan.
 - `/submission`, `/review`, `/performa`, `/audit` — submission, review, dan area verifikator.

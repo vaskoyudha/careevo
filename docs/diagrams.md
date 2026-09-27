@@ -532,7 +532,7 @@ flowchart TD
   AP --> AP1["/dashboard"]
   AP --> AP2["/belajar"]
   AP --> AP3["/belajar/[slug]"]
-  AP --> AP4["/belajar/jalur"]
+  AP --> AP4["/progres"]
   AP --> AP5["/pengaturan"]
   AP --> AP6["/profil"]
   AP --> AP7["/loker/[id]"]
