@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { Lock, Rocket } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,7 @@ import { KejadianPanel } from "./kejadian-panel";
 import { KuisView } from "./kuis-view";
 import { KursusAiPanel } from "./kursus-ai-panel";
 import { KursusSubNav } from "./kursus-subnav";
+import { DitheredHeroBackdrop } from "./dithered-hero-backdrop";
 import { SertifikatPanel } from "./sertifikat-panel";
 import { TabelPelanggaran } from "./tabel-pelanggaran";
 import type { KebijakanCourse, TipeMateri } from "@/types/course";
@@ -391,24 +393,27 @@ function RuangBelajar({
         ref={headerRef}
         className="relative z-10 w-full overflow-hidden pt-32 pb-12 sm:pt-32 sm:pb-14 lg:pt-36 lg:pb-16"
       >
-        {/* Background Layers: Rich Skyblue Gradient + Striped Pattern + Radial Glow (Loker Header Effect) */}
-        <div className="pointer-events-none absolute inset-0 z-0 h-full w-full overflow-hidden select-none">
-          {/* Base Layer: Rich Skyblue to Cyan-tinted Oceanic Gradient */}
-          <div className="absolute inset-0 z-0 bg-[linear-gradient(170deg,#93c5fd_0%,#7dd3fc_22%,#bae6fd_48%,#dbeafe_78%,#e0f2fe_100%)]" />
+        {/* Background Layers: Dithered Pixel-Bit WebGL Canvas + Striped Pattern + Radial Glow + Bottom Fade */}
+        <div className="pointer-events-none absolute inset-0 z-0 h-full w-full overflow-hidden select-none bg-[#f7fbfc]">
+          {/* Layer 1: Dithered WebGL pixel/bits animation (Bayer ordered-dither shader) */}
+          <div className="absolute inset-0 z-0 overflow-hidden">
+            <DitheredHeroBackdrop
+              videoSrc="/videos/hero-sterly.mp4"
+              levels={4}
+              ditherScale={2}
+              zoom={1}
+              focusY={0.5}
+            />
+          </div>
 
-          {/* Radial ambient glow orbs for dimensionality */}
-          <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-15%,rgba(56,189,248,0.55)_0%,rgba(147,197,253,0.35)_45%,transparent_80%)]" />
-          <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_50%_45%_at_90%_15%,rgba(96,165,250,0.3)_0%,transparent_70%)]" />
-          <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_50%_45%_at_10%_35%,rgba(56,189,248,0.25)_0%,transparent_70%)]" />
+          {/* Layer 2: Striped diagonal grid pattern with radial mask (identical to loker header) */}
+          <div className="absolute inset-0 z-10 bg-[size:12px_12px] [background-image:repeating-linear-gradient(315deg,rgba(0,0,0,0.035)_0_1px,transparent_0_50%)] [mask-image:radial-gradient(ellipse_85%_80%_at_50%_40%,black_40%,transparent_92%)]" />
 
-          {/* Layer 1: Striped diagonal grid pattern with radial mask (identical to loker header) */}
-          <div className="absolute inset-0 z-0 bg-[size:12px_12px] [background-image:repeating-linear-gradient(315deg,rgba(255,255,255,0.2)_0_1px,transparent_0_50%)] [mask-image:radial-gradient(ellipse_85%_80%_at_50%_40%,black_50%,transparent_95%)] opacity-80" />
+          {/* Layer 3: Radial glow highlight for text clarity and depth */}
+          <div className="absolute inset-0 z-10 bg-[radial-gradient(ellipse_85%_75%_at_50%_35%,rgba(255,255,255,0.75)_0%,rgba(255,255,255,0.25)_55%,transparent_85%)]" />
 
-          {/* Layer 2: Radial glow highlight (identical to loker header) */}
-          <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_85%_75%_at_50%_35%,rgba(255,255,255,0.7)_0%,rgba(255,255,255,0.2)_55%,transparent_85%)]" />
-
-          {/* Layer 3: Smooth bottom edge blend into curriculum section */}
-          <div className="absolute inset-x-0 bottom-0 h-16 sm:h-24 bg-gradient-to-t from-white via-white/70 to-transparent" />
+          {/* Layer 4: White fading on the bottom edge to blend into page body */}
+          <div className="absolute inset-x-0 bottom-0 z-10 h-36 sm:h-52 bg-gradient-to-t from-white via-white/80 to-transparent" />
         </div>
 
         <div className="relative z-10 mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">

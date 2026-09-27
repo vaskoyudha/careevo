@@ -29,6 +29,17 @@ export type SidebarNavItem = {
   title: string;
   icon: React.ElementType;
   children?: SidebarNavItem[];
+  /**
+   * Nilai `current` lain yang juga harus menyalakan item ini, selain `href`.
+   *
+   * Ada karena `href` dan "halaman turunan" tidak selalu sama. Entri `Loker`
+   * menuju `/loker/inbox`, tapi dua halaman yang memakai `AppShell` di bawah
+   * `/loker` sama-sama mengirim `current="/loker"`: detail lowongan
+   * (`/loker/[id]`) dan inbox itu sendiri. Tanpa daftar ini, `isActiveHref`
+   * membandingkan `"/loker"` dengan `"/loker/inbox"`, hasilnya salah, dan ikon
+   * Loker mati di kedua halaman — tepat seperti bug yang harus dihindari.
+   */
+  activeFor?: string[];
 };
 
 export type SidebarNavGroup = {
@@ -70,7 +81,18 @@ const USER_GROUPS: SidebarNavGroup[] = [
       { href: "/dashboard", title: "Dashboard", icon: LayoutDashboard },
       { href: "/progres", title: "Progres", icon: BarChart3 },
       { href: "/jelajah", title: "Jelajah", icon: Compass },
-      { href: "/loker", title: "Loker", icon: Briefcase },
+      // `Loker` Goes To The Inbox, Not To `/loker`.
+      //
+      // `/loker` itself is a **public** marketing page (`src/app/(public)/loker`),
+      // so the old href here pulled a signed-in learner out of the dashboard and
+      // into a landing page. The surface they actually want is the searchable
+      // scan results at `/loker/inbox`.
+      //
+      // `activeFor` keeps the highlight alive: both `AppShell` pages under
+      // `/loker` (the inbox and `/loker/[id]`) pass `current="/loker"`, so
+      // without it this row would render unhighlighted on the very page it
+      // links to.
+      { href: "/loker/inbox", title: "Loker", icon: Briefcase, activeFor: ["/loker"] },
     ],
   },
 ];
@@ -102,6 +124,12 @@ function isActiveHref(current: string, href: string) {
   return current === href || current.startsWith(`${href}/`);
 }
 
+/** `href` selalu ikut dihitung; `activeFor` menambah halaman turunan lain. */
+function isItemActive(item: SidebarNavItem, current: string) {
+  if (isActiveHref(current, item.href)) return true;
+  return (item.activeFor ?? []).some((href) => isActiveHref(current, href));
+}
+
 function NavItem({
   item,
   current,
@@ -115,7 +143,7 @@ function NavItem({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const hasChildren = !!item.children?.length;
-  const isActive = isActiveHref(current, item.href);
+  const isActive = isItemActive(item, current);
   const Icon = item.icon;
 
   // Pill rows, matching the AI Mastery sidebar: a full-radius control with one
@@ -213,7 +241,7 @@ function RailItem({
   onNavigate?: () => void;
 }) {
   const Icon = item.icon;
-  const isActive = isActiveHref(current, item.href);
+  const isActive = isItemActive(item, current);
 
   return (
     <Link
