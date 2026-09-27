@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, MapPin, Sparkles } from "lucide-react";
+import { ArrowRight, MapPin, UserCheck } from "lucide-react";
 import { monogram } from "@/lib/jobs/monogram";
 import type { RekomendasiLokerItem } from "@/lib/jobs/rekomendasi-inbox";
 import { verdictBadge, type VerdictLoker } from "@/components/features/jobs/cari-lowongan-ui";
@@ -27,7 +27,7 @@ export function KolomRekomendasiProfil({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="flex size-7 items-center justify-center rounded-lg bg-blue-50 text-[#0066ff]">
-                <Sparkles aria-hidden className="size-4" />
+                <UserCheck aria-hidden className="size-4" />
               </span>
               <h2 className="text-[14.5px] font-bold text-slate-900 tracking-tight">
                 Cocok Untukmu

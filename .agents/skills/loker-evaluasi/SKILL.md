@@ -56,8 +56,9 @@ Three things the port does that this feature depends on:
 
 - **`tools: []` + `tool_choice: "none"`.** A gateway can front an *agentic*
   model, and that model answers "rate this posting" by emitting a `bash` tool
-  call, leaving content empty. Measured on 9Router: `o2a/space-bunny-free`
-  gave 2/4 valid answers at ~25s; `ag/gemini-3-flash` gave 5/5 at ~4.5s.
+  call, leaving content empty. Measured on 9Router (2026-09-29): `o2a/space-bunny-free`
+  gave 4/5 valid answers at ~35s; `ag/gemini-3-flash` gave 5/5 at ~27s;
+  `ag/gemini-3.7-flash-high` gave 5/5 at ~8.6s (what `.env.local` uses now).
   **Prefer a non-agentic model for this panel** — the port suppresses tools, but
   an agentic model still diverts often enough to be flaky.
 - **Retries one empty completion.** Empty is a routing artifact, not an answer.
@@ -227,9 +228,11 @@ CAREERVO_LLM_API_KEY=bogus npx tsx -e '...same...'
 
 **Choosing a model is measured, not guessed.** Run the real code path 5x per
 candidate (`bangunPrompt → getLlm → parseJsonMaybeFenced → validasiHasil`) and
-count valid results. On 9Router that is how `ag/gemini-3-flash` was chosen
-(5/5, ~4.5s) over `o2a/space-bunny-free` (2/4, ~25s — an agentic model). The
-`.env.local` comment records the comparison.
+count valid results. On 9Router (2026-09-29) that is how
+`ag/gemini-3.7-flash-high` was chosen (5/5, ~8.6s) over `ag/gemini-3-flash`
+(5/5, ~27s) and `o2a/space-bunny-free` (4/5, ~35s — an agentic model, and it
+also reached ~12% degenerate non-Indonesian output on the kursus-alasan path).
+The `.env.local` comment records the comparison.
 
 **What you cannot verify from a fake key:** whether the model returns a
 *sensible* evaluation. Do not claim the feature works end-to-end until someone

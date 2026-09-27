@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRef } from "react";
 import { TrendingUp, ArrowRight } from "lucide-react";
 import { HeroSubNav } from "@/components/ui/hero-subnav";
+import { HARGA, rupiah } from "@/lib/pricing";
 
 /**
  * Isi `/explore/most-popular-courses`, dipisah dari `page.tsx` karena ia
@@ -324,7 +325,7 @@ export function MostPopularCoursesView() {
                   )}
                   {course.freeTrial && (
                     <span className="inline-flex items-center rounded-md bg-[#F0F6FF] px-2 py-0.5 text-[11px] font-semibold text-[#0D2F60]">
-                      Free trial
+                      Uji coba gratis
                     </span>
                   )}
                 </div>
@@ -351,10 +352,10 @@ export function MostPopularCoursesView() {
                 />
               </div>
               <h3 className="mt-4 text-2xl sm:text-3xl font-bold text-white leading-tight">
-                Break down barriers to learning with big savings
+                Belajar tanpa batas dengan satu langganan
               </h3>
               <p className="mt-2 text-sm text-pink-100 leading-relaxed">
-                40% off 3 months of savings
+                Mulai {rupiah(HARGA.plusBulanan)}/bulan · hemat 2 bulan dengan paket tahunan
               </p>
             </div>
             <div className="mt-8 flex items-center justify-between">
@@ -362,7 +363,7 @@ export function MostPopularCoursesView() {
                 href="/careevo-plus"
                 className="inline-flex items-center justify-center rounded-lg bg-white px-6 py-2.5 text-sm font-bold text-[#C429A8] shadow-sm transition-all hover:bg-gray-100"
               >
-                Get Careevo Plus
+                Lihat Careevo Plus
               </Link>
             </div>
           </div>
@@ -381,18 +382,18 @@ export function MostPopularCoursesView() {
                 />
               </div>
               <h3 className="mt-4 text-2xl sm:text-3xl font-bold text-white leading-tight">
-                Start with easy savings for hard-working teams
+                Tingkatkan keahlian seluruh tim, dari satu dasbor
               </h3>
               <p className="mt-2 text-sm text-blue-100 leading-relaxed">
-                30% off team training
+                Mulai {rupiah(HARGA.teamsPerKursiBulanan)}/kursi/bulan · minimum 5 kursi
               </p>
             </div>
             <div className="mt-8 flex items-center justify-between">
               <Link
-                href="mailto:bisnis@careevo.id"
+                href="/business"
                 className="inline-flex items-center justify-center rounded-lg bg-white px-6 py-2.5 text-sm font-bold text-[#002761] shadow-sm transition-all hover:bg-gray-100"
               >
-                Save 30% today
+                Minta penawaran
               </Link>
             </div>
           </div>
@@ -467,7 +468,7 @@ export function MostPopularCoursesView() {
                     <span>Trending right now</span>
                   </span>
                   <span className="inline-flex items-center rounded-md bg-[#F0F6FF] px-2 py-0.5 text-[11px] font-semibold text-[#0D2F60]">
-                    Free trial
+                    Uji coba gratis
                   </span>
                 </div>
               </Link>

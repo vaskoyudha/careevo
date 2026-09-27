@@ -9,12 +9,12 @@
  * that every card shared, so the "constellation" pulsed as one object. The
  * choreography here follows the picture instead:
  *
- *   1. Entrance. One timeline, fired when the section reaches the viewport. The
- *      cards fly in *from the centre outward*, staggered by their real distance
- *      from it, so the eye tracks outward the way the layout radiates. The
- *      headline reveals by line (the `<br/>` makes it exactly two), because at
- *      64px a line mask reads as editorial where a word-by-word crawl would
- *      just be slow.
+ *   1. Entrance. One timeline, fired when the section reaches the viewport and
+ *      replayed every time it is scrolled back into view. The cards fly in
+ *      *from the centre outward*, staggered by their real distance from it, so
+ *      the eye tracks outward the way the layout radiates. The headline reveals
+ *      by line (the `<br/>` makes it exactly two), because at 64px a line mask
+ *      reads as editorial where a word-by-word crawl would just be slow.
  *   2. Ambient. Each card drifts on its own orbit with its own period, so the
  *      set never visibly loops. Replaces the uniform bob.
  *   3. Depth. Per-card scroll parallax, outer cards travelling further.
@@ -191,16 +191,67 @@ export function useGuildAgentsMotion(
         });
       });
 
-      // Fire the entrance when the section comes up, not on mount: the hero
-      // above is a full viewport, so a mount-triggered timeline would finish
-      // entirely off-screen. 78% keeps it ahead of the fold without demanding a
-      // dedicated scroll. `once` so it cannot replay on the way back up.
-      ScrollTrigger.create({
+      // The section's top edge reaching this fraction of the viewport, scrolling
+      // down, is where the entrance fires.
+      const ENTER_PCT = 78;
+      // The section's bottom edge reaching this fraction, scrolling back up, is
+      // where the replay fires. See the trigger below for why it measures the
+      // bottom edge and not the top.
+      const EXIT_PCT = 50;
+
+      /**
+       * Replay the entrance every time the section is scrolled back into view.
+       *
+       * One trigger, no reset — and the absence of a reset is deliberate, not an
+       * omission. `restart()` seeks the timeline back to 0 by itself, so a reset
+       * only ever *pre-emptively* rewinds. An earlier version did exactly that,
+       * with a second trigger calling `pause(0)` once the section had scrolled
+       * fully off-screen. It blanked the section, because this section is 85–94%
+       * of a viewport tall: between "fully off-screen" and "back in view" there
+       * is a viewport-height of scrolling during which the section is partly on
+       * screen with every animated element parked at progress 0 — cards, headline
+       * lines, sub-copy and buttons all hidden, leaving only the static eyebrow,
+       * which is precisely what a blank section looks like.
+       *
+       * With no reset the timeline rests at its finished state whenever it is not
+       * animating, so it can only ever be caught at progress 0 mid-entrance.
+       *
+       * The two boundaries measure different edges, because the section enters
+       * the viewport from opposite ends in the two directions:
+       *
+       *   `start: "top 78%"` — scrolling down, the section rises from below, so
+       *   its *top* edge leads. Firing there puts the top fifth of the section on
+       *   screen, which is the card band; later would push the cards under the
+       *   fold and spend the fly-in unseen.
+       *
+       *   `end: "bottom 50%"` — scrolling up, the section descends from above, so
+       *   its *bottom* edge leads and the top edge — where the cards live —
+       *   arrives last. Measuring the bottom edge is what makes the replay early:
+       *   it fires with the section only half in view, so the entrance is already
+       *   running by the time the cards scroll in. The top edge is not usable
+       *   here: it reaches the viewport top only once the section is fully
+       *   framed, which is the opposite of early, and it would re-animate a
+       *   section the user has already seen rendered.
+       */
+      const playTrigger = ScrollTrigger.create({
         trigger: root,
-        start: "top 78%",
-        once: true,
-        onEnter: () => tl.play(),
+        start: `top ${ENTER_PCT}%`,
+        end: `bottom ${EXIT_PCT}%`,
+        onEnter: () => tl.restart(),
+        onEnterBack: () => tl.restart(),
       });
+
+      // A page that loads already scrolled into or past this section — a reload
+      // mid-page, a restored scroll position, a deep link — crosses no boundary,
+      // so no callback fires and the paused timeline would sit at 0 forever: a
+      // permanently blank section, since every visible element is a `from()`
+      // tween. Geometry is the only signal available before ScrollTrigger has a
+      // previous state to compare against, so compare the section's own top edge
+      // against the same boundary `start` encodes — never `playTrigger.start`,
+      // which is not guaranteed to be resolved yet.
+      if (root.getBoundingClientRect().top <= window.innerHeight * (ENTER_PCT / 100)) {
+        tl.progress(1);
+      }
 
       // Depth. Every card rises as the section scrolls past; the further it
       // sits from the centre, the further it travels, which is what separates
@@ -230,6 +281,7 @@ export function useGuildAgentsMotion(
 
       return () => {
         split.revert();
+        playTrigger.kill();
         scrub.kill();
         for (const d of drifts) d?.kill();
         tl.kill();

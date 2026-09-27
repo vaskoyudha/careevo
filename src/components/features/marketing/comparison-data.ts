@@ -14,6 +14,8 @@
  * komponen (`comparison.tsx`).
  * ------------------------------------------------------------------------- */
 
+import { HARGA, rupiah } from "@/lib/pricing";
+
 export type Status = "ya" | "tidak" | "sebagian" | "belum" | "na";
 
 /** Sel boleh berupa `Status` (ikon) atau string bebas (mis. harga). */
@@ -155,8 +157,8 @@ export const KELOMPOK: Kelompok[] = [
       {
         label: "Biaya yang harus kamu tanggung",
         note: "Harga daftar, bukan harga promo",
-        careevo: "$0 - $49/bulan",
-        dicoding: "Rp14.000.000 / program",
+        careevo: `Rp0 - ${rupiah(HARGA.plusBulanan)}/bulan`,
+        dicoding: "Rp1.500.000 / bulan",
         detik: "Rp0",
         skill: "Harga per kelas",
       },

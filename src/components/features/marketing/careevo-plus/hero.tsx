@@ -1,62 +1,28 @@
 import Link from "next/link";
+import { BarChart3, Code2, ShieldCheck, Sparkles } from "lucide-react";
 import { Reveal } from "../primitives";
 import { DitheredHero } from "@/components/features/marketing/dithered-hero";
+import { HARGA, rupiah } from "@/lib/pricing";
 
 /**
- * Official SVG Logos for Microsoft, Google, Meta, and Stanford
- * matching the floating badges in the Coursera Plus reference.
+ * Skill-domain badges floating beside the ribbon. These represent the tracks
+ * Careevo actually teaches (data, web, security, AI) — deliberately not
+ * third-party brand logos, which would imply partnerships Careevo does not have.
  */
-function MicrosoftIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 23 23" className={className} aria-hidden="true">
-      <path fill="#f25022" d="M1 1h10v10H1z" />
-      <path fill="#00a4ef" d="M1 12h10v10H1z" />
-      <path fill="#7fba00" d="M12 1h10v10H12z" />
-      <path fill="#ffb900" d="M12 12h10v10H12z" />
-    </svg>
-  );
+function DataIcon({ className }: { className?: string }) {
+  return <BarChart3 className={className} strokeWidth={2.25} aria-hidden="true" />;
 }
 
-function GoogleIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
-      <path
-        fill="#4285F4"
-        d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"
-      />
-      <path
-        fill="#34A853"
-        d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"
-      />
-      <path
-        fill="#FBBC05"
-        d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
-      />
-      <path
-        fill="#EA4335"
-        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
-      />
-    </svg>
-  );
+function WebIcon({ className }: { className?: string }) {
+  return <Code2 className={className} strokeWidth={2.25} aria-hidden="true" />;
 }
 
-function MetaIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="#0081FB" aria-hidden="true">
-      <path d="M16.5 6c-1.8 0-3.3 1-4.5 2.5C10.8 7 9.3 6 7.5 6 4.5 6 2 8.5 2 12s2.5 6 5.5 6c2.4 0 4.2-1.3 5-3.1.8 1.8 2.6 3.1 5 3.1 3 0 5.5-2.5 5.5-6s-2.5-6-5.5-6zm-9 9.8c-2.1 0-3.8-1.7-3.8-3.8s1.7-3.8 3.8-3.8c1.9 0 3.3 1.4 4.1 2.8-.8 1.4-2.2 2.8-4.1 2.8zm9 0c-1.9 0-3.3-1.4-4.1-2.8.8-1.4 2.2-2.8 4.1-2.8 2.1 0 3.8 1.7 3.8 3.8s-1.7 3.8-3.8 3.8z" />
-    </svg>
-  );
+function SecurityIcon({ className }: { className?: string }) {
+  return <ShieldCheck className={className} strokeWidth={2.25} aria-hidden="true" />;
 }
 
-function StanfordIcon({ className }: { className?: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center leading-none">
-      <svg viewBox="0 0 24 24" className={className} fill="#8C1515" aria-hidden="true">
-        <path d="M12 2L4 16h6v6h4v-6h6L12 2zm0 3.5L16.2 14H7.8L12 5.5z" />
-      </svg>
-      <span className="text-[6px] font-bold tracking-tighter text-[#8C1515]">ONLINE</span>
-    </div>
-  );
+function AiIcon({ className }: { className?: string }) {
+  return <Sparkles className={className} strokeWidth={2.25} aria-hidden="true" />;
 }
 
 function SparkleStar({ className }: { className?: string }) {
@@ -107,25 +73,20 @@ export function CareevoPlusHero() {
 
           {/* Headline */}
           <h1 className="mx-auto mb-3 max-w-xl text-3xl font-bold leading-[1.18] -tracking-[0.5px] text-[#0a3d62] sm:text-4xl lg:mx-0 lg:text-[38px]">
-            Berakhir sebentar lagi! Belajar fleksibel dan hemat 40% selama 3
-            bulan
+            Belajar fleksibel, siap kerja, tanpa batas
           </h1>
 
           {/* Description */}
           <p className="mx-auto mb-4 max-w-lg text-sm leading-relaxed text-[#1e293b] sm:text-base lg:mx-0">
-            Hari sibuk tidak harus menghambatmu. Ubah menit menjadi lebih
-            banyak keahlian lewat 10.000+ program dari Microsoft, Google,
-            Meta, Stanford, dan lainnya. Mulai langgananmu dengan hemat dan
-            nikmati belajar yang mengikuti rutinitasmu.
+            Ubah menit senggangmu jadi keahlian yang dicari perusahaan. Akses
+            seluruh kursus, latihan, dan sertifikat Careevo dengan satu
+            langganan yang mengikuti rutinitasmu.
           </p>
 
           {/* Price line */}
           <div className="mb-4 flex flex-wrap items-center justify-center gap-2 text-xs sm:text-sm lg:justify-start">
-            <span className="font-bold text-[#5b6b7a] line-through">
-              IDR 570.000
-            </span>
             <span className="font-semibold text-[#0a3d62]">
-              IDR 342.000/bulan, batalkan kapan saja
+              Mulai {rupiah(HARGA.plusBulanan)}/bulan, batalkan kapan saja
             </span>
           </div>
 
@@ -135,21 +96,21 @@ export function CareevoPlusHero() {
               href="#paket"
               className="inline-flex h-9.5 items-center justify-center rounded-lg bg-[#0056D2] px-5 text-xs font-semibold text-white shadow-sm transition-all duration-200 hover:bg-[#0046ab] hover:shadow-md sm:text-sm"
             >
-              Hemat 40% sekarang
+              Lihat paket Plus
             </Link>
             <span className="text-xs font-medium text-[#405464] sm:text-sm">
-              atau IDR 3.893.000/tahun untuk Careevo Plus Tahunan
+              atau {rupiah(HARGA.plusTahunan)}/tahun — hemat 2 bulan
             </span>
           </div>
 
           {/* Disclaimer & Terms */}
           <p className="text-xs text-[#405464]">
-            Penawaran berakhir 23 September 2026, lihat{" "}
+            Uji coba gratis 7 hari untuk langganan bulanan, lihat{" "}
             <Link
               href="#ketentuan"
               className="font-semibold text-[#0056D2] underline underline-offset-2 transition-colors hover:text-[#0046ab]"
             >
-              Ketentuan Penawaran
+              Ketentuan Layanan
             </Link>
             .
           </p>
@@ -213,50 +174,50 @@ export function CareevoPlusHero() {
             <SparkleStar className="absolute top-44 right-10 size-3 text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.8)]" />
             <SparkleStar className="absolute bottom-8 right-36 size-4 text-white drop-shadow-[0_0_6px_rgba(255,255,255,0.9)]" />
 
-            {/* Floating White Circular Logo Badges along the ribbon */}
-            {/* 1. Microsoft */}
+            {/* Floating skill-domain badges along the ribbon */}
+            {/* 1. Data */}
             <div
-              className="absolute top-3 right-4 flex size-9.5 items-center justify-center rounded-full bg-white shadow-md transition-transform duration-300 hover:scale-110 sm:size-10"
-              title="Microsoft"
+              className="absolute top-3 right-4 flex size-9.5 items-center justify-center rounded-full bg-white text-blue-700 shadow-md transition-transform duration-300 hover:scale-110 sm:size-10"
+              title="Data & Analitik"
             >
-              <MicrosoftIcon className="size-4 sm:size-4.5" />
+              <DataIcon className="size-4 sm:size-4.5" />
             </div>
 
-            {/* 2. Google */}
+            {/* 2. Web Dev */}
             <div
-              className="absolute top-16 right-4 flex size-9.5 items-center justify-center rounded-full bg-white shadow-md transition-transform duration-300 hover:scale-110 sm:size-10"
-              title="Google"
+              className="absolute top-16 right-4 flex size-9.5 items-center justify-center rounded-full bg-white text-emerald-700 shadow-md transition-transform duration-300 hover:scale-110 sm:size-10"
+              title="Web Development"
             >
-              <GoogleIcon className="size-4 sm:size-4.5" />
+              <WebIcon className="size-4 sm:size-4.5" />
             </div>
 
-            {/* 3. Meta */}
+            {/* 3. Security */}
             <div
-              className="absolute top-29 right-4 flex size-9.5 items-center justify-center rounded-full bg-white shadow-md transition-transform duration-300 hover:scale-110 sm:size-10"
-              title="Meta"
+              className="absolute top-29 right-4 flex size-9.5 items-center justify-center rounded-full bg-white text-rose-700 shadow-md transition-transform duration-300 hover:scale-110 sm:size-10"
+              title="Keamanan Siber"
             >
-              <MetaIcon className="size-4 sm:size-4.5" />
+              <SecurityIcon className="size-4 sm:size-4.5" />
             </div>
 
-            {/* 4. Stanford Online */}
+            {/* 4. AI */}
             <div
-              className="absolute top-42 right-4 flex size-9.5 items-center justify-center rounded-full bg-white shadow-md transition-transform duration-300 hover:scale-110 sm:size-10"
-              title="Stanford Online"
+              className="absolute top-42 right-4 flex size-9.5 items-center justify-center rounded-full bg-white text-indigo-700 shadow-md transition-transform duration-300 hover:scale-110 sm:size-10"
+              title="AI & Prompting"
             >
-              <StanfordIcon className="size-3.5 sm:size-4" />
+              <AiIcon className="size-3.5 sm:size-4" />
             </div>
 
             {/* FLOATING DISCOUNT BADGES (Left of ribbon) */}
             <div className="absolute top-10 left-0 z-10 flex flex-col items-start gap-2.5 sm:top-12 sm:left-2">
               {/* 1. Magenta Price Card */}
               <div className="w-[190px] rounded-xl bg-[#E6007E] px-4 py-2.5 shadow-[0_6px_20px_rgba(230,0,126,0.35)] sm:w-[205px] sm:px-4.5 sm:py-3">
-                <p className="text-center text-[10px] font-semibold text-white/80 line-through sm:text-xs">
-                  IDR 570,000
+                <p className="text-center text-[10px] font-semibold text-white/80 sm:text-xs">
+                  Careevo Plus
                 </p>
                 <p className="mt-0.5 text-center text-xl font-extrabold text-white tracking-tight whitespace-nowrap sm:text-2xl">
-                  IDR 342,000
+                  {rupiah(HARGA.plusBulanan)}
                   <span className="text-[11px] font-normal text-white/90 sm:text-xs">
-                    /month
+                    /bulan
                   </span>
                 </p>
               </div>
@@ -264,7 +225,7 @@ export function CareevoPlusHero() {
               {/* 2. Golden Yellow Savings Badge */}
               <div className="w-[190px] rounded-lg border border-amber-600/30 bg-[#FFB703] px-3.5 py-2 shadow-[0_4px_14px_rgba(255,183,3,0.3)] sm:w-[205px] sm:py-2.5">
                 <p className="text-center text-xs font-bold text-[#002D72] tracking-wide whitespace-nowrap sm:text-sm">
-                  3 months of savings
+                  Hemat 2 bulan dengan tahunan
                 </p>
               </div>
             </div>

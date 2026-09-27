@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Reveal } from "@/components/features/marketing/primitives";
 import { BusinessHero } from "@/components/features/marketing/business/hero";
+import { HARGA, rupiah } from "@/lib/pricing";
 
 export const metadata = {
   title: "Careevo Bisnis · Solusi Pelatihan & Peningkatan Keterampilan Tim",
@@ -25,8 +26,16 @@ export default function BusinessPage() {
       {/* Hero Section */}
       <BusinessHero />
 
-      {/* Quick Action Grid */}
-      <section className="border-t border-b border-gray-100 bg-gray-50/70 py-16 lg:py-20 px-6">
+      {/* Quick Action Grid
+       *
+       * No `border-t` here, and the background starts at pure white. The hero
+       * fades its wallpaper to `#fff` at its own bottom edge, so the two
+       * sections already meet on the same colour — a `border-t border-gray-100`
+       * between them drew a 1px `#f3f4f6` rule across a near-white field,
+       * which is exactly the kind of hard line the fade exists to avoid.
+       * Starting from `from-white` and easing into the tint keeps the hand-off
+       * gradual instead of swapping one flat white for another flat grey. */}
+      <section className="border-b border-gray-100 bg-gradient-to-b from-white to-gray-50/70 py-16 px-6 lg:py-20">
         <div className="mx-auto max-w-7xl">
           <Reveal className="mx-auto max-w-2xl text-center mb-12">
             <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-gray-900 -tracking-[1px]">
@@ -348,7 +357,7 @@ export default function BusinessPage() {
                 </div>
                 <div className="text-sm font-semibold text-blue-600 uppercase tracking-wider">Paket Careevo Teams</div>
                 <div className="mt-4 flex items-baseline gap-2">
-                  <span className="text-4xl sm:text-5xl font-bold tracking-tight text-gray-900">IDR 399.000</span>
+                  <span className="text-4xl sm:text-5xl font-bold tracking-tight text-gray-900">{rupiah(HARGA.teamsPerKursiBulanan)}</span>
                   <span className="text-sm text-gray-500 font-medium">/kursi/bulan</span>
                 </div>
                 <p className="mt-2 text-xs text-gray-500">Ditagih tahunan. Minimum 5 kursi untuk tim kolaboratif.</p>

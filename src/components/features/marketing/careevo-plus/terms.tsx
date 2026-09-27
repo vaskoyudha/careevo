@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { Reveal } from "../primitives";
+import { HARGA, rupiah, hematTahunanPersen } from "@/lib/pricing";
 
 /**
- * Bottom repeat of the Careevo Plus pitch plus the "Offer Terms"
- * legal block, mirroring the footer-adjacent band on the original page.
+ * Bottom repeat of the Careevo Plus pitch plus the plan terms. Prices come
+ * from `@/lib/pricing` so this block can never drift from the plans table.
  */
 export function CareevoPlusTerms() {
   return (
@@ -14,51 +15,53 @@ export function CareevoPlusTerms() {
             Careevo Plus
           </h2>
           <p className="mb-6 max-w-2xl text-base text-gray-500">
-            Hari sibuk tidak harus menghambatmu. Ubah menit menjadi lebih banyak
-            keahlian lewat 10.000+ program dari Microsoft, Google, Meta,
-            Stanford, dan lainnya. Mulai langgananmu dengan hemat dan nikmati
-            belajar yang mengikuti rutinitasmu.
+            Hari sibuk tidak harus menghambatmu. Ubah menit menjadi keahlian
+            nyata lewat seluruh kursus, latihan, dan sertifikat Careevo. Mulai
+            langgananmu dengan hemat dan nikmati belajar yang mengikuti
+            rutinitasmu.
           </p>
 
           <p className="mb-6 flex flex-wrap items-end gap-2">
-            <span className="text-lg text-gray-400 line-through">
-              IDR 570.000
-            </span>
             <span className="text-2xl font-medium text-gray-900">
-              IDR 342.000
+              {rupiah(HARGA.plusBulanan)}
             </span>
-            <span className="text-base text-gray-500">/bulan, batalkan kapan saja</span>
+            <span className="text-base text-gray-500">
+              /bulan, batalkan kapan saja
+            </span>
           </p>
 
           <Link
             href="#paket"
             className="grad-btn mb-10 inline-block h-11 rounded-lg px-6 py-2.5 text-base font-medium transition duration-300 ease-in-out"
           >
-            Hemat 40% sekarang
+            Lihat paket Plus
           </Link>
         </Reveal>
 
         <Reveal delay={80}>
           <h3 className="mb-4 text-lg font-semibold text-gray-900">
-            Ketentuan Penawaran
+            Ketentuan Layanan
           </h3>
           <div className="space-y-4 text-sm text-gray-500">
             <p>
-              Klaim penawaran ini sebelum 23 September 2026 pukul 23.59 UTC.
-              Hanya berlaku untuk pelanggan baru Careevo Plus, dibatasi satu
-              per orang. Tidak dapat digunakan bersamaan dengan penawaran lain.
-              Careevo berhak mengubah atau membatalkan promosi kapan saja.
+              Careevo Plus ditagih {rupiah(HARGA.plusBulanan)} per bulan, atau{" "}
+              {rupiah(HARGA.plusTahunan)} per tahun (hemat{" "}
+              {hematTahunanPersen(HARGA.plusBulanan, HARGA.plusTahunan)}%, setara
+              dua bulan gratis). Tersedia juga paket 6 bulan sebesar{" "}
+              {rupiah(HARGA.plusSemester)}. Harga belum termasuk PPN yang
+              berlaku.
             </p>
             <p>
-              IDR 342.000 untuk 3 bulan berturut-turut (biasanya IDR 570.000).
-              Diskon diterapkan saat pembayaran. Otomatis diperpanjang setiap
-              bulan sebesar IDR 570.000/bulan (ditambah pajak yang berlaku),
-              kecuali dibatalkan. Batalkan kapan saja di pengaturan akun.
-              Penawaran tidak tersedia untuk penduduk India.
+              Langganan bulanan menyertakan uji coba gratis 7 hari. Kami mencatat
+              informasi pembayaran saat kamu berlangganan, tetapi kamu tidak akan
+              ditagih sampai masa uji coba berakhir. Batalkan kapan saja di
+              pengaturan akun; akses berbayar tetap berlaku hingga akhir periode
+              yang sudah dibayar dan tidak ada tagihan berikutnya.
             </p>
             <p>
-              Jika berada di luar AS, mata uang dan harga lokal akan digunakan
-              untuk pembelian dan ditampilkan saat pembayaran.
+              Semua harga ditampilkan dalam Rupiah Indonesia (IDR). Pembelian
+              dari luar Indonesia akan ditampilkan dalam mata uang lokal saat
+              pembayaran.
             </p>
           </div>
         </Reveal>

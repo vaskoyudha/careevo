@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { CheckIcon, CheckMutedIcon, Reveal } from "./primitives";
+import { HARGA, rupiah, perBulanTahunan, hematTahunanPersen } from "@/lib/pricing";
 
 type Plan = {
   badge: string;
   note: string;
   monthly: string;
   annual: string;
+  annualNote?: string;
   features: { text: string; included: boolean }[];
   cta: string;
   popular?: boolean;
@@ -18,62 +20,64 @@ const PLANS: Plan[] = [
   {
     badge: "Gratis",
     note: "Buat coba-coba dulu",
-    monthly: "$0",
-    annual: "$0",
+    monthly: rupiah(HARGA.gratis),
+    annual: rupiah(HARGA.gratis),
     features: [
-      { text: "3 challenge per bulan", included: true },
+      { text: "Papan loker terverifikasi tanpa batas", included: true },
+      { text: "Socrates AI 3 challenge per bulan", included: true },
       { text: "Rekam jejak kerja tersimpan", included: true },
       { text: "Sertifikat yang bisa dibuka publik", included: true },
-      { text: "Komunitas peserta", included: true },
       { text: "Analitik lanjutan", included: false },
     ],
     cta: "Mulai gratis",
     href: "/daftar",
   },
   {
-    badge: "Peserta",
+    badge: "Careevo Plus",
     note: "Kalau kamu serius nyari kerja",
-    monthly: "$19",
-    annual: "$15",
+    monthly: rupiah(HARGA.plusBulanan),
+    annual: rupiah(HARGA.plusTahunan),
+    annualNote: `${rupiah(HARGA.plusTahunan)}/tahun · hemat ${hematTahunanPersen(HARGA.plusBulanan, HARGA.plusTahunan)}%`,
     features: [
-      { text: "Challenge tanpa batas bulanan", included: true },
-      { text: "Rekomendasi latihan prioritas", included: true },
+      { text: "Semua kursus & challenge tanpa batas", included: true },
+      { text: "Socrates AI penuh + rekomendasi latihan", included: true },
       { text: "Riwayat submission lengkap", included: true },
-      { text: "Dukungan standar", included: true },
+      { text: "Sertifikat HMAC yang bisa diverifikasi", included: true },
     ],
-    cta: "Pilih paket",
-    href: "/daftar",
-  },
-  {
-    badge: "Pro",
-    note: "Untuk tim dan bootcamp",
-    monthly: "$49",
-    annual: "$39",
-    features: [
-      { text: "Semua fitur Peserta", included: true },
-      { text: "Kelas privat", included: true },
-      { text: "Penilaian oleh verifikator", included: true },
-      { text: "Analitik kelas", included: true },
-      { text: "Dukungan prioritas", included: true },
-    ],
-    cta: "Pilih paket",
-    href: "/daftar",
+    cta: "Pilih Plus",
+    href: "/careevo-plus#paket",
     popular: true,
   },
   {
-    badge: "Kampus",
-    note: "Untuk institusi pendidikan",
-    monthly: "Custom",
-    annual: "Custom",
+    badge: "Careevo Pro",
+    note: "Untuk karier yang lebih serius",
+    monthly: rupiah(HARGA.proBulanan),
+    annual: rupiah(HARGA.proTahunan),
+    annualNote: `${rupiah(HARGA.proTahunan)}/tahun · hemat ${hematTahunanPersen(HARGA.proBulanan, HARGA.proTahunan)}%`,
     features: [
-      { text: "Semua fitur Pro", included: true },
-      { text: "SSO kampus", included: true },
-      { text: "Integrasi LMS", included: true },
-      { text: "Laporan akreditasi", included: true },
+      { text: "Semua fitur Careevo Plus", included: true },
+      { text: "AI Fit Score terperinci per lowongan", included: true },
+      { text: "Simulasi interview teknis", included: true },
+      { text: "Penutup skill gap otomatis", included: true },
+      { text: "Dukungan prioritas", included: true },
+    ],
+    cta: "Pilih Pro",
+    href: "/careevo-plus#paket",
+  },
+  {
+    badge: "Teams",
+    note: "Untuk tim dan perusahaan",
+    monthly: `${rupiah(HARGA.teamsPerKursiBulanan)}/kursi`,
+    annual: "Hubungi kami",
+    features: [
+      { text: "Semua fitur Careevo Pro", included: true },
+      { text: "Analitik & laporan benchmark tim", included: true },
+      { text: "Pembuat program bertenaga AI", included: true },
+      { text: "Invoice & tagihan kuartalan", included: true },
       { text: "Onboarding khusus", included: true },
     ],
     cta: "Hubungi kami",
-    href: "/masuk",
+    href: "/business",
   },
 ];
 
@@ -118,7 +122,7 @@ export function MarketingPricing() {
               >
                 Tahunan{" "}
                 <span className="rounded-full bg-green-500/10 px-2 py-1 font-mono text-sm text-green-600">
-                  -20%
+                  2 bulan gratis
                 </span>
                 {annual ? (
                   <span className="absolute inset-0 -z-10 rounded-full bg-white shadow-sm" />
@@ -146,12 +150,15 @@ export function MarketingPricing() {
                   {plan.badge}
                 </span>
                 <p className="mb-8 font-mono text-sm text-gray-900">{plan.note}</p>
-                <h3 className="mb-7 flex items-end text-6xl font-medium">
+                <h3 className="mb-1 flex items-end text-5xl font-medium">
                   {annual ? plan.annual : plan.monthly}
-                  {plan.monthly.startsWith("$") ? (
+                  {plan.monthly.startsWith("Rp") ? (
                     <span className="text-base text-gray-500">/bulan</span>
                   ) : null}
                 </h3>
+                <p className="mb-7 min-h-5 font-mono text-xs text-gray-400">
+                  {annual ? plan.annualNote : null}
+                </p>
 
                 <ul className="space-y-4 border-t border-dashed border-gray-200 py-7">
                   {plan.features.map((feature) => (
@@ -181,6 +188,13 @@ export function MarketingPricing() {
             </Reveal>
           ))}
         </div>
+
+        <p className="mx-auto mt-10 max-w-2xl text-center text-xs leading-relaxed text-gray-400">
+          Harga per bulan bila ditagih tahunan: Plus{" "}
+          {perBulanTahunan(HARGA.plusTahunan)} · Pro{" "}
+          {perBulanTahunan(HARGA.proTahunan)}. Semua harga dalam Rupiah dan
+          belum termasuk PPN. Batalkan kapan saja.
+        </p>
       </div>
     </section>
   );

@@ -179,12 +179,18 @@ export default function HalamanSyarat() {
 
         <BagianLegal id="biaya" judul="Biaya dan langganan">
           <p>
-            <strong>[PLACEHOLDER: ketentuan harga dan paket]</strong>
+            Careevo punya paket gratis dan paket berbayar. Paket gratis tidak
+            memerlukan kartu kredit dan memberi akses ke papan lowongan
+            terverifikasi serta Socrates AI dengan batas bulanan. Paket berbayar
+            — Careevo Plus dan Careevo Pro — ditagih bulanan, per 6 bulan, atau
+            tahunan, dan bisa dibatalkan kapan saja. Harga yang berlaku
+            ditampilkan dalam Rupiah di halaman paket sebelum kamu membayar.
           </p>
           <p>
-            Paket gratis tidak memerlukan kartu kredit. Kalau kamu berlangganan
-            lalu membatalkan, akses berbayar tetap jalan sampai akhir periode yang
-            sudah dibayar, dan tidak ada tagihan kedua.
+            Kalau kamu berlangganan lalu membatalkan, akses berbayar tetap jalan
+            sampai akhir periode yang sudah dibayar, dan tidak ada tagihan kedua.
+            Pembelian dari luar Indonesia ditampilkan dalam mata uang lokal saat
+            pembayaran.
           </p>
         </BagianLegal>
 

@@ -48,20 +48,17 @@ const FAQS = [
     q: "Apa saja yang termasuk dalam Careevo Plus?",
     a: (
       <>
-        Dengan langganan Careevo Plus, kamu mendapat akses tanpa batas ke lebih
-        dari 10.000 course, proyek, spesialisasi, dan program sertifikat
-        profesional di berbagai bidang, termasuk data science, bisnis, ilmu
-        komputer, kesehatan, pengembangan diri, humaniora, dan lainnya.
-        Sebagian besar course di Careevo termasuk. Beberapa course,
-        spesialisasi, dan program sertifikat profesional dikecualikan.
-        Careevo Plus juga tidak mencakup gelar atau program sertifikat lanjutan.
-        Untuk memastikan suatu penawaran termasuk, cari lencana
-        Careevo Plus, atau periksa{" "}
+        Dengan langganan Careevo Plus, kamu mendapat akses tanpa batas ke
+        seluruh kursus, latihan, proyek, dan program sertifikat Careevo di
+        berbagai bidang, termasuk data science, bisnis, ilmu komputer,
+        keamanan siber, dan pengembangan diri. Sertifikat yang kamu raih
+        ditandatangani secara kriptografis (HMAC) sehingga bisa diverifikasi
+        publik lewat tautan portofoliomu.{" "}
         <Link
           href="/masuk"
           className="text-blue-600 underline underline-offset-2"
         >
-          daftar konten yang termasuk
+          Daftar kursus yang termasuk
         </Link>
         .
       </>
@@ -69,7 +66,7 @@ const FAQS = [
   },
   {
     q: "Apakah saya akan menghemat uang dengan Careevo Plus?",
-    a: "Ya. Jika kamu mengambil lebih dari 1 course secara rutin, kamu bisa menghemat hingga 30% setiap bulan. Semakin banyak kamu belajar, semakin banyak kamu hemat.",
+    a: "Ya. Satu langganan Plus sudah mencakup seluruh kursus dan latihan, jadi kalau kamu rutin belajar lebih dari satu topik, kamu membayar jauh lebih sedikit daripada membeli kursus satu per satu. Paket tahunan menambah penghematan dua bulan.",
   },
   {
     q: "Berapa lama saya bisa mengakses course setelah berlangganan?",
@@ -106,7 +103,7 @@ const FAQS = [
         benchmark khusus, dan opsi pembayaran fleksibel seperti tagihan
         kuartalan dan invoice. Pelajari lebih lanjut di{" "}
         <Link
-          href="/masuk"
+          href="/business"
           className="text-blue-600 underline underline-offset-2"
         >
           halaman Careevo for Teams

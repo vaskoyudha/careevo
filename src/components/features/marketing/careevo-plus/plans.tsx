@@ -3,44 +3,55 @@
 import { useState } from "react";
 import Link from "next/link";
 import { CheckIcon, Reveal } from "../primitives";
+import {
+  HARGA,
+  rupiah,
+  perBulanTahunan,
+  hematTahunanPersen,
+} from "@/lib/pricing";
 
-const PLANS = [
-  {
-    badge: "Course & Program Individual",
-    description: "Pelajari satu topik atau keahlian dan raih kredensial",
-    price: "IDR 472.000",
-    priceNote: "/bulan",
-    cta: "Jelajahi course",
-    href: "/daftar",
-    note: "Kunjungi course untuk membeli",
-    features: [
-      "Pilih dari ribuan course di AI, bisnis, teknologi, dan lainnya",
-      "Dapatkan sertifikat setelah menyelesaikan",
-      "Bayar sekali untuk satu course atau langganan spesialisasi",
-    ],
-  },
-] as const;
+type Siklus = "bulanan" | "semester" | "tahunan";
 
-const CP_FEATURES = [
-  "Akses ribuan course di AI, bisnis, teknologi, dan lainnya dengan satu langganan",
-  "Dapatkan sertifikat tanpa batas setelah masa uji coba berakhir",
-  "Pelajari keterampilan dan alat yang relevan dengan pekerjaan lewat lab dan proyek praktik dari para ahli industri",
+const PLUS_FEATURES = [
+  "Akses semua kursus & challenge tanpa batas",
+  "Socrates AI penuh untuk bimbingan latihan",
+  "Sertifikat HMAC yang bisa diverifikasi publik",
+  "Riwayat submission lengkap untuk portofolio",
+];
+
+const PRO_FEATURES = [
+  "Semua yang ada di Careevo Plus",
+  "AI Fit Score terperinci untuk tiap lowongan",
+  "Simulasi interview teknis",
+  "Penutup skill gap otomatis dari loker incaran",
 ];
 
 const TEAMS_FEATURES = [
-  "Akses semua yang termasuk dalam Careevo Plus",
-  "Analitik dan laporan benchmark khusus",
-  "Pembangun program bertenaga AI",
-  "Opsi pembayaran fleksibel seperti tagihan kuartalan dan invoice",
+  "Semua yang ada di Careevo Pro",
+  "Analitik dan laporan benchmark tim",
+  "Pembuat program bertenaga AI",
+  "Invoice dan tagihan kuartalan",
 ];
 
+function hargaSiklus(siklus: Siklus, bulanan: number, semester: number, tahunan: number) {
+  if (siklus === "semester") {
+    return { utama: rupiah(semester), catatan: "per 6 bulan" };
+  }
+  if (siklus === "tahunan") {
+    return { utama: rupiah(tahunan), catatan: "per tahun" };
+  }
+  return { utama: rupiah(bulanan), catatan: "per bulan" };
+}
+
 /**
- * "Find the right plan for your goals" — 3-column plan comparison.
- * The middle Careevo Plus column carries the billing-cycle toggle,
- * "Best value" badge, and the primary CTA.
+ * "Temukan paket yang tepat untuk targetmu" — 3-kolom: Plus (disorot),
+ * Pro, dan Teams. Kolom Plus membawa toggle siklus penagihan dan CTA utama.
  */
 export function CareevoPlusPlans() {
-  const [annual, setAnnual] = useState(false);
+  const [siklus, setSiklus] = useState<Siklus>("bulanan");
+
+  const plus = hargaSiklus(siklus, HARGA.plusBulanan, HARGA.plusSemester, HARGA.plusTahunan);
+  const pro = hargaSiklus(siklus, HARGA.proBulanan, HARGA.proSemester, HARGA.proTahunan);
 
   return (
     <section id="paket" className="bg-white py-16 lg:py-24">
@@ -52,47 +63,6 @@ export function CareevoPlusPlans() {
         </Reveal>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          {/* Individual */}
-          {PLANS.map((plan) => (
-            <Reveal key={plan.badge}>
-              <div className="flex h-full flex-col rounded-2xl border border-gray-100 bg-white p-6">
-                <h3 className="mb-2 text-2xl font-medium text-gray-900">
-                  {plan.badge}
-                </h3>
-                <p className="mb-6 text-base text-gray-500">
-                  {plan.description}
-                </p>
-                <p className="mb-1 text-3xl font-medium text-gray-900">
-                  {plan.price}
-                  <span className="text-base text-gray-500">
-                    {plan.priceNote}
-                  </span>
-                </p>
-                <p className="mb-7 text-sm text-gray-400">{plan.note}</p>
-                <Link
-                  href={plan.href}
-                  className="mb-7 inline-block w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-center text-base font-medium text-gray-800 transition-colors duration-300 ease-in-out hover:bg-gray-100"
-                >
-                  {plan.cta}
-                </Link>
-                <p className="mb-4 text-sm font-semibold text-gray-900">
-                  Fitur utama:
-                </p>
-                <ul className="space-y-4">
-                  {plan.features.map((feature) => (
-                    <li
-                      key={feature}
-                      className="flex items-start gap-2.5 text-sm text-gray-700"
-                    >
-                      <CheckIcon className="mt-0.5" />
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </Reveal>
-          ))}
-
           {/* Careevo Plus — highlighted */}
           <Reveal delay={80}>
             <div className="relative flex h-full flex-col rounded-2xl border border-gray-100 bg-white p-6 ring-2 ring-blue-400">
@@ -103,61 +73,52 @@ export function CareevoPlusPlans() {
                 Careevo Plus
               </h3>
               <p className="mb-6 text-base text-gray-500">
-                Kuasai berbagai topik atau keahlian dan raih kredensial tanpa
-                batas
+                Kuasai berbagai keahlian dan raih kredensial tanpa batas
               </p>
 
               <p className="mb-3 text-sm font-medium text-gray-700">
                 Pilih siklus penagihan
               </p>
               <div className="mb-5 inline-flex rounded-full bg-gray-200 p-1">
-                <button
-                  type="button"
-                  onClick={() => setAnnual(false)}
-                  className={`relative z-10 cursor-pointer rounded-full px-3 py-1.5 text-sm font-medium transition-colors duration-300 ease-in-out ${
-                    annual ? "text-gray-500" : "text-gray-900"
-                  }`}
-                >
-                  Tagihan Bulanan
-                  {!annual ? (
-                    <span className="absolute inset-0 -z-10 rounded-full bg-white shadow-sm" />
-                  ) : null}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAnnual(true)}
-                  className={`relative z-10 cursor-pointer rounded-full px-3 py-1.5 text-sm font-medium transition-colors duration-300 ease-in-out ${
-                    annual ? "text-gray-900" : "text-gray-500"
-                  }`}
-                >
-                  Tagihan Tahunan
-                  {annual ? (
-                    <span className="absolute inset-0 -z-10 rounded-full bg-white shadow-sm" />
-                  ) : null}
-                </button>
+                {(
+                  [
+                    ["bulanan", "Bulanan"],
+                    ["semester", "6 Bulan"],
+                    ["tahunan", "Tahunan"],
+                  ] as const
+                ).map(([nilai, label]) => (
+                  <button
+                    key={nilai}
+                    type="button"
+                    onClick={() => setSiklus(nilai)}
+                    className={`relative z-10 cursor-pointer rounded-full px-3 py-1.5 text-sm font-medium transition-colors duration-300 ease-in-out ${
+                      siklus === nilai ? "text-gray-900" : "text-gray-500"
+                    }`}
+                  >
+                    {label}
+                    {siklus === nilai ? (
+                      <span className="absolute inset-0 -z-10 rounded-full bg-white shadow-sm" />
+                    ) : null}
+                  </button>
+                ))}
               </div>
 
-              {!annual ? (
-                <>
-                  <span className="mb-3 inline-flex w-fit items-center rounded-full bg-green-500/10 px-2 py-1 font-mono text-xs text-green-600">
-                    Status: Hemat 40%
-                  </span>
-                  <p className="mb-1 flex items-end gap-2">
-                    <span className="text-lg text-gray-400 line-through">
-                      IDR 570.000
-                    </span>
-                    <span className="text-3xl font-medium text-gray-900">
-                      IDR 342.000
-                    </span>
-                    <span className="text-base text-gray-500">/bulan</span>
-                  </p>
-                </>
-              ) : (
-                <p className="mb-1 text-3xl font-medium text-gray-900">
-                  IDR 3.893.000
-                  <span className="text-base text-gray-500">/tahun</span>
-                </p>
-              )}
+              {siklus === "tahunan" ? (
+                <span className="mb-3 inline-flex w-fit items-center rounded-full bg-green-500/10 px-2 py-1 font-mono text-xs text-green-600">
+                  Hemat {hematTahunanPersen(HARGA.plusBulanan, HARGA.plusTahunan)}% · 2 bulan gratis
+                </span>
+              ) : siklus === "semester" ? (
+                <span className="mb-3 inline-flex w-fit items-center rounded-full bg-blue-500/10 px-2 py-1 font-mono text-xs text-blue-600">
+                  Setara {perBulanTahunan(HARGA.plusSemester)}/bulan
+                </span>
+              ) : null}
+
+              <p className="mb-1 flex items-end gap-2">
+                <span className="text-3xl font-medium text-gray-900">
+                  {plus.utama}
+                </span>
+                <span className="text-base text-gray-500">{plus.catatan}</span>
+              </p>
 
               <p className="mb-7 text-sm text-gray-400">
                 Batalkan kapan saja
@@ -166,13 +127,57 @@ export function CareevoPlusPlans() {
                 href="/daftar"
                 className="grad-btn mb-7 inline-block w-full rounded-lg px-4 py-2.5 text-center text-base font-medium transition duration-300 ease-in-out"
               >
-                Hemat sekarang
+                Mulai sekarang
               </Link>
               <p className="mb-4 text-sm font-semibold text-gray-900">
                 Fitur utama:
               </p>
               <ul className="space-y-4">
-                {CP_FEATURES.map((feature) => (
+                {PLUS_FEATURES.map((feature) => (
+                  <li
+                    key={feature}
+                    className="flex items-start gap-2.5 text-sm text-gray-700"
+                  >
+                    <CheckIcon className="mt-0.5" />
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </Reveal>
+
+          {/* Pro */}
+          <Reveal>
+            <div className="flex h-full flex-col rounded-2xl border border-gray-100 bg-white p-6">
+              <h3 className="mb-2 text-2xl font-medium text-gray-900">
+                Careevo Pro
+              </h3>
+              <p className="mb-6 text-base text-gray-500">
+                Untuk karier yang lebih serius, dari latihan sampai interview
+              </p>
+              <p className="mb-3 text-sm font-medium text-gray-700">
+                Siklus penagihan mengikuti pilihan di Plus
+              </p>
+              <p className="mb-1 flex items-end gap-2">
+                <span className="text-3xl font-medium text-gray-900">
+                  {pro.utama}
+                </span>
+                <span className="text-base text-gray-500">{pro.catatan}</span>
+              </p>
+              <p className="mb-7 text-sm text-gray-400">
+                Batalkan kapan saja
+              </p>
+              <Link
+                href="/daftar"
+                className="mb-7 inline-block w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-center text-base font-medium text-gray-800 transition-colors duration-300 ease-in-out hover:bg-gray-100"
+              >
+                Pilih Pro
+              </Link>
+              <p className="mb-4 text-sm font-semibold text-gray-900">
+                Fitur utama:
+              </p>
+              <ul className="space-y-4">
+                {PRO_FEATURES.map((feature) => (
                   <li
                     key={feature}
                     className="flex items-start gap-2.5 text-sm text-gray-700"
@@ -192,16 +197,22 @@ export function CareevoPlusPlans() {
                 Careevo for Teams
               </h3>
               <p className="mb-6 text-base text-gray-500">
-                Tingkatkan keahlian hingga 125 karyawan
+                Tingkatkan keahlian seluruh tim, minimum 5 kursi
+              </p>
+              <p className="mb-1 flex items-end gap-2">
+                <span className="text-3xl font-medium text-gray-900">
+                  {rupiah(HARGA.teamsPerKursiBulanan)}
+                </span>
+                <span className="text-base text-gray-500">/kursi/bulan</span>
               </p>
               <p className="mb-7 text-sm text-gray-400">
-                Per pengguna untuk 12 bulan
+                Ditagih tahunan · diskon volume tersedia
               </p>
               <Link
-                href="/masuk"
+                href="/business"
                 className="mb-7 inline-block w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-center text-base font-medium text-gray-800 transition-colors duration-300 ease-in-out hover:bg-gray-100"
               >
-                Mulai
+                Minta penawaran
               </Link>
               <p className="mb-4 text-sm font-semibold text-gray-900">
                 Fitur utama:
@@ -220,6 +231,12 @@ export function CareevoPlusPlans() {
             </div>
           </Reveal>
         </div>
+
+        <p className="mx-auto mt-10 max-w-2xl text-center text-xs leading-relaxed text-gray-400">
+          Semua harga dalam Rupiah dan belum termasuk PPN. Tahunan setara{" "}
+          {perBulanTahunan(HARGA.plusTahunan)}/bulan untuk Plus. Beli satu
+          kursus premium juga bisa, mulai {rupiah(HARGA.kursusTunggal)}.
+        </p>
       </div>
     </section>
   );

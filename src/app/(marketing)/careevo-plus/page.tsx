@@ -14,9 +14,9 @@ import { CareevoPlusFaq } from "@/components/features/marketing/careevo-plus/faq
 import { CareevoPlusTerms } from "@/components/features/marketing/careevo-plus/terms";
 
 export const metadata: Metadata = {
-  title: "Careevo Plus | Hemat 40% — Belajar Fleksibel, Raih Karier Impian",
+  title: "Careevo Plus | Belajar Fleksibel, Siap Kerja, Tanpa Batas",
   description:
-    "Akses 10.000+ program dari Microsoft, Google, Meta, Stanford, dan lainnya. Hemat 40% selama 3 bulan dengan Careevo Plus. Batalkan kapan saja.",
+    "Akses seluruh kursus, latihan, dan sertifikat Careevo dengan satu langganan. Mulai Rp99.000/bulan, hemat 2 bulan dengan paket tahunan. Batalkan kapan saja.",
 };
 
 export default function CareevoPlusPage() {

@@ -5,8 +5,9 @@ import Link from "next/link";
 import { ScrollSubNav } from "@/components/ui/scroll-subnav";
 
 /**
- * Careevo Plus promo banner — sleek deep-navy ribbon matching the original
- * "Ends today! Grow on your schedule with big savings..." banner in Coursera Plus.
+ * Careevo Plus promo banner — a deep-navy ribbon announcing the annual
+ * "2 bulan gratis" saving. No countdown, no fixed expiry: the saving is a
+ * standing property of the annual plan, not a campaign.
  */
 export function CareevoPlusPromoBanner({
   href = "#paket",
@@ -20,15 +21,15 @@ export function CareevoPlusPromoBanner({
   return (
     <div className="relative bg-[#001738] border-b border-white/10">
       <div className="mx-auto flex max-w-7xl items-center justify-center gap-2 px-4 py-2.5 pr-10 text-center text-xs sm:text-sm lg:px-6">
-        <span className="font-bold text-white">Berakhir hari ini!</span>
+        <span className="font-bold text-white">Hemat 2 bulan</span>
         <span className="text-blue-100/90">
-          Berkembang sesuai jadwalmu dengan diskon besar untuk Careevo Plus.{" "}
+          dengan langganan tahunan Careevo Plus.{" "}
         </span>
         <Link
           href={href}
           className="font-semibold text-white underline underline-offset-2 transition-opacity hover:opacity-85"
         >
-          Hemat 40% selama 3 bulan
+          Lihat paket Plus
         </Link>
       </div>
       <button
@@ -86,7 +87,7 @@ export function CareevoPlusSubNav() {
         href="#paket"
         className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg bg-[#0056D2] px-3 text-sm font-semibold whitespace-nowrap text-white shadow-xs transition-colors duration-200 hover:bg-[#0046ab] sm:px-5"
       >
-        Hemat 40% sekarang
+        Lihat paket Plus
       </Link>
     </ScrollSubNav>
   );

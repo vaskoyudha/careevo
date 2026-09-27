@@ -31,7 +31,7 @@ export function CareevoPlusCta() {
                   href="#paket"
                   className="inline-flex items-center gap-2 rounded-lg bg-white px-6 py-2.5 text-base font-medium text-blue-700 transition duration-300 ease-in-out hover:bg-blue-50"
                 >
-                  Hemat 40% sekarang
+                  Lihat paket Plus
                   <svg
                     width="16"
                     height="16"

@@ -26,6 +26,7 @@ import { CurvySearchBar } from "@/components/features/jobs/curvy-search-bar";
 import Featured_05 from "@/components/ui/globe-feature-section";
 import { LogoCloud } from "@/components/ui/logo-cloud-2";
 import { cn } from "@/lib/utils";
+import { HARGA, rupiah, perBulanTahunan } from "@/lib/pricing";
 
 interface VertexKerjaViewProps {
   jobs: JobFixture[];
@@ -1206,7 +1207,7 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                           : "text-neutral-500 hover:text-neutral-900"
                       )}
                     >
-                      Tahunan (Hemat 20%)
+                      Tahunan (Hemat 2 bulan)
                     </button>
                   </div>
                 </div>
@@ -1220,7 +1221,7 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                         Pencari Kerja
                       </div>
                       <div className="mt-3 flex items-baseline gap-1">
-                        <span className="text-4xl font-bold tracking-tight text-neutral-950">Rp 0</span>
+                        <span className="text-4xl font-bold tracking-tight text-neutral-950">{rupiah(HARGA.gratis)}</span>
                         <span className="text-xs text-neutral-500">/ selamanya</span>
                       </div>
                       <p className="mt-3 text-xs text-neutral-600 leading-relaxed">
@@ -1263,11 +1264,13 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                     <div className="flex h-full flex-col justify-between rounded-[10px] bg-white p-6 sm:p-8">
                       <div>
                         <div className="text-xs font-semibold text-blue-700 uppercase tracking-wider">
-                          Careevo Plus
+                          Careevo Pro
                         </div>
                         <div className="mt-3 flex items-baseline gap-1">
                           <span className="text-4xl font-bold tracking-tight text-neutral-950">
-                            {billingCycle === "monthly" ? "Rp 99.000" : "Rp 79.000"}
+                            {billingCycle === "monthly"
+                              ? rupiah(HARGA.proBulanan)
+                              : perBulanTahunan(HARGA.proTahunan)}
                           </span>
                           <span className="text-xs text-neutral-500">/ bulan</span>
                         </div>
@@ -1299,7 +1302,7 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                         href="/careevo-plus"
                         className="chrome-btn chrome-btn-brand mt-8 !w-full !h-10 !text-xs font-semibold shadow-sm"
                       >
-                        Tingkatkan ke Plus
+                        Tingkatkan ke Pro
                       </Link>
                     </div>
                   </div>

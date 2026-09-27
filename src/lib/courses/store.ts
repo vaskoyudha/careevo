@@ -18,6 +18,7 @@ import type {
   UpdateMateriInput,
   UpdateModulInput,
 } from "@/types/course";
+import { HARGA } from "@/lib/pricing";
 import { muatCourses, muatKuis, simpanCourses, simpanKuis } from "./storage";
 import { judulHalamanOtomatis, normalisasiHalamanLama } from "./halaman";
 import { kebijakanDefault } from "./kebijakan";
@@ -122,7 +123,7 @@ export const INITIAL_COURSES: Course[] = [
     url: "https://learn.deeplearning.ai",
     duration_min: 210,
     is_free: false,
-    price: 249000,
+    price: HARGA.kursusTunggal,
     status: "published",
     enrolled_count: 152,
     rating: 4.9,

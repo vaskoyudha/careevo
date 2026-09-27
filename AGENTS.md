@@ -2,7 +2,7 @@
 
 Careevo is a Next.js 16.3.5 / React 19 learning-to-job bridge ("Learn. Verify. Earn."): HMAC attestations, a deterministic Indonesian job-board audit (Sentinel), and — since Fase 1 — **PostgreSQL as the authoritative store for identity, RBAC, sessions, audit and learning evidence**. UI copy and `<html lang>` are Indonesian (`id`). Legacy fixture data still loads through `src/lib/fixtures.ts`.
 
-There is **no README**. `DESIGN.md` (visual language), `docs/`, and `.agents/skills/` are the prose sources.
+`README.md` is the user-facing overview (product framing, quickstart, known limits). `DESIGN.md` (visual language), `docs/`, and `.agents/skills/` are the deeper prose sources. Where prose disagrees with config or code, the code wins.
 
 ## Vendored trees — none of these are Careevo code
 
@@ -29,6 +29,7 @@ Four trees are excluded from `tsconfig.json` and `eslint.config.mjs`. Do not lin
 - `npm run db:generate` (no DB needed) → read the emitted SQL → `npm run db:migrate` (touches the DB). See "PostgreSQL".
 - `npm run worker`, `npm run outbox:replay` — outbox worker and dead-letter CLI. See "Outbox".
 - `npm run seed:demo [-- email]` — fills **demo accounts only** with enrollments + informal module progress so `/progres` can be seen populated. Idempotent (`tandaiModulDb` is a toggle, so re-running would otherwise *undo* itself). Creates no `quiz_attempts`/`course_completions`/`attestations`: 100% there means "all modules done informally", never "certificate issued".
+- `npm run seed:kursus` — adds the Indonesian-market course catalog to `data/courses.json` (idempotent by slug; add-only). Needs a running server to restart before the per-process course cache sees the new rows.
 - `npx vitest run src/lib/scoring/scoring.test.ts` — one test file. `npx vitest run -t "A1:"` — one test by name. `npx vitest run --config vitest.integration.config.mts src/lib/outbox/worker.integration.test.ts` — one integration file.
 - `npm run smoke -- [baseUrl]`, `npm run e2e:onboarding -- [baseUrl]` — need a running server. Smoke derives its route count from the `routes` array; don't hardcode one.
 
@@ -61,7 +62,7 @@ A `307` from `/belajar` or `/ai-mastery` to `/masuk` is correct auth behaviour f
 export PGDATA="$HOME/.local/share/pgsql/cluster"
 # the socket dir must be overridden — /var/run/postgresql is not writable
 pg_ctl -D "$PGDATA" -l /tmp/pg-careevo.log -o "-p 5432 -c listen_addresses=127.0.0.1 -c unix_socket_directories=$HOME/.local/share/pgsql/run" start
-psql -h 127.0.0.1 -p 5432 -U careevo -d careevo -c '\dt'   # 25 tables after db:migrate
+psql -h 127.0.0.1 -p 5432 -U careevo -d careevo -c '\dt'   # 27 tables after db:migrate
 ```
 
 Skipping the `unix_socket_directories` override is the one trap: the server logs `could not create lock file "/var/run/postgresql/..."` and exits, and because the log has already been handed to the logging collector the real reason is only in `$PGDATA/log/`, not in the file you passed to `pg_ctl -l`.
@@ -70,7 +71,7 @@ Skipping the `unix_socket_directories` override is the one trap: the server logs
 
 Read `docs/local-db.md` before touching schema or migrations. The dev credentials in `docker-compose.yml` and `src/lib/db/client.ts` (`careevo:careevo_dev`) are **published, not secret**.
 
-- Schema source of truth is `src/lib/db/schema.ts` (25 tables: identity/auth/RBAC, `audit_events`, outbox, courses/enrollments/progress/assessment, submissions/reviews/badges/attestations). Generated SQL lands in `drizzle/` and **must be committed** — it is what runs in production.
+- Schema source of truth is `src/lib/db/schema.ts` (27 tables: identity/auth/RBAC, `audit_events`, outbox, courses/enrollments/progress/assessment, submissions/reviews/badges/attestations, `integrity_violations`). Generated SQL lands in `drizzle/` and **must be committed** — it is what runs in production.
 - **Rollback is forward.** Drizzle writes no `down` files, so a bad migration is corrected by writing a *new* one. Never delete or edit an already-applied `drizzle/00NN_*.sql`; the applied set is recorded in `drizzle.__drizzle_migrations` by hash, so editing it makes dev and prod disagree silently.
 - Both `scripts/migrate.ts` and `scripts/test-db-setup.ts` go through the same programmatic migrator (`src/lib/db/migrate.ts`), so the test DB cannot drift from dev.
 - **In production an empty `DATABASE_URL` is a start-up failure**, never a fallback to the published dev credentials (`ambilUrlDatabase` throws `DatabaseUrlError`). `TEST_DATABASE_URL` wins over `DATABASE_URL`.
@@ -88,6 +89,22 @@ Read `docs/local-db.md` before touching schema or migrations. The dev credential
 - `exactly-once` is **not** promised. Internal sinks get real at-most-once via the composite PK `(event_id, sink)` on `outbox_deliveries`; network sinks need a provider-recognised idempotency key.
 - `npm run worker` in loop mode exits `2` when anything dead-letters, but `--once` exits `0`. Don't alert on `--once`. `outbox:replay` takes `help` as a **positional** command, and running it with no command prints help and exits `0`.
 - Replay is an audited decision, not a button: `--actor` must be an active admin UUID (checked in the DB) and `--reason` is mandatory. There is no bulk replay, on purpose.
+
+## Code runner (C++) — a separate process, not part of the Next build
+
+The "Jalankan" button compiles and runs participant C++ in an isolated container. Four layers, each with one job — do not merge them:
+
+- `src/lib/exec/port.ts` — pure contract (`PortJalankan`, `StatusJalankan`, `petakanStatus`). **Client components import this, never the barrel.** It has no I/O, no `node:*`.
+- `src/lib/exec/index.ts` — server barrel. Importing it from a client component drags `CAREEVO_RUNNER_SECRET` into the browser bundle, because it re-exports `proses-lokal.ts`.
+- `src/lib/exec/proses-lokal.ts` — server-only HTTP client to the runner (reads the secret, loopback-only, `no-store`). It **never** compiles or runs anything.
+- `src/lib/exec/runner/` — a **separate Node `.mjs` process** (`node server.mjs`), eslint-ignored, outside the Next build graph (like `engine/`). `server.mjs` = bind/auth/queue/spawn/cleanup; `soal.mjs` = the **entire sandbox audit surface** (P7): every podman flag lives there via `bangunArgumenPodman`, and nowhere else. `src/lib/exec/sandbox.test.ts` runs `soal.mjs` in a child process and locks those flags — deleting it removes the security guard, not just coverage.
+
+Rules an agent is most likely to break:
+
+- **`POST /api/jalankan` is a gate, nothing else.** Gate order is fixed: `originDiizinkan` → `getSession` → `batasiRequestMasuk` → zod (cheapest→most expensive). If the route starts building podman args itself, the sandbox audit surface leaks into a second layer and "what may participant code do?" can no longer be answered by reading one file.
+- **The app and runner must share the exact `CAREEVO_RUNNER_SECRET`.** Empty secret = reject everything (fail-closed). A mismatch yields runner `401`, surfaced to the participant as `galat_runner` — which looks like a broken feature, not a missing service. Start the runner with the same value: `CAREEVO_RUNNER_SECRET=<same> node src/lib/exec/runner/server.mjs &` (listens on loopback `:8021` only). Requires `podman` and pulls `docker.io/library/gcc:13` (~1.4 GB) on first run.
+- **Statuses are semantic, not exit codes** (`sukses`/`gagal_kompilasi`/`batas_dilampaui`/`galat_program`/`ditolak`/`galat_runner`). Timeout, OOM and fork-bomb are indistinguishable from outside the container, so they deliberately collapse into one `batas_dilampaui` (limits: 10s + 15s podman reserve, 512 MB, 64 procs, queue width 3). The numbers are duplicated into participant copy in `port.ts` — change one and you must change the other.
+- Plans/specs live in `docs/superpowers/{plans,specs}/2026-09-27-runner-kode-cpp.md` and `...-editor-kode-cpp-design.md`; the "Bukti terukur" section records the real `podman run` measurements behind every limit.
 
 ## Testing quirks
 
@@ -135,7 +152,7 @@ From `docs/backend-production-plan.md` §2.2. Breaking these is a regression eve
 - **Three** navbars, all on the `.chrome` base in `src/app/globals.css` (`position: sticky`). Two morph; the third cannot. (`DESIGN.md` still says "exactly two" — it predates `AiMasteryNavbar`; the code is the truth.)
 - The two **morphing** bars share one mechanism: `.is-top` transparent full-width, `.is-scrolled` floating glass pill, flipping at `scrollY > 24`. These are `Chrome` (`src/components/ui/chrome.tsx`, public/marketing) and `LearnerChrome` (`learner-chrome.tsx`). They hold the same five destinations today, but only by coincidence — they are separate lists and do not merge them (one is signed-in wayfinding, the other a marketing bar deciding at render time whether there is a session). Learner items live in `chrome-parts.tsx` with `AccountMenu`. `Progres` (ex-`Jalur Belajar`, at `/progres`) was moved *out* of the navbar and into the dashboard sidebar (`dashboard-sidebar.tsx`, `USER_GROUPS`). `Project`/submission is **not** a sidebar or navbar destination anymore: it lives inside each course at `/belajar/[slug]/karya` (list/create) and `/belajar/[slug]/karya/[id]` (detail), reached from the Project block on `/belajar/[slug]`. The old `/submission` and `/submission/[id]` routes are redirect stubs.
 - The **Explore mega-menu card** (`explore-menu.tsx`, portalled to `<body>`) draws in the floating pill's box — `min(var(--max), calc(100% - 2 * var(--page-pad)))`, centred — in *both* bar states, from `.explore-mega-menu`. Only its `top` is measured, from the trigger. Do not re-anchor `left`/`width` to the bar's own rect: in `.is-top` the bar is `width: 100%` and the card stretched edge-to-edge, reading as a second navbar. The pill's rule is the source of truth.
-- **The panel's contents are NOT yet computed from the catalog.** `src/lib/courses/explore-facets.ts` is the intended single source and `explore-facets.test.ts` walks the App Router to catch hrefs that 404, but **`explore-menu.tsx` does not import it yet** — the panel still renders `explore-taxonomy.ts`. Wiring it is outstanding work; until then, do not treat the panel as catalog-derived, and do not add another hand-maintained Explore list. `EXPLORE_FALLBACKS.freeCourses` stays **unlinked**: the registry has no `price` field, so "gratis" cannot be answered from the catalog.
+- **The panel's contents ARE now computed from the catalog** (commit `bc5f0e4`). `src/lib/courses/explore-facets.ts` is the single source: every facet item's `jumlah` comes from the same `explore-queries.ts` functions the target pages use, so the menu and the page can't disagree, and items with `0` programs are dropped (count surfaced via `tanpaIsi`). `explore-facets.test.ts` walks the App Router to catch hrefs that 404. `explore-taxonomy.ts` still supplies the raw label/href vocabulary the facets read from. Do not add a second hand-maintained Explore list. `EXPLORE_FALLBACKS.freeCourses` stays **unlinked**: the registry has no `price` field, so "gratis" cannot be answered from the catalog.
 - The third bar, `AiMasteryNavbar` (`ai-mastery-navbar.tsx`), is `/ai-mastery` only: same light colour and items, but **wings** at its top corners and **no `is-scrolled` state** — the framed app owns its scrolling, so the document never scrolls and a morph would have an unreachable state. The wings are ported from the notch bar in `vyns.ko/decks/01-hero-deck.html` (`.projects-notch-bar`): two pseudo-elements parked *outside* the bar's top corners, each a `--wing` square with a transparent circle punched out, so square-minus-circle is a concave "ear". Do **not** redraw them as an SVG path across the top edge — that was tried and cannot work, because the path must span the full bar and any dip deep enough to read as a wing eats the surface the nav row sits on (a 38px dip on a 64px bar leaves 26px, so links spill above the fill and the shadow halo cuts through them). The notch is additive and costs the bar no height. Three consequences: the bar's width subtracts `2 * var(--wing)` so the ears don't hang off the viewport; the bar sits **flush** at the top (`margin: 0 auto` — a `margin-top` leaves a band of page above that reads as a mistake, and as the shell's first-child margin it also collapses through the parent); and `--app-chrome-h`, published by `shellClassName="ai-mastery-shell"`, is therefore just the bar's height — **85px** under 769px (wraps to two rows), **64px** above.
 - `Chrome` = public/marketing. `LearnerChrome` = logged-in learner. Learner pages (`/belajar`, `/belajar/[slug]`, `/belajar/[slug]/karya/*`, `/profil`, `/ai-mastery`) use `LearnerShell` (top bar), **never** `AppShell` (sidebar) — `AppShell` is for dashboard-style pages (dashboard, progres, jelajah, admin, review, audit, challenge, loker detail).
 - **Exception:** `/belajar/mastery`, `/belajar/buku`, `/belajar/latihan` are focus-mode workspaces in `(focus)` with **no** navbar; they render their own full-height shell and own their own scrolling. Do not "fix" them with `LearnerShell`. (`/belajar/tutor` was a fourth; removed in favour of the framed app at `/ai-mastery`.)
