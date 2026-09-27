@@ -64,7 +64,7 @@ export function CareevoPlusLogos() {
               type="button"
               aria-label="Sebelumnya"
               onClick={() => scroll(-1)}
-              className="absolute -left-3 top-1/2 z-10 flex size-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-md transition-colors hover:bg-gray-50 hover:text-gray-900"
+              className="absolute -left-3 top-1/2 z-10 flex size-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-md transition-colors hover:bg-gray-50 hover:text-gray-900"
             >
               <svg
                 width="16"
@@ -105,7 +105,7 @@ export function CareevoPlusLogos() {
               type="button"
               aria-label="Berikutnya"
               onClick={() => scroll(1)}
-              className="absolute -right-3 top-1/2 z-10 flex size-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-md transition-colors hover:bg-gray-50 hover:text-gray-900"
+              className="absolute -right-3 top-1/2 z-10 flex size-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-md transition-colors hover:bg-gray-50 hover:text-gray-900"
             >
               <svg
                 width="16"

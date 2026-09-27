@@ -21,7 +21,7 @@ export function KartuLanjutkan({ course }: { course: ProgresKursus | null }) {
     return (
       <section
         aria-labelledby="judul-lanjutkan"
-        className="rounded-xl border border-gray-200 bg-white p-5 shadow-xs"
+        className="min-w-0 rounded-xl border border-gray-200 bg-white p-5 shadow-xs"
       >
         <h2
           id="judul-lanjutkan"
@@ -50,7 +50,7 @@ export function KartuLanjutkan({ course }: { course: ProgresKursus | null }) {
   return (
     <section
       aria-labelledby="judul-lanjutkan"
-      className="rounded-xl border border-gray-200 bg-white p-5 shadow-xs"
+      className="min-w-0 rounded-xl border border-gray-200 bg-white p-5 shadow-xs"
     >
       <h2
         id="judul-lanjutkan"

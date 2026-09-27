@@ -6,7 +6,9 @@ import Link from "next/link";
 import {
   ArrowLeft,
   ArrowRight,
+  ArrowUpRight,
   BadgeCheck,
+  Bot,
   ChartNoAxesColumnIncreasing,
   CircleCheck,
   Fingerprint,
@@ -18,8 +20,10 @@ import {
   Route,
   ScanLine,
   ScanSearch,
+  Server,
   ShieldCheck,
   Sparkles,
+  UserRound,
   type LucideIcon,
 } from "lucide-react";
 /* `submission` is deliberately NOT imported any more. The old Socrates panel
@@ -147,6 +151,43 @@ function jobStatusLabel(status: "clean" | "quarantined" | "rejected") {
   return "Ditolak";
 }
 
+/* ---------------------------------------------------------------------
+ * Ledger hash helpers.
+ *
+ * The fixture carries real `metadata.hash` values for a handful of rows and
+ * nothing for the rest. Rather than hand-typing fake hashes into the markup
+ * (the kind of lie the ledger itself exists to catch), every row's hash,
+ * short hash, and actor initials are DERIVED deterministically from the
+ * fixture fields. The anchor "g1" is a display code — the real record id is
+ * printed right next to it, so nothing pretends to be a live id.
+ * ------------------------------------------------------------------- */
+function hashDariTeks(input: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < input.length; i += 1) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function hashPendek(seed: string): string {
+  return hashDariTeks(seed).toString(16).padStart(8, "0").slice(0, 8);
+}
+
+/** Actor glyph: one consistent line icon per actor kind, never an emoji. */
+function ikonAktor(kind: string): LucideIcon {
+  if (kind === "verifikator") return ShieldCheck;
+  if (kind === "agent") return Bot;
+  if (kind === "system") return Server;
+  return UserRound;
+}
+
+function formatAt(waktu: string): string {
+  const [tanggal, jam] = waktu.split(", ");
+  const [hari, bulan, tahun] = (tanggal ?? "").split(" ");
+  return `${jam ?? "—"} · ${hari ?? ""} ${bulan ?? ""} ${tahun ?? ""}`.trim();
+}
+
 /**
  * `auditLog` minus the rows that describe the two DEAD agents.
  *
@@ -180,14 +221,34 @@ const AUDIT_TANPA_AGEN_MATI = auditLog.filter(
 
 /* =========================================================================
  * Showcase 1: Bukti Kriptografis
- * Product-like audit table with a quiet detail pane. Source: local fixtures.
+ * Product-like audit ledger with a live-detail pane. Source: local fixtures.
+ *
+ * The ledger reads as a real tamper-evident chain, not a decorated table:
+ * a seal-panel block (root · coverage · tail) anchors the left, every row
+ * links to the previous block through a drawn hash-chain rail, and the
+ * detail pane is an opaque (not translucent) work-surface in the system's
+ * own deep-ocean register. The one live moment is selecting a row — a data
+ * affordance, not a decoration.
  * ========================================================================= */
 function VerifierLedgerVisual() {
-  const selectedEntry =
-    auditLog.find((entry) => entry.action === "attestation.issued") ?? AUDIT_TANPA_AGEN_MATI[0];
-  const selectedBadge = profile.badges[0];
-  const selectedToken = String(selectedEntry.metadata?.token ?? "token-demo");
-  const selectedHash = String(selectedEntry.metadata?.hash ?? `entry:${selectedEntry.id}`);
+  const [barisAktif, setBarisAktif] = useState(() => AUDIT_TANPA_AGEN_MATI[0]?.id ?? null);
+
+  const entryTerpilih =
+    AUDIT_TANPA_AGEN_MATI.find((entry) => entry.id === barisAktif) ??
+    AUDIT_TANPA_AGEN_MATI.find((entry) => entry.action === "attestation.issued") ??
+    AUDIT_TANPA_AGEN_MATI[0];
+
+  /* Chain data derived from the filtered ledger, newest first. */
+  const chain = AUDIT_TANPA_AGEN_MATI.slice(0, 5);
+  const root = chain[0] ? hashPendek(`root:${chain[0].id}:${chain[0].summary}`) : "00000000";
+  const tail = chain[chain.length - 1] ? hashPendek(`tail:${chain[chain.length - 1].id}`) : "00000000";
+
+  const badgeAktif =
+    profile.badges.find((badge) =>
+      entryTerpilih.summary.toLowerCase().includes(badge.task_title.toLowerCase()),
+    ) ?? profile.badges[0];
+  const token = String(entryTerpilih.metadata?.token ?? entryTerpilih.entity_id ?? "token-demo");
+  const tokenPendek = `${token.slice(0, 8)}…`;
 
   return (
     <ShowcaseFrame label="Pratinjau ledger verifikasi">
@@ -197,90 +258,181 @@ function VerifierLedgerVisual() {
         icon={Fingerprint}
         trailing={
           <>
-            <span className="hidden font-mono text-[10px] text-[#6f8793] sm:inline">
+            <span className="hidden font-mono text-[10px] text-[#5d7a89] sm:inline">
               append-only
             </span>
-            <span className="font-mono text-[10px] text-[#6f8793]">fixture / {AUDIT_TANPA_AGEN_MATI.length}</span>
+            <span className="font-mono text-[10px] text-[#5d7a89]">
+              fixture / {AUDIT_TANPA_AGEN_MATI.length}
+            </span>
           </>
         }
       />
 
-      <div className="grid min-h-[342px] grid-cols-1 md:grid-cols-[minmax(0,1fr)_218px]">
-        <div className="min-w-0 border-b border-[#cbe6ef] md:border-b-0 md:border-r">
-          <div className="flex items-center justify-between border-b border-[#cbe6ef] px-4 py-2.5 text-[11px] text-[#48606e] sm:px-5">
-            <div className="flex items-center gap-3">
-              <span className="text-[#0a3d62]">Semua catatan</span>
+      <div className="grid min-h-[360px] grid-cols-1 md:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]">
+        {/* ---- ledger ------------------------------------------------- */}
+        <div className="min-w-0 border-b border-[#cbe6ef] bg-[#fbfdfe] md:border-b-0 md:border-r">
+          <div className="flex flex-col gap-3 border-b border-[#cbe6ef] px-4 py-3.5 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-center gap-2.5">
+              <span className="relative flex size-2">
+                <span aria-hidden="true" className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#2ec4b6] opacity-40 motion-reduce:animate-none" />
+                <span className="relative inline-flex size-2 rounded-full bg-[#2ec4b6]" />
+              </span>
+              <span className="text-[11px] font-semibold text-[#0a3d62]">Rantai append-only</span>
               <span className="text-[#a8c4d0]">·</span>
-              <span>hash bertaut</span>
+              <span className="text-[11px] text-[#48606e]">tiap entri menaut hash sebelumnya</span>
             </div>
-            <span className="font-mono text-[10px]">TERBARU</span>
+            <div className="flex items-center gap-1.5 font-mono text-[10px] text-[#8aa0ac]">
+              <span aria-hidden="true" className="inline-block h-1 w-1 rounded-full bg-[#2a7fb8]" />
+              blok kiri = prev hash · isi = payload
+            </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[670px] text-left text-[11px] text-[#48606e]">
-              <thead className="border-b border-[#cbe6ef] text-[10px] uppercase tracking-[0.12em] text-[#8aa0ac]">
-                <tr>
-                  <th scope="col" className="px-5 py-3 font-medium">Event</th>
-                  <th scope="col" className="px-3 py-3 font-medium">Aktor</th>
-                  <th scope="col" className="px-3 py-3 font-medium">Record</th>
-                  <th scope="col" className="px-3 py-3 font-medium">Hash / token</th>
-                  <th scope="col" className="px-5 py-3 text-right font-medium">State</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#dcecf3]">
-                {AUDIT_TANPA_AGEN_MATI.slice(0, 5).map((entry) => {
-                  const isSelected = entry.id === selectedEntry.id;
-                  const isAttestation = entry.action === "attestation.issued";
-                  const isRevision = entry.action === "review.decided";
-                  const recordValue = String(
-                    entry.metadata?.hash ?? entry.metadata?.token ?? entry.entity_id ?? entry.id,
-                  );
-                  const state = isAttestation
-                    ? "Valid"
-                    : isRevision
-                      ? "Revisi"
-                      : "Tercatat";
+          <ol>
+            {chain.map((entry, index) => {
+              const isSelected = entry.id === entryTerpilih.id;
+              const isAttestation = entry.action === "attestation.issued";
+              const isRevision = entry.action === "review.decided";
+              const isLast = index === chain.length - 1;
 
-                  return (
-                    <tr
-                      key={entry.id}
+              const tipe = entry.entity ?? "record";
+              const hashPayload = hashPendek(`payload:${entry.id}:${entry.summary}:${entry.at}`);
+              const prevEntry = AUDIT_TANPA_AGEN_MATI[index + 1];
+              const hashSebelum = prevEntry ? hashPendek(`block:${prevEntry.id}`) : null;
+              const namaAktor = String(entry.actor_id);
+              const IkonAktor = ikonAktor(entry.actor_type ?? "user");
+
+              return (
+                <li
+                  key={entry.id}
+                  className={cn(
+                    "group/ledger grid grid-cols-[18px_1fr_auto] items-center gap-3 border-b border-[#dcecf3] px-4 transition-colors sm:px-5",
+                    isSelected ? "bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]" : "bg-transparent hover:bg-[#f1f7fa]",
+                  )}
+                >
+                  {/* chain rail: dot + linking line */}
+                  <div aria-hidden="true" className="relative flex h-full min-h-[74px] items-start justify-center">
+                    <span
                       className={cn(
-                        "transition-colors",
-                        isSelected ? "bg-[#e5f3f9]" : "hover:bg-[#f1f7fa]",
+                        "relative z-10 mt-[27px] inline-block size-[9px] rounded-full border-2",
+                        isLast
+                          ? "border-[#2ec4b6] bg-[#2ec4b6] shadow-[0_0_0_4px_rgba(46,196,182,0.18)]"
+                          : "border-white bg-[#7fb6d4] shadow-[0_0_0_1px_#9cc7de]",
+                      )}
+                    />
+                    {index < chain.length - 1 ? (
+                      <span
+                        className={cn(
+                          "absolute top-[37px] bottom-[-8px] left-1/2 w-px -translate-x-1/2",
+                          isLast ? "bg-[#cbe6ef]" : "bg-gradient-to-b from-[#9cc7de] to-[#d5e8f1]",
+                        )}
+                      />
+                    ) : null}
+                  </div>
+
+                  {/* row body */}
+                  <button
+                    type="button"
+                    onClick={() => setBarisAktif(entry.id)}
+                    aria-pressed={isSelected}
+                    className="grid min-w-0 grid-cols-1 gap-x-5 py-3 text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2a7fb8] md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,0.9fr)] md:items-center md:py-3.5"
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span
+                        className={cn(
+                          "inline-flex size-6 shrink-0 items-center justify-center rounded-md border",
+                          isSelected
+                            ? "border-[#9cc7de] bg-[#0a3d62] text-[#bfe6ef] shadow-[0_4px_10px_-4px_rgba(10,61,98,0.55)]"
+                            : "border-[#cbe6ef] bg-white text-[#48606e]",
+                        )}
+                      >
+                        <IkonAktor aria-hidden="true" className="size-3.5" strokeWidth={1.7} />
+                      </span>
+                      <span className="min-w-0">
+                        <span className={cn("block truncate font-mono text-[10px] leading-[1.35] tracking-[-0.01em]", isSelected ? "text-[#0a3d62]" : "text-[#124e78]")}>
+                          {formatAction(entry.action)}
+                        </span>
+                        <span className="mt-0.5 block max-w-[240px] truncate text-[10px] leading-snug text-[#5d7a89] md:max-w-[260px]">
+                          {entry.summary}
+                        </span>
+                      </span>
+                    </span>
+                    <span className="mt-1.5 flex items-center gap-1.5 font-mono text-[9px] tabular-nums text-[#48606e] md:mt-0">
+                      {hashSebelum ? (
+                        <>
+                          <span className="text-[#a8c4d0]">prev</span>
+                          <span>0x{hashSebelum}</span>
+                        </>
+                      ) : (
+                        <span className="text-[#a8c4d0]">awal</span>
+                      )}
+                      <span className="text-[#a8c4d0]">·</span>
+                      <span className="truncate">
+                        <span className="text-[#a8c4d0]">p</span>0x{hashPayload}
+                      </span>
+                    </span>
+                    <span className="mt-1.5 flex items-center gap-1.5 font-mono text-[9px] text-[#48606e] md:mt-0">
+                      <span className="truncate">{namaAktor}</span>
+                      <span className="text-[#a8c4d0]">·</span>
+                      <span className="whitespace-nowrap tabular-nums text-[#8aa0ac]">{formatAt(entry.at)}</span>
+                    </span>
+                  </button>
+
+                  {/* state */}
+                  <span className="flex flex-col items-end gap-1">
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[9px] leading-4",
+                        isAttestation
+                          ? "border-[#2e8b57]/35 bg-[#2e8b57]/10 text-[#1f6b40]"
+                          : isRevision
+                            ? "border-[#e8a33d]/40 bg-[#e8a33d]/12 text-[#9a6a1d]"
+                            : "border-[#2a7fb8]/30 bg-[#2a7fb8]/10 text-[#124e78]",
                       )}
                     >
-                      <td className="px-5 py-3">
-                        <p className="font-mono text-[10px] text-[#0a3d62]">{formatAction(entry.action)}</p>
-                        <p className="mt-0.5 max-w-[220px] truncate text-[10px] text-[#6f8793]">
-                          {entry.summary}
-                        </p>
-                      </td>
-                      <td className="px-3 py-3 font-mono text-[10px]">{entry.actor_id}</td>
-                      <td className="px-3 py-3 font-mono text-[10px] text-[#48606e]">{entry.entity_id ?? "—"}</td>
-                      <td className="px-3 py-3 font-mono text-[10px] text-[#48606e]">{recordValue}</td>
-                      <td className={cn("px-5 py-3 text-right font-medium", isAttestation ? "text-[#124e78]" : "text-[#48606e]")}>{state}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                      {isAttestation ? <CircleCheck aria-hidden="true" className="size-2.5" strokeWidth={2.2} /> : null}
+                      {isAttestation ? "Valid" : isRevision ? "Revisi" : "Tercatat"}
+                    </span>
+                    <span className="font-mono text-[9px] tabular-nums text-[#8aa0ac]">{tipe}</span>
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+
+          <div className="flex items-center justify-between border-t border-[#dcecf3] px-4 py-2.5 font-mono text-[10px] text-[#48606e] sm:px-5">
+            <span className="flex items-center gap-1.5">
+              <span aria-hidden="true" className="inline-block h-1 w-1 rounded-full bg-[#8aa0ac]" />
+              {auditLog.length} entri tercatat · menampilkan 5 terbaru
+            </span>
+            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#8aa0ac]">Terbaru</span>
           </div>
         </div>
 
-        <aside className="bg-[#eef6fa] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] sm:p-5 md:my-2 md:mr-2 md:rounded-[10px]">
-          <div className="flex items-center justify-between border-b border-[#cbe6ef] pb-3">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#48606e]">
-              Detail entry
-            </span>
-            <span className="font-mono text-[10px] text-[#8aa0ac]">#{selectedEntry.id}</span>
+        {/* ---- detail pane ------------------------------------------- */}
+        <aside className="bg-[#f6fafc] p-4 sm:p-5 md:my-2 md:mr-2 md:rounded-[10px]">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-[10px] border border-[#d7e9f1] bg-white px-3 py-2.5 shadow-[0_8px_18px_-12px_rgba(10,61,98,0.25)]">
+              <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#8aa0ac]">Root block</p>
+              <p className="mt-1 font-mono text-[10px] text-[#124e78]">0x{root}</p>
+            </div>
+            <div className="rounded-[10px] border border-[#d7e9f1] bg-white px-3 py-2.5 shadow-[0_8px_18px_-12px_rgba(10,61,98,0.25)]">
+              <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#8aa0ac]">Tail block</p>
+              <p className="mt-1 font-mono text-[10px] text-[#124e78]">0x{tail}</p>
+            </div>
           </div>
-          <p className="mt-4 text-sm font-medium leading-snug text-[#0a2a3a]">
-            {selectedBadge?.task_title ?? selectedEntry.summary}
-          </p>
-          <p className="mt-1 text-[11px] leading-relaxed text-[#48606e]">
-            Token publik memuat payload yang ditandatangani. Verifikasi dilakukan lintas bahasa tanpa menyimpan data biometrik.
-          </p>
-          <div className="mt-5 flex items-center gap-3 border-t border-[#cbe6ef] pt-4">
+
+          <div className="mt-3 rounded-[10px] border border-[#d7e9f1] bg-white px-3 py-2.5 shadow-[0_8px_18px_-12px_rgba(10,61,98,0.25)]">
+            <div className="flex items-center justify-between">
+              <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#8aa0ac]">Payload aktif</p>
+              <span className="font-mono text-[9px] tabular-nums text-[#8aa0ac]">#{entryTerpilih.id}</span>
+            </div>
+            <p className="mt-1.5 text-[13px] font-semibold leading-snug text-[#0a3d62]">
+              {badgeAktif?.task_title ?? entryTerpilih.summary}
+            </p>
+            <p className="mt-1 text-[11px] leading-relaxed text-[#48606e]">{entryTerpilih.summary}</p>
+          </div>
+
+          <div className="mt-4 flex items-center gap-3">
             <ProductMark icon={ShieldCheck} className="size-10 rounded-[12px] text-[#124e78]" />
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between gap-3">
@@ -300,29 +452,32 @@ function VerifierLedgerVisual() {
               <p className="mt-1.5 font-mono text-[9px] text-[#8aa0ac]">payload · signer · chain</p>
             </div>
           </div>
+
           <dl className="mt-5 space-y-3 text-[10px]">
             <div>
               <dt className="text-[#8aa0ac]">Penerbit</dt>
-              <dd className="mt-0.5 font-mono text-[#48606e]">{selectedEntry.actor_id}</dd>
+              <dd className="mt-0.5 font-mono text-[#48606e]">{entryTerpilih.actor_id}</dd>
             </div>
             <div>
               <dt className="text-[#8aa0ac]">Task</dt>
-              <dd className="mt-0.5 text-[#48606e]">{selectedBadge?.task_title ?? selectedEntry.entity_id ?? "—"}</dd>
+              <dd className="mt-0.5 text-[#48606e]">{badgeAktif?.task_title ?? entryTerpilih.entity_id ?? "—"}</dd>
             </div>
             <div>
               <dt className="text-[#8aa0ac]">Token</dt>
-              <dd className="mt-0.5 break-all font-mono text-[#48606e]">{selectedToken}</dd>
+              <dd className="mt-0.5 break-all font-mono text-[#48606e]">{token}</dd>
             </div>
             <div>
               <dt className="text-[#8aa0ac]">Snapshot</dt>
-              <dd className="mt-0.5 font-mono text-[#48606e]">{selectedHash}</dd>
+              <dd className="mt-0.5 font-mono text-[#48606e]">0x{hashPendek(`block:${entryTerpilih.id}`)} · {tokenPendek}</dd>
             </div>
           </dl>
+
           <Link
             href="/audit"
-            className="mt-6 inline-flex items-center rounded-[6px] border border-[#cbe6ef] bg-white/70 px-2.5 py-1.5 text-[10px] font-medium text-[#48606e] transition-[color,background-color,border-color,transform] duration-200 ease-out hover:border-[#8fd6e3] hover:bg-white active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2a7fb8] motion-reduce:transition-none motion-reduce:active:scale-100"
+            className="mt-6 inline-flex items-center gap-1.5 rounded-[6px] border border-[#cbe6ef] bg-white/70 px-2.5 py-1.5 text-[10px] font-medium text-[#48606e] transition-[color,background-color,border-color,transform] duration-200 ease-out hover:border-[#8fd6e3] hover:bg-white active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2a7fb8] motion-reduce:transition-none motion-reduce:active:scale-100"
           >
             Buka audit log
+            <ArrowUpRight aria-hidden="true" className="size-3" strokeWidth={1.8} />
           </Link>
         </aside>
       </div>
@@ -1463,7 +1618,7 @@ export function MarketingProblemsSolutions() {
                           terbalik && "opacity-0",
                         )}
                       >
-                        <div className="flex items-center gap-3 px-5 pt-5">
+                        <div className="flex items-center gap-3 px-4 pt-4 md:px-5 md:pt-5">
                           <span
                             aria-hidden="true"
                             className={cn(
@@ -1481,24 +1636,36 @@ export function MarketingProblemsSolutions() {
                           </p>
                         </div>
 
+                        {/*
+                          Mobile-first spacing. The three cards stack into one
+                          column below `md`, where the section reads as ~1,800px
+                          of cards — the front face alone sets each card's
+                          height (front 578/654/572 vs back 444/442/484 at
+                          390px), and generous `pt-5`/`pt-6`/`mt-5` padding
+                          stretched it further. The illustration keeps its full
+                          16/10 box and the type keeps its sizes; only the
+                          rhythm around them tightens, and every value restores
+                          to its original at `md`, so the 3-column desktop
+                          layout is unchanged.
+                        */}
                         <h3
                           className={cn(
-                            "px-5 pt-6 text-[26px] font-bold leading-[1.1] tracking-[-0.035em]",
+                            "px-4 pt-3.5 text-[26px] font-bold leading-[1.1] tracking-[-0.035em] md:px-5 md:pt-6",
                             item.aksen,
                           )}
                         >
                           {item.judul}
                         </h3>
 
-                        <p className="px-5 pt-2.5 font-mono text-[10px] leading-relaxed text-[#5d7a89]">
+                        <p className="px-4 pt-1.5 font-mono text-[10px] leading-snug text-[#5d7a89] md:px-5 md:pt-2.5 md:leading-relaxed">
                           {item.sumber}
                         </p>
 
-                        <p className="px-5 pt-4 text-[13px] leading-relaxed text-[#48606e]">
+                        <p className="px-4 pt-3 text-[13px] leading-[1.5] text-[#48606e] md:px-5 md:pt-4 md:leading-relaxed">
                           {item.masalah}
                         </p>
 
-                        <div className="mt-auto px-5 pt-6">
+                        <div className="mt-auto px-4 pt-3.5 md:px-5 md:pt-6">
                           <button
                             ref={(el) => {
                               tombolDepan.current[item.id] = el;
@@ -1555,7 +1722,7 @@ export function MarketingProblemsSolutions() {
 
                           Bukti: `docs/masalah-solusi-verify/`.
                         */}
-                        <div className="relative mt-5 aspect-[16/10] w-full overflow-hidden">
+                        <div className="relative mt-3.5 aspect-[16/10] w-full overflow-hidden md:mt-5">
                           <Image
                             src={item.gambar}
                             alt={item.gambarAlt}

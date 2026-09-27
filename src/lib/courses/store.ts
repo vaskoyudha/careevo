@@ -364,7 +364,8 @@ export async function getCourseBySlug(slug: string): Promise<Course | undefined>
 export async function createCourse(input: CreateCourseInput): Promise<Course> {
   await pastikanTermuat();
   const now = new Date().toISOString();
-  const id = `crs-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+  // `input.id` dipakai seed yang butuh id tetap; selain itu id acak seperti biasa.
+  const id = input.id?.trim() || `crs-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
   const cleanSlug = input.slug?.trim() || slugify(input.title);
 
   // Ensure unique slug

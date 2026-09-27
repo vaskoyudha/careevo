@@ -32,7 +32,7 @@ export function TabelPelanggaran({ baris }: { baris: BarisPelanggaran[] }) {
   return (
     <section
       aria-labelledby="judul-pelanggaran"
-      className="rounded-xl border border-gray-200 bg-white p-5 shadow-xs"
+      className="min-w-0 rounded-xl border border-gray-200 bg-white p-5 shadow-xs"
     >
       <h2
         id="judul-pelanggaran"

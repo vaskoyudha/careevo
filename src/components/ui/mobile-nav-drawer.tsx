@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode, type RefObject } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { LogOut, X } from "lucide-react";
@@ -90,7 +91,18 @@ export function MobileNavDrawer({
         className="mobile-nav-drawer"
       >
         <div className="mobile-nav-drawer-head">
-          <span className="text-sm font-semibold text-[#0A3D62]">{title}</span>
+          {/* The brand, not the string "Navigasi Careevo". The aside already
+              carries `aria-label={title}`, so the accessible name survives;
+              this is the visual mark only. The logo is the same asset the
+              navbar uses, so the drawer and the bar it came from agree. */}
+          <Image
+            src="/careevo-logo.png"
+            alt=""
+            width={250}
+            height={64}
+            aria-hidden="true"
+            className="h-8 w-auto object-contain"
+          />
           <button
             type="button"
             onClick={onClose}

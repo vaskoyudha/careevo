@@ -29,7 +29,7 @@ export function KartuProfil({
   return (
     <section
       aria-labelledby="judul-profil"
-      className="rounded-xl border border-gray-200 bg-white p-5 shadow-xs"
+      className="min-w-0 rounded-xl border border-gray-200 bg-white p-5 shadow-xs"
     >
       <h2
         id="judul-profil"
@@ -93,7 +93,7 @@ export function KartuSertifikat({ daftar }: { daftar: SertifikatRingkas[] }) {
   return (
     <section
       aria-labelledby="judul-sertifikat-dash"
-      className="rounded-xl border border-gray-200 bg-white p-5 shadow-xs"
+      className="min-w-0 rounded-xl border border-gray-200 bg-white p-5 shadow-xs"
     >
       <div className="mb-3 flex items-start justify-between gap-x-4 gap-y-1">
         <h2

@@ -95,7 +95,15 @@ export function useProblemsSolutionsMotion(
       if (cards.length) {
         // Fan outward from the centre column. The middle card travels furthest
         // down, so the row has a depth order as well as a left/right one.
-        const fanX = [-30, 0, 30];
+        //
+        // Below `md` the row is a single stacked column, so there is no centre
+        // to fan out from and the 30px horizontal offset had nowhere to go: it
+        // shoved the card 5px past a 320px viewport for the length of the
+        // animation. Collapsing `fanX` to 0 on small screens keeps the vertical
+        // cascade — which is what reads on one column — and drops the sideways
+        // push entirely.
+        const narrow = window.matchMedia("(max-width: 767px)").matches;
+        const fanX = narrow ? [0, 0, 0] : [-30, 0, 30];
         const fanY = [28, 36, 28];
         const fanR = [-10, -7, -4];
         cards.forEach((card, i) => {

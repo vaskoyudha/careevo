@@ -21,8 +21,8 @@ export default function Home() {
         <MarketingLogos />
         <MarketingProblemsSolutions />
         <MarketingFeatures />
-        <MarketingComparison />
         <MarketingProof />
+        <MarketingComparison />
         <MarketingUseCases />
         <MarketingIntegrations />
         <MarketingTestimonials />

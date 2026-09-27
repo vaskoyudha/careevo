@@ -89,7 +89,11 @@ export function MarketingPricing() {
       <div className="mx-auto max-w-7xl px-4 lg:px-6">
         <div className="mx-auto mb-16 max-w-2xl text-center">
           <Reveal>
-            <h2 className="mb-4 text-6xl font-medium -tracking-[1.9px] text-gray-900">
+            {/* 60px has no business at 320px: the longest word ("Sederhana")
+                alone is wider than a single-column card, so the heading drove
+                74px of page overflow on the smallest phones. Stepped down
+                instead of `clamp()` so the desktop rhythm is untouched. */}
+            <h2 className="mb-4 text-4xl font-medium -tracking-[1.9px] text-gray-900 sm:text-5xl lg:text-6xl">
               Sederhana dan fleksibel
             </h2>
           </Reveal>
@@ -150,10 +154,30 @@ export function MarketingPricing() {
                   {plan.badge}
                 </span>
                 <p className="mb-8 font-mono text-sm text-gray-900">{plan.note}</p>
-                <h3 className="mb-1 flex items-end text-5xl font-medium">
-                  {annual ? plan.annual : plan.monthly}
+                {/* Three separate reasons this row is shaped the way it is.
+
+                    1. The price is a real element, not a bare text node. As an
+                       anonymous flex item it cannot receive `min-w-0`, so it
+                       refuses to shrink below min-content and pushed 19px past
+                       a 1280px viewport. `min-w-0` + `break-words` let the
+                       longest string ("Rp 149.000/kursi") shrink or break
+                       instead of overflowing — permanently, for any future
+                       price too.
+                    2. `text-4xl`, not `text-5xl`, from `lg` up. At `xl` the grid
+                       is four columns, so the card is 248px of content; at 48px
+                       that string measured 312px and did not fit on one line,
+                       which is what `break-words` would have had to rescue.
+                       36px measures 234px, so it fits cleanly.
+                    3. `flex-wrap` on the row plus `shrink-0` on the suffix, so
+                       "/bulan" drops to its own line rather than widening the
+                       row. `items-end` keeps the suffix sitting on the price's
+                       baseline when they do share a line. */}
+                <h3 className="mb-1 flex flex-wrap items-end text-3xl font-medium sm:text-4xl">
+                  <span className="min-w-0 break-words">
+                    {annual ? plan.annual : plan.monthly}
+                  </span>
                   {plan.monthly.startsWith("Rp") ? (
-                    <span className="text-base text-gray-500">/bulan</span>
+                    <span className="shrink-0 text-base text-gray-500">/bulan</span>
                   ) : null}
                 </h3>
                 <p className="mb-7 min-h-5 font-mono text-xs text-gray-400">

@@ -387,7 +387,7 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                           key={term}
                           type="button"
                           onClick={() => handleQuickSearch(term)}
-                          className="cursor-pointer rounded-full border border-neutral-200/80 bg-white px-2.5 py-0.5 text-[11px] font-medium text-neutral-600 shadow-2xs transition-colors hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50/50"
+                          className="cursor-pointer rounded-full border border-neutral-200/80 bg-white px-2.5 py-2 text-[11px] font-medium text-neutral-600 shadow-2xs transition-colors hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50/50"
                         >
                           {term}
                         </button>
@@ -777,7 +777,7 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                           <Terminal className="size-3.5 text-neutral-700" />
                           <span>Sinkronisasi KarirHub</span>
                         </span>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11px] font-medium text-neutral-700">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2.5 py-2 text-[11px] font-medium text-neutral-700">
                           <span className="size-1.5 rounded-full bg-neutral-900" />
                           Aktif
                         </span>

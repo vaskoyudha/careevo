@@ -597,7 +597,7 @@ function RuangBelajar({
                           disabled={pending || modulSibuk === m.id}
                           aria-pressed={sudah}
                           className={cn(
-                            "shrink-0 cursor-pointer rounded-full border px-3 py-1.5 text-xs font-semibold disabled:opacity-60",
+                            "shrink-0 cursor-pointer rounded-full border px-3 py-2.5 text-xs font-semibold disabled:opacity-60",
                             sudah
                               ? "border-emerald-300 bg-emerald-50 text-emerald-700"
                               : "border-gray-300 bg-white text-gray-600 hover:bg-gray-50",

@@ -21,7 +21,7 @@ export function KartuStreak({ hariBeruntun }: { hariBeruntun: number }) {
   return (
     <section
       aria-labelledby="judul-beruntun"
-      className="rounded-xl border border-gray-200 bg-white p-5 shadow-xs"
+      className="min-w-0 rounded-xl border border-gray-200 bg-white p-5 shadow-xs"
     >
       <h2
         id="judul-beruntun"

@@ -39,7 +39,7 @@ export default async function CoursesPage({ searchParams }: Props) {
           <Link
             key={s.label}
             href={s.href}
-            className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+            className={`rounded-full border px-3 py-2.5 text-xs font-semibold transition-colors ${
               s.label.toLowerCase() === q.toLowerCase()
                 ? "border-[#0056D2] bg-[#0056D2] text-white"
                 : "border-[#C1CBDB] bg-white text-gray-700 hover:border-[#0056D2] hover:text-[#0056D2]"

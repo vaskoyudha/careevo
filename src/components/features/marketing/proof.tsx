@@ -34,7 +34,16 @@ export function MarketingProof() {
   return (
     <section id="bukti" className="scroll-mt-24 bg-white py-20 sm:py-28">
       <div className="mx-auto max-w-7xl px-4 lg:px-6">
-        <div className="grid gap-14 lg:grid-cols-2 lg:gap-20">
+        {/* `grid-cols-1` is load-bearing, not decoration. Without an explicit
+            track list the grid falls back to `grid-template-columns: none`, and
+            an auto track is sized to the *max-content/min-content* of its items.
+            The unbreakable `careevo.id/verify/8f3a91c4` string in the card
+            below then pushed the single mobile column to 336px inside a 288px
+            content box, so `body { overflow-x: clip }` silently ate 32px of the
+            left column at 320px. `grid-cols-1` = `minmax(0, 1fr)`, which clamps
+            the min to 0 and stops the blowout. Same reason `lg:grid-cols-2`
+            never showed it: that variant is also `minmax(0, 1fr)`. */}
+        <div className="grid grid-cols-1 gap-14 lg:grid-cols-2 lg:gap-20">
           <Reveal>
             <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-[#F9FAFB] px-3 py-1.5 text-xs font-medium text-gray-600">
               <ShieldCheck size={13} strokeWidth={1.75} aria-hidden="true" />
@@ -72,10 +81,18 @@ export function MarketingProof() {
             <div className="rounded-2xl border border-gray-200 bg-[#F9FAFB] p-3">
               <div className="rounded-xl border border-gray-200 bg-white">
                 <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
-                  <span className="font-mono text-[11px] text-gray-400">
+                  {/*
+                    `min-w-0 truncate` + `shrink-0` is the flexbox pair for a long
+                    unbreakable string beside a fixed pill. A flex item's default
+                    `min-width: auto` refuses to shrink below its content width, so
+                    the URL pushed the "Terverifikasi" pill past a 320px viewport.
+                    `min-w-0` re-permits shrinking, `truncate` gives the overflow
+                    somewhere to go, and `shrink-0` keeps the pill at full size.
+                  */}
+                  <span className="min-w-0 truncate font-mono text-[11px] text-gray-400">
                     careevo.id/verify/8f3a91c4
                   </span>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-medium text-blue-700">
+                  <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-medium text-blue-700">
                     <ShieldCheck size={12} strokeWidth={2} aria-hidden="true" />
                     Terverifikasi
                   </span>

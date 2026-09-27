@@ -21,6 +21,7 @@ import {
   type ExploreFacetKey,
 } from "@/lib/courses/explore-facets";
 import { onScrollFrame } from "@/lib/scroll/scroll-frame";
+import { Button } from "./button";
 
 /**
  * Ikon per faset — empat glyph yang benar-benar berbeda bentuk.
@@ -447,19 +448,21 @@ export function ExploreMenu() {
                     Jawab tiga pertanyaan singkat, kami susun urutan belajar dari
                     jawabanmu.
                   </p>
-                  <Link
-                    href="/onboarding"
-                    onClick={() => closeImmediately()}
-                    className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+                  <Button
+                    asChild
+                    variant="brand"
+                    className="mt-3 h-auto gap-1.5 px-3.5 py-2 text-sm font-semibold"
                   >
-                    Susun jalur belajar saya
-                    <ChevronDown
-                      size={14}
-                      strokeWidth={2}
-                      aria-hidden="true"
-                      className="-rotate-90"
-                    />
-                  </Link>
+                    <Link href="/onboarding" onClick={() => closeImmediately()}>
+                      Susun jalur belajar saya
+                      <ChevronDown
+                        size={14}
+                        strokeWidth={2}
+                        aria-hidden="true"
+                        className="-rotate-90"
+                      />
+                    </Link>
+                  </Button>
                 </div>
               </div>
             </div>

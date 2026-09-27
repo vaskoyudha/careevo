@@ -151,7 +151,7 @@ function NavItem({
   // rather than a gradient wash, and the icon carries the state through weight
   // (1.9 vs 1.6) so it survives a greyscale or a colour-vision difference.
   const rowClass = cn(
-    "group flex min-h-9 w-full items-center justify-between rounded-full px-3 text-left transition-colors duration-200 select-none cursor-pointer",
+    "group flex min-h-11 w-full items-center justify-between rounded-full px-3 text-left transition-colors duration-200 select-none cursor-pointer",
     isActive
       ? "bg-[var(--accent)] font-medium text-[var(--accent-foreground)]"
       : "text-muted-foreground hover:bg-[var(--muted)] hover:text-foreground",
@@ -327,7 +327,7 @@ export function DashboardSidebar({
             onClick={onToggleCollapse}
             aria-label="Buka sidebar"
             title="Buka sidebar"
-            className="mx-auto mb-2 grid h-9 w-9 shrink-0 place-items-center rounded-[10px] text-muted-foreground transition-colors hover:bg-[var(--muted)] hover:text-foreground"
+            className="mx-auto mb-2 grid size-11 shrink-0 place-items-center rounded-[10px] text-muted-foreground transition-colors hover:bg-[var(--muted)] hover:text-foreground"
           >
             <PanelLeftOpen className="h-5 w-5" strokeWidth={1.6} />
           </button>
@@ -337,7 +337,7 @@ export function DashboardSidebar({
             onClick={onNavigate}
             aria-label={session.nama}
             title={session.nama}
-            className="mx-auto mb-2.5 grid h-9 w-9 shrink-0 place-items-center rounded-full text-[12px] font-semibold text-white uppercase"
+            className="mx-auto mb-2.5 grid size-11 shrink-0 place-items-center rounded-full text-[12px] font-semibold text-white uppercase"
             style={{
               background: "var(--brand-grad)",
               border: "1px solid var(--brand-border)",
@@ -436,7 +436,7 @@ export function DashboardSidebar({
             onClick={onToggleCollapse}
             aria-label="Ciutkan sidebar"
             title="Ciutkan sidebar"
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] text-muted-foreground transition-colors hover:bg-[var(--muted)] hover:text-foreground max-lg:hidden"
+            className="grid size-11 shrink-0 place-items-center rounded-[10px] text-muted-foreground transition-colors hover:bg-[var(--muted)] hover:text-foreground max-lg:hidden"
           >
             <PanelLeftClose className="h-[18px] w-[18px]" strokeWidth={1.6} />
           </button>
@@ -478,7 +478,7 @@ export function DashboardSidebar({
           <form action={logoutAction}>
             <button
               type="submit"
-              className="group flex min-h-9 w-full items-center gap-2.5 rounded-full px-3 text-left text-[13px] text-muted-foreground transition-colors duration-200 select-none hover:bg-[var(--muted)] hover:text-foreground"
+              className="group flex min-h-11 w-full items-center gap-2.5 rounded-full px-3 text-left text-[13px] text-muted-foreground transition-colors duration-200 select-none hover:bg-[var(--muted)] hover:text-foreground"
             >
               <LogOut className="h-[16px] w-[16px] shrink-0" strokeWidth={1.6} />
               Keluar

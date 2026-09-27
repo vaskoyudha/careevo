@@ -16,7 +16,7 @@ import Link from "next/link";
 export function JobInboxCard() {
   return (
     <section
-      className="rounded-xl border border-gray-200 bg-white p-5 shadow-xs"
+      className="min-w-0 rounded-xl border border-gray-200 bg-white p-5 shadow-xs"
       aria-labelledby="cari-title"
     >
       <div className="mb-4 flex flex-wrap items-start justify-between gap-x-4 gap-y-1">

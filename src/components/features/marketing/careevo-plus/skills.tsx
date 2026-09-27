@@ -288,7 +288,7 @@ export function CareevoPlusSkills() {
                       onClick={() => setActive(i)}
                       aria-pressed={active === i}
                       className={cn(
-                        "cursor-pointer rounded-full px-4 py-2 text-sm font-medium transition-colors duration-300",
+                        "cursor-pointer rounded-full px-4 py-3 text-sm font-medium transition-colors duration-300",
                         active === i
                           ? "bg-gray-900 text-white"
                           : "bg-white text-gray-600 hover:bg-gray-50",
@@ -304,7 +304,7 @@ export function CareevoPlusSkills() {
                   type="button"
                   aria-label="Sebelumnya"
                   onClick={() => scroll(-1)}
-                  className="absolute -left-3 top-1/2 z-10 flex size-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:bg-gray-50"
+                  className="absolute -left-3 top-1/2 z-10 flex size-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:bg-gray-50"
                 >
                   <svg
                     width="16"
@@ -323,7 +323,7 @@ export function CareevoPlusSkills() {
                   type="button"
                   aria-label="Berikutnya"
                   onClick={() => scroll(1)}
-                  className="absolute -right-3 top-1/2 z-10 flex size-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:bg-gray-50"
+                  className="absolute -right-3 top-1/2 z-10 flex size-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:bg-gray-50"
                 >
                   <svg
                     width="16"

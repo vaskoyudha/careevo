@@ -278,6 +278,13 @@ export type Materi =
   | (MateriDasar & { tipe: "pdf"; path: string; ukuran_bytes: number });
 
 export type CreateCourseInput = {
+  /**
+   * Id eksplisit. **Hanya untuk seed** yang perlu membuat kursus dengan id tetap
+   * (mis. menutup entri fixture `r1`–`r12` agar punya modul tersimpan). Formulir
+   * admin tidak memakainya: `courseSchema` tidak punya field ini dan zod membuang
+   * kunci tak dikenal, jadi klien tidak bisa menyuntikkan id.
+   */
+  id?: string;
   title: string;
   slug?: string;
   description: string;

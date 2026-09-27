@@ -129,7 +129,7 @@ export function ProfileView({
                       <h1 className="text-2xl font-semibold -tracking-[0.6px] text-gray-900">
                         {displayName}
                       </h1>
-                      <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-blue-700 uppercase">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-2 text-[11px] font-semibold tracking-wide text-blue-700 uppercase">
                         <BadgeCheck className="size-3.5" strokeWidth={2} aria-hidden="true" />
                         {ROLE_LABEL[session.role]}
                       </span>
@@ -306,7 +306,7 @@ export function ProfileView({
                   <IconChip className="size-11">
                     <GraduationCap className="size-5" strokeWidth={1.75} aria-hidden="true" />
                   </IconChip>
-                  <span className="mt-3 inline-flex w-fit rounded-full border border-blue-200/80 bg-white/70 px-2.5 py-0.5 text-[11px] font-medium text-blue-700 backdrop-blur-sm">
+                  <span className="mt-3 inline-flex w-fit rounded-full border border-blue-200/80 bg-white/70 px-2.5 py-2 text-[11px] font-medium text-blue-700 backdrop-blur-sm">
                     {item.tags[0] ?? "Umum"}
                   </span>
                   <h3 className="mt-2 line-clamp-2 text-sm font-semibold text-gray-900">

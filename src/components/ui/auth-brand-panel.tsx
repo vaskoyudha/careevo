@@ -95,7 +95,7 @@ export function AuthBrandPanel({ className }: { className?: string }) {
               type="button"
               onClick={advance}
               aria-label="Catatan berikutnya"
-              className="grid size-8 shrink-0 place-items-center rounded-full bg-white/20 text-white transition-colors hover:bg-white/30"
+              className="grid size-11 shrink-0 place-items-center rounded-full bg-white/20 text-white transition-colors hover:bg-white/30"
             >
               <ArrowRight className="size-4" aria-hidden="true" />
             </button>
@@ -106,7 +106,12 @@ export function AuthBrandPanel({ className }: { className?: string }) {
           Learn. Verify. Earn.
         </p>
 
-        <div className="mt-auto flex gap-2 pt-8 pb-8">
+        {/* The pill stays 4px tall on purpose — it is a progress indicator, not
+            a target. The tap area is what has to grow: `py-3.5` gives the 4px
+            bar a 32px-tall button, and the neighbouring `gap-2` absorbs the
+            extra height so the row's own rhythm does not change. `w-10`/`w-4`
+            keep their visual widths. */}
+        <div className="mt-auto flex items-center gap-2 pt-8 pb-8">
           {notes.map((note, index) => (
             <button
               key={note.tag}
@@ -114,8 +119,8 @@ export function AuthBrandPanel({ className }: { className?: string }) {
               onClick={() => setActiveIndex(index)}
               className={
                 activeIndex === index
-                  ? "h-1 w-10 rounded-full bg-white"
-                  : "h-1 w-4 rounded-full bg-white/35"
+                  ? "h-1 w-10 rounded-full bg-white py-3.5"
+                  : "h-1 w-4 rounded-full bg-white/35 py-3.5"
               }
               aria-label={`Tampilkan catatan ${index + 1}`}
             />

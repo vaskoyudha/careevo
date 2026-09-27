@@ -33,7 +33,7 @@ export function KartuSkor({ ringkasan }: { ringkasan: RingkasanSkor }) {
   return (
     <section
       aria-labelledby="judul-skor"
-      className="rounded-xl border border-gray-200 bg-white p-5 shadow-xs"
+      className="min-w-0 rounded-xl border border-gray-200 bg-white p-5 shadow-xs"
     >
       <div className="mb-4 flex items-start justify-between gap-x-4 gap-y-1">
         <div>

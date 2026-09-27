@@ -35,7 +35,7 @@ export function CareevoPlusPromoBanner({
       <button
         type="button"
         onClick={() => setVisible(false)}
-        className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer p-1 text-blue-200/70 transition-colors hover:text-white"
+        className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer p-2.5 text-blue-200/70 transition-colors hover:text-white"
         aria-label="Tutup banner"
       >
         <svg

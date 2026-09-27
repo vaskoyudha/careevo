@@ -76,7 +76,7 @@ export default async function DashboardPage() {
         lead="Ringkasan belajar kamu, semua dihitung dari catatan yang benar-benar ada."
       />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <KartuProfil
           nama={session.nama}
           username={session.username}

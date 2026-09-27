@@ -108,8 +108,12 @@ export function ChatCariLowongan({
           }}
           placeholder="Coba: lowongan React remote, atau backend Node.js di Jakarta…"
           className={cn(
-            "w-full resize-none border-0 bg-transparent px-3 py-2 text-neutral-900 outline-none placeholder:text-neutral-400",
-            "text-[15px] leading-relaxed",
+            // 16px, not 15px: iOS Safari zooms the viewport when a focused
+            // textarea computes under 16px and never restores the zoom, so a
+            // chat box left the whole page magnified. This is the composer you
+            // type into most on a phone, which makes it the worst place to
+            // trigger that.
+            "w-full resize-none border-0 bg-transparent px-3 py-2 text-base leading-relaxed text-neutral-900 outline-none placeholder:text-neutral-400",
             ada ? "min-h-[44px]" : "min-h-[76px]",
           )}
         />

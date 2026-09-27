@@ -889,7 +889,6 @@ h6 {
 
 .chrome-brand {
   display: inline-flex;
-  align-items: baseline;
   flex: 1 1 0;
   min-width: 0;
   font-weight: 700;
@@ -898,6 +897,15 @@ h6 {
   letter-spacing: -0.02em;
   text-decoration: none;
   transition: color 180ms ease-out;
+  /* The wordmark measured 40px tall, under the 44px tap floor, and it is the
+     one control a returning visitor reaches for first. `min-height` (not a
+     fixed height) so a longer translated lockup still grows rather than clips.
+     `center` replaces the `baseline` this used to align on: the min-height box
+     would otherwise push the baseline down and sit the text off-centre. The
+     bar's own height is set on `.chrome`, not here, so `--chrome-h` is
+     unchanged — `src/app/chrome-offset.test.ts` still passes. */
+  min-height: 44px;
+  align-items: center;
 }
 
 .chrome-brand:hover {
@@ -1193,6 +1201,11 @@ h6 {
   background: var(--card, #fff);
   padding: 1rem;
   box-shadow: 0 24px 60px -24px rgba(10, 42, 58, 0.45);
+  /* The panel is flush with the left edge, so only the two right corners are
+     free to round. `border-radius: 1rem` would round all four and leave the
+     left pair sitting inside the screen edge, where it reads as a rendering
+     mistake rather than a shape. */
+  border-radius: 0 1.25rem 1.25rem 0;
 }
 
 .mobile-nav-drawer-head {
@@ -1267,6 +1280,34 @@ h6 {
   .mobile-sidebar-toggle,
   .mobile-nav-trigger {
     display: grid;
+  }
+
+  /* The two navbar breakpoints used to disagree, and the gap between them is
+     where the bar broke.
+
+     `.mobile-nav-trigger` is switched on here (1023px), but `.nav-float` and
+     `.chrome-actions` were only switched off by the `max-width: 768px` block
+     above. So from 769px to 1023px both applied at once: the hamburger, the
+     five nav items and the action buttons all rendered into one row. That row
+     needs 630px (.nav-float) + 177px (.chrome-actions) = 807px, but a 769px
+     viewport only offers ~700px after .chrome's padding, so .chrome-brand
+     (flex: 1 1 0) collapsed to width 0, the logo vanished, and up to 120px of
+     the bar ran past the viewport. body's overflow-x: clip then hid the
+     evidence.
+
+     Hiding the desktop row here rather than widening the 768px block is
+     deliberate. The 768px block also carries the bar's padding, and that
+     padding is what makes the bar 62px instead of 66px -- a number --chrome-h
+     publishes and src/app/chrome-offset.test.ts locks. Keeping the height
+     change on 768px and moving only the visibility change to 1023px fixes the
+     overflow without moving a single height literal.
+
+     1024px is also the honest threshold: the desktop row genuinely does not
+     fit below it. Measured, not guessed -- see
+     scripts/probe-navbar-range.mjs. */
+  .nav-float,
+  .chrome-actions {
+    display: none;
   }
 }
 
@@ -2503,7 +2544,14 @@ h6 {
   min-height: 44px;
   padding: 0.6rem 0.85rem;
   font-family: var(--font);
-  font-size: 0.95rem;
+  /* max(16px, 0.95rem), not a bare 0.95rem. This rule is unlayered, so it
+     outranks Tailwind's text-base utility on specificity and cascade layer
+     alike -- a control inside .field computed 15.2px no matter what size its
+     component asked for. Under 16px, iOS Safari zooms the viewport on focus
+     and never zooms back out, so the whole page stayed magnified after the
+     field was dismissed. max() raises only the value that is too small, and a
+     reader who has bumped the root size still wins. */
+  font-size: max(16px, 0.95rem);
   color: var(--text);
   background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(6px);
@@ -4300,8 +4348,14 @@ button.tag:hover {
   border-radius: 13.5px;
   color: #0f172a;
   padding-left: 50px;
-  padding-right: 54px;
-  font-size: 15px;
+  /* 58px, not 54px: reserves room for the 44px filter button plus its 6px
+     offset, so the typed text never slides underneath it. */
+  padding-right: 58px;
+  /* 16px, not 15px: iOS Safari zooms the viewport on focus when an input
+     computes under 16px, and never restores the zoom afterwards. `max()` keeps
+     the value tied to the root size so a user's larger default text setting is
+     respected instead of being pinned to a hard 16px. */
+  font-size: max(16px, 1rem);
   font-weight: 450;
 }
 
@@ -4348,8 +4402,11 @@ button.tag:hover {
   align-items: center;
   justify-content: center;
   z-index: 3;
-  height: 40px;
-  width: 40px;
+  /* 44x44, not 40x40: 40px clears the WCAG 2.2 AA "Target Size (Minimum)"
+     exception for inline targets but misses the 44px thumb floor that mobile
+     users actually hit reliably. The 52px `.uiverse-main` row leaves room. */
+  height: 44px;
+  width: 44px;
   border-radius: 11px;
   background: linear-gradient(180deg, #f0f9ff, #e0f2fe);
   border: 1px solid #bae6fd;
@@ -4459,3 +4516,34 @@ button.tag:hover {
 .delay-150 { animation-delay: 150ms; }
 .delay-200 { animation-delay: 200ms; }
 .delay-250 { animation-delay: 250ms; }
+
+/* ===== iOS input-zoom floor (touch devices only) =====
+
+   iOS Safari zooms the *viewport* when a form control it focuses computes under
+   16px, and it does not zoom back out when the field is dismissed. The reader
+   is left with a magnified, sideways-scrolling page and no obvious way to undo
+   it. This is the single most damaging mobile defect on the site and it is
+   invisible on a desktop dev machine, which is why it kept surviving review.
+
+   Scoped to `pointer: coarse` on purpose. A blanket rule would also change
+   desktop, where nothing zooms and the deliberately compact 12-14px controls
+   in the admin course editor are a density choice. `pointer` (rather than
+   `max-width`) is the honest signal: a Surface tablet held in a hand is coarse
+   even at 1280px, and a desktop with a touchscreen is not the thing that needs
+   protecting.
+
+   Unlayered on purpose. Tailwind's `text-xs`/`text-sm` live in `@layer
+   utilities`, which beats `@layer base` — a base-layer rule would lose to the
+   very utilities causing the bug, which is how the 12px admin `<select>`s kept
+   their size through four rounds of component-level fixes.
+
+   `max()` rather than a bare `16px` so a reader who has raised the root font
+   size gets a correspondingly larger control. No control in this codebase
+   deliberately exceeds 16px, so the floor never shrinks anything. */
+@media (pointer: coarse) {
+  input,
+  textarea,
+  select {
+    font-size: max(16px, 1rem);
+  }
+}

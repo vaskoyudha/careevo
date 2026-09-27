@@ -50,31 +50,19 @@ export function MarketingFooter() {
   ];
 
   return (
-    <footer className="relative bg-white pb-8 pt-8">
-      {/* Full-width white footer - NO side padding */}
-      <div className="relative w-full px-6 sm:px-8 lg:px-12 py-14 border-t-2 border-gray-900/10 overflow-hidden flex-none z-0">
-        <div className="flex flex-col lg:flex-row gap-12 max-w-[1400px] mx-auto">
-          
-          {/* Left side - Logo + Tagline + CTA */}
+    <footer className="relative overflow-hidden bg-white">
+      {/* The wordmark band is its own block at the end (see below), so this
+          wrapper only needs ordinary bottom padding. */}
+      <div className="relative z-10 w-full border-t border-gray-200 px-6 pt-14 pb-12 sm:px-8 sm:pb-16 lg:px-12">
+        <div className="mx-auto flex max-w-[1400px] flex-col gap-12 lg:flex-row">
+          {/* Left side - Tagline + CTA */}
           <div className="lg:w-4/12">
-            {/* Logo/Wordmark */}
-            <Link href="/" className="inline-block mb-4" aria-label="Careevo">
-              <Image
-                src="/careevo-logo.png"
-                alt="Careevo"
-                width={250}
-                height={64}
-                priority
-                className="h-16 w-auto object-contain transition-transform duration-300 hover:scale-105"
-              />
-            </Link>
-            
             {/* Tagline */}
             <p className="text-sm text-gray-600 mb-4 leading-relaxed">
               Jembatan terverifikasi dari course ke pekerjaan pertama. 
               Proses belajar terekam, hasil ditandatangani, loker diaudit.
             </p>
-            
+
             {/* Newsletter Signup */}
             <div className="mb-6">
               <label htmlFor="newsletter" className="block text-xs font-medium text-gray-700 mb-2">
@@ -84,49 +72,53 @@ export function MarketingFooter() {
                   widths, where the button's own padding pushed it past the
                   container's right edge. `min-w-0` lets the input shrink. */}
               <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
+                {/* `text-base` (16px) is not a style choice: iOS Safari zooms the
+                    viewport when a focused input computes under 16px and never
+                    zooms back out, so `text-sm` left the page magnified.
+                    `min-h-11` lifts the 38px box to the 44px tap floor. */}
                 <input
                   type="email"
                   id="newsletter"
                   placeholder="email@contoh.com"
-                  className="min-w-0 flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                  className="min-w-0 min-h-11 flex-1 px-3 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                 />
                 <button
                   type="button"
-                  className="w-full shrink-0 px-4 py-2 text-sm bg-[#0C3D5F] text-white rounded-lg hover:bg-[#0A304A] transition-colors font-medium sm:w-auto"
+                  className="w-full min-h-11 shrink-0 px-4 py-2 text-sm bg-[#0C3D5F] text-white rounded-lg hover:bg-[#0A304A] transition-colors font-medium sm:w-auto"
                 >
                   Submit
                 </button>
               </div>
             </div>
-            
+
             {/* Social Media Icons */}
             <div className="flex items-center gap-3 mb-4">
-              <a href="#" className="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-[#0C3D5F] hover:text-white transition-all group">
+              <a href="#" className="w-11 h-11 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-[#0C3D5F] hover:text-white transition-all group">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect width="20" height="20" x="2" y="2" rx="5" ry="5"/>
                   <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
                   <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
                 </svg>
               </a>
-              <a href="#" className="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-[#0C3D5F] hover:text-white transition-all group">
+              <a href="#" className="w-11 h-11 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-[#0C3D5F] hover:text-white transition-all group">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3 1.2 2 1.4z"/>
                 </svg>
               </a>
-              <a href="#" className="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-[#0C3D5F] hover:text-white transition-all group">
+              <a href="#" className="w-11 h-11 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-[#0C3D5F] hover:text-white transition-all group">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M15 11h-6"/>
                   <path d="M18.66 7.34 17.33 8.66a2.5 2.5 0 0 1 .74 1.64l-3.61 3.61a2.5 2.5 0 0 1-1.64.74L9.34 14.66l1.33 1.33a2.5 2.5 0 0 1-.74 1.64l-3.61 3.61a2.5 2.5 0 0 1-1.64.74L2.34 21.66 1 20.33a2.5 2.5 0 0 1 .74-1.64l3.61-3.61a2.5 2.5 0 0 1 1.64-.74L9.34 12.34l-1.33-1.33a2.5 2.5 0 0 1 .74-1.64l3.61-3.61a2.5 2.5 0 0 1 1.64-.74L21.66 2.34 23 3.67a2.5 2.5 0 0 1-.74 1.64l-3.61 3.61a2.5 2.5 0 0 1-1.64.74z"/>
                 </svg>
               </a>
-              <a href="#" className="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-[#0C3D5F] hover:text-white transition-all group">
+              <a href="#" className="w-11 h-11 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-[#0C3D5F] hover:text-white transition-all group">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
                 </svg>
               </a>
               <span className="text-xs text-gray-500 ml-2">Ikuti kami</span>
             </div>
-            
+
             {/* Contact CTA Button */}
             <Link
               href="/masuk"
@@ -139,13 +131,13 @@ export function MarketingFooter() {
               </svg>
             </Link>
           </div>
-          
+
           {/* Right side - Link columns */}
           <div className="lg:w-8/12">
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-x-4 gap-y-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-6 gap-y-8">
               {columns.map((column) => (
                 <div key={column.heading}>
-                  <h4 className="mb-4 font-semibold text-gray-900 text-sm">
+                  <h4 className="mb-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
                     {column.heading}
                   </h4>
                   <ul className="space-y-3">
@@ -165,41 +157,58 @@ export function MarketingFooter() {
             </div>
           </div>
         </div>
-        
+
         {/* Bottom bar - Copyright & Payment Methods */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-12 pt-6 gap-4 text-xs text-gray-500 max-w-[1400px] mx-auto border-t border-gray-100">
-          <span>
-            © 2026 Careevo AI Inc. All rights reserved.
-          </span>
-          
-          {/* Payment Methods */}
-          <div className="flex items-center gap-3 mt-4 sm:mt-0">
-            <span className="mr-2">Kami menerima:</span>
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-6 bg-gray-200 rounded flex items-center justify-center text-xs font-semibold text-gray-600">Visa</div>
-              <div className="w-10 h-6 bg-gray-200 rounded flex items-center justify-center text-xs font-semibold text-gray-600">MC</div>
-              <div className="w-10 h-6 bg-gray-200 rounded flex items-center justify-center text-xs font-semibold text-gray-600">Amex</div>
-              <div className="w-10 h-6 bg-gray-200 rounded flex items-center justify-center text-xs font-semibold text-gray-600">PP</div>
+        <div className="mx-auto mt-14 max-w-[1400px] border-t border-gray-200 pt-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs text-gray-500">
+            <span>
+              © 2026 Careevo AI Inc. All rights reserved.
+            </span>
+
+            {/* Payment Methods */}
+            <div className="flex items-center gap-3">
+              <span className="mr-1">Kami menerima:</span>
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-6 bg-gray-100 rounded flex items-center justify-center text-xs font-semibold text-gray-600">Visa</div>
+                <div className="w-10 h-6 bg-gray-100 rounded flex items-center justify-center text-xs font-semibold text-gray-600">MC</div>
+                <div className="w-10 h-6 bg-gray-100 rounded flex items-center justify-center text-xs font-semibold text-gray-600">Amex</div>
+                <div className="w-10 h-6 bg-gray-100 rounded flex items-center justify-center text-xs font-semibold text-gray-600">PP</div>
+              </div>
             </div>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            <a href="#" className="hover:text-gray-900 transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-gray-900 transition-colors">Terms of Service</a>
-            <a href="#" className="hover:text-gray-900 transition-colors">Cookie Settings</a>
+
+            <div className="flex items-center gap-4">
+              <a href="#" className="hover:text-gray-900 transition-colors">Privacy Policy</a>
+              <a href="#" className="hover:text-gray-900 transition-colors">Terms of Service</a>
+              <a href="#" className="hover:text-gray-900 transition-colors">Cookie Settings</a>
+            </div>
           </div>
         </div>
       </div>
-      
-      {/* Image strip at very bottom */}
-      <div 
-        className="absolute inset-x-0 bottom-0 h-12 sm:h-14 lg:h-16 z-10"
-        style={{
-          backgroundImage: 'url("/images/footer/strip.webp")',
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
-      />
+
+      {/* ===== Giant wordmark band — the closing statement of the footer =====
+
+          The logo keeps its own colors on the white surface: no gradient and
+          no `brightness-0 invert` filter, so what you see here is the real
+          asset rather than a recoloured copy of it.
+
+          Centering: the image is `mx-auto` and its own horizontal padding is
+          near-symmetric (measured 6px left / 13px right on a 1400px canvas,
+          i.e. the ink sits 0.5% right of true center), so plain auto margins
+          are accurate to within a few pixels at any size — no nudge needed.
+
+          `aria-hidden` because the brand is already announced by the real logo
+          link at the top of the footer; this is a decorative repeat, and alt
+          text would announce "Careevo" twice. */}
+      <div className="flex w-full justify-center overflow-hidden bg-white px-6 pb-10 pt-12 sm:px-8 sm:pb-14 sm:pt-16">
+        <Image
+          src="/careevo-logo-full.png"
+          alt=""
+          aria-hidden
+          width={1400}
+          height={455}
+          className="block h-auto w-full max-w-4xl select-none"
+        />
+      </div>
     </footer>
   );
 }

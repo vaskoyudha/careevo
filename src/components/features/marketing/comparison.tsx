@@ -1,4 +1,4 @@
-import { Check, Minus, MoveHorizontal, Scale, X } from "lucide-react";
+import { Check, Minus, Scale, X } from "lucide-react";
 import { Reveal } from "./primitives";
 import {
   KELOMPOK,
@@ -75,6 +75,31 @@ function Isi({ nilai, ours }: { nilai: Sel; ours?: boolean }) {
   );
 }
 
+/**
+ * Mobile card cell. The table can leave the status to the icon because the
+ * legend below it is in view; a card cannot, so the words are spelled out and
+ * the legend is not needed on this layout at all.
+ */
+function Nilai({ nilai, ours }: { nilai: Sel; ours?: boolean }) {
+  if (nilai in SR) {
+    const status = nilai as Status;
+    return (
+      <span className="flex items-center gap-1.5 text-xs text-gray-500">
+        <Ikon status={status} />
+        <span className={ours ? "font-medium text-gray-700" : ""}>{SR[status]}</span>
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className={`text-xs ${ours ? "font-semibold text-gray-900" : "text-gray-500"}`}
+    >
+      {nilai}
+    </span>
+  );
+}
+
 const LEGENDA: Status[] = ["ya", "sebagian", "tidak", "belum", "na"];
 
 export function MarketingComparison() {
@@ -107,11 +132,58 @@ export function MarketingComparison() {
 
         <Reveal>
           <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-feature-card">
-            <p className="flex items-center gap-2 border-b border-gray-200 px-4 py-2.5 text-xs text-gray-500 sm:hidden">
-              <MoveHorizontal size={13} strokeWidth={1.75} aria-hidden="true" />
-              Geser tabel ke samping untuk lihat platform lain
-            </p>
-            <div className="overflow-x-auto">
+            {/* Phones get cards, not a table. The matrix is 556px wide with
+                five columns, so at 320-414px two thirds of it sits off-screen
+                behind a swipe; comparing four platforms that way means holding
+                five columns in your head while dragging. The table's own
+                numbers also fight it: a 136px label column wraps "Sertifikat
+                bisa dicabut kalau disalahgunakan" onto four lines next to a
+                20px icon, which is what makes the rows look empty and ragged.
+                A card per capability puts the label and all four verdicts in
+                one view with nothing to scroll. `md` is where the table fits a
+                container again without scrolling (measured: it needs 700px at
+                `sm` and has 720px available at 768px), so that is where the
+                table comes back. */}
+            <div className="divide-y divide-gray-100 md:hidden">
+              {KELOMPOK.map((kelompok) => (
+                <div key={kelompok.judul}>
+                  <h3 className="bg-[#F9FAFB] px-4 py-2.5 text-[11px] font-semibold tracking-wider text-gray-500 uppercase">
+                    {kelompok.judul}
+                  </h3>
+                  <ul className="divide-y divide-gray-100">
+                    {kelompok.baris.map((baris) => (
+                      <li key={baris.label} className="px-4 py-3.5">
+                        <p className="text-sm font-medium text-gray-900">{baris.label}</p>
+                        {baris.note ? (
+                          <p className="mt-0.5 text-xs text-gray-500">{baris.note}</p>
+                        ) : null}
+                        <dl className="mt-2.5 grid grid-cols-2 gap-x-2 gap-y-1">
+                          {PLATFORM.map((p) => (
+                            <div
+                              key={p.key}
+                              className={`flex min-w-0 flex-col gap-0.5 rounded-md px-2 py-1 ${
+                                p.ours ? kolomOurs : ""
+                              }`}
+                            >
+                              <dt
+                                className={`truncate text-xs ${p.ours ? "font-semibold text-blue-700" : "text-gray-500"}`}
+                              >
+                                {p.label}
+                              </dt>
+                              <dd>
+                                <Nilai nilai={baris[p.key]} ours={p.ours} />
+                              </dd>
+                            </div>
+                          ))}
+                        </dl>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[556px] border-collapse text-left sm:min-w-[700px] lg:min-w-[860px]">
                 <caption className="sr-only">
                   Perbandingan kemampuan Careevo dengan Dicoding, Karir.com,
@@ -195,7 +267,8 @@ export function MarketingComparison() {
               </table>
             </div>
 
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-gray-200 px-5 py-4 text-xs text-gray-500">
+            {/* Cards spell the status out, so the legend is table-only. */}
+            <div className="hidden flex-wrap items-center gap-x-5 gap-y-2 border-t border-gray-200 px-5 py-4 text-xs text-gray-500 md:flex">
               {LEGENDA.map((s) => (
                 <span key={s} className="flex items-center gap-2">
                   <Ikon status={s} />

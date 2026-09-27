@@ -23,15 +23,22 @@ export async function DashboardRecommendations({
 
   return (
     <section
-      className="rounded-xl border border-gray-200 bg-white p-5 shadow-xs"
+      // min-w-0 + break-words below are the grid-overflow pair. This is a grid
+      // item, and a grid item's default min-width is its min-content width, so
+      // a long interest label or target role refused to shrink, pushed this
+      // card to 418px inside a 320px viewport, and body's overflow-x: clip ate
+      // 98px of it silently. min-w-0 re-permits shrinking; break-words gives an
+      // over-long word somewhere to go. grid-cols-1 on the parent covers the
+      // track side.
+      className="min-w-0 rounded-xl border border-gray-200 bg-white p-5 shadow-xs"
       aria-labelledby="personal-title"
     >
       <div className="mb-4 flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
-        <div>
+        <div className="min-w-0">
           <h2 className="text-base font-bold text-gray-900" id="personal-title">
             Dipilih untukmu
           </h2>
-          <p className="mt-0.5 text-[13px] text-gray-500">
+          <p className="mt-0.5 break-words text-[13px] text-gray-500">
             Berdasarkan minat: {interestLabels} · target {profile.weeklyHours} jam/minggu
           </p>
         </div>
@@ -69,7 +76,7 @@ export async function DashboardRecommendations({
             Kursus
           </h3>
           <div
-            className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+            className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
             role="group"
             aria-labelledby="kursus-mu"
           >

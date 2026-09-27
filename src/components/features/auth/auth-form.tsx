@@ -211,8 +211,11 @@ export function AuthForm({
   );
 }
 
+// `h-11` (44px), not `h-9` (36px): this is a full-width primary entry point on
+// the sign-up screen, where phone traffic lands first. 36px is above the WCAG
+// 2.2 AA 24px minimum but below the thumb floor people actually hit reliably.
 const socialClass =
-  "flex h-9 items-center justify-center gap-2 rounded-[8px] border border-black/25 bg-white px-3 text-sm leading-none text-black transition-[color,background-color,transform] duration-150 ease-out active:scale-[0.97]";
+  "flex h-11 items-center justify-center gap-2 rounded-[8px] border border-black/25 bg-white px-3 text-sm leading-none text-black transition-[color,background-color,transform] duration-150 ease-out active:scale-[0.97]";
 
 /**
  * Tombol sosial. `href` diisi hanya bila alunya benar-benar ada — tombol yang

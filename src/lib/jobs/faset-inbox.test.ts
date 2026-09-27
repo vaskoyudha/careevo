@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   daftarKategori,
   daftarKota,
+  daftarPerusahaan,
   hitungBarisHariIni,
   KATEGORI_LAINNYA,
   KOTA_LAINNYA,
@@ -17,6 +18,7 @@ import {
 function baris(over: Partial<BarisFaset> = {}): BarisFaset {
   return {
     url: "https://example.com/job/1",
+    company: "Contoh Perusahaan",
     role: "Software Engineer",
     location: "Jakarta",
     ...over,
@@ -170,6 +172,29 @@ describe("daftar facets", () => {
       baris({ role: "IT DEVELOPER" }),
     ]);
     expect(kategori).toEqual(["Backend & API", "Data & Analytics", KATEGORI_LAINNYA]);
+  });
+
+  it("perusahaan unik, terurut, dan tanpa duplikat", () => {
+    // Dua baris dari employer yang sama adalah satu perusahaan, bukan dua: kalau
+    // tidak, select perusahaan akan menawarkan nama yang sama berkali-kali.
+    const perusahaan = daftarPerusahaan([
+      baris({ company: "Kredivo Group" }),
+      baris({ company: "GudangAda" }),
+      baris({ company: "Kredivo Group" }),
+      baris({ company: "  Amartha  " }),
+    ]);
+    expect(perusahaan).toEqual(["Amartha", "GudangAda", "Kredivo Group"]);
+  });
+
+  it("perusahaan kosong tidak menjadi opsi filter", () => {
+    // Baris tanpa nama perusahaan tidak boleh menghasilkan opsi "" — opsi itu
+    // akan tampak seperti "semua perusahaan" tapi sebenarnya menyaring ke nol.
+    const perusahaan = daftarPerusahaan([
+      baris({ company: "" }),
+      baris({ company: "   " }),
+      baris({ company: "Julo" }),
+    ]);
+    expect(perusahaan).toEqual(["Julo"]);
   });
 });
 

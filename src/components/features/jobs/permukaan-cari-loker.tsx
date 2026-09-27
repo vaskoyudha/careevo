@@ -5,6 +5,7 @@ import {
   ArrowRight,
   ArrowUpDown,
   Briefcase,
+  Building2,
   ChevronDown,
   LayoutGrid,
   MapPin,
@@ -195,6 +196,8 @@ export function PanelCariLoker({
   onKota,
   kategori,
   onKategori,
+  perusahaan,
+  onPerusahaan,
   status,
   onStatus,
   urutan,
@@ -202,6 +205,7 @@ export function PanelCariLoker({
   pilihanStatus,
   pilihanKota,
   pilihanKategori,
+  pilihanPerusahaan,
   total,
   onBukaDaftar,
   refKueri,
@@ -213,6 +217,8 @@ export function PanelCariLoker({
   onKota: (next: string) => void;
   kategori: string;
   onKategori: (next: string) => void;
+  perusahaan: string;
+  onPerusahaan: (next: string) => void;
   status: string;
   onStatus: (next: string) => void;
   urutan: NilaiUrutan;
@@ -220,6 +226,7 @@ export function PanelCariLoker({
   pilihanStatus: readonly string[];
   pilihanKota: readonly string[];
   pilihanKategori: readonly string[];
+  pilihanPerusahaan: readonly string[];
   total: number;
   onBukaDaftar: () => void;
   refKueri: React.RefObject<HTMLInputElement | null>;
@@ -289,6 +296,16 @@ export function PanelCariLoker({
           semuaLabel="Semua Kategori"
           className="sm:w-[200px]"
         />
+        <KotakPilih
+          id="cari-lowongan-perusahaan"
+          label="Semua perusahaan"
+          ikon={Building2}
+          nilai={perusahaan}
+          onChange={onPerusahaan}
+          pilihan={pilihanPerusahaan}
+          semuaLabel="Semua Perusahaan"
+          className="sm:w-[200px]"
+        />
       </form>
 
       {/* Row 2: Filter, Terbaru, dan Lihat Semua */}
@@ -345,20 +362,24 @@ export function PanelCariLoker({
 export function RingkasanLoker({
   total,
   baruHariIni,
+  jumlahPerusahaan,
   className,
 }: {
   total: number;
   baruHariIni: number;
+  /** Berapa perusahaan berbeda yang membuka lowongan, bukan jumlah lowongan. */
+  jumlahPerusahaan: number;
   className?: string;
 }) {
   const displayTotal = formatAngka(total);
   const displayBaru = formatAngka(baruHariIni);
+  const displayPerusahaan = formatAngka(jumlahPerusahaan);
 
   return (
     <section
       aria-label="Ringkasan lowongan"
       className={cn(
-        "grid grid-cols-1 divide-y divide-slate-100 rounded-[var(--radius-dock)] border border-slate-200/90 bg-white shadow-sm sm:grid-cols-2 sm:divide-x sm:divide-y-0",
+        "grid grid-cols-1 divide-y divide-slate-100 rounded-[var(--radius-dock)] border border-slate-200/90 bg-white shadow-sm sm:grid-cols-3 sm:divide-x sm:divide-y-0",
         className
       )}
     >
@@ -392,6 +413,23 @@ export function RingkasanLoker({
           </div>
           <div className="mt-0.5 text-[12px] sm:text-[12.5px] text-slate-500 leading-tight m-0 p-0">
             Jangan sampai ketinggalan!
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-4.5 px-6 py-4">
+        <span className="flex size-14 sm:size-16 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-[#0066ff]">
+          <Building2 aria-hidden strokeWidth={1.9} className="size-7 sm:size-8" />
+        </span>
+        <div className="min-w-0 flex flex-col justify-center">
+          <div className="text-[28px] sm:text-[32px] leading-none font-bold tracking-tight text-[#0066ff] tabular-nums m-0 p-0">
+            {displayPerusahaan}
+          </div>
+          <div className="mt-1 text-[14px] sm:text-[15px] font-bold text-slate-900 leading-tight m-0 p-0">
+            Perusahaan
+          </div>
+          <div className="mt-0.5 text-[12px] sm:text-[12.5px] text-slate-500 leading-tight m-0 p-0">
+            sedang membuka lowongan
           </div>
         </div>
       </div>

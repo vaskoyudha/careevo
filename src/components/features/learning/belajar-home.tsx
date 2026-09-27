@@ -474,7 +474,7 @@ function HeroSection({
               value={query}
               onChange={(event) => onQuery(event.target.value)}
               placeholder="Mau belajar apa?"
-              className="ml-2 min-w-0 flex-1 bg-transparent text-sm text-[#172b3a] outline-none placeholder:text-[#7d909c]"
+              className="ml-2 min-w-0 flex-1 bg-transparent text-base text-[#172b3a] outline-none placeholder:text-[#7d909c]"
             />
           </div>
           <button
@@ -921,7 +921,7 @@ function ExploreCategoriesBanner() {
                 disabled={!pillScroll.end}
                 aria-label="Geser kategori ke kanan"
                 className={cn(
-                  "absolute top-1/2 right-0 grid size-8 -translate-y-1/2 place-items-center rounded-full border border-[#0A3D62]/15 bg-white text-[#0A3D62] shadow-sm transition-[opacity,background-color,color,transform] duration-200 hover:bg-[#0A3D62] hover:text-white active:scale-95 disabled:pointer-events-none",
+                  "absolute top-1/2 right-0 grid size-11 -translate-y-1/2 place-items-center rounded-full border border-[#0A3D62]/15 bg-white text-[#0A3D62] shadow-sm transition-[opacity,background-color,color,transform] duration-200 hover:bg-[#0A3D62] hover:text-white active:scale-95 disabled:pointer-events-none",
                   pillScroll.end ? "opacity-100" : "opacity-0",
                 )}
               >
@@ -2311,7 +2311,7 @@ export function BelajarHome({
               >
                 <div>
                   <div className="flex items-center justify-between">
-                    <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-semibold text-[#0056D2]">
+                    <span className="rounded-full bg-blue-50 px-2.5 py-2 text-[11px] font-semibold text-[#0056D2]">
                       {deg.badge}
                     </span>
                     <span className="text-xs text-gray-500">

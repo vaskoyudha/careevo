@@ -44,7 +44,7 @@ export default async function SearchPage({ searchParams }: Props) {
           <a
             key={c.label}
             href={c.href}
-            className="rounded-full border border-[#C1CBDB] bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition-colors hover:border-[#0056D2] hover:text-[#0056D2]"
+            className="rounded-full border border-[#C1CBDB] bg-white px-3 py-2.5 text-xs font-semibold text-gray-700 transition-colors hover:border-[#0056D2] hover:text-[#0056D2]"
           >
             {c.label}
           </a>

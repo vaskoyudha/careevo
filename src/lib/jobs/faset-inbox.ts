@@ -272,7 +272,7 @@ export function kategoriUntukPeran(role: string | undefined | null): string {
 }
 
 /** The minimum a row needs for the facets above; keeps this module off the fs. */
-export type BarisFaset = Pick<InboxJob, "url" | "role" | "location"> & {
+export type BarisFaset = Pick<InboxJob, "url" | "role" | "location" | "company"> & {
   /** `YYYY-MM-DD`, from the row's own `posted:` label or the first scan that saw it. */
   firstSeen?: string;
 };
@@ -331,6 +331,26 @@ export function daftarKota(baris: BarisFaset[]): string[] {
 export function daftarKategori(baris: BarisFaset[]): string[] {
   const ada = new Set(baris.map((b) => kategoriUntukPeran(b.role)));
   return KATEGORI.filter((k) => ada.has(k));
+}
+
+/**
+ * Distinct companies present in the rows, alphabetically, for the company select.
+ *
+ * Read off the rows rather than from `portals.yml`, for the same reason
+ * `daftarKota` is: the config names the SOURCES, while this names the EMPLOYERS
+ * that actually produced a row. A company whose board returned nothing is
+ * therefore never offered as a filter that would then return zero — a dead
+ * control that looks alive.
+ *
+ * Not normalized the way `kotaDariLokasi` is: a company name has no
+ * administrative noise to strip, and collapsing "PT X" with "X" would merge two
+ * employers a reader can tell apart.
+ */
+export function daftarPerusahaan(baris: BarisFaset[]): string[] {
+  const perusahaan = new Set(
+    baris.map((b) => (b.company ?? "").trim()).filter((nama) => nama.length > 0),
+  );
+  return [...perusahaan].sort((a, b) => a.localeCompare(b, "id"));
 }
 
 /**

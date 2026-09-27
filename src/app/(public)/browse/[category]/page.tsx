@@ -55,7 +55,7 @@ export default async function BrowseCategoryPage({ params, searchParams }: Props
             <Link
               key={slug}
               href={item?.href ?? `/browse/${slug}`}
-              className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+              className={`rounded-full border px-3 py-2.5 text-xs font-semibold transition-colors ${
                 active
                   ? "border-[#0056D2] bg-[#0056D2] text-white"
                   : "border-[#C1CBDB] bg-white text-gray-700 hover:border-[#0056D2] hover:text-[#0056D2]"

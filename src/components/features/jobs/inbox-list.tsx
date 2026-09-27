@@ -9,6 +9,7 @@ import { filterInbox } from "@/lib/jobs/kueri-inbox";
 import {
   daftarKategori,
   daftarKota,
+  daftarPerusahaan,
   hitungBarisHariIni,
   kategoriUntukPeran,
   kotaDariLokasi,
@@ -59,6 +60,7 @@ export function InboxList({
   const [kueri, setKueri] = useState("");
   const [kota, setKota] = useState("");
   const [kategori, setKategori] = useState("");
+  const [perusahaan, setPerusahaan] = useState("");
   const [status, setStatus] = useState("");
   const [urutan, setUrutan] = useState<NilaiUrutan>("terbaru");
   const [daftarTerbuka, setDaftarTerbuka] = useState(false);
@@ -85,15 +87,17 @@ export function InboxList({
     if (kueri.trim()) hasil = filterInbox(hasil, kueri);
     if (kota) hasil = hasil.filter((r) => kotaDariLokasi(r.location) === kota);
     if (kategori) hasil = hasil.filter((r) => kategoriUntukPeran(r.role) === kategori);
+    if (perusahaan) hasil = hasil.filter((r) => (r.company ?? "").trim() === perusahaan);
     if (status) hasil = hasil.filter((r) => verdictBadge(r)?.label === status);
     return urutkanBaris(hasil, urutan);
-  }, [antrean, kueri, kota, kategori, status, urutan]);
+  }, [antrean, kueri, kota, kategori, perusahaan, status, urutan]);
 
-  const adaSaringan = Boolean(kueri.trim() || kota || kategori || status);
   const kosong = tersaring.length === 0;
 
   const pilihanKota = useMemo(() => daftarKota(antrean), [antrean]);
   const pilihanKategori = useMemo(() => daftarKategori(antrean), [antrean]);
+  const pilihanPerusahaan = useMemo(() => daftarPerusahaan(antrean), [antrean]);
+  const jumlahPerusahaan = pilihanPerusahaan.length;
   const baruHariIni = useMemo(() => hitungBarisHariIni(antrean, hariIni), [antrean, hariIni]);
 
   function terapkan() {
@@ -186,6 +190,10 @@ export function InboxList({
             onKategori={(nextKat) => {
               setKategori(nextKat);
             }}
+            perusahaan={perusahaan}
+            onPerusahaan={(nextPerusahaan) => {
+              setPerusahaan(nextPerusahaan);
+            }}
             status={status}
             onStatus={setStatus}
             urutan={urutan}
@@ -193,19 +201,26 @@ export function InboxList({
             pilihanStatus={PILIHAN_STATUS}
             pilihanKota={pilihanKota}
             pilihanKategori={pilihanKategori}
+            pilihanPerusahaan={pilihanPerusahaan}
             total={antrean.length}
             onBukaDaftar={() => setDaftarTerbuka(true)}
             refKueri={refKueri}
           />
 
-          <RingkasanLoker total={antrean.length} baruHariIni={baruHariIni} className="mt-0" />
+          <RingkasanLoker
+            total={antrean.length}
+            baruHariIni={baruHariIni}
+            jumlahPerusahaan={jumlahPerusahaan}
+            className="mt-0"
+          />
 
           {/* 
-            Sesuai gambar referensi:
-            Saat tidak ada kueri aktif ATAU saat kueri menghasilkan 0, 
-            tampilkan kartu Empty State persis seperti gambar.
+            Daftar lowongan dirender sejak muat pertama: seluruh baris hasil
+            pemindaian langsung tampil tanpa perlu mengetik kueri dulu.
+            Kartu empty-state hanya muncul saat memang belum ada lowongan
+            atau saat filter tidak menemukan apa pun.
           */}
-          {!adaSaringan || kosong ? (
+          {kosong ? (
             !adaRiwayat && antrean.length === 0 ? (
               <KosongLoker
                 judul="Belum pernah dipindai"
@@ -268,6 +283,7 @@ export function InboxList({
                     setKueri("");
                     setKota("");
                     setKategori("");
+                    setPerusahaan("");
                     setStatus("");
                   }}
                   className="text-xs text-slate-500 hover:text-red-600"

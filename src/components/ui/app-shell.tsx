@@ -70,7 +70,7 @@ export function AppShell({
       aria-label={mobileOpen ? "Tutup menu navigasi" : "Buka menu navigasi"}
       aria-expanded={mobileOpen}
       aria-controls="dashboard-mobile-navigation"
-      className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] border border-white/80 bg-white/70 text-muted-foreground shadow-sm transition-colors hover:bg-white hover:text-foreground lg:hidden"
+      className="grid size-11 shrink-0 place-items-center rounded-[10px] border border-white/80 bg-white/70 text-muted-foreground shadow-sm transition-colors hover:bg-white hover:text-foreground lg:hidden"
     >
       <MoreVertical className="h-[18px] w-[18px]" strokeWidth={1.5} />
     </button>
