@@ -50,11 +50,15 @@ export function ExploreMenu() {
   const open = useCallback(
     (dariKeyboard = false) => {
       clearCloseTimeout();
-      fokusDariKeyboard.current = dariKeyboard;
+      // Hovering an already keyboard-open panel must not discard the focus
+      // return path. A closed menu starts a fresh pointer-open state.
+      if (dariKeyboard || !isOpen) {
+        fokusDariKeyboard.current = dariKeyboard;
+      }
       measurePanel();
       setIsOpen(true);
     },
-    [clearCloseTimeout, measurePanel],
+    [clearCloseTimeout, isOpen, measurePanel],
   );
 
   const scheduleClose = useCallback(() => {
@@ -135,7 +139,7 @@ export function ExploreMenu() {
     if (!isOpen || !fokusDariKeyboard.current) return;
     const pertama = panelRef.current?.querySelector<HTMLElement>("a[href]");
     pertama?.focus();
-  }, [isOpen, panelTop]);
+  }, [isOpen]);
 
   const columnClass = "flex w-full min-w-0 flex-col justify-start mb-6 md:w-auto md:min-w-[149px]";
   const headingClass = "mb-2 text-base leading-7 font-normal text-[#0D0F12]";
