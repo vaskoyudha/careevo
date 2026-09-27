@@ -196,7 +196,7 @@ function NavItem({
   );
 }
 
-/** Icon-only row for the collapsed rail. */
+/** Labeled row for the collapsed rail. */
 function RailItem({
   item,
   current,
@@ -217,13 +217,19 @@ function RailItem({
       aria-label={item.title}
       aria-current={isActive ? "page" : undefined}
       className={cn(
-        "grid h-9 w-9 shrink-0 place-items-center rounded-xl transition-colors duration-200",
+        "group flex w-full flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-center transition-colors duration-200 select-none",
         isActive
-          ? "bg-[var(--accent)] text-[var(--accent-foreground)] shadow-sm"
+          ? "bg-[var(--accent)] font-medium text-[var(--accent-foreground)] shadow-xs"
           : "text-muted-foreground hover:bg-[var(--muted)] hover:text-foreground",
       )}
     >
-      <Icon className="h-[16px] w-[16px]" strokeWidth={isActive ? 1.9 : 1.6} />
+      <Icon
+        className="h-5 w-5 shrink-0 transition-transform duration-200 group-hover:scale-105"
+        strokeWidth={isActive ? 2 : 1.6}
+      />
+      <span className="w-full text-center text-[10px] font-medium leading-tight tracking-tight line-clamp-2">
+        {item.title}
+      </span>
     </Link>
   );
 }
@@ -232,7 +238,7 @@ export function DashboardSidebar({
   session,
   current,
   mobileOpen = false,
-  collapsed = false,
+  collapsed = true,
   onToggleCollapse,
   onNavigate,
   className,
@@ -258,8 +264,9 @@ export function DashboardSidebar({
 
   // The rail is a desktop affordance. Below 1024px the sidebar is a drawer that
   // the navbar hamburger + scrim already own, so the collapse state is ignored
-  // there and the full panel renders.
-  const [isDesktop, setIsDesktop] = useState(false);
+  // there and the full panel renders. Initialized true so desktop SSR matches
+  // the default collapsed state with zero hydration layout shift.
+  const [isDesktop, setIsDesktop] = useState(true);
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 1024px)");
     const update = () => setIsDesktop(mq.matches);
@@ -286,7 +293,7 @@ export function DashboardSidebar({
             title="Buka sidebar"
             className="mx-auto mb-2 grid h-9 w-9 shrink-0 place-items-center rounded-[10px] text-muted-foreground transition-colors hover:bg-[var(--muted)] hover:text-foreground"
           >
-            <PanelLeftOpen className="h-[18px] w-[18px]" strokeWidth={1.6} />
+            <PanelLeftOpen className="h-5 w-5" strokeWidth={1.6} />
           </button>
 
           <Link
@@ -294,7 +301,7 @@ export function DashboardSidebar({
             onClick={onNavigate}
             aria-label={session.nama}
             title={session.nama}
-            className="mx-auto mb-2 grid h-9 w-9 shrink-0 place-items-center rounded-full text-[12px] font-semibold text-white uppercase"
+            className="mx-auto mb-2.5 grid h-9 w-9 shrink-0 place-items-center rounded-full text-[12px] font-semibold text-white uppercase"
             style={{
               background: "var(--brand-grad)",
               border: "1px solid var(--brand-border)",
@@ -326,14 +333,20 @@ export function DashboardSidebar({
               current={current}
               onNavigate={onNavigate}
             />
-            <form action={logoutAction}>
+            <form action={logoutAction} className="w-full">
               <button
                 type="submit"
                 aria-label="Keluar"
                 title="Keluar"
-                className="grid h-9 w-9 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-[var(--muted)] hover:text-foreground"
+                className="group flex w-full flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-center text-muted-foreground transition-colors hover:bg-[var(--muted)] hover:text-foreground select-none"
               >
-                <LogOut className="h-[16px] w-[16px]" strokeWidth={1.6} />
+                <LogOut
+                  className="h-5 w-5 shrink-0 transition-transform duration-200 group-hover:scale-105"
+                  strokeWidth={1.6}
+                />
+                <span className="w-full text-center text-[10px] font-medium leading-tight tracking-tight">
+                  Keluar
+                </span>
               </button>
             </form>
           </div>
