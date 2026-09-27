@@ -562,6 +562,68 @@ describe("selesaikanMateriAction — penyimpanan progres terverifikasi", () => {
   });
 });
 
+describe("selesaikanMateriAction — gerbang wajib_kamera", () => {
+  /** Course `wajib_kamera`: kebijakan benar-benar tersimpan, bukan default. */
+  async function setWajibKamera(courseId: string): Promise<void> {
+    const { updateCourse } = await import("@/lib/courses/store");
+    await updateCourse(courseId, {
+      kebijakan: { aturan_bantuan: "bertutor", aturan_pengawasan: "wajib_kamera" },
+    });
+  }
+
+  it("menolak penyelesaian pada course wajib_kamera tanpa kamera menyala", async () => {
+    await setWajibKamera("crs-2");
+    const mulai = await mulaiSesiAction("crs-2");
+    expect(mulai.ok).toBe(true);
+
+    // Tidak ada `kamera_mulai` di run: gerbang harus menahan, dan TIDAK boleh
+    // menulis progres apa pun.
+    const hasil = await selesaikanMateriAction({
+      courseId: "crs-2",
+      modulId: "crs-2-m1",
+      bukti: mulai.bukti ?? "",
+    });
+
+    expect(hasil.ok).toBe(false);
+    expect(hasil.error?.toLowerCase()).toContain("kamera");
+    expect(tandaiModulDb).not.toHaveBeenCalled();
+  });
+
+  it("melepas gerbang setelah kamera menyala tercatat di run", async () => {
+    await setWajibKamera("crs-2");
+    const mulai = await mulaiSesiAction("crs-2");
+    // Bukti kamera diturunkan dari **run**: yang diperiksa adalah kejadian
+    // `kamera_mulai` pada run itu — bukan boolean yang dikirim klien.
+    await catatKejadianAction({
+      runId: mulai.runId ?? "",
+      jenis: "kamera_mulai",
+      visibilitas: "visible",
+      asal: "kamera",
+    });
+
+    const hasil = await selesaikanMateriAction({
+      courseId: "crs-2",
+      modulId: "crs-2-m1",
+      bukti: mulai.bukti ?? "",
+    });
+
+    expect(hasil.ok).toBe(true);
+    expect(tandaiModulDb).toHaveBeenCalled();
+  });
+
+  it("tidak menuntut kamera pada course wajib biasa", async () => {
+    // `wajib` (bukan `wajib_kamera`) tidak boleh ikut tertahan: inilah yang
+    // menjaga `wajib` tetap berarti "wajib" dan bukan "wajib kamera".
+    const mulai = await mulaiSesiAction("crs-2");
+    const hasil = await selesaikanMateriAction({
+      courseId: "crs-2",
+      modulId: "crs-2-m1",
+      bukti: mulai.bukti ?? "",
+    });
+    expect(hasil.ok).toBe(true);
+  });
+});
+
 describe("catatKejadianAction", () => {
   it("records an event for an active run", async () => {
     const mulai = await mulaiSesiAction("crs-3");

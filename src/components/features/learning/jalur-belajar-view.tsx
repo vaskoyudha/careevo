@@ -44,7 +44,7 @@ export function JalurBelajarView({
     >
       <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-14">
         <nav aria-label="Breadcrumb" className="text-sm text-gray-500">
-          <Link href="/belajar" className="hover:text-[#0056D2] hover:underline">
+          <Link href="/belajar" className="hover:text-[#0056D2]">
             Belajar
           </Link>
           <span aria-hidden="true"> / </span>
@@ -189,7 +189,7 @@ export function JalurBelajarView({
             ) : null}
             <Link
               href="/belajar"
-              className="mt-4 block text-center text-sm font-semibold text-[#0056D2] hover:underline"
+              className="mt-4 block text-center text-sm font-semibold text-[#0056D2]"
             >
               Kembali ke katalog
             </Link>
@@ -222,7 +222,7 @@ export function JalurBelajarView({
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                         <Link
                           href={module.href}
-                          className="break-words text-sm font-bold text-gray-900 hover:text-[#0056D2] hover:underline"
+                          className="break-words text-sm font-bold text-gray-900 hover:text-[#0056D2]"
                         >
                           {module.title}
                         </Link>

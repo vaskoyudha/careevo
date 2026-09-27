@@ -3,7 +3,10 @@
 import { ResourceReuseContext, useResourceReusePolicy } from "@/components/chat/home/ResourceReuse";
 import { retainedKnowledgeBases } from "@/lib/resource-reuse";
 import { knowledgeBaseRef } from "@/lib/knowledge-helpers";
-import { scopedUrl } from "@/lib/workspace-scope";
+import { navigateTask, scopedUrl } from "@/lib/workspace-scope";
+import { organizeSessionTree } from "@/lib/session-organization";
+import { sessionRoute } from "@/lib/mastery-session";
+import { subscribeSessionChanges } from "@/lib/session-events";
 import { WATCHING_HOME, watchingRoute } from "@/lib/learning-routes";
 
 import {
@@ -63,7 +66,7 @@ import {
   GeogebraTabProvider,
   useGeogebraTabOpener,
 } from "@/context/GeogebraTabContext";
-import { BookmarkPlus, ChevronRight, Download, FolderOpen, PanelRight } from "lucide-react";
+import { BookmarkPlus, ChevronLeft, ChevronRight, Download, FolderOpen, PanelRight } from "lucide-react";
 import Link from "next/link";
 import {
   useChatStateAdapter,
@@ -104,7 +107,9 @@ import { listCourses, type StudyCourse } from "@/lib/courses-api";
 import { consumePendingPrompt } from "@/lib/pending-prompt";
 import {
   fetchSessionAskHint,
+  listSessions,
   updateSessionOrganization,
+  type SessionSummary,
 } from "@/lib/session-api";
 import {
   DEFAULT_QUIZ_CONFIG,
@@ -293,6 +298,56 @@ export default function ChatWorkspace({
   } = useChatStateAdapter();
 
   const entrySessionId = useRef(state.sessionId);
+  const [sessionIndex, setSessionIndex] = useState<SessionSummary[]>([]);
+  const sessionIndexRef = useRef<SessionSummary[]>([]);
+  const refreshSessionIndex = useCallback(async () => {
+    try {
+      // Account-wide list, the same order the sidebar shows: pinned first,
+      // then streaming, then recency. A failed refresh keeps the last list.
+      const next = await listSessions(50, 0, { force: true, allWorkspaces: true });
+      sessionIndexRef.current = next;
+      setSessionIndex(next);
+    } catch {
+      // A stale list is fine; the arrows simply stop at the current session.
+    }
+  }, []);
+  useEffect(() => {
+    void refreshSessionIndex();
+    return subscribeSessionChanges(() => void refreshSessionIndex());
+  }, [refreshSessionIndex]);
+  const orderedSessionIds = useMemo(() => {
+    const live =
+      state.isStreaming && state.sessionId
+        ? new Set([state.sessionId])
+        : new Set<string>();
+    return organizeSessionTree(sessionIndex, false, live).roots.map(
+      (session) => session.session_id,
+    );
+  }, [sessionIndex, state.isStreaming, state.sessionId]);
+  const currentSessionId = state.sessionId || sessionIdParam || null;
+  const currentSessionIndex = useMemo(() => {
+    if (!currentSessionId) return -1;
+    return orderedSessionIds.indexOf(currentSessionId);
+  }, [orderedSessionIds, currentSessionId]);
+  const prevSessionId =
+    currentSessionIndex > 0 ? orderedSessionIds[currentSessionIndex - 1] : null;
+  const nextSessionId =
+    currentSessionIndex >= 0 && currentSessionIndex < orderedSessionIds.length - 1
+      ? orderedSessionIds[currentSessionIndex + 1]
+      : null;
+  const goToSession = useCallback(
+    (sessionId: string) => {
+      setActiveSessionId(sessionId);
+      const session = sessionIndexRef.current.find(
+        (item) => item.session_id === sessionId,
+      );
+      navigateTask(
+        session ? sessionRoute(session) : `/chat/${sessionId}`,
+        router.push,
+      );
+    },
+    [router, setActiveSessionId],
+  );
   const [replyLanguageSavingKey, setReplyLanguageSavingKey] = useState<string | null>(null);
   const replyLanguageSaveRef = useRef<{ key: string; pending: Promise<void> } | null>(null);
   const handleReplyLanguageChange = useCallback((value: string) => {
@@ -2372,7 +2427,12 @@ export default function ChatWorkspace({
             data-watching-open={isWatchingMode ? "true" : "false"}
             className="chat-preview-shell flex h-full flex-col overflow-hidden bg-[var(--background)]"
           >
-            <div className="mx-auto flex w-full max-w-[960px] flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-6 pt-3 pb-0">
+            {/* The chat header is deliberately NOT capped to the 960px column
+                the messages use: capping it centred the session title and the
+                action icons in the middle of a wide chat area and left a blank
+                gutter on both sides. Full width with `justify-between` pins the
+                title to the far left and the icons to the far right. */}
+            <div className="flex w-full flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-6 pt-3 pb-0">
               <div className="group/title min-w-0 flex flex-1 items-center gap-2">
                 {/* Where this conversation lives, ahead of its title — the same
                     breadcrumb the composer pill writes, so an opened
@@ -2395,6 +2455,23 @@ export default function ChatWorkspace({
                     />
                   </Link>
                 ) : null}
+                {/* Prev/next arrows ride immediately left of the session name
+                    and walk the sidebar's recency order (pinned first, then
+                    streaming, then most recent). Disabled at either end. */}
+                <div className="flex shrink-0 items-center -ml-1">
+                  <HeaderActionButton
+                    onClick={() => prevSessionId && goToSession(prevSessionId)}
+                    disabled={!prevSessionId}
+                    icon={ChevronLeft}
+                    label={t("Previous session")}
+                  />
+                  <HeaderActionButton
+                    onClick={() => nextSessionId && goToSession(nextSessionId)}
+                    disabled={!nextSessionId}
+                    icon={ChevronRight}
+                    label={t("Next session")}
+                  />
+                </div>
                 {sessionTitleEditing ? (
                   <input
                     ref={titleInputRef}

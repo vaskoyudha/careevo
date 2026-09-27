@@ -1,4 +1,3 @@
-import Link from "next/link";
 import {
   ArrowUpRight,
   BadgeCheck,
@@ -15,6 +14,7 @@ import {
   Target,
   X,
 } from "lucide-react";
+import { LandingBtnLink } from "@/components/ui/landing-btn";
 import { Reveal } from "./primitives";
 
 type Tone = "emerald" | "sky" | "blue" | "amber";
@@ -239,23 +239,17 @@ export function MarketingAgents() {
         </Reveal>
 
         <Reveal delay={270}>
-          <div className="mt-8 flex items-center justify-center gap-2">
-            <Link
-              href="/daftar"
-              className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#14121c] px-6 text-[15px] font-medium whitespace-nowrap text-white transition-colors duration-200 select-none hover:bg-[#14121c]/85"
-            >
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+            <LandingBtnLink href="/daftar" className="shrink-0">
               Cobain satu challenge, gratis
-            </Link>
-            <Link
-              href="#loop"
-              className="group inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl px-6 text-[15px] font-medium whitespace-nowrap text-[#0d0c11]/85 transition-colors duration-200 select-none hover:bg-black/5"
-            >
+            </LandingBtnLink>
+            <LandingBtnLink href="#loop" variant="secondary" className="group shrink-0">
               Lihat alurnya
               <ArrowUpRight
                 className="size-4 text-blue-500 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
                 strokeWidth={2}
               />
-            </Link>
+            </LandingBtnLink>
           </div>
         </Reveal>
       </div>

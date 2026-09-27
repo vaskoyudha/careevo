@@ -17,7 +17,7 @@ const buttonVariants = cva(
           "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost:
           "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
-        link: "text-primary underline-offset-4 hover:underline",
+        link: "text-primary underline-offset-4",
         ocean:
           "bg-primary text-primary-foreground shadow-[0_10px_24px_-10px_rgba(10,61,98,0.55)] hover:bg-ocean hover:-translate-y-0.5 active:translate-y-0",
         brand:

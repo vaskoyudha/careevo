@@ -47,7 +47,7 @@ export function TabbedProgramRow({
       <section aria-labelledby="jelajah-program">
         <h2
           id="jelajah-program"
-          className="text-xl font-semibold tracking-tight text-[#0a2a3a]"
+          className="text-4xl font-medium -tracking-[1.9px] text-[#0a3d62] sm:text-5xl lg:text-6xl"
         >
           Jelajahi kursus langsung
         </h2>
@@ -64,29 +64,29 @@ export function TabbedProgramRow({
     <section aria-labelledby="jelajah-program">
       <h2
         id="jelajah-program"
-        className="text-xl font-semibold tracking-tight text-[#0a2a3a]"
+        className="text-4xl font-medium -tracking-[1.9px] text-[#0a3d62] sm:text-5xl lg:text-6xl"
       >
         Jelajahi kursus langsung
       </h2>
 
       <Tabs defaultValue={pertama} className="mt-2 gap-0">
-        <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2 border-b border-[#cbe6ef] pb-2">
+        <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2 border-b border-gray-200 pb-2">
           {/* `TabsList` bersifat `inline-flex w-fit` dengan trigger `whitespace-nowrap`,
               jadi empat tab tidak pernah menyusut dan akan mendorong halaman melebihi
               lebar layar. Wrapper ini membuatnya bisa digeser horizontal. */}
           <div className="min-w-0 flex-1 overflow-x-auto">
             <TabsList variant="line">
               {grup.map(([kategori, isi]) => (
-                <TabsTrigger key={kategori} value={kategori}>
+                <TabsTrigger key={kategori} value={kategori} className="font-semibold text-gray-500">
                   {LABEL_KATEGORI[kategori] ?? kategori}
-                  <span className="ml-1 text-[11px] text-[#8aa0ac]">{isi.length}</span>
+                  <span className="ml-1 text-[11px] text-gray-400">{isi.length}</span>
                 </TabsTrigger>
               ))}
             </TabsList>
           </div>
           <Link
             href={lihatSemuaHref}
-            className="mb-1 shrink-0 text-[13px] font-medium text-[#1b6ca8] hover:underline"
+            className="mb-1 shrink-0 text-[13px] font-medium text-[#0056D2]"
           >
             Lihat program populer
           </Link>
@@ -101,7 +101,9 @@ export function TabbedProgramRow({
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {isi.map((program) => (
-                  <ProgramCard key={program.slug} program={program} />
+                  <div key={program.slug}>
+                    <ProgramCard program={program} />
+                  </div>
                 ))}
               </div>
             )}

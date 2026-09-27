@@ -1,5 +1,8 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useRef } from "react";
 import {
   ChevronRight,
   Home,
@@ -12,13 +15,35 @@ import {
   Check,
   ArrowRight,
 } from "lucide-react";
+import { HeroSubNav } from "@/components/ui/hero-subnav";
 import type { ProgramDetails } from "@/lib/courses/catalog-data";
 
 export function ProgramDetailView({ program }: { program: ProgramDetails }) {
+  return <ProgramDetail program={program} />;
+}
+
+/**
+ * Isi halaman. Wrapper client hanya untuk `useRef` hero: `HeroSubNav`
+ * memicunya dari elemen hero yang benar-benar keluar dari viewport, karena
+ * tinggi hero di sini berubah-ubah mengikuti judul program dan jumlah seri.
+ */
+function ProgramDetail({ program }: { program: ProgramDetails }) {
+  const heroRef = useRef<HTMLElement>(null);
+
   return (
     <div className="min-h-screen bg-white text-gray-900">
+      <HeroSubNav
+        trigger={heroRef}
+        badge={program.type}
+        title={program.title}
+        subtitle={`${program.seriesCount} course series · ${program.level}`}
+        cta={{ href: "/daftar", label: "Enroll for free" }}
+      />
       {/* Hero Section with Concentric Arcs Background */}
-      <header className="relative bg-linear-to-b from-[#F0F5FA] via-[#F4F8FC] to-[#EBF3FA] border-b border-gray-200 pt-20 sm:pt-24 pb-0">
+      <header
+        ref={heroRef}
+        className="surface-blue-fade relative border-b border-gray-200 pt-20 sm:pt-24 pb-0"
+      >
         {/* Concentric Geometric Arcs Graphic on Right */}
         <div className="pointer-events-none absolute right-0 top-0 h-full w-2/5 overflow-hidden opacity-40 hidden md:block">
           <svg
@@ -120,7 +145,7 @@ export function ProgramDetailView({ program }: { program: ProgramDetails }) {
               </div>
               <span className="text-sm text-gray-700">
                 Instructor:{" "}
-                <Link href="#instructor" className="font-semibold text-[#0056D2] hover:underline">
+                <Link href="#instructor" className="font-semibold text-[#0056D2]">
                   {program.instructor}
                 </Link>
               </span>
@@ -147,7 +172,7 @@ export function ProgramDetailView({ program }: { program: ProgramDetails }) {
                 Included with <strong className="text-[#00255D] font-bold">careevo PLUS</strong>
               </span>
               <span className="text-gray-400">•</span>
-              <Link href="/careevo-plus" className="font-semibold text-[#0056D2] hover:underline">
+              <Link href="/careevo-plus" className="font-semibold text-[#0056D2]">
                 Learn more
               </Link>
             </div>
@@ -209,7 +234,15 @@ export function ProgramDetailView({ program }: { program: ProgramDetails }) {
       <div className="h-16 sm:h-20 bg-white" aria-hidden="true" />
 
       {/* Tab Navigation Bar: About, Outcomes, Courses, Testimonials, Reviews */}
-      <nav aria-label="Course section tabs" className="border-b border-gray-200 bg-white sticky top-16 z-10 backdrop-blur-md bg-white/95">
+      {/* `subnav-sticky-flush`, bukan `top-16`: 64px adalah tinggi navbar versi
+          lama, sedangkan pil mengambang berakhir di 78px — jadi strip ini sudah
+          tersembunyi sebagian di bawah navbar, dan ditambah sub-header jadi
+          lebih buruk. Flush tanpa celah karena strip ini lanjutan dari satu
+          stack yang sama, bukan pita tersendiri. */}
+      <nav
+        aria-label="Course section tabs"
+        className="subnav-sticky-flush border-b border-gray-200 bg-white/95 sticky z-10 backdrop-blur-md"
+      >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2 py-3 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <Link
@@ -252,7 +285,7 @@ export function ProgramDetailView({ program }: { program: ProgramDetails }) {
           {/* Main Column */}
           <div className="lg:col-span-8 space-y-10">
             {/* What you'll learn */}
-            <section id="about" aria-labelledby="what-learn-heading" className="rounded-2xl border border-gray-200 bg-white p-6 sm:p-8 shadow-2xs">
+            <section id="about" aria-labelledby="what-learn-heading" className="subnav-scroll-mt-deep rounded-2xl border border-gray-200 bg-white p-6 sm:p-8 shadow-2xs">
               <h2 id="what-learn-heading" className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900">
                 What you&apos;ll learn
               </h2>
@@ -267,7 +300,7 @@ export function ProgramDetailView({ program }: { program: ProgramDetails }) {
             </section>
 
             {/* Skills & Tools Section */}
-            <section id="outcomes" className="rounded-2xl border border-gray-200 bg-white p-6 sm:p-8 shadow-2xs space-y-8">
+            <section id="outcomes" className="subnav-scroll-mt-deep rounded-2xl border border-gray-200 bg-white p-6 sm:p-8 shadow-2xs space-y-8">
               <div>
                 <h3 className="text-lg sm:text-xl font-bold text-gray-900">Skills you&apos;ll gain</h3>
                 <div className="mt-4 flex flex-wrap gap-2">
@@ -298,7 +331,7 @@ export function ProgramDetailView({ program }: { program: ProgramDetails }) {
             </section>
 
             {/* Courses in this Specialization */}
-            <section id="courses" aria-labelledby="courses-heading" className="space-y-6">
+            <section id="courses" aria-labelledby="courses-heading" className="subnav-scroll-mt-deep space-y-6">
               <div>
                 <h2 id="courses-heading" className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
                   Courses in this {program.type}
@@ -347,7 +380,7 @@ export function ProgramDetailView({ program }: { program: ProgramDetails }) {
                       </div>
                       <Link
                         href="/daftar"
-                        className="text-xs font-bold text-[#0056D2] hover:underline"
+                        className="text-xs font-bold text-[#0056D2]"
                       >
                         Explore course →
                       </Link>
@@ -358,7 +391,7 @@ export function ProgramDetailView({ program }: { program: ProgramDetails }) {
             </section>
 
             {/* Instructor Section */}
-            <section id="instructor" className="rounded-2xl border border-gray-200 bg-white p-6 sm:p-8 shadow-2xs">
+            <section id="instructor" className="subnav-scroll-mt-deep rounded-2xl border border-gray-200 bg-white p-6 sm:p-8 shadow-2xs">
               <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900">
                 Instructor
               </h2>
@@ -386,7 +419,12 @@ export function ProgramDetailView({ program }: { program: ProgramDetails }) {
 
           {/* Right Sidebar Info Card */}
           <aside className="lg:col-span-4 space-y-6">
-            <div className="sticky top-28 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm space-y-6">
+            {/* `subnav-sticky-deep`, bukan `top-28`: kolom ini diam di bawah
+                strip tab yang juga lengket, jadi harus consenting clearance
+                navbar + sub-header + strip. `top-28` (112px) dan
+                `subnav-sticky-top` (147px) keduanya jatuh di dalam strip
+                (131-188px) dan menutupi 53px kepalanya. */}
+            <div className="subnav-sticky-deep sticky rounded-2xl border border-gray-200 bg-white p-6 shadow-sm space-y-6">
               <div>
                 <h3 className="text-lg font-bold text-gray-900">Program Details</h3>
                 <p className="mt-1 text-xs text-gray-500">Everything you need to know before starting.</p>

@@ -129,7 +129,7 @@ function MateriRingkas({ materi }: { materi: Materi }) {
         type="button"
         onClick={() => setBuka((v) => !v)}
         aria-expanded={buka}
-        className="mt-1 flex cursor-pointer items-center gap-1 text-xs font-medium text-[#0056D2] hover:underline"
+        className="mt-1 flex cursor-pointer items-center gap-1 text-xs font-medium text-[#0056D2]"
       >
         {buka ? <ChevronUp className="size-3" aria-hidden="true" /> : <ChevronDown className="size-3" aria-hidden="true" />}
         {buka ? "Sembunyikan pratinjau" : "Pratinjau"}
@@ -295,7 +295,7 @@ function FormMateri({
           />
           {path ? (
             <p className="text-xs text-gray-600">
-              Berkas: <a href={path} target="_blank" rel="noreferrer" className="text-[#0056D2] hover:underline">{path}</a>
+              Berkas: <a href={path} target="_blank" rel="noreferrer" className="text-[#0056D2]">{path}</a>
             </p>
           ) : (
             <p className="field-hint">Unggah berkas PDF terlebih dahulu.</p>

@@ -15,6 +15,7 @@ import { sessionRunDariDb } from "@/lib/learning/dashboard";
 import { modulUntukSumber } from "@/lib/courses/modul-resolver";
 import {
   JENIS_KEJADIAN_SAH,
+  butuhKamera,
   checkpointEfektif,
   lewatBatas,
   putuskanAkses,
@@ -77,6 +78,21 @@ function waktuIso(nilai: Date | string): string {
  */
 function kebijakanKursus(kursus: Course): KebijakanCourse {
   return kursus.kebijakan ?? kebijakanDefault();
+}
+
+/**
+ * Apakah run yang sedang diverifikasi punya bukti kamera menyala.
+ *
+ * **Diturunkan dari run, bukan dari klaim pemanggil.** `kamera_mulai` ditulis
+ * ke `learning_events` hanya lewat `catatKejadianDb` pada run aktif milik
+ * pemanggil, dan run itu sudah dibaca server di `buktikanSesiDb` — jadi ini
+ * bukti yang bisa diaudit, bukan parameter yang bisa diisi `true` oleh klien.
+ * Run yang tidak bisa dibaca menghasilkan `false` (gagal-tertutup): bukti yang
+ * tidak bisa diperiksa tidak boleh dianggap memenuhi syarat.
+ */
+async function kameraMenyalaPadaRun(runId: string): Promise<boolean> {
+  const kejadian = await listEventRun(runId);
+  return kejadian.some((k) => k.kind === "kamera_mulai");
 }
 
 /**
@@ -156,6 +172,7 @@ export async function catatKejadianAction(input: {
   jenis: KJenisKejadian;
   visibilitas: "visible" | "hidden" | null;
   detail?: string;
+  asal?: string;
 }): Promise<SesiActionState> {
   const session = await getSession();
   if (!session) return { ok: false, error: "Sesi pengguna tidak ditemukan." };
@@ -184,6 +201,7 @@ export async function catatKejadianAction(input: {
     // Pemakaian cast di sini aman karena daftar sah sudah diperiksa di atas.
     jenis: input.jenis as KJenisKejadian,
     visibilitas: input.visibilitas,
+    asal: input.asal,
     // `detail` dipotong di service (`catatKejadianDb`), tidak diulang di sini.
     detail: input.detail,
   });
@@ -261,14 +279,34 @@ export async function selesaikanMateriAction(input: {
   // serahkan ke `putuskanAkses` di sini. `keputusan.tipe` selalu `bebas` untuk
   // course `opsional` (lihat `wajibSesiTerverifikasi`), jadi rute klien yang
   // mengirim permintaan ini pada course `opsional` tidak ikut ditolak.
+  //
+  // Bukti kamera dibaca dari run **setelah** `bukti` terverifikasi: tanpa run
+  // yang sah tidak ada catatan yang bisa diperiksa, jadi membacanya lebih awal
+  // tidak menambah apa pun.
+  //
+  // Yang menentukan apakah pembacaan itu dibayar adalah kebijakannya, bukan
+  // keberadaan `bukti`: `putuskanAkses` membaca `adaBuktiKamera` hanya di dalam
+  // cabang `butuhKamera`, jadi pada course `wajib` hasilnya dibuang. Tanpa
+  // syarat itu, `wajib` — kebijakan bawaan kursus seed — membayar satu
+  // `learning_events` per penyelesaian untuk jawaban yang tidak pernah dipakai.
+  // Bentuknya sengaja meniru gerbang jalur kuis (`wajibKamera` di
+  // `selesaikanModulKuisVerified`) supaya dua gerbang dibaca sama. Syarat `bukti`
+  // tetap ikut ada: pada course `wajib_kamera` bukti bisa saja kosong, dan
+  // `bukti.id` tidak boleh dibaca lebih dulu supaya tidak jatuh ke galat.
+  const kameraMenyala =
+    butuhKamera(kebijakan) && bukti ? await kameraMenyalaPadaRun(bukti.id) : false;
+
   const keputusan = putuskanAkses({
     jenisKegiatan: "materi",
     kebijakan,
     adaBuktiSesi: Boolean(bukti),
+    adaBuktiKamera: kameraMenyala,
   });
   // Pesan keputusan dipakai apa adanya agar copy tidak menyimpang dari mesin
-  // akses: `perlu_sesi` untuk peserta tanpa bukti, `ditolak` untuk larangan.
+  // akses: `perlu_sesi`/`perlu_kamera` untuk syarat yang belum terpenuhi,
+  // `ditolak` untuk larangan.
   if (keputusan.tipe === "perlu_sesi") return { ok: false, error: keputusan.pesan };
+  if (keputusan.tipe === "perlu_kamera") return { ok: false, error: keputusan.pesan };
   if (keputusan.tipe === "ditolak") return { ok: false, error: keputusan.pesan };
 
   // Batas per modul ditegakkan terpisah dari masa berlaku sesi.

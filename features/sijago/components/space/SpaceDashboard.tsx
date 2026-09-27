@@ -6,7 +6,6 @@ import { useTranslation } from "react-i18next";
 import { useCapabilityFilter } from "@/features/capabilities/useCapabilityCatalog";
 import {
   ArrowUpRight,
-  BookOpen,
   ClipboardList,
   Ear,
   Github,
@@ -17,7 +16,6 @@ import {
 
 import { listSessions } from "@/lib/session-api";
 import { listNotebooks, listNotebookEntries } from "@/lib/notebook-api";
-import { listKnowledgeBases } from "@/features/knowledge/api/catalog";
 
 /**
  * Learning Space dashboard — the hub of `/space`.
@@ -31,7 +29,6 @@ import { listKnowledgeBases } from "@/features/knowledge/api/catalog";
 type Lang = { zh: string; en: string };
 
 type DashKey =
-  | "knowledge"
   | "chat_history"
   | "notebooks"
   | "question_bank"
@@ -115,19 +112,11 @@ const GROUPS: DashboardGroup[] = [
         tile: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
         load: async () => (await listNotebookEntries({ limit: 1 })).total,
       },
-      {
-        key: "knowledge",
-        href: "/knowledge-bases",
-        icon: BookOpen,
-        title: { zh: "知识中心", en: "Knowledge Center" },
-        blurb: {
-          zh: "管理知识库与检索引擎。",
-          en: "Manage knowledge bases and retrieval engines.",
-        },
-        unit: { zh: "个知识库", en: "knowledge bases" },
-        tile: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-        load: async () => (await listKnowledgeBases({ library: true })).length,
-      },
+      /**
+       * The Knowledge Center is deliberately absent from this dashboard. The
+       * surface itself still works at `/knowledge-bases` — this only withholds
+       * the overview tile, so no knowledge-base count fetch is made either.
+       */
     ],
   },
   /**

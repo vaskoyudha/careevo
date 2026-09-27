@@ -1,13 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useTransition, type ReactNode } from "react";
 import {
   Briefcase,
   Building2,
   ChevronDown,
   GraduationCap,
+  LayoutDashboard,
   LogOut,
+  MessageSquare,
   Route,
   Send,
   Settings,
@@ -57,6 +60,19 @@ export const learnerNavItems: NavItem[] = [
     label: "Jalur Belajar",
     icon: <Route size={15} strokeWidth={1.5} aria-hidden="true" />,
   },
+  // AI Mastery is a destination, not a utility, so it belongs in this row with a
+  // visible name beside the icon like every other item. It used to be an
+  // icon-only button parked in `.chrome-actions`; read next to `Cari` and the
+  // avatar it looked like a control, and being `xl:block` it disappeared
+  // entirely on phones — where the nav collapses to icons and it now stays
+  // reachable. `MessageSquare` matches the "Belajar di AI Mastery" link in
+  // `mastery-topic-view.tsx`; `Sparkle`/`Sparkles` were the alternatives and
+  // both read as a near-duplicate of `Careevo Plus` a few items away.
+  {
+    href: "/ai-mastery",
+    label: "AI Mastery",
+    icon: <MessageSquare size={15} strokeWidth={1.5} aria-hidden="true" />,
+  },
   {
     href: "/submission",
     label: "Karya",
@@ -78,6 +94,28 @@ export const learnerNavItems: NavItem[] = [
     icon: <Building2 size={15} strokeWidth={1.5} aria-hidden="true" />,
   },
 ];
+
+/**
+ * "Dashboard" action button, parked in `.chrome-actions` right beside the
+ * account menu (the "profile") on the learner navbars. Icon-only, matching the
+ * compact nav vocabulary: the label is kept for screen readers and surfaced on
+ * wide screens only if the bar has room.
+ */
+export function DashboardButton() {
+  const pathname = usePathname();
+  const active =
+    pathname === "/dashboard" || pathname.startsWith("/dashboard/");
+  return (
+    <Link
+      href="/dashboard"
+      aria-current={active ? "page" : undefined}
+      className={active ? "nav-item is-active" : "nav-item"}
+    >
+      <LayoutDashboard size={15} strokeWidth={1.5} aria-hidden="true" />
+      <span className="sr-only">Dashboard</span>
+    </Link>
+  );
+}
 
 export function AccountMenu({ session }: { session: SessionPayload }) {
   const [isPending, startTransition] = useTransition();

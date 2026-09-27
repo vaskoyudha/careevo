@@ -16,6 +16,11 @@ export const metadata: Metadata = {
   description:
     "Jembatan dari course ke pekerjaan pertama: proses belajar terekam, badge HMAC, dan loker teraudit, tanpa biometrik. Kamera dirancang hanya aktif di dalam sesi terverifikasi yang kamu setujui, dan belum berjalan di aplikasi ini.",
   applicationName: "Careevo",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export const viewport: Viewport = {
