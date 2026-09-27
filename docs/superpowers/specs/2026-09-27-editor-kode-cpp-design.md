@@ -142,6 +142,13 @@ pesan compiler sungguhan. Sebaliknya, timeout dan kehabisan memori menghasilkan
 `255` dan `137`. Angka itu tidak boleh tampil ke peserta mentah-mentah. Lihat
 P4.
 
+> **Catatan tanggal.** Tabel di atas diukur dengan batas waktu di
+> `--timeout` podman, yaitu desain yang digantikan P4. Angka 255 di baris
+> timeout dan fork bom sudah tidak berlaku: setelah batasnya pindah ke
+> `timeout -s KILL` di dalam kontainer, ketiganya menjadi 137 dan tidak bisa
+> dibedakan. Tabelnya dibiarkan apa adanya karena itu bukti pengukuran yang
+> benar-benar terjadi, dan P4 yang menjelaskan apa yang berubah.
+
 Belum terukur: perilaku di bawah beban, yaitu sepuluh peserta menekan Jalankan
 sekaligus. Juga belum terukur: konsistensi sufiks `:z` setelah reboot.
 
@@ -175,15 +182,43 @@ panggilan HTTP yang tervalidasi.
 
 ### P4 — Status semantik, bukan exit code mentah
 
-Runner mengembalikan enum: `sukses`, `gagal_kompilasi`, `waktu_habis`,
-`memori_habis`, `proses_habis`, `ditolak`, dan `galat_runner`. Angka 255 dan 137
-tidak pernah sampai ke peserta.
+Runner mengembalikan enum: `sukses`, `gagal_kompilasi`, `batas_dilampaui`,
+`galat_program`, `ditolak`, dan `galat_runner`. Angka 255 dan 137 tidak pernah
+sampai ke peserta.
 
-Peserta yang fork bom-nya dihentikan dengan bersih belajar apa itu batas
-proses. Peserta yang hanya melihat `exit=137` belajar tidak apa-apa.
+**Tiga batas menjadi satu status, dan itu hasil pengukuran, bukan pilihan
+penyederhanaan.** Batas waktu, batas memori, dan batas jumlah proses semuanya
+menghasilkan exit 137 dengan stderr `Killed`, dan dari luar kontainer tidak ada
+yang bisa membedakan ketiganya: kernel tidak menyatakan batas mana yang
+meletus, dan podman tidak mengeluarkan apa pun. Diukur pada 2026-09-27 — loop
+tak berujung, bom memori, dan fork bom semuanya 137. Maka `batas_dilampaui`
+bernilai satu: satu status untuk satu peristiwa yang benar-benar diamati.
+Memecahkannya jadi tiga nama hanya akan membuat runner menebak salah satu dari
+tiga tanpa bukti, dan `petakanStatus` di `port.ts` sudah menyimpulkan itu —
+judulnya menyebut seluruh batas, bukan satu.
 
-`gagal_kompilasi` mengembalikan stderr GCC apa adanya. Itu sinyal mengajar,
-dan menulis ulang akan menjadi penurunan kualitas.
+Yang membuat peristiwanya terlihat adalah **batasnya ditegakkan di dalam
+kontainer**, dengan GNU `timeout -s KILL 10`, bukan dengan `--timeout` podman.
+Dengan `--timeout` podman saja, kontainer yang dibunuh kembali 255 dengan
+stdout dan stderr kosong — persis yang tercatat di tabel "Bukti terukur" di
+bawah — sehingga batas waktu tidak bisa dibedakan dari kehabisan memori maupun
+fork bom. `--timeout=25` tetap ada, tetapi hanya sebagai cadangan supaya
+kontainer yang macet tidak menahan slot antrean selamanya; 25 selalu lebih
+besar dari 10 supaya cadangan tidak pernah menjadi yang mematikan lebih dulu.
+
+Kode yang berarti **kita** yang keliru dipetakan ke status sendiri, bukan
+dijadikan `sukses`: 255, yaitu cadangan yang menyala, adalah
+`batas_dilampaui`; sedangkan 125, 126, dan 127 dari podman adalah
+`galat_runner`, karena tidak ada program yang sempat jalan. Kode lainnya adalah
+kode pilihan program di dalam kontainer, jadi `sukses` — `return 3` adalah
+eksekusi yang berhasil, dan melaporkan itu sebagai "layanan eksekusi tidak
+tersedia" akan mengirim peserta ke tempat yang salah.
+
+`gagal_kompilasi` dibedakan oleh penanda `|| exit 42` yang eksplisit, bukan
+ditebak dari isi stderr. Dengan begitu stderr GCC sampai apa adanya, lengkap
+dengan penanda, nomor baris, dan potongan sumber, dan tidak pernah tertukar
+dengan kegagalan lain yang juga bermunculan di stderr. Itu sinyal mengajar, dan
+menulis ulang akan menjadi penurunan kualitas.
 
 ### P5 — Ruang latihan di `localStorage` tidak pernah jadi bukti
 
@@ -274,12 +309,11 @@ eslint.
 | `status` | Pemicu | Yang dilihat peserta |
 |---|---|---|
 | `sukses` | exit 0 | stdout, badge hijau |
-| `gagal_kompilasi` | `g++` exit bukan 0 | stderr GCC apa adanya |
-| `waktu_habis` | `--timeout` | "Program berhenti karena berjalan terlalu lama." |
-| `memori_habis` | exit 137 atau kehabisan memori | "Program berhenti karena memakai terlalu banyak memori." |
-| `proses_habis` | pids limit | "Program dihentikan karena membuat terlalu banyak proses." |
+| `gagal_kompilasi` | penanda `exit 42` dari `g++` | stderr GCC apa adanya |
+| `batas_dilampaui` | exit 137, yaitu batas waktu, memori, atau proses yang aktif; atau 255 saat cadangan podman menyala | "Program dihentikan karena melampaui batas layanan." |
+| `galat_program` | exit 139, program berhenti sendiri | "Program berhenti mendadak saat berjalan." |
 | `ditolak` | validasi, atau `dapatDijalankan` false | "Blok ini belum bisa dijalankan." |
-| `galat_runner` | image hilang, podman gagal | "Layanan eksekusi sedang tidak tersedia." |
+| `galat_runner` | penanda `exit 40`, atau 125/126/127 dari podman | "Layanan eksekusi sedang tidak tersedia." |
 
 Batas keras. Maksimal 20.000 baris sumber, 8 KB stdin, dan 64 KB keluaran yang
 dikembalikan. Timeout 10 detik, memori 512 MB, 64 proses, 1 CPU.
@@ -340,8 +374,8 @@ test.
 10. Hapus gerbang `dapatDijalankan` sebelum POST.
 11. Hapus `case "kode"` dari `blokBerisi`.
 12. Hapus `kode` dari `blokSchema`.
-13. Hilangkan pemetaan `waktu_habis`, `memori_habis`, atau `proses_habis`,
-    sehingga exit mentah bocor ke UI.
+13. Ubah pemetaan 137 atau 255, sehingga batas yang sedang aktif dilaporkan
+    sebagai `galat_runner` dan peserta diberi tahu layanan eksekusi rusak.
 14. Hapus cabang `kode` dari `jumlahKata`, sehingga isi kode dihitung sebagai
     kata baca.
 15. Ubah bawaan `kodeAwal` dari `kode` menjadi string kosong.
