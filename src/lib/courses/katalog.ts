@@ -59,3 +59,9 @@ export async function cariEntri(slug: string): Promise<EntriKatalog | undefined>
   const katalog = await katalogBelajar();
   return katalog.find((entri) => entri.slug === slug);
 }
+
+/** Cari entri katalog by id (course store id atau id fixture resource). */
+export async function cariEntriById(id: string): Promise<EntriKatalog | undefined> {
+  const katalog = await katalogBelajar();
+  return katalog.find((entri) => entri.id === id);
+}
