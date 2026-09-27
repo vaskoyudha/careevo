@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript, React 19 (client components), Vitest, `js-yaml` (devDependency, tests only), the vendored `engine/*.mjs` scanner driven through `engine/discover-ats.mjs` and `src/actions/inbox.ts`.
 
-**Spec:** `docs/superpowers/specs/2026-09-27-papan-loker-pasar-indonesia-design.md` (the config Part B extends; its §"Batas atas per pindai" is the ceiling arithmetic this plan pushes on). Part A has no prior spec — its basis is the measured dev data root (257 rows, 181 employers) recorded in `docs/local-db.md` §8.
+**Spec:** `docs/superpowers/specs/2026-09-27-papan-loker-pasar-indonesia-design.md` (the config Part B extends; its §"Batas atas per pindai — koreksi terhadap presentasi sebelumnya" is the ceiling arithmetic this plan pushes on). Part A has no prior spec — its basis is the measured dev data root (257 rows, 181 employers) recorded in `docs/local-db.md` §8.
 
 ## Global Constraints
 
@@ -21,7 +21,7 @@
 - Do **not** set `strict: true` on `location_filter`. It fails *closed* and would drop every Glints row that carries no location. The existing guard in `portals-careevo.test.ts` asserts `strict` is `undefined`; keep it.
 - **Never commit `.data/`.** It is gitignored (`.gitignore:47`). Every path Task 4 touches lives there.
 - The scan has a **hard 5-minute timeout** (`src/lib/career-ops/tracker.ts:126`, `timeoutMs: 5 * 60_000`). Adding board entries multiplies requests: `entries × pageSize × maxPages`. This plan keeps `pageSize: 30` and `maxPages: 3` exactly as they are — no depth change — so the added work is linear in entries only.
-- Each task ends with a commit. The working tree already contains unrelated edits; stage only the files a task names.
+- Commits: Task 1 is **verification only** (its code is already committed in `5d6d257`), Task 4 is **measurement only** (every path it touches is gitignored), and Tasks 2, 3, and 5 each end with a commit. The working tree already contains unrelated edits; stage only the files a task names.
 
 ---
 
@@ -29,31 +29,31 @@
 
 | File | Responsibility |
 |---|---|
-| `src/lib/jobs/faset-inbox.ts` | Facet derivation. Part A adds `company` to `BarisFaset` and a new pure `daftarPerusahaan()`. |
-| `src/lib/jobs/faset-inbox.test.ts` | Guards the facet. Part A adds two `it` blocks for `daftarPerusahaan`. |
-| `src/components/features/jobs/permukaan-cari-loker.tsx` | Presentation. Part A adds the company `<select>` to `PanelCariLoker` and a third tile to `RingkasanLoker`. |
-| `src/components/features/jobs/inbox-list.tsx` | Wires state to the two components above. Part A adds the `perusahaan` filter state and its predicate. |
+| `src/lib/jobs/faset-inbox.ts` | Facet derivation. Part A added `company` to `BarisFaset` and the pure `daftarPerusahaan()` — committed in `5d6d257`. |
+| `src/lib/jobs/faset-inbox.test.ts` | Guards the facet. Part A added two `it` blocks for `daftarPerusahaan` — committed in `5d6d257`. |
+| `src/components/features/jobs/permukaan-cari-loker.tsx` | Presentation. Part A added the company `<select>` to `PanelCariLoker` and a third tile to `RingkasanLoker` — committed in `5d6d257`. |
+| `src/components/features/jobs/inbox-list.tsx` | Wires state to the two components above. Part A added the `perusahaan` filter state and its predicate — committed in `5d6d257`. |
 | `src/lib/career-ops/portals-careevo.yml` | **Data only.** Part B adds 15 `job_boards` entries (Task 2) and N verified `tracked_companies` (Task 3). |
 | `src/lib/career-ops/portals-careevo.test.ts` | Guards on that data file. Part B adds board-shape and company-floor guards. |
 | `docs/local-db.md` | Operator runbook. Part B's Task 5 records the new measured numbers. |
 
-**Part A is already written but uncommitted.** `git diff --stat` shows `faset-inbox.ts`, `faset-inbox.test.ts`, `inbox-list.tsx`, and `permukaan-cari-loker.tsx` as modified. Task 1 verifies that work and commits it; it does not re-implement it. Parts A and B are independent — a reviewer can accept Part A and reject Part B without conflict.
+**Part A is already written and committed** in `5d6d257` ("feat(konten): seed materi katalog, faset inbox loker, dan copy dashboard"). `git log -S "export function daftarPerusahaan"` names that commit, and `git diff HEAD --` on the four files is empty. Task 1 therefore **verifies** the committed work against the current file contents; it neither re-implements nor re-commits it. Parts A and B are independent — a reviewer can accept Part A and reject Part B without conflict, and a rejection of Part B needs no revert of Part A.
 
 ---
 
-## Task 1: Commit the employer count and the employer filter
+## Task 1: Verify the employer count and the employer filter
 
-The code for this task is already in the working tree (written this session, verified by `tsc` + `eslint` + 244 passing tests). This task confirms it against the current file contents, then commits **only those four files**.
+The code for this task is already committed in `5d6d257` (written in a prior session, verified by `tsc` + `eslint` + 244 passing tests). This task re-confirms it against the current file contents. There is **no commit step** — running it on an up-to-date checkout changes nothing on disk, which is the point: it is a verification gate, not an edit.
 
 **Files:**
-- Modify (already modified, uncommitted): `src/lib/jobs/faset-inbox.ts`
-- Modify (already modified, uncommitted): `src/lib/jobs/faset-inbox.test.ts`
-- Modify (already modified, uncommitted): `src/components/features/jobs/inbox-list.tsx`
-- Modify (already modified, uncommitted): `src/components/features/jobs/permukaan-cari-loker.tsx`
+- Verify (committed in `5d6d257`): `src/lib/jobs/faset-inbox.ts`
+- Verify (committed in `5d6d257`): `src/lib/jobs/faset-inbox.test.ts`
+- Verify (committed in `5d6d257`): `src/components/features/jobs/inbox-list.tsx`
+- Verify (committed in `5d6d257`): `src/components/features/jobs/permukaan-cari-loker.tsx`
 
 **Interfaces:**
 - Consumes: `InboxJob` from `@/lib/career-ops` (unchanged), `verdictBadge` from `./cari-lowongan-ui` (unchanged).
-- Produces: `daftarPerusahaan(baris: BarisFaset[]): string[]`; `BarisFaset` gains `company`; `RingkasanLoker` gains a required `jumlahPerusahaan: number` prop; `PanelCariLoker` gains `perusahaan`, `onPerusahaan`, `pilihanPerusahaan` props. Task 2-5 do not touch these, but they must stay compilable.
+- Produces (all already on `HEAD`): `daftarPerusahaan(baris: BarisFaset[]): string[]`; `BarisFaset` carries `company`; `RingkasanLoker` requires a `jumlahPerusahaan: number` prop; `PanelCariLoker` takes `perusahaan`, `onPerusahaan`, `pilihanPerusahaan` props. Tasks 2-5 do not touch these, but they must stay compilable.
 
 - [ ] **Step 1: Confirm the facet function exists exactly as specified**
 
@@ -64,7 +64,7 @@ grep -n "export function daftarPerusahaan" src/lib/jobs/faset-inbox.ts
 grep -n 'Pick<InboxJob, "url" | "role" | "location" | "company">' src/lib/jobs/faset-inbox.ts
 ```
 
-Expected: both lines print. The second is the `BarisFaset` declaration. If either is missing, the working tree was reverted — re-apply the two edits described in this task's Interfaces block before continuing.
+Expected: both lines print. The second is the `BarisFaset` declaration. If either is missing, the checkout predates `5d6d257` — check out that commit or re-apply the two edits described in this task's Interfaces block before continuing.
 
 - [ ] **Step 2: Confirm the two guards exist**
 
@@ -134,7 +134,16 @@ rm -f ./_probe-perusahaan.ts
 
 Expected (on the current dev root): `lowongan: 257` and `perusahaan: 181`. The exact numbers may drift as the data root changes; what matters is that `perusahaan` is greater than `0` and less than or equal to `lowongan`.
 
-- [ ] **Step 6: Commit only the four files**
+- [ ] **Step 6: Confirm the committed state matches — no commit needed**
+
+The work is already on `HEAD`. Confirm nothing is staged or unstaged for these four files:
+
+```bash
+git diff --stat HEAD -- src/lib/jobs/faset-inbox.ts src/lib/jobs/faset-inbox.test.ts src/components/features/jobs/inbox-list.tsx src/components/features/jobs/permukaan-cari-loker.tsx
+git log --oneline -1 -S "export function daftarPerusahaan" -- src/lib/jobs/faset-inbox.ts
+```
+
+Expected: the first prints nothing (no diff against `HEAD`), and the second prints a commit line — `5d6d257 feat(konten): …`. **If the first command prints a diff**, the checkout is not the one this plan was written against; commit those four files with the message below before continuing, then move to Task 2.
 
 ```bash
 git add src/lib/jobs/faset-inbox.ts src/lib/jobs/faset-inbox.test.ts src/components/features/jobs/inbox-list.tsx src/components/features/jobs/permukaan-cari-loker.tsx
@@ -871,7 +880,7 @@ hanya berkas mana yang disalin yang berubah.
 
 - [ ] **Step 2: Replace the ceiling arithmetic with the measured numbers**
 
-Find the section headed `### Batasnya, dan mengapa itu bukan cakupan nasional` and replace its bullet list with the Task 4 measurements. Use the real numbers, in this shape:
+Find the section headed `### Batasnya, dan mengapa itu bukan cakupan nasional`. It runs from that heading down to (but not including) the next `###` heading, `### Pindai dua kali berturut-turut mengukur rate limit, bukan config`. Replace the **entire body** — the introductory line, the bullet list, and the trailing paragraph that begins `Langit-langit mentahnya sekitar 445` — with the Task 4 measurements. Leaving that paragraph would keep a stale `445`/`295` arithmetic contradicting the new counts directly above it. Use the real numbers, in this shape:
 
 ```markdown
 ### Batasnya, dan mengapa itu bukan cakupan nasional
@@ -895,12 +904,14 @@ Batas-batas ini harus dibaca apa adanya, bukan sebagai jangkauan pasar:
   "ribuan lowongan tech Indonesia" tidak didukung bukti yang ada sekarang.
 ```
 
-Replace every `<placeholder>` with the Task 4 number. Do not leave an angle-bracket placeholder in the committed file.
+Replace every `<new_added>`, `<total>`, `<perusahaan>`, and `<tanggal>` with the Task 4 number. Do not leave an angle-bracket placeholder in the committed file.
 
 - [ ] **Step 3: Verify no placeholder survived**
 
+`docs/local-db.md` already contains one legitimate angle-bracket token at line 195 — `careevo_test_<seed>` — so a bare `grep "<[a-z_]+>"` would report a false positive. Match only the four placeholder names this step can leave behind:
+
 ```bash
-grep -nE "<[a-z_]+>" docs/local-db.md && echo "PLACEHOLDER LEFT" || echo "clean"
+grep -nE "<(new_added|total|perusahaan|tanggal)>" docs/local-db.md && echo "PLACEHOLDER LEFT" || echo "clean"
 ```
 
 Expected: `clean`.
@@ -925,8 +936,8 @@ diblokir WAF), plus angka terukur dari pindai bersih terakhir.
 
 | Spec / request item | Task |
 |---|---|
-| "tampilkan jumlah perusahaan" (summary tile) | Task 1 (`RingkasanLoker` third tile) |
-| "tambah button filtering" (employer select) | Task 1 (`PanelCariLoker` company select) |
+| "tampilkan jumlah perusahaan" (summary tile) | Task 1 verifies it (committed in `5d6d257`: `RingkasanLoker` third tile) |
+| "tambah button filtering" (employer select) | Task 1 verifies it (committed in `5d6d257`: `PanelCariLoker` company select) |
 | "perbanyak sumber scan" — more keyword families | Task 2 |
 | "perbanyak sumber scan" — more employers | Task 3 |
 | Evidence the widening worked | Task 4 |
@@ -938,15 +949,17 @@ diblokir WAF), plus angka terukur dari pindai bersih terakhir.
 
 No gaps.
 
-**Placeholder scan** — one intentional, in Task 5 Step 2: the `<new_added>` / `<total>` / `<perusahaan>` / `<tanggal>` tokens are filled from Task 4's measurements, and Step 3 is a hard gate that fails if any survive. Task 3 Step 5 names the exact paste shape and its `enabled: true` requirement, and states the incompleteness condition rather than leaving a "paste here" comment. Every other code and YAML block is complete and runnable.
+**Placeholder scan** — one intentional, in Task 5 Step 2: the `<new_added>` / `<total>` / `<perusahaan>` / `<tanggal>` tokens are filled from Task 4's measurements, and Step 3 is a hard gate that matches exactly those four names (not any angle-bracket token, because `local-db.md:195` already carries a legitimate `careevo_test_<seed>`). Task 3 Step 5 names the exact paste shape and its `enabled: true` requirement, and states the incompleteness condition rather than leaving a "paste here" comment. Every other code and YAML block is complete and runnable.
 
 **Type consistency**
 
-- `daftarPerusahaan(baris: BarisFaset[]): string[]` — declared in Task 1, consumed by `inbox-list.tsx`'s `pilihanPerusahaan` memo and `jumlahPerusahaan`. Consistent.
-- `BarisFaset` gains `company` in Task 1; `Pick<InboxJob, "url" | "role" | "location" | "company">` matches `InboxJobShape.company` (`string`, required) in `src/lib/career-ops/pipeline-table.ts:19`. The test helper `baris()` in `faset-inbox.test.ts` supplies `company: "Contoh Perusahaan"` so the required field is satisfied.
-- `RingkasanLoker` gains required `jumlahPerusahaan: number`; its only call site is `inbox-list.tsx:213`, updated in the same task.
-- `PanelCariLoker` gains `perusahaan: string`, `onPerusahaan: (next: string) => void`, `pilihanPerusahaan: readonly string[]`; its only call site is `inbox-list.tsx:193-202`, updated in the same task.
+- `daftarPerusahaan(baris: BarisFaset[]): string[]` — committed in Task 1's `5d6d257`, consumed by `inbox-list.tsx`'s `pilihanPerusahaan` memo and `jumlahPerusahaan`. Consistent.
+- `BarisFaset` carries `company` (Task 1); `Pick<InboxJob, "url" | "role" | "location" | "company">` matches `InboxJobShape.company` (`string`, required) in `src/lib/career-ops/pipeline-table.ts:19`. The test helper `baris()` in `faset-inbox.test.ts` supplies `company: "Contoh Perusahaan"` so the required field is satisfied.
+- `RingkasanLoker` requires `jumlahPerusahaan: number`; its only call site is `inbox-list.tsx:213`.
+- `PanelCariLoker` takes `perusahaan: string`, `onPerusahaan: (next: string) => void`, `pilihanPerusahaan: readonly string[]`; its only call site is `inbox-list.tsx:193-204`.
 - `papanAktif(): Papan[]` — declared in Task 2 Step 2, used by all four new guards in Steps 3. Consistent.
 - `Papan` fields added in Task 2 Step 1 (`name`, `provider`, `pageSize`, `maxPages`, `searchKeywords`) are exactly the fields the Step 3 guards read. `daftarPapan` already exists and returns `Papan[]`.
 
-One cross-document check worth recording: the spec used `T1`-`T6` and `G1`-`G5` for findings and failure modes; this plan references `T1` (two dead boards) and the `G2`-style Glints WAF failure by name, so the two documents cross-reference correctly.
+**Cross-document check** — the spec numbers its findings `T1`-`T6` and its failure modes `G1`-`G5`. This plan deliberately does not cite those codes: it extends the config the spec produced rather than re-deriving the spec's diagnosis, and it names the two facts it does rely on in prose instead — the WAF-blocked Glints board (the spec's `G2`) in Task 2 Step 5's comment and Task 4 Step 4's `auth` note, and the write-once seed trap (the spec's `G5`) in the Global Constraints and Task 4 Step 2. Citing the codes without the prose would make the plan unreadable on its own; citing the prose without the codes keeps it self-contained. The spec is linked in the header for anyone who wants the full diagnosis.
+
+**Sibling spec — `2026-09-29-enrichment-multi-papan-design.md`** (committed at `184266e`). This plan is *orthogonal* to that one and neither blocks the other. That spec makes enrichment multi-board so the 77 non-Jobstreet rows stop rendering "Belum diperiksa"; it adds `src/lib/career-ops/boards/`, `job-cache.ts`, and `scripts/enrich-inbox.ts`, and its §"Tidak diubah" pins `engine/**`, the DB schema, Sentinel, and the fixtures. It never mentions `portals-careevo.yml` — because enrichment reads the description of a row the scan *already discovered*, whereas this plan changes what the scan *discovers*. Different halves of the same pipeline, and the two files sets do not overlap. Both start from the same measured 257-row / 181-employer corpus, so if the two land together the counts Task 4 measures will be *larger* than either alone — expected, not a contradiction, since Task 4 measures the tree it actually runs on. The one ordering rule: if both land in the same working tree, run this plan's Task 4 scan **after** the enrichment spec's cache migration, so the row counts it records are the final ones.
