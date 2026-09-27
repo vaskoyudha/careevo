@@ -313,7 +313,7 @@ export function Workbench({ taskId, taskTitle }: { taskId: string; taskTitle: st
           ) : null}
 
           <div className="hero-actions" style={{ marginTop: 0 }}>
-            <Btn href="/submission">Submit karya</Btn>
+            <Btn href="/progres">Submit karya</Btn>
             <Btn variant="ghost" href="/belajar">
               Kembali ke belajar
             </Btn>

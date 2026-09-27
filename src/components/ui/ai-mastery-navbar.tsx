@@ -3,10 +3,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
+import { MoreVertical } from "lucide-react";
 import { Search } from "./icons";
 import { ExploreMenu } from "./explore-menu";
 import { AccountMenu, DashboardButton, learnerNavItems } from "./chrome-parts";
+import { MobileNavDrawer, type MobileNavItem } from "./mobile-nav-drawer";
 import type { SessionPayload } from "@/lib/auth/types";
 
 /**
@@ -52,6 +54,13 @@ export function AiMasteryNavbar({
   showSearch?: boolean;
 }) {
   const pathname = usePathname();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileMenuTriggerRef = useRef<HTMLButtonElement>(null);
+  const mobileItems: MobileNavItem[] = learnerNavItems.map(({ href, label, icon }) => ({
+    href,
+    label,
+    icon,
+  }));
 
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(`${href}/`);
@@ -62,6 +71,21 @@ export function AiMasteryNavbar({
         Lewati ke konten utama
       </a>
       <div className="chrome is-winged relative is-top">
+        {sidebarToggle ? (
+          <div className="mobile-sidebar-toggle">{sidebarToggle}</div>
+        ) : (
+          <button
+            type="button"
+            ref={mobileMenuTriggerRef}
+            className="mobile-nav-trigger"
+            aria-label="Buka menu navigasi"
+            aria-expanded={mobileMenuOpen}
+            aria-controls="ai-mastery-mobile-navigation"
+            onClick={() => setMobileMenuOpen((value) => !value)}
+          >
+            <MoreVertical size={20} strokeWidth={2} aria-hidden="true" />
+          </button>
+        )}
         <div className="flex min-w-0 items-center gap-2">
           <Link className="chrome-brand" href="/" aria-label="Careevo">
             <Image
@@ -131,11 +155,21 @@ export function AiMasteryNavbar({
               </div>
             </form>
           ) : null}
-          {sidebarToggle}
           <DashboardButton />
           <AccountMenu session={session} />
         </div>
       </div>
+      {!sidebarToggle ? (
+        <MobileNavDrawer
+          id="ai-mastery-mobile-navigation"
+          open={mobileMenuOpen}
+          onClose={() => setMobileMenuOpen(false)}
+          triggerRef={mobileMenuTriggerRef}
+          items={mobileItems}
+          session={session}
+          title="Navigasi belajar"
+        />
+      ) : null}
     </>
   );
 }

@@ -9,7 +9,6 @@ import type { SessionPayload } from "@/lib/auth/types";
 import {
   LayoutDashboard,
   Compass,
-  GraduationCap,
   Briefcase,
   Settings,
   LogOut,
@@ -23,7 +22,6 @@ import {
   ShieldAlert,
   PanelLeftClose,
   PanelLeftOpen,
-  FolderKanban,
 } from "lucide-react";
 
 export type SidebarNavItem = {
@@ -41,10 +39,20 @@ export type SidebarNavGroup = {
 /**
  * Navigasi learner.
  *
- * Dua entri terakhir pindah dari navbar (`learnerNavItems` di `chrome-parts`)
- * ke sini: `Progres` dan `Project` (dulu berlabel `Karya` di navbar).
- * Posisinya dipertahankan seperti urutan relatif di navbar — `Progres` langsung
- * setelah `Belajar`, `Project` langsung sebelum `Loker`.
+ * `Progres` pindah dari navbar (`learnerNavItems` di `chrome-parts`) ke sini;
+ * `Project` semula juga ada di sini, tetapi **sejak submission terikat course**,
+ * ia tidak lagi menjadi destinasi `AppShell`: surface-nya hidup di dalam setiap
+ * course (`/belajar/[slug]/karya`), jadi pintu masuknya adalah panel Project di
+ * halaman course, bukan sidebar. `Progres` menjaga posisi lamanya (mendahului
+ * `Jelajah`).
+ *
+ * **`Belajar` sengaja tidak ada di sini, dan itu bukan kelalaian.** `/belajar`
+ * adalah halaman `LearnerShell` yang memakai navbar sendiri, jadi entri sidebar
+ * kedua hanya mengulang pintu masuk yang sudah ada di navbar atas. Sidebar untuk
+ * halaman `AppShell`; navbar yang mengurus halaman `LearnerShell`. `Belajar`
+ * tetap hidup di `learnerNavItems` (`chrome-parts.tsx`) — jangan menambahkan
+ * `Belajar` kembali ke sini tanpa alasan yang lebih baik daripada "konsisten
+ * dengan daftar di navbar".
  *
  * `Progres` dulu bernama `Jalur Belajar` dan beralamat `/belajar/jalur`. Isinya
  * berubah: halaman itu menampilkan satu jalur personal ke satu kursus, sedangkan
@@ -60,10 +68,8 @@ const USER_GROUPS: SidebarNavGroup[] = [
   {
     items: [
       { href: "/dashboard", title: "Dashboard", icon: LayoutDashboard },
-      { href: "/belajar", title: "Belajar", icon: GraduationCap },
       { href: "/progres", title: "Progres", icon: BarChart3 },
       { href: "/jelajah", title: "Jelajah", icon: Compass },
-      { href: "/submission", title: "Project", icon: FolderKanban },
       { href: "/loker", title: "Loker", icon: Briefcase },
     ],
   },
@@ -282,6 +288,8 @@ export function DashboardSidebar({
 
     return (
       <aside
+        id="dashboard-mobile-navigation"
+        aria-label="Navigasi dashboard"
         className={cn("dashboard-sidebar-aside", className)}
         data-open={mobileOpen}
       >
@@ -357,6 +365,8 @@ export function DashboardSidebar({
 
   return (
     <aside
+      id="dashboard-mobile-navigation"
+      aria-label="Navigasi dashboard"
       className={cn("dashboard-sidebar-aside", className)}
       data-open={mobileOpen}
     >

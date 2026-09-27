@@ -265,13 +265,15 @@ function submissionTiruan(id = SUBMISSION_ID, status = "draft"): Submission {
   return { id, status } as unknown as Submission;
 }
 
-/** Pilihan kursus eligible yang dikembalikan service (server-side). */
-function pilihanKursus(enrollmentId = ENROLLMENT_ID) {
-  return [{ courseId: COURSE_ID, enrollmentId, title: "Kursus Contoh" }];
+/** Kelayakan course→enrollment yang dikembalikan service (server-side). */
+function kelayakanKursus(enrollmentId = ENROLLMENT_ID) {
+  return { courseId: COURSE_ID, enrollmentId };
 }
 
 const KLAIM_BUAT = {
+  courseId: COURSE_ID,
   enrollmentId: ENROLLMENT_ID,
+  slug: "kursus-contoh",
   judul: "Karya portofolio saya",
   catatan: "Catatan singkat tentang karya.",
 };
@@ -291,6 +293,20 @@ describe("buatSubmissionAction — draft milik learner", () => {
 
     expect(res.ok).toBe(false);
     expect(res.error).toContain("Akses ditolak");
+    expect(buat).not.toHaveBeenCalled();
+  });
+
+  it("menolak courseId yang kosong sebelum menyentuh service", async () => {
+    vi.spyOn(sessionModule, "getSession").mockResolvedValue(sesi("user"));
+    const buat = vi.spyOn(reviewService, "buatSubmissionDb");
+
+    const res = await buatSubmissionAction(
+      { ok: false },
+      formData({ ...KLAIM_BUAT, courseId: "" }),
+    );
+
+    expect(res.ok).toBe(false);
+    expect(res.error).toBeTruthy();
     expect(buat).not.toHaveBeenCalled();
   });
 
@@ -323,7 +339,7 @@ describe("buatSubmissionAction — draft milik learner", () => {
 
   it("menerima draft tanpa catatan — field opsional, bukan wajib", async () => {
     vi.spyOn(sessionModule, "getSession").mockResolvedValue(sesi("user"));
-    vi.spyOn(reviewService, "daftarKursusSubmission").mockResolvedValue(pilihanKursus());
+    vi.spyOn(reviewService, "kelayakanKursusSubmission").mockResolvedValue(kelayakanKursus());
     const buat = vi
       .spyOn(reviewService, "buatSubmissionDb")
       .mockResolvedValue({ submission: submissionTiruan(), versi: {} as SubmissionVersion });
@@ -334,7 +350,7 @@ describe("buatSubmissionAction — draft milik learner", () => {
     // mustahil dikirim.
     const res = await buatSubmissionAction(
       { ok: false },
-      formData({ enrollmentId: ENROLLMENT_ID, judul: "Karya tanpa catatan" }),
+      formData({ courseId: COURSE_ID, enrollmentId: ENROLLMENT_ID, slug: "kursus-contoh", judul: "Karya tanpa catatan" }),
     );
 
     expect(res.ok).toBe(true);
@@ -343,7 +359,7 @@ describe("buatSubmissionAction — draft milik learner", () => {
 
   it("menerima catatan kosong sebagai \"tidak diisi\"", async () => {
     vi.spyOn(sessionModule, "getSession").mockResolvedValue(sesi("user"));
-    vi.spyOn(reviewService, "daftarKursusSubmission").mockResolvedValue(pilihanKursus());
+    vi.spyOn(reviewService, "kelayakanKursusSubmission").mockResolvedValue(kelayakanKursus());
     const buat = vi
       .spyOn(reviewService, "buatSubmissionDb")
       .mockResolvedValue({ submission: submissionTiruan(), versi: {} as SubmissionVersion });
@@ -357,31 +373,49 @@ describe("buatSubmissionAction — draft milik learner", () => {
     expect(buat).toHaveBeenCalledTimes(1);
   });
 
-  it("menyelesaikan courseId dari server, bukan dari field browser", async () => {
-    vi.spyOn(sessionModule, "getSession").mockResolvedValue(sesi("user"));
-    const daftar = vi
-      .spyOn(reviewService, "daftarKursusSubmission")
-      .mockResolvedValue(pilihanKursus());
+  it("memakai courseId dan enrollmentId hasil service, bukan field browser", async () => {
+    const principal = sesi("user");
+    vi.spyOn(sessionModule, "getSession").mockResolvedValue(principal);
+    const layak = vi
+      .spyOn(reviewService, "kelayakanKursusSubmission")
+      .mockResolvedValue({ courseId: "crs-server", enrollmentId: ENROLLMENT_ID });
     const buat = vi
       .spyOn(reviewService, "buatSubmissionDb")
       .mockResolvedValue({ submission: submissionTiruan(), versi: {} as SubmissionVersion });
 
-    // `courseId` palsu dari browser harus diabaikan: yang dipakai adalah
-    // courseId hasil resolusi server untuk enrollment milik pemanggil.
+    // `courseId` dari form hanyalah kunci pencarian kelayakan; nilai yang
+    // diteruskan ke buatSubmissionDb adalah hasil resolusi service (server),
+    // bukan field yang dikirim klien.
     const res = await buatSubmissionAction(
       { ok: false },
       formData({ ...KLAIM_BUAT, courseId: "crs-palsu" }),
     );
 
     expect(res.ok).toBe(true);
-    expect(daftar).toHaveBeenCalledTimes(1);
-    expect(buat.mock.calls[0][0].courseId).toBe(COURSE_ID);
+    expect(layak).toHaveBeenCalledWith(principal, "crs-palsu");
+    expect(buat.mock.calls[0][0].courseId).toBe("crs-server");
+    expect(buat.mock.calls[0][0].enrollmentId).toBe(ENROLLMENT_ID);
+  });
+
+  it("menolak enrollmentId form yang tidak cocok dengan hasil service", async () => {
+    vi.spyOn(sessionModule, "getSession").mockResolvedValue(sesi("user"));
+    vi.spyOn(reviewService, "kelayakanKursusSubmission").mockResolvedValue({
+      courseId: COURSE_ID,
+      enrollmentId: "55555555-5555-4555-8555-555555555555",
+    });
+    const buat = vi.spyOn(reviewService, "buatSubmissionDb");
+
+    const res = await buatSubmissionAction({ ok: false }, formData(KLAIM_BUAT));
+
+    expect(res.ok).toBe(false);
+    expect(res.error).toContain("belum memenuhi syarat");
+    expect(buat).not.toHaveBeenCalled();
   });
 
   it("menolak enrollment yang tidak memenuhi syarat completion", async () => {
     vi.spyOn(sessionModule, "getSession").mockResolvedValue(sesi("user"));
-    // Service hanya mengembalikan enrollment yang completion-nya terverifikasi.
-    vi.spyOn(reviewService, "daftarKursusSubmission").mockResolvedValue([]);
+    // Service mengembalikan null: belum terdaftar/selesai informal.
+    vi.spyOn(reviewService, "kelayakanKursusSubmission").mockResolvedValue(null);
     const buat = vi.spyOn(reviewService, "buatSubmissionDb");
 
     const res = await buatSubmissionAction({ ok: false }, formData(KLAIM_BUAT));
@@ -394,7 +428,7 @@ describe("buatSubmissionAction — draft milik learner", () => {
   it("memakai pemilik dari sesi dan mengabaikan userId/status/score palsu", async () => {
     const principal = sesi("user");
     vi.spyOn(sessionModule, "getSession").mockResolvedValue(principal);
-    vi.spyOn(reviewService, "daftarKursusSubmission").mockResolvedValue(pilihanKursus());
+    vi.spyOn(reviewService, "kelayakanKursusSubmission").mockResolvedValue(kelayakanKursus());
     const buat = vi
       .spyOn(reviewService, "buatSubmissionDb")
       .mockResolvedValue({ submission: submissionTiruan(), versi: {} as SubmissionVersion });
@@ -418,7 +452,7 @@ describe("buatSubmissionAction — draft milik learner", () => {
 
   it("mengembalikan submissionId hasil database, bukan id dari form", async () => {
     vi.spyOn(sessionModule, "getSession").mockResolvedValue(sesi("user"));
-    vi.spyOn(reviewService, "daftarKursusSubmission").mockResolvedValue(pilihanKursus());
+    vi.spyOn(reviewService, "kelayakanKursusSubmission").mockResolvedValue(kelayakanKursus());
     vi.spyOn(reviewService, "buatSubmissionDb").mockResolvedValue({
       submission: submissionTiruan(SUBMISSION_ID),
       versi: {} as SubmissionVersion,
@@ -435,7 +469,7 @@ describe("buatSubmissionAction — draft milik learner", () => {
 
   it("memetakan penolakan kelayakan dari service menjadi pesan", async () => {
     vi.spyOn(sessionModule, "getSession").mockResolvedValue(sesi("user"));
-    vi.spyOn(reviewService, "daftarKursusSubmission").mockResolvedValue(pilihanKursus());
+    vi.spyOn(reviewService, "kelayakanKursusSubmission").mockResolvedValue(kelayakanKursus());
     vi.spyOn(reviewService, "buatSubmissionDb").mockRejectedValue(
       new reviewService.GalatReview(
         "kelayakan_ditolak",
@@ -505,7 +539,7 @@ describe("kirimSubmissionAction — learner mengirim karya", () => {
     expect(arg).not.toHaveProperty("status");
   });
 
-  it("merevalidasi halaman submission dan review yang berubah", async () => {
+  it("merevalidasi halaman review yang berubah", async () => {
     vi.spyOn(sessionModule, "getSession").mockResolvedValue(sesi("user"));
     vi.spyOn(reviewService, "kirimSubmissionDb").mockResolvedValue(
       submissionTiruan(SUBMISSION_ID, "submitted"),
@@ -513,7 +547,6 @@ describe("kirimSubmissionAction — learner mengirim karya", () => {
 
     await kirimSubmissionAction({ ok: false }, formData({ submissionId: SUBMISSION_ID }));
 
-    expect(cacheModule.revalidatePath).toHaveBeenCalledWith(`/submission/${SUBMISSION_ID}`);
     expect(cacheModule.revalidatePath).toHaveBeenCalledWith(`/review/${SUBMISSION_ID}`);
   });
 

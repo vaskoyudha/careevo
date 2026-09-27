@@ -28,6 +28,7 @@ import type { SessionPrincipal } from "@/lib/auth/principal";
 import {
   buatSubmissionDb,
   cabutAttestationDb,
+  kelayakanKursusSubmission,
   kirimSubmissionDb,
   mulaiReviewDb,
   putuskanReviewDb,
@@ -103,6 +104,37 @@ async function buatStaff(email: string, username: string): Promise<SessionPrinci
   return { ...principal, roles: ["verifikator"], role: "verifikator" };
 }
 
+/**
+ * Daftar + selesaikan `crs-1` lewat jalur terverifikasi, lalu buat submission
+ * yang terikat enrollment hasilnya. Sejak Project pindah ke dalam course,
+ * `buatSubmissionDb` **menolak** submission tanpa `courseId`/`enrollmentId` —
+ * helper ini adalah satu-satunya jalur sah untuk membuat submission di test.
+ */
+async function submissionTerikat(
+  learner: SessionPrincipal,
+  konten: { judul: string; catatan?: string } = { judul: "Karya kursus", catatan: "deskripsi" },
+) {
+  const { enrollment } = await daftarEnrollment({
+    userId: learner.userId,
+    courseId: "crs-1",
+    slug: "fullstack-web-development-nextjs-15-react-19",
+    title: "Kursus A",
+  });
+  await rekamCompletion({
+    userId: learner.userId,
+    courseId: "crs-1",
+    enrollmentId: enrollment.id,
+    completionPath: "terverifikasi",
+    policyVersion: 1,
+  });
+  return buatSubmissionDb({
+    principal: learner,
+    courseId: "crs-1",
+    enrollmentId: enrollment.id,
+    konten: { judul: konten.judul, catatan: konten.catatan ?? "deskripsi" },
+  });
+}
+
 const RUBRIK_LULUS: RubrikReview = {
   kelengkapan: 4,
   kualitas: 4,
@@ -116,10 +148,7 @@ describe("state machine submission — transisi ditegakkan di database", () => {
     const learner = await buatPrincipal("learner@contoh.test", "learner");
     const staff = await buatStaff("staff@contoh.test", "staff");
 
-    const { submission } = await buatSubmissionDb({
-      principal: learner,
-      konten: { judul: "Karya saya", catatan: "lorem" },
-    });
+    const { submission } = await submissionTerikat(learner);
     expect(submission.status).toBe("draft");
 
     const dikirim = await kirimSubmissionDb({ principal: learner, submissionId: submission.id });
@@ -173,10 +202,7 @@ describe("state machine submission — transisi ditegakkan di database", () => {
 
     const learner = await buatPrincipal("draft@contoh.test", "draft");
     const staff = await buatStaff("staff2@contoh.test", "staff2");
-    const { submission } = await buatSubmissionDb({
-      principal: learner,
-      konten: { judul: "Belum dikirim" },
-    });
+    const { submission } = await submissionTerikat(learner, { judul: "Belum dikirim" });
 
     await expect(
       putuskanReviewDb({
@@ -195,7 +221,7 @@ describe("otorisasi reviewer", () => {
     const pemilik = await buatStaff("owner@contoh.test", "ownerreview");
     const learner = await buatPrincipal("ownerlearner@contoh.test", "ownerlearner");
     const tanpaRole = await buatPrincipal("nonstaff@contoh.test", "nonstaff");
-    const { submission } = await buatSubmissionDb({ principal: pemilik, konten: { judul: "Karya sendiri" } });
+    const { submission } = await submissionTerikat(pemilik, { judul: "Karya sendiri" });
     await kirimSubmissionDb({ principal: pemilik, submissionId: submission.id });
     await expect(tetapkanReviewerDb({ principal: pemilik, submissionId: submission.id, reviewerUserId: pemilik.userId }))
       .rejects.toMatchObject({ kode: "akses_ditolak" });
@@ -213,7 +239,7 @@ describe("otorisasi reviewer", () => {
     const learner = await buatPrincipal("reviewlearner@contoh.test", "reviewlearner");
     const reviewer = await buatStaff("reviewer@contoh.test", "reviewer");
     const staffLain = await buatStaff("stafflain@contoh.test", "stafflain");
-    const { submission } = await buatSubmissionDb({ principal: learner, konten: { judul: "Karya untuk review" } });
+    const { submission } = await submissionTerikat(learner, { judul: "Karya untuk review" });
     await kirimSubmissionDb({ principal: learner, submissionId: submission.id });
     await tetapkanReviewerDb({ principal: reviewer, submissionId: submission.id, reviewerUserId: reviewer.userId });
     await expect(mulaiReviewDb({ principal: staffLain, submissionId: submission.id }))
@@ -227,16 +253,6 @@ describe("otorisasi reviewer", () => {
 });
 
 describe("kelayakan kursus submission", () => {
-  async function submissionTerikat(learner: SessionPrincipal, courseId: string, enrollmentId: string) {
-    const { submission } = await buatSubmissionDb({
-      principal: learner,
-      courseId,
-      enrollmentId,
-      konten: { judul: "Karya kursus", catatan: "deskripsi" },
-    });
-    return submission;
-  }
-
   it("menolak enrollment milik user lain", async () => {
     const pemilik = await buatPrincipal("elig-a@contoh.test", "elig-a");
     const penyusup = await buatPrincipal("elig-b@contoh.test", "elig-b");
@@ -280,6 +296,50 @@ describe("kelayakan kursus submission", () => {
     ).rejects.toMatchObject({ kode: "kelayakan_ditolak" });
   });
 
+  it("jalur baca dan jalur tulis tidak boleh berbeda pendapat (satu definisi kelayakan)", async () => {
+    // Aturan yang diuji: `kelayakanKursusSubmission` (yang menggerbang panel
+    // Project) dan `buatSubmissionDb` (jalur tulis) **harus**-FiNAKI肯定 pada
+    // enrollment yang sama. Saladanya terduplikasi, dan selisihnya yang
+    // berbahaya: pembaca menyimpang menampilkan "terbuka" sementara aksi
+    // menolak, atau sebaliknya.
+    //
+    // Kasus ini hanya bisa gagal kalau jalur baca meloloskan sesuatu yang
+    // jalur tulis tolak — yaitu completion yang `user_id`-nya bukan pemilik
+    // enrollment. Jalur tulis menegakkan itu lewat `pastikanKelayakanKursus`;
+    // versi terduplikasi tidak pernah memeriksanya.
+    const pemilik = await buatPrincipal("split-a@contoh.test", "split-a");
+    const penyusup = await buatPrincipal("split-b@contoh.test", "split-b");
+    const { enrollment } = await daftarEnrollment({
+      userId: pemilik.userId,
+      courseId: "crs-1",
+      slug: "fullstack-web-development-nextjs-15-react-19",
+      title: "Kursus A",
+    });
+    await rekamCompletion({
+      userId: penyusup.userId,
+      courseId: "crs-1",
+      enrollmentId: enrollment.id,
+      completionPath: "terverifikasi",
+      policyVersion: 1,
+    });
+
+    // Baca: completion itu milik orang lain, jadi panel harus tetap terkunci.
+    const verdictBaca = await kelayakanKursusSubmission(pemilik, "crs-1");
+    // Tulis: service menolak dengan `kelayakan_ditolak`.
+    const tulis = buatSubmissionDb({
+      principal: pemilik,
+      courseId: "crs-1",
+      enrollmentId: enrollment.id,
+      konten: { judul: "X" },
+    });
+
+    await expect(tulis).rejects.toMatchObject({ kode: "kelayakan_ditolak" });
+    expect(
+      verdictBaca,
+      "panel Project menampilkan 'terbuka' sementara aksi menolak — definisi kelayakan terduplikasi",
+    ).toBeNull();
+  });
+
   it("menolak approve bila completion terverifikasi sudah hilang", async () => {
     const learner = await buatPrincipal("elig-e@contoh.test", "elig-e");
     const reviewer = await buatStaff("elig-staff@contoh.test", "elig-staff");
@@ -291,7 +351,7 @@ describe("kelayakan kursus submission", () => {
       userId: learner.userId, courseId: "crs-1", enrollmentId: enrollment.id,
       completionPath: "terverifikasi", policyVersion: 1,
     });
-    const submission = await submissionTerikat(learner, "crs-1", enrollment.id);
+    const submission = (await submissionTerikat(learner)).submission;
     await kirimSubmissionDb({ principal: learner, submissionId: submission.id });
     await tetapkanReviewerDb({ principal: reviewer, submissionId: submission.id, reviewerUserId: reviewer.userId });
     await mulaiReviewDb({ principal: reviewer, submissionId: submission.id });
@@ -305,10 +365,7 @@ describe("kelayakan kursus submission", () => {
 
 describe("attestation — idempoten dan payload server-side", () => {
   async function approveSekali(learner: SessionPrincipal, staff: SessionPrincipal) {
-    const { submission } = await buatSubmissionDb({
-      principal: learner,
-      konten: { judul: "Karya", catatan: "x" },
-    });
+    const { submission } = await submissionTerikat(learner, { judul: "Karya", catatan: "x" });
     await kirimSubmissionDb({ principal: learner, submissionId: submission.id });
     await tetapkanReviewerDb({
       principal: staff,
@@ -388,10 +445,7 @@ describe("isolasi lintas user", () => {
     const a = await buatPrincipal("aaa2@contoh.test", "aaa2");
     const b = await buatPrincipal("bbb2@contoh.test", "bbb2");
 
-    const { submission } = await buatSubmissionDb({
-      principal: a,
-      konten: { judul: "Milik A" },
-    });
+    const { submission } = await submissionTerikat(a, { judul: "Milik A" });
 
     // B (learner lain) tidak bisa mengirim submission milik A.
     await expect(
@@ -414,10 +468,7 @@ describe("isolasi lintas user", () => {
     const learner = await buatPrincipal("fk@contoh.test", "fk");
     const staff = await buatStaff("staff7@contoh.test", "staff7");
     const { hasil } = await (async () => {
-      const { submission } = await buatSubmissionDb({
-        principal: learner,
-        konten: { judul: "Karya", catatan: "x" },
-      });
+      const { submission } = await submissionTerikat(learner, { judul: "Karya", catatan: "x" });
       await kirimSubmissionDb({ principal: learner, submissionId: submission.id });
       await tetapkanReviewerDb({
         principal: staff,

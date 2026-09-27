@@ -10,6 +10,7 @@ import { pastikanBackfill } from "@/lib/learning/backfill-lazy";
 import { progresKursusDb } from "@/lib/learning/service";
 import { getCourseById } from "@/lib/courses/store";
 import { kebijakanDefault } from "@/lib/courses/kebijakan";
+import { kelayakanKursusSubmission } from "@/lib/review/service";
 import { tasks } from "@/lib/fixtures";
 import { selaraskanKursusAi } from "@/lib/learning/tutor-ai-kursus";
 
@@ -90,6 +91,18 @@ export default async function DetailKursusPage({
       })) ?? entri.id)
     : entri.id;
 
+  /**
+   * Panel Project selalu tampil di halaman course, tetapi status siap/kuncinya
+   * **bukan** fungsi `selesai` (modul selesai) — ia fungsi completion server
+   * yang jalurnya `terverifikasi`. `kelayakanKursusSubmission` membaca
+   * enrollment + completion; `null` berarti Project terkunci, walau progres
+   * modul sudah 100% lewat jalur informal.
+   */
+  const layakProject = await kelayakanKursusSubmission(session, entri.id);
+  const modulProyek = modul.find(
+    (m) => m.checkpoint && m.checkpoint.mode === "proyek",
+  );
+
   return (
     <LearnerShell session={session} overlayMain>
       <DetailKursus
@@ -116,6 +129,13 @@ export default async function DetailKursusPage({
         terkait={terkait}
         tugas={tugas ? { id: tugas.id, title: tugas.title, brief: tugas.brief } : null}
         aiCourseId={aiCourseId}
+        proyek={{
+          terkunci: layakProject === null,
+          judul: modulProyek?.judul ?? "Project akhir course",
+          ringkasan:
+            modulProyek?.ringkasan ??
+            "Terapkan seluruh materi course ini dalam satu karya nyata, lalu kumpulkan untuk direview verifikator.",
+        }}
         // Kebijakan tersimpan dibaca apa adanya; kursus yang belum pernah
         // disunting kebijakannya jatuh ke default aman (`aturan_pengawasan:
         // "wajib"`) supaya gerbang tidak diam-diam terbuka.

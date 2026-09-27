@@ -13,7 +13,7 @@ export const HeroFinancial = () => {
     <section
       ref={timelineRef}
       aria-labelledby="hero-title"
-      className="relative flex min-h-screen flex-col items-center bg-white text-[#1e293b]"
+      className="relative flex min-h-screen min-h-[100svh] flex-col items-center bg-white text-[#1e293b]"
     >
       {/* Mountain Backdrop */}
       <div className="pointer-events-none absolute inset-x-0 -top-28 z-0 h-[640px] sm:h-[780px] md:h-[920px] lg:h-[1050px] w-full overflow-hidden select-none">
