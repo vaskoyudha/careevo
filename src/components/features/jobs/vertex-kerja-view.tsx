@@ -325,7 +325,13 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
   };
 
   return (
-    <div className="relative min-h-screen -mt-[60px] bg-white text-neutral-900 selection:bg-neutral-200 overflow-x-hidden">
+    // `under-chrome`, bukan margin negatif yang diketik manual: navbar
+    // `position: sticky` memakan tinggi sungguhan di flow, dan hero di sini
+    // harus mulai tepat di y=0 agar bar transparan mengambang di atasnya. Angka
+    // yang dipakai sebelumnya (60) bukan tinggi bar — 66px di desktop, 62px di
+    // mobile — jadi enam piksel latar halaman tersingkap sebagai pita putih di
+    // atas layar. Satu pengukuran ada di `--chrome-h`; lihat `.under-chrome`.
+    <div className="under-chrome relative min-h-screen bg-white text-neutral-900 selection:bg-neutral-200 overflow-x-hidden">
       {/* ============================================================ */}
       {/* 1. HERO SECTION (SEC 0) - Blended with transparent navbar at top, floating on scroll */}
       {/* ============================================================ */}
@@ -714,10 +720,10 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
               <div className="relative h-10 w-full border-y border-dashed border-neutral-200 bg-[size:10px_10px] [background-image:repeating-linear-gradient(315deg,rgba(0,0,0,0.035)_0_1px,transparent_0_50%)] md:h-12" />
 
               {/* 2. Full-width Logo Cloud Section */}
-              <section aria-label="Trusted by" className="relative w-full bg-white dark:bg-neutral-950 overflow-hidden">
+              <section aria-label="Sumber papan lowongan" className="relative w-full bg-white dark:bg-neutral-950 overflow-hidden">
                 <div className="w-full border-b border-neutral-200 bg-neutral-50/50 py-3.5 text-center">
                   <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
-                    Terhubung dengan ekosistem verifikasi dan agregator loker terpercaya
+                    Lowongan yang ditampilkan dibaca dari papan ini, lalu diaudit Sentinel
                   </p>
                 </div>
                 <LogoCloud className="w-full border-x-0" />
@@ -831,7 +837,8 @@ export function VertexKerjaView({ jobs, cleanJobsCount }: VertexKerjaViewProps) 
                         Kesesuaian Skill &amp; Penutup Gap
                       </h3>
                       <p className="mt-2 text-sm text-neutral-600 leading-relaxed">
-                        Bandingkan keahlianmu dengan requirement loker secara objektif. Navigator menyarankan modul latihan spesifik untuk menutup kekurangan skill.
+                        Bandingkan keahlianmu dengan requirement loker secara objektif, lalu kamu
+                        dapat rekomendasi modul latihan spesifik yang menutup kekurangan skill itu.
                       </p>
                     </div>
 

@@ -2,13 +2,21 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useTransition, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from "react";
 import { cn } from "@/lib/utils";
 import {
   Briefcase,
   Building2,
   ChevronDown,
   ChevronRight,
+  FileText,
   GraduationCap,
   LayoutDashboard,
   LogOut,
@@ -123,18 +131,32 @@ export function DashboardButton() {
 }
 
 /**
- * Kartu aksi di dalam panel akun — resep yang sama dengan tile di
- * `explore-menu.tsx` (`rounded-lg border border-border px-3 py-2.5`,
- * `hover:border-primary hover:bg-accent`).
+ * Kartu aksi di dalam panel akun.
  *
- * Letak di sini, bukan di caller, karena `DropdownMenuItem` STILL membawa
- * `rounded-sm px-2 py-1.5`-nya sendiri dan `cn` di repo ini hanya
- * menyambung string (bukan `tailwind-merge`) — kalau pemanggil menulis
- * `px-3 py-2.5`, dua kelas padding itu jadi rebutan urutan emisi Tailwind,
- * bukan urutan tertulis. Resep di satu tempat, bukan ditimpa diam-diam.
+ * Resep ini **sengaja berbeda** dari tile di `explore-menu.tsx`
+ * (`rounded-lg border border-border px-3 py-2.5`,
+ * `hover:border-primary hover:bg-accent`). Dulu sama persis, dan itu masih
+ * tertulis sebagai "resep yang sama" di komentar versi lama. Bedanya disengaja:
+ * kartu di sini polos putih tanpa garis tepi, dan hover-nya hanya mengubah
+ * warna latar.
+ *
+ * Alasannya bukan selera saja. Panel ini sudah punya `border` dan `shadow`
+ * sendiri, tiap baris sudah punya ikon plus chevron, dan penanda kelompok
+ * (`DropdownMenuSeparator`) sudah membagi barisnya. Garis 1px di sekeliling
+ * setiap kartu jadi border di dalam border — dan itulah yang membuat isi
+ * panel terbaca sebagai tumpukan kotak, bukan sebagai satu daftar.
+ *
+ * Kalau suatu saat ini diseragamkan balik dengan tile Explore, pastikan itu
+ * keputusan sadar: `cn` di repo ini hanya menyambung string (bukan
+ * `tailwind-merge`), jadi `border` yang masih menempel dari pemanggil lain
+ * akan menang atau kalah purely karena urutan emisi Tailwind, bukan urutan
+ * ditulis — persis jebakan yang membuat `px-2` vs `px-3` sulit direview.
+ * Dan karena itu resepnya di sini, bukan di tiap caller: `DropdownMenuItem`
+ * STILL membawa `rounded-sm px-2 py-1.5`-nya sendiri, jadi pemanggil yang
+ * menulis padding sendiri akan rebutan urutan emisi, bukan urutan tertulis.
  */
 const KARTU_AKUN =
-  "w-full cursor-pointer items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 text-left transition-colors hover:border-primary hover:bg-accent";
+  "w-full cursor-pointer items-center gap-3 rounded-lg bg-white px-3 py-2.5 text-left transition-colors hover:bg-accent";
 
 /** Avatar bundar untuk kartu menu; `size` dictated by the tile that uses it. */
 function InisialAkun({
@@ -176,15 +198,116 @@ const TUJUAN_AKUN: { href: string; label: string; Ikon: LucideIcon }[] = [
   { href: "/pengaturan", label: "Pengaturan", Ikon: Settings },
 ];
 
+/**
+ * Dokumen legal — **terpisah** dari `TUJUAN_AKUN`, bukan digabung ke sana.
+ *
+ * Tiga tujuan di atas adalah navigasi: ke tempat kamu melakukan sesuatu.
+ * Dua di bawah adalah dokumen yang kamu baca. Memcampurkannya dalam satu
+ * grid akan menandai privat sebagai "tujuan akun", dan panel akan tumbuh
+ * jadi lima kartu identik yang semua binnen sama prioritasnya.
+ *
+ * Karena itu baris ini dipisah oleh separator yang sama dengan yang memisahkan
+ * "Keluar": kelompok baru, bobot baru. `Settings` sudah punya ikon
+ * `Settings`; di sini ikonnya `FileText` supaya dua baris dokumen
+ * terbaca sebagai pasangan, bukan sebagai pengaturan keempat.
+ *
+ * `legal-documen.tsx` yang dirender halaman-halaman ini berbahasa Indonesia
+ * dan tidak butuh sesi, jadi keduanya tetap terbuka untuk tamu yang belum
+ * masuk — persis seperti yang diklaim FAQ.
+ */
+const DOKUMEN_HUKUM: { href: string; label: string; Ikon: LucideIcon }[] = [
+  { href: "/privasi", label: "Kebijakan Privasi", Ikon: FileText },
+  { href: "/syarat", label: "Syarat & Ketentuan", Ikon: FileText },
+];
+
+/**
+ * Jeda sebelum panel menutup sendiri, dalam ms.
+ *
+ * `DropdownMenuContent` dirender ke dalam `Portal`, jadi saat kursor berjalan
+ * dari trigger ke panel ia sempat melewati celah `sideOffset` (8px) — tanpa
+ * jeda, panel akan menutup tepat di tengah perjalanan itu dan kursor mendarat
+ * di atas ruang kosong. Jeda ini menutup celah itu; penutupannya tetap
+ * responsibility `onPointerLeave`, bukan timer yang membuka.
+ */
+const TUNDA_TUTUP_MS = 140;
+
 export function AccountMenu({ session }: { session: SessionPayload }) {
   const [isPending, startTransition] = useTransition();
+  const [open, setOpen] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+
+  const batalkanTutup = () => {
+    if (closeTimer.current !== null) {
+      clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+  };
+
+  const jadwalkanTutup = () => {
+    batalkanTutup();
+    closeTimer.current = setTimeout(() => setOpen(false), TUNDA_TUTUP_MS);
+  };
+
+  const bukaLewatHover = (event: ReactPointerEvent<HTMLElement>) => {
+    // `pointerType` guard: a tap on a touch screen also emits `pointerenter`,
+    // and a panel must not spring open under a finger that was only aiming
+    // somewhere else. The click path below still works there.
+    if (event.pointerType !== "mouse") return;
+    batalkanTutup();
+    setOpen(true);
+  };
+
+  // A timer that survives unmount fires `setOpen` on a dead component.
+  useEffect(() => () => batalkanTutup(), []);
+
+  // Record which input modality is actually driving things, because
+  // `:focus-visible` cannot answer it here: Radix restores focus to the
+  // trigger when the menu closes, and that programmatic focus reports
+  // `focus-visible: true` even when a mouse hover was the only thing that
+  // ever happened. A `:focus-visible`-only indicator would therefore light
+  // up on every mouse hover — the exact highlight this trigger must not
+  // draw — while keyboard focus still needs one. Writing the attribute
+  // imperatively keeps this off the render path.
+  useEffect(() => {
+    const el = triggerRef.current;
+    if (!el) return;
+    const catat = (sumber: "keyboard" | "pointer") => {
+      if (el.dataset.input !== sumber) el.dataset.input = sumber;
+    };
+    const padaKeyDown = () => catat("keyboard");
+    // `pointerover` bubbles, so the document hears it; `pointerenter` does
+    // not, and a bare `mousemove` would rewrite the attribute on every frame.
+    const padaPointerOver = () => catat("pointer");
+    document.addEventListener("keydown", padaKeyDown, true);
+    document.addEventListener("pointerover", padaPointerOver, true);
+    return () => {
+      document.removeEventListener("keydown", padaKeyDown, true);
+      document.removeEventListener("pointerover", padaPointerOver, true);
+    };
+  }, []);
+
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
+          ref={triggerRef}
           aria-label="Buka menu akun"
-          className="group flex cursor-pointer items-center gap-1 rounded-full p-1 select-none hover:bg-white/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0056D2]/40"
+          onPointerEnter={bukaLewatHover}
+          onPointerLeave={jadwalkanTutup}
+          // Hover tidak lagi menyorot trigger sama sekali — baik pil
+          // `hover:bg-white/85` yang lama maupun outline biru 2px dari
+          // global `:focus-visible`. Outline yang itu tidak bisa dimatikan dari
+          // sini: aturannya unlayered di globals.css, jadi selalu mengalahkan
+          // utility Tailwind apa pun di `@layer utilities` — utility
+          // `focus-visible:outline-none` yang pernah ada di sini tidak pernah
+          // aktif. Sekarang dimatikan lewat `.account-menu-trigger` di
+          // globals.css. Fokus keyboard tetap terlihat sebagai isian lembut,
+          // hanya saat `data-input="keyboard"` — bukan `:focus-visible`, yang
+          // ikut true saat Radix mengembalikan fokus setelah hover-tutup dan
+          // akan memunculkan sorotan itu persis di jalur yang harus bersih.
+          className="account-menu-trigger group flex cursor-pointer items-center gap-1 rounded-full p-1 select-none data-[input=keyboard]:bg-white/70"
         >
           <InisialAkun nama={session.nama} className="size-8 text-xs" />
           <ChevronDown
@@ -197,6 +320,8 @@ export function AccountMenu({ session }: { session: SessionPayload }) {
         align="end"
         sideOffset={8}
         surface="panel"
+        onPointerEnter={bukaLewatHover}
+        onPointerLeave={jadwalkanTutup}
         className="w-80 max-w-[calc(100vw-1rem)] rounded-2xl border border-border bg-card p-0 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.2),0_10px_20px_-5px_rgba(0,0,0,0.08)]"
       >
         {/* Identitas di atas, dipisah garis — jadi kartu pertama di
@@ -243,6 +368,31 @@ export function AccountMenu({ session }: { session: SessionPayload }) {
 
         <DropdownMenuSeparator className="mx-0" />
 
+        {/* Dokumen legal, kelompok sendiri di bawah tiga tujuan navigasi. */}
+        <div className="grid gap-2 p-3 pt-2">
+          {DOKUMEN_HUKUM.map(({ href, label, Ikon }) => (
+            <DropdownMenuItem key={href} asChild surface="card">
+              <Link href={href} className={KARTU_AKUN}>
+                <Ikon
+                  size={16}
+                  strokeWidth={1.5}
+                  className="size-4 shrink-0 text-ocean-deep"
+                  aria-hidden="true"
+                />
+                <span className="truncate text-[13px]">{label}</span>
+                <ChevronRight
+                  size={14}
+                  strokeWidth={1.5}
+                  className="ml-auto size-3.5 shrink-0 text-text-tertiary"
+                  aria-hidden="true"
+                />
+              </Link>
+            </DropdownMenuItem>
+          ))}
+        </div>
+
+        <DropdownMenuSeparator className="mx-0" />
+
         {/* Keluar sendirian di kaki panel: hanya satu aksi yang membatalkan
             sesi, jadi ia tidak boleh berbagi grid dengan tiga tujuan
             navigasi — dan `variant="destructive"` tetap berlaku walau
@@ -259,7 +409,10 @@ export function AccountMenu({ session }: { session: SessionPayload }) {
             }}
             className={cn(
               KARTU_AKUN,
-              "hover:border-destructive/40 hover:bg-destructive/5"
+              // Only the background moves: `hover:border-destructive/40` is gone
+              // with the card border, and a coloured border rule with no border
+              // to colour is a rule that silently does nothing.
+              "hover:bg-destructive/5"
             )}
           >
             <LogOut

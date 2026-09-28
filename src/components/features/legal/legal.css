@@ -1,0 +1,133 @@
+/* ==========================================================================
+   Halaman legal — /privasi dan /syarat
+   --------------------------------------------------------------------------
+   Permukaan baca, bukan marketing: tujuannya dipahami, bukan diklik.
+   Karena itu halaman ini sengaja memakai satu kolom baca dengan ukuran huruf
+   yang nyaman, daftar isi lengket, dan garis pemisah yang tenang. Tidak ada
+   gradien besar, tidak ada kartu bertumpuk, tidak ada bayangan berlapis.
+
+   `legal-body` memakai selector anak langsung, bukan kelas pada tiap paragraf.
+   Isi halaman legal akan diedit terus — setiap paragraf baru harus tetap
+   benar tanpa perlu mengingat aturan tipografi.
+
+   Garis pemisah memakai abu netral, bukan `--border` (#cbe6ef) yang dipakai
+   halaman lain: token itu biru sian, dan di antara dua paragraf terbaca sebagai
+   dekorasi, bukan batas. Netral #e5e7eb terbaca sebagai garis.
+   ========================================================================== */
+
+.legal-body {
+  max-width: 68ch;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  line-height: 1.75;
+}
+
+.legal-body > * + * {
+  margin-top: 1rem;
+}
+
+.legal-body strong {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.legal-body a {
+  color: var(--ocean);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, var(--ocean) 35%, transparent);
+  transition: text-decoration-color 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.legal-body a:hover {
+  text-decoration-color: currentColor;
+}
+
+.legal-body ul,
+.legal-body ol {
+  padding-left: 1.25rem;
+}
+
+.legal-body ul {
+  list-style: disc;
+}
+
+.legal-body ol {
+  list-style: decimal;
+}
+
+.legal-body li + li {
+  margin-top: 0.5rem;
+}
+
+.legal-body li::marker {
+  color: var(--text-tertiary);
+}
+
+/* Sub-bagian: "2.1 Judul". Offsetkan supaya jelas sebagai level kedua tanpa
+   menambah bobot visual yang sama dengan heading utama. */
+.legal-body h3 {
+  margin-top: 1.75rem;
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+/* Kutipan penting — blok yang memuat janji, bukan pullquote. Dipakai untuk
+   janji privasi ("kami tidak memakai kamera") supaya janji bisa dipindai
+   tanpa membaca seluruh dokumen. */
+.legal-callout {
+  border-left: 2px solid var(--ocean-mid);
+  border-radius: 0 10px 10px 0;
+  background: var(--ocean-soft);
+  padding: 1rem 1.25rem;
+  color: var(--text);
+}
+
+.legal-callout > :first-child {
+  margin-top: 0;
+}
+
+.legal-callout > :last-child {
+  margin-bottom: 0;
+}
+
+/* Tabel data: apa yang dicatat, apa yang tidak. `legal-table` dibungkus
+   `overflow-x-auto` di JSX supaya tabel lebar bisa di-scroll di ponsel
+   alih-alih memaksa halaman ikut melebar. */
+.legal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+.legal-table th,
+.legal-table td {
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0.75rem 1rem 0.75rem 0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.legal-table th {
+  color: var(--text);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.legal-table td {
+  color: var(--text-secondary);
+}
+
+.legal-table tr:last-child th,
+.legal-table tr:last-child td {
+  border-bottom: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .legal-body a {
+    transition: none;
+  }
+}

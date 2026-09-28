@@ -52,6 +52,16 @@ export interface DetailLokerData {
   fitScore?: number;
 
   status?: "clean" | "quarantined" | "rejected";
+  /**
+   * Label badge yang menggantikan nama status mentah.
+   *
+   * `StatusBadge` memetakan `quarantined → "KARANTINA"`. Tapi `auditBaris`
+   * memakai nilai yang sama untuk lowongan yang gagal di-enrichment, jadi
+   * badge itu menampilkan tuduhan pada lowongan yang belum pernah dibaca.
+   * Popup yang tahu bedanya (`verdict.terperiksa`) jadi menyediakan label ini
+   * — "Belum diperiksa" — dan `status` dipakai hanya untuk warnanya.
+   */
+  statusLabel?: string;
   description?: string;
   tags: string[];
 
@@ -116,7 +126,9 @@ export function KartuDetailLoker({
             <div className="flex size-11 items-center justify-center rounded-xl border border-neutral-200 bg-neutral-50 text-neutral-800 shadow-xs">
               <Building2 className="size-5 text-neutral-700" />
             </div>
-            {data.status ? <StatusBadge status={data.status} /> : null}
+            {data.status ? (
+              <StatusBadge status={data.status} label={data.statusLabel} />
+            ) : null}
           </div>
 
           <div className="mt-4">

@@ -1,196 +1,153 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
 import { jalankanScanAction, type HasilScanAction } from "@/actions/inbox";
-import type { InboxJob } from "@/lib/career-ops";
-import type { BarisDiaudit } from "@/lib/career-ops";
-import { labelSinyal } from "@/lib/agents/sentinel";
 import { filterInbox } from "@/lib/jobs/kueri-inbox";
 import {
-  ComposerCariLowongan,
+  daftarKategori,
+  daftarKota,
+  hitungBarisHariIni,
+  kategoriUntukPeran,
+  kotaDariLokasi,
+  urutkanBaris,
+  type NilaiUrutan,
+} from "@/lib/jobs/faset-inbox";
+import {
   KartuLokerInbox,
   DaftarLokerLayarPenuh,
+  verdictBadge,
+  type Baris,
+  type VerdictLoker,
 } from "@/components/features/jobs/cari-lowongan-ui";
+import {
+  KosongLoker,
+  PanelCariLoker,
+  RingkasanLoker,
+} from "@/components/features/jobs/permukaan-cari-loker";
+import { KolomRekomendasiProfil } from "@/components/features/jobs/kartu-rekomendasi-profil";
+import { ambilRekomendasiLoker } from "@/lib/jobs/rekomendasi-inbox";
+import type { OnboardingProfile } from "@/lib/onboarding/types";
 import { PopupDetailLoker } from "@/components/features/jobs/popup-detail-loker";
+import { cn } from "@/lib/utils";
 
-/**
- * InboxList — permukaan pencarian lowongan hasil pindai.
- *
- * Di-ported dari career-ops (MIT), © 2026 Santiago Fernández de Valderrama.
- * Source: career-ops/web/src/components/inbox/triage-row.tsx (baris + `agoLabel`)
- *          dan inbox-triage.tsx (sort/filter state).
- * https://github.com/career-ops-hq/career-ops
- *
- * Yang dipertahankan dari upstream: bentuk `agoLabel` dan ambangnya persis, satu
- * baris = satu posting, dan `- [ ]` pending vs `- [x]` processed dipisah.
- *
- * Delta yang disengaja:
- *   - Halaman ini tidak menampilkan seluruh daftar. `scan.mjs` bisa menemukan
- *     ratusan lowongan, dan menampilkan semuanya sekaligus adalah daftar
- *     yang tidak bisa dibaca — bukan ringkasan. Yang tampil di sini hanya hasil
- *     pencarian; daftar lengkap ada di balik ikon kisi dalam composer.
- *   - Baris 150 chip perusahaan dihapus. Chip itu satu-satunya saringan yang
- *     pernah ada di sini, dan saringan itu menjawab "Amartha" samaunay dengan
- *     mengetik "Amartha" di composer — tapi butuh 150 klik untuk perusahaan mana
- *     pun yang tidak sedang terlihat. Satu kotak pencarian menjawab keduanya.
- *   - Kartu dan composer bergaya kartu chat AI Mastery; lihat
- *     `cari-lowongan-ui.tsx` untuk peminjaman visualnya.
- *   - `useRouter`/`useSearchParams` → state lokal. Upstream menyimpan terpilih di
- *     URL; di Careevo tidak ada yang perlu dibagikan.
- *   - Tanpa multi-select shortlist dan tanpa tombol Skip. Keduanya menulis ke
- *     `pipeline.md`, dan ini fase read-only.
- *   - Copy UI diterjemahkan ke Indonesia; ini perubahan konten, bukan logika.
- *
- * Read-only: satu-satunya aksi adalah membuka lowongan di situs aslinya. Tidak
- * ada yang pernah dikirim otomatis.
- */
 
-type Baris = InboxJob & { firstSeen?: string } & Partial<BarisDiaudit>;
 
-/**
- * What the learner is told about a posting's trustworthiness.
- *
- * The load-bearing case is the third one. "Belum diperiksa" is NOT a warning
- * about the posting — it is an admission that we did not look, and it must never
- * be rendered as "Aman". A row we could not fetch is exactly the row nobody has
- * checked, so showing a green tick there would be the copy lying about the
- * product's own coverage.
- */
-function verdictBadge(
-  row: Baris,
-): { label: string; cls: string; title: string; status?: "clean" | "quarantined" | "rejected" } | null {
-  if (!row.audit) return null;
-  if (!row.enriched) {
-    return {
-      label: "Belum diperiksa",
-      cls: "verdict-unverified",
-      status: "quarantined",
-      title: "Data lowongan ini belum bisa diambil dari papan aslinya, jadi belum diverifikasi.",
-    };
-  }
-  if (row.audit.status === "clean") {
-    return {
-      label: "Aman",
-      cls: "verdict-clean",
-      status: "clean",
-      title: "Tidak ditemukan pola penipuan pada lowongan ini.",
-    };
-  }
-  if (row.audit.status === "quarantined") {
-    const flags = row.audit.flags.map(labelSinyal).join(" · ");
-    return {
-      label: "Perlu ditinjau",
-      cls: "verdict-quarantined",
-      status: "quarantined",
-      title: flags ? `Sinyal: ${flags}` : "Ada sinyal yang perlu diperiksa lebih lanjut.",
-    };
-  }
-  return {
-    label: "Ditolak",
-    cls: "verdict-rejected",
-    status: "rejected",
-    title: `Sinyal: ${row.audit.flags.map(labelSinyal).join(" · ")}`,
-  };
-}
+const PILIHAN_STATUS = ["Aman", "Perlu ditinjau", "Belum diperiksa", "Ditolak"] as const;
 
-/**
- * Dua kondisi kosong, dan keduanya soal kueri — bukan soal "belum dipindai".
- * Halaman ini menampilkan hasil pencarian saja, jadi "tidak ada lowongan" tanpa
- * kueri berarti memang belum ada yang dipindai, dan dengan kueri berarti kueri
- * itu tidak cocok dengan apa pun. Tanpa kueri, salinan yang menyalahkan filter
- * akan berbohong: tidak ada filter yang berjalan.
- */
 const KOSONG_BELUM_PINDAI =
   "Tekan “Pindai lowongan baru” untuk mengambil lowongan dari papan publik KarirHub, Glints, Jobstreet, dan ATS publik.";
-const KOSONG_TANPA_KUERI =
-  "Tulis di kotak di atas — peran, perusahaan, atau lokasi. Belum ada yang dipindai, jadi belum ada yang bisa dicari.";
-const KOSONG_TIDAK_COCOK =
-  "Tidak ada lowongan untuk kueri itu. Coba kata lain, atau buka daftar lengkap lewat ikon kisi.";
+const KOSONG_PESAN_DEFAULT =
+  "Coba ubah kata kunci, lokasi, atau kategori pekerjaan untuk menemukan peluang yang lebih banyak.";
 
 export function InboxList({
   awal,
   adaRiwayat,
   jumlahKursusPerUrl,
+  hariIni,
+  profile = null,
 }: {
   awal: Baris[];
   adaRiwayat: boolean;
-  /** Jumlah kursus per posting, dihitung server. Kartu hanya menampilkan lencana. */
   jumlahKursusPerUrl?: Map<string, number>;
+  hariIni: string;
+  profile?: OnboardingProfile | null;
 }) {
+  const [draft, setDraft] = useState("");
   const [kueri, setKueri] = useState("");
+  const [kota, setKota] = useState("");
+  const [kategori, setKategori] = useState("");
+  const [status, setStatus] = useState("");
+  const [urutan, setUrutan] = useState<NilaiUrutan>("terbaru");
   const [daftarTerbuka, setDaftarTerbuka] = useState(false);
-  const [detail, setDetail] = useState<{
-    url: string;
-    status?: "clean" | "quarantined" | "rejected";
-  } | null>(null);
-  const setDetailUrl = (url: string, status?: "clean" | "quarantined" | "rejected") =>
-    setDetail({ url, status });
+  // Verdict penuh (bukan hanya `status`) yang disimpan, karena popup detail
+  // butuh `sinyal` untuk menjelaskan kenapa sebuah lowongan ditahan.
+  const [detail, setDetail] = useState<{ url: string; verdict?: VerdictLoker | null } | null>(null);
+  const setDetailUrl = (url: string, verdict?: VerdictLoker | null) =>
+    setDetail({ url, verdict });
   const [hasil, setHasil] = useState<HasilScanAction | null>(null);
   const [pending, mulai] = useTransition();
   const router = useRouter();
+  const refKueri = useRef<HTMLInputElement>(null);
 
-  // Antrean: pending saja, terbaru dulu. Chip perusahaan tidak lagi menyaring —
-  // composer-filter yang 그렇게, dan `filterInbox` membaca company-nya.
-  const antrean = useMemo(
-    () =>
-      awal
-        // Upstream memisahkan pending dari processed lewat checkbox `- [x]`.
-        // Tidak ada aksi di Careevo yang menandai `done` — Skip dan shortlist
-        // upstream menulis ke pipeline.md dan keduanya dihapus. Saringan ini
-        // tetap perlu karena `pipeline.md` adalah markdown yang bisa diedit
-        // tangan: siapa pun yang mencentang `- [x]` di sana berarti "sudah
-        // ditangani", dan baris itu bukan lagi antrean yang perlu dilihat.
-        .filter((r) => !r.done)
-        .sort((a, b) => (b.firstSeen ?? "").localeCompare(a.firstSeen ?? "")),
-    [awal],
+  // Antrean: pending saja
+  const antrean = useMemo(() => awal.filter((r) => !r.done), [awal]);
+
+  const { rekomendasi, labelMinat } = useMemo(
+    () => ambilRekomendasiLoker(antrean, profile, 4),
+    [antrean, profile],
   );
 
-  const adaKueri = kueri.trim().length > 0;
-  const cocok = useMemo(
-    () => (adaKueri ? filterInbox(antrean, kueri) : []),
-    [antrean, kueri, adaKueri],
-  );
+  const tersaring = useMemo(() => {
+    let hasil = antrean;
+    if (kueri.trim()) hasil = filterInbox(hasil, kueri);
+    if (kota) hasil = hasil.filter((r) => kotaDariLokasi(r.location) === kota);
+    if (kategori) hasil = hasil.filter((r) => kategoriUntukPeran(r.role) === kategori);
+    if (status) hasil = hasil.filter((r) => verdictBadge(r)?.label === status);
+    return urutkanBaris(hasil, urutan);
+  }, [antrean, kueri, kota, kategori, status, urutan]);
+
+  const adaSaringan = Boolean(kueri.trim() || kota || kategori || status);
+  const kosong = tersaring.length === 0;
+
+  const pilihanKota = useMemo(() => daftarKota(antrean), [antrean]);
+  const pilihanKategori = useMemo(() => daftarKategori(antrean), [antrean]);
+  const baruHariIni = useMemo(() => hitungBarisHariIni(antrean, hariIni), [antrean, hariIni]);
+
+  function terapkan() {
+    setKueri(draft);
+  }
+
+  function fokusPencarian() {
+    refKueri.current?.focus();
+    refKueri.current?.select();
+  }
 
   function pindai() {
     setHasil(null);
     mulai(async () => {
       const r = await jalankanScanAction();
       setHasil(r);
-      // Muat ulang supaya baris baru dari pipeline.md masuk. `router.refresh()`
-      // mengambil ulang server component dan mempertahankan posisi scroll —
-      // `location.reload()` juga memuat ulang, tapi membuang posisi scroll dan
-      // mengulang setiap aset, jadi keduanya tidak sama.
       if (r.ok && r.ditambah > 0) router.refresh();
     });
   }
 
   return (
-    <div>
-      <div className="card-head" style={{ paddingLeft: 0 }}>
-        <div>
-          <h2 className="card-title">Lowongan ditemukan</h2>
-          <p className="card-sub">
-            {adaKueri
-              ? `${cocok.length} dari ${antrean.length} lowongan cocok`
-              : `${antrean.length} lowongan tersedia`}
-          </p>
-        </div>
-        <Button type="button" variant="brand" size="pill-sm" disabled={pending} onClick={pindai}>
-          <RefreshCw className={pending ? "animate-spin" : undefined} />
-          {pending ? "Memindai…" : "Pindai lowongan baru"}
-        </Button>
-      </div>
+    <div className="relative flex-1 flex flex-col w-full min-h-0">
+      {/* Background Decorative Soft Sky-Blue Waves matching the design */}
+      <svg
+        className="pointer-events-none absolute -top-8 -right-8 w-[580px] max-w-none text-[#e0f0fe]/70 -z-10 select-none hidden lg:block"
+        viewBox="0 0 580 380"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M60 0C190 70 380 140 580 320V0H60Z"
+          fill="currentColor"
+        />
+        <path
+          d="M0 0C150 90 350 200 540 380H580V0H0Z"
+          fill="currentColor"
+          fillOpacity="0.5"
+        />
+      </svg>
+
+      <svg
+        className="pointer-events-none absolute bottom-0 -left-12 w-[620px] max-w-none text-[#e0f0fe]/60 -z-10 select-none hidden md:block"
+        viewBox="0 0 620 300"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M0 100C160 60 360 120 620 300H0V100Z"
+          fill="currentColor"
+        />
+      </svg>
 
       {hasil ? (
-        <div
-          className={hasil.ok ? "alert alert-ok" : "alert alert-warn"}
-          role="status"
-          style={{ marginTop: "0.75rem" }}
-        >
+        <div className={cn("mb-4", hasil.ok ? "alert alert-ok" : "alert alert-warn")} role="status">
           <p style={{ margin: 0 }}>{hasil.pesan}</p>
           {hasil.diagnosa.length > 0 ? (
             <ul style={{ margin: "0.4rem 0 0", paddingLeft: "1.1rem" }}>
@@ -207,51 +164,137 @@ export function InboxList({
         </div>
       ) : null}
 
-      <div style={{ marginTop: "1rem" }}>
-        <ComposerCariLowongan
-          kueri={kueri}
-          onKueri={setKueri}
-          onBukaDaftar={() => setDaftarTerbuka(true)}
-          jumlahTersedia={antrean.length}
+      <div className="loker-wide-layout w-full flex-1 flex flex-col lg:flex-row items-stretch gap-3.5 min-h-0">
+        {/* Kolom Kiri: Kartu Rekomendasi Loker Berdasarkan Profil */}
+        <KolomRekomendasiProfil
+          items={rekomendasi}
+          labelMinat={labelMinat}
+          onBukaDetail={setDetailUrl}
         />
-      </div>
 
-      {!adaKueri ? (
-        <div style={{ marginTop: "1rem" }}>
-          <EmptyState title={adaRiwayat ? "Cari di antara lowongan" : "Belum pernah dipindai"}>
-            {adaRiwayat ? KOSONG_TANPA_KUERI : KOSONG_BELUM_PINDAI}
-          </EmptyState>
-        </div>
-      ) : cocok.length === 0 ? (
-        <div style={{ marginTop: "1rem" }}>
-          <EmptyState title="Tidak ada yang cocok">{KOSONG_TIDAK_COCOK}</EmptyState>
-        </div>
-      ) : (
-        <>
-          <p className="caption muted" style={{ marginTop: "0.9rem" }} aria-live="polite">
-            <Search className="size-3" aria-hidden /> {cocok.length} lowongan untuk
-            &ldquo;{kueri.trim()}&rdquo;
-          </p>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-              gap: "0.75rem",
-              marginTop: "0.6rem",
+        {/* Kolom Kanan: Saringan, Ringkasan, dan Hasil Pencarian */}
+        <div className="flex-1 min-w-0 w-full flex flex-col gap-3 h-full lg:min-h-0 lg:overflow-y-auto">
+          <PanelCariLoker
+            draft={draft}
+            onDraft={setDraft}
+            onCari={terapkan}
+            kota={kota}
+            onKota={(nextKota) => {
+              setKota(nextKota);
             }}
-          >
-            {cocok.map((r) => (
-              <KartuLokerInbox
-                key={r.url}
-                job={r}
-                verdict={verdictBadge(r)}
-                onBukaDetail={setDetailUrl}
-                jumlahKursus={jumlahKursusPerUrl?.get(r.url)}
-              />
-            ))}
-          </div>
-        </>
-      )}
+            kategori={kategori}
+            onKategori={(nextKat) => {
+              setKategori(nextKat);
+            }}
+            status={status}
+            onStatus={setStatus}
+            urutan={urutan}
+            onUrutan={setUrutan}
+            pilihanStatus={PILIHAN_STATUS}
+            pilihanKota={pilihanKota}
+            pilihanKategori={pilihanKategori}
+            total={antrean.length}
+            onBukaDaftar={() => setDaftarTerbuka(true)}
+            refKueri={refKueri}
+          />
+
+          <RingkasanLoker total={antrean.length} baruHariIni={baruHariIni} className="mt-0" />
+
+          {/* 
+            Sesuai gambar referensi:
+            Saat tidak ada kueri aktif ATAU saat kueri menghasilkan 0, 
+            tampilkan kartu Empty State persis seperti gambar.
+          */}
+          {!adaSaringan || kosong ? (
+            !adaRiwayat && antrean.length === 0 ? (
+              <KosongLoker
+                judul="Belum pernah dipindai"
+                className="flex-1 flex flex-col items-center justify-center m-0 mt-0 py-8"
+                aksi={
+                  <Button
+                    type="button"
+                    variant="brand"
+                    size="pill"
+                    disabled={pending}
+                    onClick={pindai}
+                    className="gap-2 shadow-sm font-semibold text-sm"
+                  >
+                    <RefreshCw className={cn("size-4", pending && "animate-spin")} />
+                    {pending ? "Memindai…" : "Pindai lowongan baru"}
+                  </Button>
+                }
+              >
+                {KOSONG_BELUM_PINDAI}
+              </KosongLoker>
+            ) : (
+              <KosongLoker
+                judul="Belum ada lowongan yang sesuai"
+                className="flex-1 flex flex-col items-center justify-center m-0 mt-0 py-8"
+                aksi={
+                  <Button
+                    type="button"
+                    variant="brand"
+                    size="pill"
+                    onClick={fokusPencarian}
+                    className="gap-2 shadow-sm font-semibold text-sm"
+                  >
+                    <Search aria-hidden className="size-4" />
+                    <span>Cari lowongan</span>
+                  </Button>
+                }
+              >
+                {KOSONG_PESAN_DEFAULT}
+              </KosongLoker>
+            )
+          ) : (
+            <section className="flex-1 lg:min-h-0 flex flex-col rounded-[var(--radius-dock)] border border-slate-200/90 bg-white p-5 shadow-sm m-0 mt-0">
+              <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
+                <p className="text-sm font-medium text-slate-600" aria-live="polite">
+                  Menampilkan <strong className="text-slate-900">{tersaring.length}</strong> dari{" "}
+                  {antrean.length} lowongan
+                  {kueri.trim() ? (
+                    <>
+                      {" "}
+                      untuk &ldquo;<span className="text-[#0066ff] font-semibold">{kueri.trim()}</span>&rdquo;
+                    </>
+                  ) : null}
+                </p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => {
+                    setDraft("");
+                    setKueri("");
+                    setKota("");
+                    setKategori("");
+                    setStatus("");
+                  }}
+                  className="text-xs text-slate-500 hover:text-red-600"
+                >
+                  Reset filter
+                </Button>
+              </div>
+              {/* Once the grid is a scroll container (lg), its implicit rows default
+                  to `auto` and collapse to the cards' border height — the cards'
+                  content is inside an `overflow: hidden` article, so it contributes
+                  nothing to the row's automatic size. `auto-rows-max` sizes each row
+                  to the card's real content instead. */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:flex-1 lg:min-h-0 lg:auto-rows-max lg:overflow-y-auto">
+                {tersaring.map((r) => (
+                  <KartuLokerInbox
+                    key={r.url}
+                    job={r}
+                    verdict={verdictBadge(r)}
+                    onBukaDetail={setDetailUrl}
+                    jumlahKursus={jumlahKursusPerUrl?.get(r.url)}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+      </div>
 
       {daftarTerbuka ? (
         <DaftarLokerLayarPenuh
@@ -267,7 +310,7 @@ export function InboxList({
       {detail ? (
         <PopupDetailLoker
           url={detail.url}
-          status={detail.status}
+          verdict={detail.verdict}
           onTutup={() => setDetail(null)}
         />
       ) : null}

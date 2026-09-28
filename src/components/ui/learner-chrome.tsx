@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { MoreVertical } from "lucide-react";
-import { Search } from "./icons";
 import { MobileNavDrawer, type MobileNavItem } from "./mobile-nav-drawer";
 import { ExploreMenu } from "./explore-menu";
 import { AccountMenu, DashboardButton, learnerNavItems } from "./chrome-parts";
@@ -15,10 +14,8 @@ import { onScrollFrame } from "@/lib/scroll/scroll-frame";
 
 export function LearnerChrome({
   session,
-  queryAwal = "",
 }: {
   session: SessionPayload;
-  queryAwal?: string;
 }) {
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
@@ -82,35 +79,6 @@ export function LearnerChrome({
           })}
         </nav>
         <div className="chrome-actions">
-          <form
-            role="search"
-            action="/belajar"
-            method="get"
-            className="learner-search hidden min-w-0 flex-1 items-center md:flex"
-          >
-            <label htmlFor="learner-search" className="sr-only">
-              Cari kursus
-            </label>
-            <div className="flex h-10 w-full max-w-xs items-center gap-2 rounded-full border border-black/15 bg-white/80 pr-1 pl-3.5 focus-within:border-[#0056D2]">
-              <Search className="h-4 w-4 shrink-0 text-black/50" aria-hidden="true" />
-              <input
-                id="learner-search"
-                name="q"
-                type="search"
-                autoComplete="off"
-                defaultValue={queryAwal}
-                key={queryAwal}
-                placeholder="Mau belajar apa?"
-                className="w-full bg-transparent text-[13.5px] text-black outline-none placeholder:text-black/45"
-              />
-              <button
-                type="submit"
-                className="brand-fill shrink-0 cursor-pointer rounded-full px-3.5 py-1.5 text-[13px] font-semibold"
-              >
-                Cari
-              </button>
-            </div>
-          </form>
           <DashboardButton />
           <AccountMenu session={session} />
         </div>

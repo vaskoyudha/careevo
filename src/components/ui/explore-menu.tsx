@@ -212,7 +212,7 @@ export function ExploreMenu() {
         className={`nav-item cursor-pointer ${isOpen ? "is-active" : ""}`}
       >
         <Compass size={15} strokeWidth={1.5} className="shrink-0" aria-hidden="true" />
-        <span>Explore</span>
+        <span>Jelajah</span>
         <ChevronDown
           size={12}
           strokeWidth={1.5}

@@ -8,8 +8,8 @@
  * **Mengapa logikanya di sini, bukan di dalam `addEventListener`.** Repo ini
  * tidak punya harness render (Vitest `include` persis `src` dengan akhiran `.test.ts`,
  * environment `node`, tanpa jsdom), jadi logika yang hanya hidup di dalam
- * event listener tidak pernah diuji — persis kelas defect yang dicatat
- * `careevo-browser-verify`. Ambang dan daftar kombinasi adalah keputusan
+ * event listener tidak pernah diuji — persis kelas defect yang hilang dari diff
+ * dan hanya terlihat di peramban. Ambang dan daftar kombinasi adalah keputusan
  * bisnis, jadi ia harus bisa diuji tanpa browser.
  *
  * **Sinyal di sini adalah self-report.** Peramban peserta yang mengirimi

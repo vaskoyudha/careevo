@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { getSession } from "@/lib/auth/session";
 import { AppShell } from "@/components/ui/app-shell";
-import { PageHead } from "@/components/ui/page-head";
 import { InboxList } from "@/components/features/jobs/inbox-list";
+import { getProfile } from "@/lib/onboarding/store";
 import {
   bacaInboxDiaudit,
   bacaRiwayatScan,
@@ -35,7 +35,10 @@ export default async function LokerInboxPage() {
   // Enrichment reaches the network once per uncached Jobstreet id, so it must be
   // allowed to fail: a dead listing drops that row to "belum diperiksa" rather
   // than taking the page down with it.
-  const rows = await bacaInboxDiaudit().catch(() => []);
+  const [rows, profile] = await Promise.all([
+    bacaInboxDiaudit().catch(() => []),
+    getProfile(session.userId, session.email),
+  ]);
   const adaRiwayat = bacaRiwayatScan().length > 0;
 
   // Lencana "N kursus" di setiap kartu. Fungsi murni (ranker deterministik +
@@ -47,20 +50,21 @@ export default async function LokerInboxPage() {
     await bacaCache().catch(() => ({}) as Record<string, never>),
   );
 
+  const hariIni = new Date().toISOString().slice(0, 10);
+
   return (
-    <AppShell session={session} current="/loker">
-      <PageHead
-        eyebrow="Job seeker"
-        title="Lowongan ditemukan"
-        lead="Hasil pindai dari papan lowongan publik. Buka di situs aslinya, lalu lacak yang kamu minati."
+    <AppShell
+      session={session}
+      current="/loker"
+      mainClassName="app-main-wide"
+    >
+      <InboxList
+        awal={rows}
+        adaRiwayat={adaRiwayat}
+        jumlahKursusPerUrl={jumlahKursus}
+        hariIni={hariIni}
+        profile={profile}
       />
-      <section className="card">
-        <InboxList
-          awal={rows}
-          adaRiwayat={adaRiwayat}
-          jumlahKursusPerUrl={jumlahKursus}
-        />
-      </section>
     </AppShell>
   );
 }

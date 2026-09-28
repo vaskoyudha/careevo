@@ -18,9 +18,12 @@ import { onScrollFrame } from "@/lib/scroll/scroll-frame";
  * `z-index: 55`, so a bar pinned at `top: 0` is painted *underneath* the
  * floating pill and its content is invisible — the pill is opaque enough to
  * cover the whole measure. The offset is therefore **measured** from the live
- * bar, not hardcoded: the pill's height is content-driven (66px once floated on
- * desktop, 122px at 390px wide where it wraps to two rows, and it grows again
- * if a nav item wraps). `.dashboard-shell` solves the same problem with a
+ * bar, not hardcoded: the pill's height is content-driven, and the pill gains
+ * 14px of `translateY` when it morphs to the floating state. `--chrome-h` in
+ * `globals.css` is the constant for the *unmorphed* bar (66px on desktop, 62px
+ * on mobile — the mobile bar does **not** wrap, it drops `nav-float` and
+ * `chrome-actions` and keeps a 44px tap target), which is why the constant
+ * could not be used here. `.dashboard-shell` solves the same problem with a
  * constant (`--dashboard-chrome-h`); this needs a runtime value because the bar
  * morphs.
  *

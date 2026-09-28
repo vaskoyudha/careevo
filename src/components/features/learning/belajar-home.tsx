@@ -462,15 +462,15 @@ function HeroSection({
               .getElementById("katalog")
               ?.scrollIntoView({ behavior: "smooth" });
           }}
-          className="mt-5 flex w-full max-w-xl items-center rounded-full border border-white/90 bg-white/80 p-1 shadow-[0_14px_34px_-24px_rgba(12,63,94,0.5)] backdrop-blur-md focus-within:ring-2 focus-within:ring-[#0056D2] focus-within:ring-offset-2 lg:hidden"
+          className="mt-5 flex w-full max-w-xl items-center rounded-full border border-white/90 bg-white/80 p-1 shadow-[0_14px_34px_-24px_rgba(12,63,94,0.5)] backdrop-blur-md focus-within:ring-2 focus-within:ring-[#0056D2] focus-within:ring-offset-2"
         >
-          <label htmlFor="belajar-mobile-search" className="sr-only">
+          <label htmlFor="belajar-search" className="sr-only">
             Cari topik atau kursus
           </label>
           <div className="flex min-h-11 min-w-0 flex-1 items-center px-3">
             <Search className="size-4 shrink-0 text-[#6f8491]" />
             <input
-              id="belajar-mobile-search"
+              id="belajar-search"
               value={query}
               onChange={(event) => onQuery(event.target.value)}
               placeholder="Mau belajar apa?"
@@ -492,17 +492,17 @@ function HeroSection({
 function PartnersAndCategories() {
   const navCards = [
     {
-      title: "Launch a new career",
+      title: "Mulai karier baru",
       icon: Award,
       href: "/explore/most-popular-courses",
     },
     {
-      title: "Try Careevo for Business",
+      title: "Coba Careevo untuk Bisnis",
       icon: Mountain,
       href: "mailto:bisnis@careevo.id",
     },
     {
-      title: "Earn a degree",
+      title: "Raih gelar akademik",
       icon: GraduationCap,
       href: "#gelar",
     },
@@ -583,29 +583,33 @@ function PartnersAndCategories() {
  *
  * "Math and Logic" is intentionally absent — it had no matcher, so it had no
  * `/browse` page to link to. A pill that 404s is worse than no pill.
+ *
+ * `slug` is a URL and stays English; `name` is what the learner reads, so it is
+ * Indonesian. The two are deliberately decoupled — renaming a slug would break
+ * every `/browse/<slug>` link and its matcher in `CATEGORY_MATCHERS`.
  */
 const CATEGORY_PILLS = [
-  { slug: "business", name: "Business", icon: Briefcase },
+  { slug: "business", name: "Bisnis", icon: Briefcase },
   {
     slug: "artificial-intelligence",
-    name: "Artificial Intelligence",
+    name: "Kecerdasan Buatan",
     icon: Sparkles,
   },
-  { slug: "data-science", name: "Data Science", icon: TrendingUp },
-  { slug: "computer-science", name: "Computer Science", icon: Code2 },
+  { slug: "data-science", name: "Ilmu Data", icon: TrendingUp },
+  { slug: "computer-science", name: "Ilmu Komputer", icon: Code2 },
   {
     slug: "information-technology",
-    name: "Information Technology",
+    name: "Teknologi Informasi",
     icon: Laptop,
   },
-  { slug: "personal-development", name: "Personal Development", icon: Rocket },
-  { slug: "health", name: "Healthcare", icon: HeartPulse },
-  { slug: "language-learning", name: "Language Learning", icon: Globe },
-  { slug: "social-sciences", name: "Social Sciences", icon: Users },
-  { slug: "arts-and-humanities", name: "Arts and Humanities", icon: Palette },
+  { slug: "personal-development", name: "Pengembangan Pribadi", icon: Rocket },
+  { slug: "health", name: "Kesehatan", icon: HeartPulse },
+  { slug: "language-learning", name: "Belajar Bahasa", icon: Globe },
+  { slug: "social-sciences", name: "Ilmu Sosial", icon: Users },
+  { slug: "arts-and-humanities", name: "Seni & Kemanusaan", icon: Palette },
   {
     slug: "physical-science-and-engineering",
-    name: "Physical Science and Engineering",
+    name: "Ilmu Pengetahuan Alam & Teknik",
     icon: FlaskConical,
   },
 ] as const satisfies readonly {
@@ -623,6 +627,22 @@ const FIELD_HREF: Record<string, string> = {
   "artificial-intelligence":
     "/browse/computer-science?topic=artificial-intelligence",
 };
+
+/**
+ * The pill's active treatment (hover, and focus-visible for parity), shared by
+ * every pill so one edit moves all of them.
+ *
+ * This was a solid `#0A3D62` fill with white type. It now washes from a light
+ * blue into white instead, so the active pill reads as part of the banner's
+ * pastel gradient rather than as a hole punched in it.
+ *
+ * The type stays `#0A3D62` for the same reason the fill got lighter: white text
+ * on the white end of the gradient would be invisible. The darkest stop
+ * (`#7FB8F0`) keeps the navy label at 5.4:1, so contrast holds across the whole
+ * wash and not just at its light end.
+ */
+const PILL_AKTIF =
+  "hover:border-[#2F7ED1] hover:bg-[linear-gradient(100deg,#7FB8F0_0%,#B7DAF9_50%,#FFFFFF_100%)] hover:shadow-[0_12px_22px_-16px_rgba(31,105,194,0.85)] focus-visible:border-[#2F7ED1] focus-visible:bg-[linear-gradient(100deg,#7FB8F0_0%,#B7DAF9_50%,#FFFFFF_100%)]";
 
 /**
  * "Explore categories" banner: the 11 category pills are one horizontally
@@ -795,17 +815,24 @@ function ExploreCategoriesBanner() {
                 id="explore-categories-heading"
                 className="text-3xl font-extrabold tracking-tight text-[#0A3D62] text-balance sm:text-4xl lg:text-[2.5rem] lg:leading-[1.1] xl:text-[2.75rem]"
               >
-                The field you want— and the skills to reach it
+                Bidang yang kamu tuju — dan keterampilan untuk mencapainya
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-[#17455F]/85 sm:text-[15px]">
-                Choose your field. We line up the programs, certificates, and
-                projects that fit it— from first module to a portfolio you can
-                show.
+                Pilih bidangmu. Kami susun program, sertifikat, dan proyek yang
+                cocok — dari modul pertama sampai portofolio yang bisa kamu
+                tunjukkan.
               </p>
               <div className="mt-6 flex flex-wrap items-center gap-2.5">
+                {/* Primary CTA, in the same light-blue-to-white wash as an active
+                    category pill (see `PILL_AKTIF`): a solid `#0A3D62` fill
+                    punched a dark hole in a pastel banner, and the two sat side by
+                    side as competing dark pills. The type is `#0A3D62` because
+                    white type would disappear at the white end of the wash.
+                    Hierarchy over the secondary below is now carried by weight,
+                    the `#2F7ED1` border and the shadow — not by brightness. */}
                 <Link
                   href="/browse"
-                  className="inline-flex min-h-11 items-center gap-2 rounded-full bg-[#0A3D62] px-5 text-sm font-bold text-white shadow-[0_10px_24px_-14px_rgba(10,61,98,0.7)] transition-colors hover:bg-[#072A3F] active:scale-[0.98]"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[#2F7ED1] bg-[linear-gradient(100deg,#7FB8F0_0%,#B7DAF9_50%,#FFFFFF_100%)] px-5 text-sm font-bold text-[#0A3D62] shadow-[0_12px_24px_-14px_rgba(31,105,194,0.8)] transition-[background-image,border-color,box-shadow,transform] hover:shadow-[0_16px_30px_-14px_rgba(31,105,194,0.9)] active:scale-[0.98]"
                 >
                   Jelajahi semua bidang
                   <ArrowRight className="size-4" aria-hidden />
@@ -853,7 +880,10 @@ function ExploreCategoriesBanner() {
                       <Link
                         href={FIELD_HREF[pill.slug] ?? `/browse/${pill.slug}`}
                         draggable={false}
-                        className="group inline-flex min-h-11 items-center gap-2 rounded-full border border-[#0A3D62]/15 bg-white/85 py-2.5 pr-5 pl-3.5 text-sm font-semibold text-[#0A3D62] shadow-2xs backdrop-blur-sm transition-colors hover:border-[#0A3D62] hover:bg-[#0A3D62] hover:text-white sm:text-[15px]"
+                        className={cn(
+                          "group inline-flex min-h-11 items-center gap-2 rounded-full border border-[#0A3D62]/15 bg-white/85 py-2.5 pr-5 pl-3.5 text-sm font-semibold text-[#0A3D62] shadow-2xs backdrop-blur-sm transition-[background-image,border-color,box-shadow] duration-200 sm:text-[15px]",
+                          PILL_AKTIF,
+                        )}
                       >
                         <Icon
                           className="size-4.5 shrink-0 opacity-70 transition-opacity group-hover:opacity-100"
@@ -922,12 +952,12 @@ function ExploreCategoriesBanner() {
 }
 
 const ROLE_TABS = [
-  "AI Engineer",
-  "Software Developer",
-  "Data Analyst",
-  "Project Manager",
-  "Business Leader",
-  "Digital Marketer",
+  "Ahli AI",
+  "Pengembang Perangkat Lunak",
+  "Analis Data",
+  "Manajer Proyek",
+  "Pemimpin Bisnis",
+  "Pemasar Digital",
 ] as const;
 
 interface AiBannerCard {
@@ -942,7 +972,7 @@ interface AiBannerCard {
 }
 
 const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
-  "AI Engineer": [
+  "Ahli AI": [
     {
       title: "IBM Generative AI Engineering",
       partner: "IBM",
@@ -952,7 +982,7 @@ const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
         "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/fc/56cf025e474d27970ae7caabe04a2e/200859-Logo-image.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50",
       rating: "4.7",
       reviews: "101K",
-      type: "Professional Certificate",
+      type: "Sertifikat Profesional",
       href: "/professional-certificates/ibm-generative-ai",
     },
     {
@@ -964,7 +994,7 @@ const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
         "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://coursera-course-photos.s3.amazonaws.com/87/f53a62e6c84b5c9be99db814e19f00/juleswhite_3d_colorful_volumeric_organic_rounded_vibrant_highly_ed068faa-2a26-4d84-94b6-5cbfb2614a39.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50",
       rating: "4.6",
       reviews: "479",
-      type: "Course",
+      type: "Kursus",
       href: "/specializations/ai-agents-python",
     },
     {
@@ -976,23 +1006,23 @@ const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
         "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/0f/7b5e2c1622426e830b6b833156bc2b/BC-5768_VisMerch-Phase-3-Assets_Youtube_DeepLearning.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50",
       rating: "4.8",
       reviews: "147K",
-      type: "Specialization",
+      type: "Spesialisasi",
       href: "/specializations/deep-learning",
     },
     {
       title: "Machine Learning",
-      partner: "Multiple educators",
+      partner: "Berbagai Pengajar",
       partnerLogo:
         "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/b4/5cb90bb92f420b99bf323a0356f451/Icon.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
       thumbnail:
         "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/3a/9d2a7af297483a845340bcfbac6f1e/MLS.course-banners-01_Course-Logo-.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50",
       rating: "4.9",
       reviews: "39K",
-      type: "Specialization",
+      type: "Spesialisasi",
       href: "/specializations/machine-learning-introduction",
     },
   ],
-  "Software Developer": [
+  "Pengembang Perangkat Lunak": [
     {
       title: "Fullstack Web Development: Next.js 15 & React 19",
       partner: "Meta",
@@ -1002,7 +1032,7 @@ const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
         "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=640&q=80",
       rating: "4.9",
       reviews: "52K",
-      type: "Professional Certificate",
+      type: "Sertifikat Profesional",
       href: "/belajar/r8",
     },
     {
@@ -1014,7 +1044,7 @@ const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
         "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=640&q=80",
       rating: "4.8",
       reviews: "67K",
-      type: "Specialization",
+      type: "Spesialisasi",
       href: "/belajar/crs-4",
     },
     {
@@ -1026,7 +1056,7 @@ const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
         "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=640&q=80",
       rating: "4.9",
       reviews: "48K",
-      type: "Specialization",
+      type: "Spesialisasi",
       href: "/belajar/crs-1",
     },
     {
@@ -1038,11 +1068,11 @@ const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
         "https://images.unsplash.com/photo-1504639725590-34d0984388bd?auto=format&fit=crop&w=640&q=80",
       rating: "4.8",
       reviews: "41K",
-      type: "Course",
+      type: "Kursus",
       href: "/belajar/r2",
     },
   ],
-  "Data Analyst": [
+  "Analis Data": [
     {
       title: "Google Data Analytics",
       partner: "Google",
@@ -1052,7 +1082,7 @@ const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
         "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/60/097644c12e4aeba0c3420de571cac1/GCC-Coursera-thumbnail-DA-foundations-tony-cert-level.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50&crop=focalpoint&fp-y=0.48",
       rating: "4.8",
       reviews: "140K",
-      type: "Professional Certificate",
+      type: "Sertifikat Profesional",
       href: "/belajar/crs-4",
     },
     {
@@ -1064,7 +1094,7 @@ const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
         "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/23/f74c5a9a9c4110b78909194abbdc7a/BC-5768_VisMerch-Phase-3-Assets_ProCerts_IBM_DataAnalyst.png?auto=format%2Ccompress&dpr=1&w=320&h=180&fit=crop&q=50",
       rating: "4.6",
       reviews: "85K",
-      type: "Professional Certificate",
+      type: "Sertifikat Profesional",
       href: "/belajar/crs-2",
     },
     {
@@ -1076,7 +1106,7 @@ const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
         "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/cf/9c0c8b66804a80b15cf7208ff9553f/Hero_1200x600_v1.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50",
       rating: "4.6",
       reviews: "38K",
-      type: "Specialization",
+      type: "Spesialisasi",
       href: "/belajar/crs-1",
     },
     {
@@ -1088,11 +1118,11 @@ const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
         "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=640&q=80",
       rating: "4.8",
       reviews: "29K",
-      type: "Specialization",
+      type: "Spesialisasi",
       href: "/belajar/crs-3",
     },
   ],
-  "Project Manager": [
+  "Manajer Proyek": [
     {
       title: "Google Project Management",
       partner: "Google",
@@ -1102,7 +1132,7 @@ const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
         "https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=640&q=80",
       rating: "4.8",
       reviews: "120K",
-      type: "Professional Certificate",
+      type: "Sertifikat Profesional",
       href: "/belajar/crs-2",
     },
     {
@@ -1114,7 +1144,7 @@ const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
         "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=640&q=80",
       rating: "4.8",
       reviews: "34K",
-      type: "Professional Certificate",
+      type: "Sertifikat Profesional",
       href: "/belajar/r7",
     },
     {
@@ -1126,7 +1156,7 @@ const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
         "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=640&q=80",
       rating: "4.7",
       reviews: "45K",
-      type: "Course",
+      type: "Kursus",
       href: "/belajar/r8",
     },
     {
@@ -1138,11 +1168,11 @@ const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
         "https://images.unsplash.com/photo-1507537297725-24a1c029d3ca?auto=format&fit=crop&w=640&q=80",
       rating: "4.7",
       reviews: "18K",
-      type: "Specialization",
+      type: "Spesialisasi",
       href: "/belajar/crs-1",
     },
   ],
-  "Business Leader": [
+  "Pemimpin Bisnis": [
     {
       title: "AI for Everyone",
       partner: "DeepLearning.AI",
@@ -1152,7 +1182,7 @@ const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
         "https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=640&q=80",
       rating: "4.8",
       reviews: "89K",
-      type: "Course",
+      type: "Kursus",
       href: "/belajar/crs-3",
     },
     {
@@ -1164,7 +1194,7 @@ const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
         "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=640&q=80",
       rating: "4.7",
       reviews: "22K",
-      type: "Specialization",
+      type: "Spesialisasi",
       href: "/belajar/r1",
     },
     {
@@ -1176,7 +1206,7 @@ const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
         "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=640&q=80",
       rating: "4.8",
       reviews: "31K",
-      type: "Specialization",
+      type: "Spesialisasi",
       href: "/belajar/crs-2",
     },
     {
@@ -1188,11 +1218,11 @@ const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
         "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=640&q=80",
       rating: "4.7",
       reviews: "40K",
-      type: "Specialization",
+      type: "Spesialisasi",
       href: "/belajar/crs-4",
     },
   ],
-  "Digital Marketer": [
+  "Pemasar Digital": [
     {
       title: "Google Digital Marketing & E-commerce",
       partner: "Google",
@@ -1202,7 +1232,7 @@ const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
         "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=640&q=80",
       rating: "4.8",
       reviews: "75K",
-      type: "Professional Certificate",
+      type: "Sertifikat Profesional",
       href: "/belajar/crs-2",
     },
     {
@@ -1214,7 +1244,7 @@ const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
         "https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=640&q=80",
       rating: "4.9",
       reviews: "60K",
-      type: "Professional Certificate",
+      type: "Sertifikat Profesional",
       href: "/belajar/crs-1",
     },
     {
@@ -1226,7 +1256,7 @@ const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
         "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=640&q=80",
       rating: "4.8",
       reviews: "25K",
-      type: "Specialization",
+      type: "Spesialisasi",
       href: "/belajar/r7",
     },
     {
@@ -1238,7 +1268,7 @@ const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
         "https://images.unsplash.com/photo-1571786256017-aee7a0c009b6?auto=format&fit=crop&w=640&q=80",
       rating: "4.6",
       reviews: "19K",
-      type: "Specialization",
+      type: "Spesialisasi",
       href: "/belajar/r8",
     },
   ],
@@ -1246,7 +1276,7 @@ const AI_BANNER_DATA: Record<string, AiBannerCard[]> = {
 
 const CAREER_PROGRAMS = [
   {
-    role: "Machine Learning Engineer",
+    role: "Insinyur Machine Learning",
     salary: "$136,000",
     openings: "18,400+ lowongan",
     image:
@@ -1255,7 +1285,7 @@ const CAREER_PROGRAMS = [
     provider: "DeepLearning.AI",
   },
   {
-    role: "Data Scientist",
+    role: "Ilmuwan Data",
     salary: "$124,000",
     openings: "24,800+ lowongan",
     image:
@@ -1264,7 +1294,7 @@ const CAREER_PROGRAMS = [
     provider: "Google",
   },
   {
-    role: "Data Analyst",
+    role: "Analis Data",
     salary: "$92,000",
     openings: "36,000+ lowongan",
     image:
@@ -1273,7 +1303,7 @@ const CAREER_PROGRAMS = [
     provider: "Google",
   },
   {
-    role: "Frontend Developer",
+    role: "Pengembang Frontend",
     salary: "$105,000",
     openings: "29,500+ lowongan",
     image:
@@ -1329,7 +1359,7 @@ const NEW_AND_POPULAR_COLUMNS: {
   items: CompactCardItem[];
 }[] = [
   {
-    category: "Most popular",
+    category: "Paling populer",
     categoryHref: "/explore/most-popular-courses",
     items: [
       {
@@ -1337,7 +1367,7 @@ const NEW_AND_POPULAR_COLUMNS: {
         org: "Google",
         orgLogo:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
-        type: "Professional Certificate",
+        type: "Sertifikat Profesional",
         rating: "4.8",
         thumbnail:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/60/097644c12e4aeba0c3420de571cac1/GCC-Coursera-thumbnail-DA-foundations-tony-cert-level.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50&crop=focalpoint&fp-y=0.48",
@@ -1348,7 +1378,7 @@ const NEW_AND_POPULAR_COLUMNS: {
         org: "IBM",
         orgLogo:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/7iLJYdbTLExBFAgVoHe2Pc/1735062f2f3a6df1dca8cfd9f1815098/ibm-logo.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
-        type: "Professional Certificate",
+        type: "Sertifikat Profesional",
         rating: "4.6",
         thumbnail:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/23/f74c5a9a9c4110b78909194abbdc7a/BC-5768_VisMerch-Phase-3-Assets_ProCerts_IBM_DataAnalyst.png?auto=format%2Ccompress&dpr=1&w=320&h=180&fit=crop&q=50",
@@ -1359,7 +1389,7 @@ const NEW_AND_POPULAR_COLUMNS: {
         org: "Google",
         orgLogo:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
-        type: "Specialization",
+        type: "Spesialisasi",
         rating: "4.8",
         thumbnail:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://coursera-course-photos.s3.amazonaws.com/64/1dd26fb7e24637b91b119764d08e01/GCC-Coursera-thumbnail-DA-foundations-tony.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50&crop=faces",
@@ -1368,7 +1398,7 @@ const NEW_AND_POPULAR_COLUMNS: {
     ],
   },
   {
-    category: "Hot new releases",
+    category: "Rilisan terbaru",
     categoryHref: "/explore/most-popular-courses",
     items: [
       {
@@ -1376,7 +1406,7 @@ const NEW_AND_POPULAR_COLUMNS: {
         org: "Dr. Ryan Ahmed",
         orgLogo:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/8e/7ca56107974898be41dca49b5aff74/Digital_360x360.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
-        type: "Specialization",
+        type: "Spesialisasi",
         thumbnail:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/26/26ea676ea74cf09e0540737ab855b8/Coursera_Specialization_600x600.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=64&fit=clip&q=50",
         href: "/specializations/complete-claude-code-claude-cowork-masterclass",
@@ -1386,7 +1416,7 @@ const NEW_AND_POPULAR_COLUMNS: {
         org: "Amazon Web Services",
         orgLogo:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/a4/7cd68a658840ddbb95c38cdd0bbc8e/aws-logo-icon-PNG-Transparent-Background.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
-        type: "Professional Certificate",
+        type: "Sertifikat Profesional",
         thumbnail:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/de/1d3ba587274f8cb6694947d8f76fef/AWS_logo_square_1200x1200.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=64&fit=clip&q=50",
         href: "/professional-certificates/aws-security-engineer",
@@ -1396,7 +1426,7 @@ const NEW_AND_POPULAR_COLUMNS: {
         org: "Microsoft",
         orgLogo:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/cc/61dbdf2c1c475d82d3b8bf8eee1bda/MSFT-stacked-logo_FINAL.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
-        type: "Specialization",
+        type: "Spesialisasi",
         rating: "4.6",
         thumbnail:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/8c/625f6802494c73be844b9e745d4d4d/Microsoft-Data-Analysis-with-SQL-Excel-Power-BI.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=64&fit=clip&q=50",
@@ -1405,7 +1435,7 @@ const NEW_AND_POPULAR_COLUMNS: {
     ],
   },
   {
-    category: "Trending AI courses",
+    category: "Kursus AI populer",
     categoryHref: "/explore/most-popular-courses",
     items: [
       {
@@ -1413,17 +1443,17 @@ const NEW_AND_POPULAR_COLUMNS: {
         org: "Amazon Web Services",
         orgLogo:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/a4/7cd68a658840ddbb95c38cdd0bbc8e/aws-logo-icon-PNG-Transparent-Background.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
-        type: "Professional Certificate",
+        type: "Sertifikat Profesional",
         thumbnail:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/e4/71610c146f478c82f76469455e1080/AWS_logo_square_1200x1200.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=64&fit=clip&q=50",
         href: "/professional-certificates/aws-generative-ai",
       },
       {
         title: "Machine Learning",
-        org: "Multiple educators",
+        org: "Berbagai Pengajar",
         orgLogo:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/b4/5cb90bb92f420b99bf323a0356f451/Icon.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
-        type: "Specialization",
+        type: "Spesialisasi",
         rating: "4.9",
         thumbnail:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/3a/9d2a7af297483a845340bcfbac6f1e/MLS.course-banners-01_Course-Logo-.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=64&fit=clip&q=50",
@@ -1434,7 +1464,7 @@ const NEW_AND_POPULAR_COLUMNS: {
         org: "Google",
         orgLogo:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/http://coursera-university-assets.s3.amazonaws.com/92/d0d1ee4a844037be9a2d349ee5f59d/GoogleG_FullColor_RGB.png?auto=format%2Ccompress&dpr=3&w=24&h=24",
-        type: "Specialization",
+        type: "Spesialisasi",
         rating: "4.8",
         thumbnail:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/07/eced232a07415eb3d77c788ae5754e/AIE.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50&crop=focalpoint&fp-y=0.48",
@@ -1458,7 +1488,7 @@ const TRENDING_COLUMNS: {
         org: "Microsoft",
         orgLogo:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/11pJTA8yOZPwVRMKnSKPRz/340cf59915e8ce0d3b993d39959972d6/eded33b5eb1694336861de4bfda6d36bf72b7780.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
-        type: "Professional Certificate",
+        type: "Sertifikat Profesional",
         rating: "★ 4.4",
         thumbnail:
           "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=320&q=85",
@@ -1469,7 +1499,7 @@ const TRENDING_COLUMNS: {
         org: "University of Michigan",
         orgLogo:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/7sWcR45W6I4bvFrJfCmb5d/2dff9bbefe50a9fcbcf89b2e5ee7032e/umich.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
-        type: "Specialization",
+        type: "Spesialisasi",
         rating: "★ 4.8",
         thumbnail:
           "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=320&q=80",
@@ -1480,7 +1510,7 @@ const TRENDING_COLUMNS: {
         org: "University of Michigan",
         orgLogo:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/7sWcR45W6I4bvFrJfCmb5d/2dff9bbefe50a9fcbcf89b2e5ee7032e/umich.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
-        type: "Specialization",
+        type: "Spesialisasi",
         rating: "★ 4.8",
         thumbnail:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d2j5ihb19pt1hq.cloudfront.net/sdp_page/s12n_logos/python.jpg?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50",
@@ -1489,7 +1519,7 @@ const TRENDING_COLUMNS: {
     ],
   },
   {
-    category: "Data Analytics",
+    category: "Analitika Data",
     categoryHref: "#katalog",
     items: [
       {
@@ -1497,7 +1527,7 @@ const TRENDING_COLUMNS: {
         org: "Macquarie University",
         orgLogo:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/3Y7rH8FUwg4eai7LK5j9u3/880203b6e241e81112bf48f252ca8e72/Penn-badge.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
-        type: "Specialization",
+        type: "Spesialisasi",
         rating: "★ 4.9",
         thumbnail:
           "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=320&q=80",
@@ -1508,7 +1538,7 @@ const TRENDING_COLUMNS: {
         org: "Microsoft",
         orgLogo:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/11pJTA8yOZPwVRMKnSKPRz/340cf59915e8ce0d3b993d39959972d6/eded33b5eb1694336861de4bfda6d36bf72b7780.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
-        type: "Professional Certificate",
+        type: "Sertifikat Profesional",
         rating: "★ 4.6",
         thumbnail:
           "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=320&q=85",
@@ -1519,7 +1549,7 @@ const TRENDING_COLUMNS: {
         org: "Google",
         orgLogo:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/3ZIhQ7yxmgGMFZGtlqpCG6/0d0f40bc5133948bb3805cab25af62ba/Google-G_360x360.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
-        type: "Professional Certificate",
+        type: "Sertifikat Profesional",
         rating: "★ 4.8",
         thumbnail:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://d15cw65ipctsrr.cloudfront.net/60/097644c12e4aeba0c3420de571cac1/GCC-Coursera-thumbnail-DA-foundations-tony-cert-level.png?auto=format%2C%20compress%2C%20enhance&dpr=1&w=320&h=180&fit=crop&q=50&crop=focalpoint&fp-y=0.48",
@@ -1528,7 +1558,7 @@ const TRENDING_COLUMNS: {
     ],
   },
   {
-    category: "Project Management",
+    category: "Manajemen Proyek",
     categoryHref: "#katalog",
     items: [
       {
@@ -1536,7 +1566,7 @@ const TRENDING_COLUMNS: {
         org: "University of California, Irvine",
         orgLogo:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/1s6p4WQHsv79stjgyiWBtI/d55f3608a884d6d1e48f78935b73362f/3c8a16b167a785920d061664a6512c3a60cdb30e.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
-        type: "Specialization",
+        type: "Spesialisasi",
         rating: "★ 4.7",
         thumbnail:
           "https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=320&q=80",
@@ -1547,7 +1577,7 @@ const TRENDING_COLUMNS: {
         org: "IBM",
         orgLogo:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/7iLJYdbTLExBFAgVoHe2Pc/1735062f2f3a6df1dca8cfd9f1815098/ibm-logo.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
-        type: "Professional Certificate",
+        type: "Sertifikat Profesional",
         rating: "★ 4.8",
         thumbnail:
           "https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=320&q=80",
@@ -1558,7 +1588,7 @@ const TRENDING_COLUMNS: {
         org: "Microsoft",
         orgLogo:
           "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/11pJTA8yOZPwVRMKnSKPRz/340cf59915e8ce0d3b993d39959972d6/eded33b5eb1694336861de4bfda6d36bf72b7780.png?auto=format%2Ccompress&dpr=1&w=24&h=24",
-        type: "Professional Certificate",
+        type: "Sertifikat Profesional",
         rating: "★ 4.6",
         thumbnail:
           "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=320&h=180&q=80",
@@ -1571,12 +1601,12 @@ const TRENDING_COLUMNS: {
 const INTENTS_DATA = [
   {
     id: "career",
-    label: "Start my career",
+    label: "Mulai karier saya",
     icon: <Rocket className="size-4.5" />,
   },
   {
     id: "change",
-    label: "Change my career",
+    label: "Ganti jalur karier",
     icon: (
       <svg
         className="size-4.5"
@@ -1597,12 +1627,12 @@ const INTENTS_DATA = [
   },
   {
     id: "grow",
-    label: "Grow in my current role",
+    label: "Tumbuh di posisi sekarang",
     icon: <TrendingUp className="size-4.5" />,
   },
   {
     id: "explore",
-    label: "Explore topics outside of work",
+    label: "Jelajahi topik di luar pekerjaan",
     icon: <Binoculars className="size-4.5" />,
   },
 ];
@@ -1610,47 +1640,60 @@ const INTENTS_DATA = [
 const TESTIMONIALS = [
   {
     name: "Sarah W.",
-    role: "Data Analyst di Fintech",
+    role: "Analis Data di Fintech",
     avatar:
       "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/5i5srEZb2oOiyBzsckTgCE/9e395a15dc3a0ee381ba8cad950694fa/Sarah_W..jpeg?auto=format%2Ccompress&dpr=1&w=64&h=64&fit=crop",
     text: "Reputasi materi Careevo yang berkualitas tinggi, dipadu struktur belajar yang fleksibel, memudahkan saya mendalami analitika data sembari mengurus keluarga dan pekerjaan harian.",
   },
   {
     name: "Noeris B.",
-    role: "Software Engineer",
+    role: "Pengembang Perangkat Lunak",
     avatar:
       "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/1hutGkdWK4YixkAB4MRESr/6d9020693440cba7c65f2ae12cdc91e8/NoerisB.jpg?auto=format%2Ccompress&dpr=1&w=64&h=64&fit=crop",
     text: "Careevo mengembalikan rasa percaya diri saya dan membuka peluang untuk bermimpi lebih besar. Bukan sekadar menyerap materi—tetapi membuktikan potensi lewat challenge karya nyata.",
   },
   {
     name: "Abdullahi M.",
-    role: "Tech Lead & Mentor",
+    role: "Pemimpin Teknis & Mentor",
     avatar:
       "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/4Y6jSp1xS4TKuPRNEIYAof/3e3baba688ce331ff7577f5583fc5c87/Abdullahi_M.jpg?auto=format%2Ccompress&dpr=1&w=64&h=64&fit=crop",
     text: "Sekarang saya merasa sangat siap mengambil tanggung jawab kepemimpinan teknis dan telah aktif menjadi mentor bagi rekan kerja baru di kantor.",
   },
   {
     name: "Anas A.",
-    role: "AI Researcher & Engineer",
+    role: "Peneliti & Insinyur AI",
     avatar:
       "https://d3njjcbhbojbot.cloudfront.net/api/utilities/v1/imageproxy/https://images.ctfassets.net/00atxywtfxvd/3H5hysCHFHUu7JWjv0FXCC/aab7b9f6be57cda1552bb52fcb6f8098/Anas_Alubaidi_pic.JPEG?auto=format%2Ccompress&dpr=1&w=64&h=64&fit=crop",
     text: "Belajar di sini memperluas keahlian profesional saya berkat materi standar industri terkini, studi kasus riil, dan wawasan langsung dari praktisi terkemuka.",
   },
 ];
 
+/**
+ * The "Jelajahi kategori" tiles.
+ *
+ * `name` is display copy and `query` is the search term, and they are separate
+ * fields on purpose. The click handler used to derive the query from the
+ * display name (`name.split(" ")[0]`), which quietly coupled Indonesian copy to
+ * English catalog tags: "Kecerdasan Buatan & AI" searched for `Kecerdasan` and
+ * matched nothing. Each `query` below is a real tag or word in
+ * `data/courses.json` + `resources.json`, so the tile now always returns rows.
+ *
+ * "Pengembangan Pribadi" is the one tile with no dedicated course in the
+ * catalog; it maps to `lead` (kepemimpinan), the nearest real tag.
+ */
 const CATEGORIES = [
-  { name: "Kecerdasan Buatan & AI", count: 48, icon: "🤖" },
-  { name: "Ilmu Komputer & Web", count: 72, icon: "💻" },
-  { name: "Data Science & Analitika", count: 54, icon: "📊" },
-  { name: "Cyber Security & Jaringan", count: 32, icon: "🔒" },
-  { name: "Bisnis & Manajemen Produk", count: 40, icon: "📈" },
-  { name: "Desain UI/UX & Interaksi", count: 28, icon: "🎨" },
-  { name: "Cloud & DevOps", count: 36, icon: "☁️" },
-  { name: "Pengembangan Pribadi", count: 22, icon: "🚀" },
-  { name: "Algoritma & Matematika", count: 30, icon: "📐" },
-  { name: "Mobile App Development", count: 26, icon: "📱" },
-  { name: "Testing & Quality Assurance", count: 18, icon: "🧪" },
-  { name: "Sistem Basis Data & SQL", count: 24, icon: "🗄️" },
+  { name: "Kecerdasan Buatan & AI", query: "AI", count: 48, icon: "🤖" },
+  { name: "Ilmu Komputer & Web", query: "web", count: 72, icon: "💻" },
+  { name: "Ilmu Data & Analitika", query: "data", count: 54, icon: "📊" },
+  { name: "Keamanan Siber & Jaringan", query: "security", count: 32, icon: "🔒" },
+  { name: "Bisnis & Manajemen Produk", query: "product", count: 40, icon: "📈" },
+  { name: "Desain UI/UX & Interaksi", query: "design", count: 28, icon: "🎨" },
+  { name: "Cloud & DevOps", query: "devops", count: 36, icon: "☁️" },
+  { name: "Pengembangan Pribadi", query: "lead", count: 22, icon: "🚀" },
+  { name: "Algoritma & Matematika", query: "algoritma", count: 30, icon: "📐" },
+  { name: "Pengembangan Aplikasi Mobile", query: "mobile", count: 26, icon: "📱" },
+  { name: "Pengujian & Jaminan Mutu", query: "testing", count: 18, icon: "🧪" },
+  { name: "Sistem Basis Data & SQL", query: "sql", count: 24, icon: "🗄️" },
 ];
 
 const FAQS = [
@@ -1728,8 +1771,8 @@ export function BelajarHome({
   queryAwal?: string;
 }) {
   const [query, setQuery] = useState(queryAwal);
-  const [role, setRole] = useState<(typeof ROLE_TABS)[number]>("AI Engineer");
-  const [goal, setGoal] = useState<string>("Start my career");
+  const [role, setRole] = useState<(typeof ROLE_TABS)[number]>("Ahli AI");
+  const [goal, setGoal] = useState<string>("Mulai karier saya");
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [story, setStory] = useState(0);
 
@@ -1830,12 +1873,12 @@ export function BelajarHome({
         </section>
       ) : null}
 
-      {/* New and popular — Coursera 3-Column Compact Collections */}
+      {/* Baru dan populer — tiga kolom koleksi ringkas */}
       <section aria-labelledby="baru-populer" className="bg-white py-12">
         <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-6">
             <h2 id="baru-populer" className={HOME_SECTION_HEADING_CLASS}>
-              New and popular
+              Baru dan populer
             </h2>
           </div>
 
@@ -1981,11 +2024,11 @@ export function BelajarHome({
                     id="ai-banner-heading"
                     className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white leading-[1.18]"
                   >
-                    AI for the work you do— and the career you want
+                    AI untuk pekerjaanmu — dan karier yang kamu tuju
                   </h2>
                   <p className="mt-3 text-sm text-white/95 leading-relaxed">
-                    Choose your field. Learn the workflows, judgment and tools
-                    reshaping it.
+                    Pilih bidangmu. Pelajari alur kerja, ketajaman penilaian, dan
+                    alat yang sedang mengubahnya.
                   </p>
                 </div>
 
@@ -1994,7 +2037,7 @@ export function BelajarHome({
                     href="/explore/most-popular-courses"
                     className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-bold text-[#0056D2] shadow-xs transition-colors hover:bg-blue-50 active:scale-95"
                   >
-                    <span>Explore programs</span>
+                    <span>Jelajahi program</span>
                     <span>→</span>
                   </Link>
                 </div>
@@ -2024,7 +2067,7 @@ export function BelajarHome({
 
                 {/* 4 Cards Grid directly underneath the tabs */}
                 <div className="mt-4 grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4 flex-1">
-                  {(AI_BANNER_DATA[role] ?? AI_BANNER_DATA["AI Engineer"]).map(
+                  {(AI_BANNER_DATA[role] ?? AI_BANNER_DATA["Ahli AI"]).map(
                     (card) => (
                       <Link
                         key={card.title}
@@ -2323,7 +2366,7 @@ export function BelajarHome({
             id="trending-searches-heading"
             className={cn("mb-6", HOME_SECTION_HEADING_CLASS)}
           >
-            Trending searches
+            Pencarian populer
           </h2>
 
           <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
@@ -2393,7 +2436,7 @@ export function BelajarHome({
           <div className="mt-8 rounded-2xl bg-[#EBF3FB] p-5 sm:p-6">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <h3 className="shrink-0 text-lg font-bold tracking-tight text-[#111827] sm:text-xl">
-                What brings you to Coursera today?
+                Apa yang membawamu ke Careevo hari ini?
               </h3>
               <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
                 {INTENTS_DATA.map((item) => {
@@ -2620,7 +2663,7 @@ export function BelajarHome({
                 key={cat.name}
                 type="button"
                 onClick={() => {
-                  setQuery(cat.name.split(" ")[0]);
+                  setQuery(cat.query);
                   document
                     .getElementById("katalog")
                     ?.scrollIntoView({ behavior: "smooth" });

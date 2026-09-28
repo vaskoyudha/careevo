@@ -31,13 +31,13 @@ const columns: FooterColumn[] = [
     ],
   },
   {
-    heading: "Track",
+    heading: "Jejak",
     links: [
       { label: "Belajar terukur", href: "#agen" },
-      { label: "Badge & attestation", href: "#verifikasi" },
+      { label: "Lencana & atestasi", href: "#verifikasi" },
       { label: "Loker diaudit", href: "#masalah" },
       { label: "Integrasi", href: "#integrasi" },
-      { label: "API Docs", href: "#api" },
+      { label: "Dokumentasi API", href: "#api" },
     ],
   },
   {
@@ -45,7 +45,7 @@ const columns: FooterColumn[] = [
     links: [
       { label: "NextGen Secure", href: "#verifikasi" },
       { label: "Stack teknis", href: "#masalah" },
-      { label: "Cara verify", href: "/audit" },
+      { label: "Cara verifikasi", href: "/audit" },
       { label: "Pusat Bantuan", href: "#bantuan" },
       { label: "Komunitas", href: "#komunitas" },
     ],
@@ -54,8 +54,8 @@ const columns: FooterColumn[] = [
     heading: "Legal",
     links: [
       { label: "Zero-PII", href: "#" },
-      { label: "UU PDP consent", href: "#" },
-      { label: "HMAC & audit", href: "#" },
+      { label: "Persetujuan UU PDP", href: "#" },
+      { label: "HMAC & audit log", href: "#" },
       { label: "Kebijakan Privasi", href: "/privasi" },
       { label: "Syarat & Ketentuan", href: "/syarat" },
     ],
@@ -140,7 +140,7 @@ export function SiteFooter() {
               href="/masuk"
               className="inline-flex items-center gap-2 text-sm font-medium text-gray-900 hover:text-gray-600 transition-colors"
             >
-              Contact for demo
+              Kontak untuk demo
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 12h14" />
                 <path d="m12 5 7 7-7 7" />
@@ -177,7 +177,7 @@ export function SiteFooter() {
         {/* Bottom bar - Copyright & Payment Methods */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-12 pt-6 gap-4 text-xs text-gray-500 max-w-[1400px] mx-auto border-t border-gray-100">
           <span>
-            © 2026 Careevo AI Inc. All rights reserved.
+            © 2026 Careevo AI Inc. Seluruh hak cipta dilindungi.
           </span>
           
           {/* Payment Methods */}
@@ -192,9 +192,9 @@ export function SiteFooter() {
           </div>
           
           <div className="flex items-center gap-4">
-            <a href="#" className="hover:text-gray-900 transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-gray-900 transition-colors">Terms of Service</a>
-            <a href="#" className="hover:text-gray-900 transition-colors">Cookie Settings</a>
+            <a href="/privasi" className="hover:text-gray-900 transition-colors">Kebijakan Privasi</a>
+            <a href="/syarat" className="hover:text-gray-900 transition-colors">Syarat &amp; Ketentuan</a>
+            <a href="#" className="hover:text-gray-900 transition-colors">Pengaturan Cookie</a>
           </div>
         </div>
       </div>

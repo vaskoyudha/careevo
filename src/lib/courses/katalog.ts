@@ -15,6 +15,11 @@ export interface EntriKatalog extends ResourceFixture {
 /**
  * Petakan tipe kursus ke tipe fixture yang dimengerti kartu katalog.
  * Total (exhaustive): menambah varian CourseType memaksa pembaruan di sini.
+ *
+ * Nilai yang dikembalikan (`video` / `artikel` / `course`) adalah nilai data,
+ * bukan label. Untuk ditampilkan, pakai `tipeLabel` dari
+ * `@/lib/onboarding/types` — modul itu client-safe, sedangkan modul ini
+ * membaca course store dari disk.
  */
 export function tipeKatalog(tipe: CourseType): "video" | "artikel" | "course" {
   switch (tipe) {

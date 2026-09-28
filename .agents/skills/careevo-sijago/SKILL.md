@@ -203,8 +203,7 @@ const inner = page.frames().find(f => f.url().includes('3790'));
   `scrollHeight > clientHeight + 200`; scroll it before screenshotting the newest
   turn.
 - The active tab can drift to `/onboarding/demo` or `/loker/inbox` between calls;
-  check `browser_tabs({action:"list"})` before concluding a click missed. See the
-  `careevo-browser-verify` skill for the general discipline.
+  check `browser_tabs({action:"list"})` before concluding a click missed.
 
 ## Brand rename — the split that matters
 

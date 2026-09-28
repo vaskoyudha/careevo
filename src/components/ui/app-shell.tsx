@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import { MoreVertical } from "lucide-react";
 import { DashboardSidebar } from "./dashboard-sidebar";
 import { AiMasteryNavbar } from "./ai-mastery-navbar";
+import { cn } from "@/lib/utils";
 import type { SessionPayload } from "@/lib/auth/types";
 
 const PAGE_LABELS: Record<string, string> = {
@@ -44,10 +45,12 @@ export function AppShell({
   session,
   current,
   children,
+  mainClassName,
 }: {
   session: SessionPayload;
   current: string;
   children: ReactNode;
+  mainClassName?: string;
 }) {
   // The rail is the default: the dashboard's nav is wayfinding, not the content,
   // so it opens as the collapsed rail (icon + label) and the learner expands it
@@ -79,7 +82,6 @@ export function AppShell({
         session={session}
         pageLabel={label}
         sidebarToggle={mobileMenuToggle}
-        showSearch={false}
       />
       <div className="dashboard-shell" data-collapsed={collapsed}>
         <DashboardSidebar
@@ -100,7 +102,7 @@ export function AppShell({
         ) : null}
 
         <div className="dashboard-content">
-          <main id="main" className="app-main">
+          <main id="main" className={cn("app-main", mainClassName)}>
             {children}
           </main>
         </div>

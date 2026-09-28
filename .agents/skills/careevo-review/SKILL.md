@@ -120,6 +120,24 @@ grep -rn "mySymbol" src --include='*.ts' --include='*.tsx' | grep -v 'export fun
 
 An empty result means it is dead.
 
+Dead code is worse than absent code in marketing copy, because the fixture
+that describes it is still on disk. Four names were once promised in the
+Problems–Solusi section and are not in the product:
+
+| Name | Reality |
+|---|---|
+| `Socrates` | `jalankanSocrates` (`src/lib/agents/socrates.ts:17`) is never called, returns `usedFallback: true` unconditionally, and its `draftScore` is `62 + testRuns*6 - pasteEvents*9`. There is no timed answer anywhere. |
+| `VTS` | `hitungVts` (`src/lib/scoring/vts.ts:18`) is uncalled outside its own test; VTS is never stored. |
+| `Navigator` | Nothing named Navigator is traceable to a row owned by the logged-in account — `dashboard-integritas.test.ts:76` forbids promising it. |
+| camera proctoring | Zero `getUserMedia` in `src/` (the one hit is a comment at `course-session.tsx:481`). `kamera_mulai` is a value a learner picks from a radio group. |
+
+`src/app/(verifikator)/review/[id]/page.tsx:55` already admits the first three
+have no database counterpart. Before writing product copy, check that every
+named feature has a call site; if it only exists in `src/fixtures/*.json` or a
+plan doc, it is not a feature yet. Stale fixture rows will render the dead
+name back onto the page — filter on `actor_id` AND `action` AND `summary`, since
+a table that prints all three columns leaks the name through whichever survives.
+
 ## 11. Shell gotchas that have already bitten
 
 - **Backticks in a `-m` message are command substitution.** `git commit -m "...\`flags\`..."` silently deletes the word. Use `-F file` or single quotes.
