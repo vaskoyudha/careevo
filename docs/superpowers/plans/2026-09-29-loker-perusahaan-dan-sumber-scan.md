@@ -4,9 +4,9 @@
 
 **Goal:** Surface how many distinct employers the inbox covers, let a learner filter by employer, and widen the scanner's Indonesian sources so the same inbox returns materially more relevant postings.
 
-**Architecture:** Part A is a pure, client-side UI slice on `/loker/inbox`: a `daftarPerusahaan` facet derived from the already-loaded rows, a company `<select>` beside the existing city/category selects, and a third tile in the summary bar. Part B is a data-only change to the single tracked scan config `src/lib/career-ops/portals-careevo.yml` — more keyword families in `job_boards` and more verified employers in `tracked_companies` — plus one live scan to measure the result. No engine code, no schema, no migration.
+**Architecture:** Part A is a pure, client-side UI slice on `/loker/inbox`: a `daftarPerusahaan` facet derived from the already-loaded rows, a company `<select>` beside the existing city/category selects, and a third tile in the summary bar. Part B is a data-only change to the single tracked scan config `src/lib/career-ops/portals-careevo.yml` — more keyword families in `job_boards` (Task 2) and more scan depth on the two boards that answer (Task 3) — plus one live scan to measure the result. No engine code, no schema, no migration.
 
-**Tech Stack:** TypeScript, React 19 (client components), Vitest, `js-yaml` (devDependency, tests only), the vendored `engine/*.mjs` scanner driven through `engine/discover-ats.mjs` and `src/actions/inbox.ts`.
+**Tech Stack:** TypeScript, React 19 (client components), Vitest, `js-yaml` (devDependency, tests only), the vendored `engine/*.mjs` scanner driven through `src/actions/inbox.ts`.
 
 **Spec:** `docs/superpowers/specs/2026-09-27-papan-loker-pasar-indonesia-design.md` (the config Part B extends; its §"Batas atas per pindai — koreksi terhadap presentasi sebelumnya" is the ceiling arithmetic this plan pushes on). Part A has no prior spec — its basis is the measured dev data root (257 rows, 181 employers) recorded in `docs/local-db.md` §8.
 
@@ -20,7 +20,8 @@
 - `location_filter` supports exactly five fields — `allow`, `always_allow`, `block`, `block_hard`, `strict`. Any other name is silently ignored by `engine/scan.mjs`.
 - Do **not** set `strict: true` on `location_filter`. It fails *closed* and would drop every Glints row that carries no location. The existing guard in `portals-careevo.test.ts` asserts `strict` is `undefined`; keep it.
 - **Never commit `.data/`.** It is gitignored (`.gitignore:47`). Every path Task 4 touches lives there.
-- The scan has a **hard 5-minute timeout** (`src/lib/career-ops/tracker.ts:126`, `timeoutMs: 5 * 60_000`). Adding board entries multiplies requests: `entries × pageSize × maxPages`. This plan keeps `pageSize: 30` and `maxPages: 3` exactly as they are — no depth change — so the added work is linear in entries only.
+- The scan has a **hard 5-minute timeout** (`src/lib/career-ops/tracker.ts:126`, `timeoutMs: 5 * 60_000`). The work per scan is `sum(maxPages over enabled boards) × pageSize`. Task 2 raises the entry count (12 → 27) at `maxPages: 3`; Task 3 then raises `maxPages` to 12 on the sixteen Jobstreet and Kalibrr entries, taking the page budget from `27 × 3 = 81` to `16 × 12 + 11 × 3 = 225`. Task 3's measured wall time (~58s) is the evidence this stays well inside the ceiling; do not raise `pageSize` or add depth beyond 12 without a fresh measurement.
+- `pageSize: 30` is fixed throughout this plan. Only `maxPages` moves, and only on Jobstreet and Kalibrr.
 - Commits: Task 1 is **verification only** (its code is already committed in `5d6d257`), Task 4 is **measurement only** (every path it touches is gitignored), and Tasks 2, 3, and 5 each end with a commit. The working tree already contains unrelated edits; stage only the files a task names.
 
 ---
@@ -33,9 +34,9 @@
 | `src/lib/jobs/faset-inbox.test.ts` | Guards the facet. Part A added two `it` blocks for `daftarPerusahaan` — committed in `5d6d257`. |
 | `src/components/features/jobs/permukaan-cari-loker.tsx` | Presentation. Part A added the company `<select>` to `PanelCariLoker` and a third tile to `RingkasanLoker` — committed in `5d6d257`. |
 | `src/components/features/jobs/inbox-list.tsx` | Wires state to the two components above. Part A added the `perusahaan` filter state and its predicate — committed in `5d6d257`. |
-| `src/lib/career-ops/portals-careevo.yml` | **Data only.** Part B adds 15 `job_boards` entries (Task 2) and N verified `tracked_companies` (Task 3). |
-| `src/lib/career-ops/portals-careevo.test.ts` | Guards on that data file. Part B adds board-shape and company-floor guards. |
-| `docs/local-db.md` | Operator runbook. Part B's Task 5 records the new measured numbers. |
+| `src/lib/career-ops/portals-careevo.yml` | **Data only.** Part B adds 15 `job_boards` entries at `maxPages: 3` (Task 2), then raises `maxPages` to 12 on the sixteen Jobstreet and Kalibrr entries (Task 3). `tracked_companies` is unchanged. |
+| `src/lib/career-ops/portals-careevo.test.ts` | Guards on that data file. Part B adds four board-shape guards (Task 2) and two depth guards (Task 3). The existing company-floor guard is left at its floor of 8. |
+| `docs/local-db.md` | Operator runbook. Part B's Task 5 records the new measured numbers and the depth rationale. |
 
 **Part A is already written and committed** in `5d6d257` ("feat(konten): seed materi katalog, faset inbox loker, dan copy dashboard"). `git log -S "export function daftarPerusahaan"` names that commit, and `git diff HEAD --` on the four files is empty. Task 1 therefore **verifies** the committed work against the current file contents; it neither re-implements nor re-commits it. Parts A and B are independent — a reviewer can accept Part A and reject Part B without conflict, and a rejection of Part B needs no revert of Part A.
 
@@ -509,248 +510,173 @@ peran, dan minimal 27 papan aktif.
 
 ---
 
-## Task 3: Widen the verified employer list
+## Task 3: Deepen the scan on the two boards that answer
 
-Nine `tracked_companies` ship today. `engine/discover-ats.mjs` resolves a company name to a scannable ATS board by probing the public APIs the engine already supports, with zero tokens. This task uses it to grow the list to at least 20 verified Indonesian employers.
+The config scans each keyword family to `maxPages: 3` — 90 postings per keyword. Measured on 2026-09-29, that leaves most of Jobstreet's catalogue untouched: the board reports **61,887** postings, and the eight configured families alone match far more than 90 apiece (software engineer 2,226, quality assurance 2,876, data analyst 2,114, backend 906, full stack 611, frontend 446, DevOps 403). Kalibrr is the same shape (full-stack 995, data analyst 484). Depth, not breadth, is the lever: **breadth is already covered** — the eight families span the market, and each added page buys 30 more real postings per family, while an extra keyword family buys almost nothing.
+
+This task raises `maxPages` from **3 to 12** on the eight Jobstreet and eight Kalibrr entries. It leaves Glints (3 entries) and Dealls (8 entries) at 3, because neither responds to depth: Glints is WAF-blocked and returns zero at any depth, and Dealls dries out at page 1 (11 results for software engineer, 0 for frontend developer).
+
+**Measured, by the engine's own scan path, against a scratch data root:**
+
+| Config | Rows | Distinct employers | Wall time |
+|---|---:|---:|---:|
+| Current (27 boards, Jobstreet + Kalibrr at 3) | 416–456 | 276–296 | 56–85s |
+| This task (Jobstreet + Kalibrr at 12) | **862** | **516** | 42–58s |
+
+That is roughly **2× the rows and 2× the employers** from one number per entry, inside a fraction of the 5-minute timeout in `src/lib/career-ops/tracker.ts:126`. Two independent runs of the proposed config agreed exactly (862 rows / 516 employers), so the gain is not run-to-run noise.
+
+**Why not deeper than 12.** Depth 20 reached 945 rows and depth 30 reached 1,069, but the marginal returns fall off sharply (12→30 adds 207 rows for 2.5× the page count) and the timeout margin narrows. Depth 12 is the point where the config more than doubles the corpus without putting the 5-minute ceiling at risk. A future plan can raise it again with its own measurement.
 
 **Files:**
-- Create: `/tmp/opencode/perusahaan-id.yml` (scratch input, not committed)
-- Create: `/tmp/opencode/portals-scratch.yml` (scratch copy, not committed)
-- Modify: `src/lib/career-ops/portals-careevo.yml` (append to `tracked_companies:`)
-- Modify: `src/lib/career-ops/portals-careevo.test.ts` (raise the company floor)
+- Modify: `src/lib/career-ops/portals-careevo.yml` (raise `maxPages` 3 → 12 on the eight Jobstreet and eight Kalibrr entries only)
+- Modify: `src/lib/career-ops/portals-careevo.test.ts` (add a depth guard)
 
 **Interfaces:**
-- Consumes: `engine/discover-ats.mjs` (invocation contract in its header, lines 1-30), `CAREER_OPS_PORTALS` env var (the script's own portals-path override).
+- Consumes: `papanAktif()` (added in Task 2), `config()`.
 - Produces: nothing consumed by later tasks; the shipped config is the deliverable.
 
-- [ ] **Step 1: Write the candidate input file**
+**Do not use `engine/discover-ats.mjs` in this task.** It resolves company names to ATS boards, which is the *breadth* lever this task deliberately rejects. Measured on 2026-09-29, a ~5,700-probe sweep of that resolver across 11 vendors against ~100 Indonesian employers found only about nine clean Indonesian boards, nearly all listing 1–9 postings; its large hits were wrong-entity matches (Super → an Irish sports-gaming firm, Flip → Los Angeles/New York, Fuse → a US laser company). Indonesian employers mostly do not publish on Western ATS vendors, so `tracked_companies` is a weak lever for this market. The depth change below reaches far more postings from the boards that already answer. (Task 5 records this finding so the investigation is not repeated.)
 
-`engine/discover-ats.mjs:18` documents the input shape as `companies: [{name, slug?, website?}]`. Create `/tmp/opencode/perusahaan-id.yml`:
+- [ ] **Step 1: Write the failing depth guard**
 
-```yaml
-companies:
-  - name: Sirclo
-    website: https://www.sirclo.com
-  - name: Mekari
-    website: https://mekari.com
-  - name: Xendit
-    website: https://www.xendit.co
-  - name: KoinWorks
-    website: https://koinworks.com
-  - name: Privy
-    website: https://privy.id
-  - name: Bibit
-    website: https://bibit.id
-  - name: Flip
-    website: https://flip.id
-  - name: Bareksa
-    website: https://www.bareksa.com
-  - name: Pintu
-    website: https://pintu.co.id
-  - name: Ruangguru
-    website: https://www.ruangguru.com
-  - name: Zenius
-    website: https://www.zenius.net
-  - name: Alodokter
-    website: https://www.alodokter.com
-  - name: eFishery
-    website: https://efishery.com
-  - name: Sayurbox
-    website: https://www.sayurbox.com
-  - name: Qoala
-    website: https://www.qoala.app
-  - name: PasarPolis
-    website: https://pasarpolis.io
-  - name: Lemonilo
-    website: https://lemonilo.com
-  - name: Ninja Xpress
-    website: https://www.ninjaxpress.co
-  - name: Waresix
-    website: https://waresix.com
-  - name: Shipper
-    website: https://shipper.id
-  - name: Deliveree
-    website: https://www.deliveree.com
-  - name: Paper.id
-    website: https://www.paper.id
-  - name: Majoo
-    website: https://majoo.id
-  - name: Talenta
-    website: https://www.talenta.co
-  - name: Jurnal
-    website: https://www.jurnal.id
-  - name: GajiGesa
-    website: https://gajigesa.com
-  - name: Wagely
-    website: https://wagely.io
-  - name: Lifepal
-    website: https://lifepal.co.id
-  - name: Rey
-    website: https://www.rey.id
-  - name: Fuse
-    website: https://fuse.co.id
-  - name: Igloo
-    website: https://www.iglooinsure.com
-  - name: Super
-    website: https://superapp.id
-  - name: Fore
-    website: https://fore.coffee
-  - name: Dagangan
-    website: https://dagangan.co.id
-  - name: TaniHub
-    website: https://www.tanihub.com
-  - name: Aruna
-    website: https://aruna.id
-  - name: SIRCLO Store
-    website: https://www.sirclostore.com
-  - name: Midtrans
-    website: https://midtrans.com
-  - name: Bank Jago
-    website: https://www.jago.com
-  - name: Amar Bank
-    website: https://www.amarbank.co.id
-```
-
-- [ ] **Step 2: Run the resolver in preview mode**
-
-`engine/discover-ats.mjs:21` — `--in` without `--write` previews and writes nothing. Run:
-
-```bash
-node engine/discover-ats.mjs --in /tmp/opencode/perusahaan-id.yml --summary
-```
-
-Expected: a human-readable table. Companies whose board resolves print a `careers_url`; the rest are flagged unresolved (JS-rendered careers pages, non-standard slugs, or Workday without a hint). **Nothing is written.** Note the resolved count — that is the denominator for Step 5.
-
-- [ ] **Step 3: Verify every resolved URL actually answers**
-
-For each `careers_url` the summary printed, confirm it is live:
-
-```bash
-for u in "<careers_url_1>" "<careers_url_2>"; do
-  printf "%s -> " "$u"
-  curl -sS -o /dev/null -w "%{http_code}\n" -L --max-time 20 -A "Mozilla/5.0" "$u"
-done
-```
-
-Expected: `200` for each. **Drop any URL that is not `200`** — a `404` or a redirect to the homepage is not a board and the scanner will follow it forever.
-
-- [ ] **Step 4: Resolve into a scratch copy, then diff**
-
-`discover-ats.mjs --write` splices entries into the portals file named by `CAREER_OPS_PORTALS`. Point it at a scratch copy so the tracked file is only changed by hand:
-
-```bash
-cp src/lib/career-ops/portals-careevo.yml /tmp/opencode/portals-scratch.yml
-CAREER_OPS_PORTALS=/tmp/opencode/portals-scratch.yml node engine/discover-ats.mjs --in /tmp/opencode/perusahaan-id.yml --write
-diff src/lib/career-ops/portals-careevo.yml /tmp/opencode/portals-scratch.yml
-```
-
-Expected: a unified diff whose added lines are `- name:`, `careers_url:`, and `enabled: true` triples under `tracked_companies:`. Comments and formatting of the rest are preserved (the script does a text splice, not a re-serialize).
-
-- [ ] **Step 5: Paste the resolved entries into the tracked config**
-
-In `src/lib/career-ops/portals-careevo.yml`, append the new triples to the end of the `tracked_companies:` list — after the last existing entry, whose `name` is `Julo` and whose `careers_url` is `https://careers.smartrecruiters.com/Julo`. Keep the same shape as the existing entries:
-
-```yaml
-  - name: <company name from the diff>
-    careers_url: <verified url from the diff>
-    enabled: true
-```
-
-Also extend the `# VERIFIED` comment block above the list with one line recording this pass:
-
-```yaml
-# VERIFIED 2026-09-29 — second discovery pass; every careers_url below was
-# produced by `node engine/discover-ats.mjs --in perusahaan-id.yml --summary`
-# and independently re-checked with curl -L (HTTP 200, no redirect away from
-# the board). Companies whose careers page is bespoke (no engine provider)
-# were dropped by the resolver, not by hand.
-```
-
-Keep every existing entry. The list must end with **at least 20 enabled companies** (9 today + at least 11 resolved). If discovery resolves fewer than 11, the task is **incomplete** — report the resolved count and stop; do not pad the list with invented URLs.
-
-- [ ] **Step 6: Write the failing company-floor guard**
-
-In `src/lib/career-ops/portals-careevo.test.ts`, replace the existing guard:
+The `Papan` interface from Task 2 already declares `provider`, `maxPages`, and `name`, and `papanAktif()` already exists — no test-harness change is needed. Add two `it` blocks inside `describe("config pindai Indonesia", ...)`, immediately before its closing `});`:
 
 ```typescript
-  it("membawa perusahaan yang bisa dipindai", () => {
-    // ENABLED companies, not merely present ones — scan.mjs walks `enabled`
-    // entries, so nine switched-off companies are the same zero as none, which
-    // is the mirror image of the board guard above. The floor stays at 8: the
-    // config ships 9, so one entry of real headroom exists and a single
-    // deliberate removal is not an accident.
-    const aktif = daftarPapan(config().tracked_companies).filter(
-      (c) => c.enabled === true,
+  it("memindai lebih dalam di Jobstreet dan Kalibrr — minimal 12 halaman", () => {
+    // Depth is the lever, not breadth. At maxPages 3 each keyword family stops
+    // at 90 postings, while Jobstreet lists 2,226 for "software engineer" and
+    // 2,876 for "quality assurance" (measured 2026-09-29). Nothing in the
+    // engine errors when depth is too shallow: the scan completes with a
+    // plausible-looking count, a third of what the board offered. That silence
+    // is exactly why this needs a guard.
+    //
+    // Only the two boards that answer are held to 12. Glints is WAF-blocked
+    // (zero at any depth) and Dealls dries out at page 1, so requiring 12 of
+    // them would demand a setting that buys nothing.
+    const dalam = papanAktif().filter(
+      (b) => b.provider === "jobstreet" || b.provider === "kalibrr",
     );
-    expect(aktif.length).toBeGreaterThanOrEqual(8);
+    expect(dalam.length).toBeGreaterThanOrEqual(16);
+    for (const b of dalam) {
+      expect(Number(b.maxPages), `${b.name}: maxPages`).toBeGreaterThanOrEqual(12);
+    }
+  });
+
+  it("anggaran halaman total minimal 200", () => {
+    // The ceiling arithmetic the docs quote is sum(maxPages) x pageSize. With
+    // 16 entries at 12 and 11 at 3 that is 225. A revert of the deepening drops
+    // it to 81 (27 x 3), which this catches even if the provider-scoped guard
+    // above were ever loosened.
+    const total = papanAktif().reduce((n, b) => n + (Number(b.maxPages) || 0), 0);
+    expect(total).toBeGreaterThanOrEqual(200);
   });
 ```
 
-with:
+- [ ] **Step 2: Run the guards to verify they fail**
 
-```typescript
-  it("membawa perusahaan yang bisa dipindai", () => {
-    // ENABLED companies, not merely present ones — scan.mjs walks `enabled`
-    // entries, so switched-off companies are the same zero as none, which is
-    // the mirror image of the board guard above. The floor rose from 8 to 15
-    // when the second discovery pass shipped at least 20; five entries of
-    // headroom means a regression that drops a handful is caught, while a
-    // deliberate single removal is not.
-    const aktif = daftarPapan(config().tracked_companies).filter(
-      (c) => c.enabled === true,
-    );
-    expect(aktif.length).toBeGreaterThanOrEqual(15);
-  });
+Run: `npx vitest run src/lib/career-ops/portals-careevo.test.ts`
+
+Expected: FAIL on `"memindai lebih dalam di Jobstreet dan Kalibrr — minimal 12 halaman"` (all eight Jobstreet and eight Kalibrr entries ship `maxPages: 3`) and on `"anggaran halaman total minimal 200"` (the sum is `27 × 3 = 81`). That is the correct starting state: the deepening has not been applied yet.
+
+- [ ] **Step 3: Raise `maxPages` on the Jobstreet and Kalibrr entries**
+
+In `src/lib/career-ops/portals-careevo.yml`, change `maxPages: 3` to `maxPages: 12` on **every** entry whose `provider` is `jobstreet` or `kalibrr`. There are 16 such entries — the eight Jobstreet families and the eight Kalibrr families added in Task 2. Do **not** touch the `maxPages` of any `glints` or `dealls` entry; those stay at 3.
+
+The mechanical edit, scoped by each entry's own `- name:` line, is:
+
+```bash
+python3 - src/lib/career-ops/portals-careevo.yml <<'PY'
+import re, sys
+p = sys.argv[1]
+lines = open(p).read().split("\n")
+out, cur = [], ""
+for l in lines:
+    m = re.match(r"^  - name: (.*)$", l)
+    if m:
+        cur = m.group(1)
+    if re.match(r"^    maxPages: 3$", l) and ("Jobstreet" in cur or "Kalibrr" in cur):
+        l = "    maxPages: 12"
+    out.append(l)
+open(p, "w").write("\n".join(out))
+PY
+grep -c '^    maxPages: 12$' src/lib/career-ops/portals-careevo.yml
+grep -c '^    maxPages: 3$' src/lib/career-ops/portals-careevo.yml
 ```
 
-- [ ] **Step 7: Run the tests**
+Expected: the first `grep` prints `16`, the second prints `11` (the three Glints and eight Dealls entries). The names are literal (`Jobstreet …`, `Kalibrr …`), so the scope is exact. If the counts are not `16` and `11`, stop and inspect — a wrong scope would silently deepen or shallaw a board the plan did not measure.
 
-Run: `npx vitest run src/lib/career-ops/portals-careevo.test.ts src/lib/career-ops/portals.test.ts`
+Also append a comment to the `job_boards` block header recording the measurement, so the next reader knows why the numbers are what they are and does not "tidy" them back to 3:
 
-Expected: `11 passed` and `4 passed`. If the company guard fails, the paste in Step 5 did not land — re-check it.
+```yaml
+  # --- Kedalaman 2026-09-29 -------------------------------------------------
+  #
+  # Jobstreet dan Kalibrr dipindai 12 halaman per keluarga peran, bukan 3.
+  # Diukur lewat engine/scan.mjs terhadap data root sementara: 27 entri pada
+  # maxPages 3 menghasilkan 416-456 baris / 276-296 perusahaan; dengan Jobstreet
+  # dan Kalibrr di 12, hasilnya 862 baris / 516 perusahaan, dua kali lipat,
+  # dalam ~58 detik (timeout jalur aplikasi 5 menit).
+  #
+  # Glints dan Dealls tetap 3: Glints diblokir WAF dan mengembalikan nol di
+  # kedalaman berapa pun, Dealls kering di halaman 1. Menaikkan keduanya hanya
+  # menambah waktu pindai tanpa menambah baris.
+```
 
-- [ ] **Step 8: Prove the company guard bites**
+- [ ] **Step 4: Run the guards to verify they pass**
 
-Same rule as Task 2 Step 7: the Task 3 edits are **not committed yet**, so back up with `cp` rather than `git checkout`. Flip every `enabled: true` to `false` so both the company floor and the board floor lose their entries:
+Run: `npx vitest run src/lib/career-ops/portals-careevo.test.ts`
+
+Expected: `13 passed` (7 existing + 4 from Task 2 + 2 new).
+
+- [ ] **Step 5: Prove the new guards bite**
+
+Same rule as Task 2 Step 7: the Task 3 edits are **not committed yet**, so back up with `cp`, never `git checkout`. Revert the depth and confirm the suite goes red:
 
 ```bash
 cp src/lib/career-ops/portals-careevo.yml /tmp/opencode/portals-careevo.bak.yml
-sed -i 's/^    enabled: true$/    enabled: false/' src/lib/career-ops/portals-careevo.yml
+sed -i 's/^    maxPages: 12$/    maxPages: 3$/' src/lib/career-ops/portals-careevo.yml
 npx vitest run src/lib/career-ops/portals-careevo.test.ts
 ```
 
-Expected: FAIL on `"membawa perusahaan yang bisa dipindai"` (enabled companies drop from 20+ to 0) and on `"punya minimal 27 papan aktif"` (the same `sed` clears the boards). Restore and confirm green:
+Expected: FAIL on both new guards (`maxPages` falls to 3, and the page budget falls to 81). The other eleven guards still pass — they do not read depth. Restore and confirm green:
 
 ```bash
 cp /tmp/opencode/portals-careevo.bak.yml src/lib/career-ops/portals-careevo.yml
 rm -f /tmp/opencode/portals-careevo.bak.yml
 npx vitest run src/lib/career-ops/portals-careevo.test.ts
+grep -c '^    maxPages: 12$' src/lib/career-ops/portals-careevo.yml
 ```
 
-Expected: `11 passed`. Confirm the restore is byte-exact — the count of `enabled: true` lines must be back to boards plus companies:
+Expected: `13 passed`, then `16`. If the `grep` is not `16`, the restore failed — re-run Step 3 before continuing.
 
-```bash
-grep -c '^    enabled: true$' src/lib/career-ops/portals-careevo.yml
-```
+- [ ] **Step 6: Confirm the seeded copy is still byte-identical**
 
-Expected: `27 + <jumlah perusahaan>`, where `<jumlah perusahaan>` is the number Step 5 pasted (at least 20). So on a full 20-company paste that is `47`. If the count is lower, the restore failed; re-run Step 5's paste before committing.
+Run: `npx vitest run src/lib/career-ops/portals.test.ts`
 
-- [ ] **Step 9: Commit**
+Expected: `4 passed`.
+
+- [ ] **Step 7: Commit**
 
 ```bash
 git add src/lib/career-ops/portals-careevo.yml src/lib/career-ops/portals-careevo.test.ts
-git commit -m "feat(career-ops): perluas daftar perusahaan Indonesia jadi 20+
+git commit -m "feat(career-ops): pindai 12 halaman di Jobstreet dan Kalibrr
 
-Pass discovery kedua lewat engine/discover-ats.mjs, yang mencoba board ATS
-publik (Greenhouse, Ashby, Lever, Workable, SmartRecruiters, Recruitee,
-BambooHR, Breezy, Pinpoint, Rippling, Join) tanpa token. Setiap careers_url
-yang lolos diverifikasi curl -L HTTP 200 sebelum masuk.
+Kedalaman, bukan cakupan, adalah tuasnya. Pada maxPages 3 setiap keluarga
+peran berhenti di 90 lowongan, sementara Jobstreet mencantumkan 2.226 untuk
+software engineer dan 2.876 untuk quality assurance (terukur 2026-09-29).
+Pindai bersih lewat engine/scan.mjs terhadap data root sementara: 416-456
+baris / 276-296 perusahaan naik jadi 862 baris / 516 perusahaan, dalam ~58
+detik.
 
-Perusahaan dengan careers page bespoke (tanpa provider engine) dibuang oleh
-resolver, bukan oleh tangan: scan.mjs akan melewatinya diam-diam sebagai
-no-provider.
+Glints dan Dealls tetap 3: Glints diblokir WAF, Dealls kering di halaman 1.
+Menaikkan keduanya hanya menambah waktu, bukan baris.
 
-Penjaga lantai perusahaan dinaikkan dari 8 ke 15, dengan 20+ yang dikirim.
+Penjaga baru: Jobstreet dan Kalibrr minimal 12 halaman, dan anggaran halaman
+total minimal 200 (16x12 + 11x3 = 225).
+
+Catatan: generator perusahaan lewat engine/discover-ats.mjs TIDAK dipakai di
+sini. Sapuan 2026-09-29 menemukan ~9 papan Indonesia bersih dengan 1-9
+lowongan masing-masing, dengan kekeliruan entitas pada hit besarnya; pemberi
+kerja Indonesia umumnya tidak memakai ATS Barat.
 "
 ```
 
@@ -808,12 +734,12 @@ tail -2 .data/career-ops/data/scan-runs.tsv
 
 Read the row against the header (`HEADER_SCAN_RUNS` in `src/lib/career-ops/scan-runs.ts`):
 
-- `boards` is **27** (was 12) — the single most important number in this task
-- `companies` is **20 or more** (was 9)
+- `boards` is **27** (was 12) — confirms Task 2's families were read
+- `found` is far above the pre-change runs' 986–1,336 — the depth change from Task 3 is the cause
 - `errors` is low; Glints contributes `auth` failures and that is expected
 - `new_added` is greater than `0`
 
-**If `boards` is still `12`, the new config was not read.** Re-check Step 3. If the action reported a timeout, the 5-minute ceiling was hit — report it and revert Task 2's extra entries rather than shipping a scan that cannot finish.
+**If `boards` is still `12`, the new config was not read.** Re-check Step 3. If the action reported a timeout, the 5-minute ceiling was hit — report it and lower Task 3's `maxPages` rather than shipping a scan that cannot finish. A clean run of the post-Task-3 config measured 862 rows in ~58s, so a timeout here means something else (a slow board, a cold DNS cache) and should be re-run once before concluding.
 
 Fallback if the button is unavailable, equivalent to what `runEngine` spawns (`cwd: engine`, `CAREER_OPS_ROOT` set):
 
@@ -829,9 +755,9 @@ grep -c "^- \[ \]" .data/career-ops/data/pipeline.md
 awk -F'|' '/^- \[ \]/{gsub(/^ +| +$/,"",$2); print $2}' .data/career-ops/data/pipeline.md | sort -u | wc -l
 ```
 
-Expected: an Indonesian-location count far above `1` (the pre-change corpus had exactly one Indonesian row out of 486), a total row count above the pre-change `257`, and a distinct-employer count above the pre-change `181`.
+Expected: an Indonesian-location count far above `1` (the pre-change corpus had exactly one Indonesian row out of 486), a total row count above the pre-change `257`, and a distinct-employer count above the pre-change `181`. The post-Task-3 config measured **862 rows and 516 employers** against a scratch root; the live root will differ because it already holds rows from earlier scans, but the *distinct-employer* count is the cleanest signal and should move toward 500 or beyond.
 
-Record all three numbers plus the `boards`/`companies`/`new_added` receipt values — Task 5 quotes them verbatim.
+Record all three numbers plus the `boards`/`found`/`new_added` receipt values — Task 5 quotes them verbatim.
 
 - [ ] **Step 6: Verify in a real browser, not just the receipt**
 
@@ -870,9 +796,10 @@ In `docs/local-db.md`, in §8, find the sentence beginning `\`/loker/inbox\` men
 
 ```markdown
 `/loker/inbox` menyemai `.data/career-ops/portals.yml` dari
-`src/lib/career-ops/portals-careevo.yml`: 27 entri papan aktif (Jobstreet,
-Kalibrr, dan Dealls — masing-masing delapan keluarga peran — plus tiga Glints
-yang diblokir WAF), 20+ perusahaan terlacak, dan 14 kota dalam
+`src/lib/career-ops/portals-careevo.yml`: 27 entri papan aktif — Jobstreet,
+Kalibrr, dan Dealls masing-masing delapan keluarga peran, plus tiga Glints yang
+diblokir WAF. Jobstreet dan Kalibrr dipindai **12 halaman** per keluarga
+(Glinks dan Dealls tetap 3), sembilan perusahaan terlacak, dan 14 kota dalam
 `location_filter`. Bila berkas Careevo tidak ada, ia jatuh ke
 `engine/templates/portals.example.yml`. `engine/` sendiri tidak pernah diubah —
 hanya berkas mana yang disalin yang berubah.
@@ -891,17 +818,29 @@ Batas-batas ini harus dibaca apa adanya, bukan sebagai jangkauan pasar:
   bukan perkiraan, dan sudah sesudah `title_filter` serta `location_filter`
   menyisir. Korpus di disk: **<total>** baris, **<perusahaan>** perusahaan
   berbeda, seluruhnya Indonesia.
-- Dua puluh tujuh entri papan memberi batas mentah `27 x pageSize 30 x maxPages 3
-  = 2.430`. Karena Glints tidak menjawab, yang benar-benar menyumbang paling
-  banyak `24 x 90 = 2.160`.
-- `pageSize` dan `maxPages` sengaja tidak dinaikkan. Batas per pindai naik
-  secara linear terhadap jumlah entri, dan pindai punya timeout 5 menit di
-  `src/lib/career-ops/tracker.ts`. Menaikkan kedalaman halaman akan
-  mengalikannya lagi di atas itu.
+- Anggaran halaman sekarang `16 x 12 + 11 x 3 = 225`, jadi batas mentah per
+  pindai adalah `225 x pageSize 30 = 6.750`. Karena Glints tidak menjawab
+  (tiga entri, sembilan halaman), yang benar-benar menyumbang paling banyak
+  `216 x 30 = 6.480`. Ini naik dari `27 x 3 x 30 = 2.430` sebelum Jobstreet
+  dan Kalibrr diperdalam.
+- Kedalaman 12 dipilih dari pengukuran, bukan ditebak: 27 entri pada
+  `maxPages 3` menghasilkan 416-456 baris / 276-296 perusahaan, sedangkan
+  Jobstreet dan Kalibrr di 12 menghasilkan 862 baris / 516 perusahaan dalam
+  ~58 detik. Naik lagi ke 20 memberi 945 baris, ke 30 memberi 1.069 — imbal
+  hasilnya mengecil sementara margin timeout 5 menit
+  (`src/lib/career-ops/tracker.ts`) menyempit.
 - Angka terukur pada <tanggal>: **<total> baris, <perusahaan> perusahaan
-  berbeda** — naik dari 257 baris / 181 perusahaan. Jadi ini **bukan cakupan
-  nasional**, dan copy UI tidak boleh menjanjikan sebegitu. Frasa seperti
-  "ribuan lowongan tech Indonesia" tidak didukung bukti yang ada sekarang.
+  berbeda**. Jadi ini **bukan cakupan nasional**, dan copy UI tidak boleh
+  menjanjikan sebegitu. Frasa seperti "ribuan lowongan tech Indonesia" tidak
+  didukung bukti yang ada sekarang.
+- Kedalaman bukan satu-satunya tuas, dan bukan yang terbesar untuk semua
+  papan. Mencari perusahaan lewat `engine/discover-ats.mjs` (Greenhouse, Ashby,
+  Lever, Workable, SmartRecruiters, dll.) hanya menemukan sekitar sembilan
+  papan Indonesia yang bersih, hampir semuanya berisi 1-9 lowongan; hit
+  besarnya salah entitas (Super ke perusahaan gim Irlandia, Flip ke Los
+  Angeles, Fuse ke perusahaan laser AS). Pemberi kerja Indonesia umumnya tidak
+  memakai ATS Barat, jadi `tracked_companies` adalah tuas yang lemah di pasar
+  ini.
 ```
 
 Replace every `<new_added>`, `<total>`, `<perusahaan>`, and `<tanggal>` with the Task 4 number. Do not leave an angle-bracket placeholder in the committed file.
@@ -920,11 +859,12 @@ Expected: `clean`.
 
 ```bash
 git add docs/local-db.md
-git commit -m "docs(local-db): angka pindai setelah perluasan sumber
+git commit -m "docs(local-db): kedalaman pindai dan angka terukurnya
 
-Memperbarui §8 dengan jumlah papan aktif (27), perusahaan terlacak (20+),
-dan batas mentah per pindai (2.430 teoretis, 2.160 efektif karena Glints
-diblokir WAF), plus angka terukur dari pindai bersih terakhir.
+Memperbarui §8: 27 papan aktif dengan Jobstreet dan Kalibrr di 12 halaman,
+anggaran halaman 225 (batas mentah 6.750), dan angka terukur dari pindai
+bersih terakhir. Mencatat juga bahwa discover-ats.mjs adalah tuas yang lemah
+untuk pasar Indonesia, supaya penyelidikan itu tidak diulang.
 "
 ```
 
@@ -939,17 +879,17 @@ diblokir WAF), plus angka terukur dari pindai bersih terakhir.
 | "tampilkan jumlah perusahaan" (summary tile) | Task 1 verifies it (committed in `5d6d257`: `RingkasanLoker` third tile) |
 | "tambah button filtering" (employer select) | Task 1 verifies it (committed in `5d6d257`: `PanelCariLoker` company select) |
 | "perbanyak sumber scan" — more keyword families | Task 2 |
-| "perbanyak sumber scan" — more employers | Task 3 |
+| "perbanyak sumber scan" — more postings per family (depth) | Task 3 |
 | Evidence the widening worked | Task 4 |
 | Recorded ceiling, not a national-coverage claim | Task 5 |
 | `engine/**` untouched | Global Constraints; no task edits it |
 | `location_filter` five-field limit; no `strict` | Global Constraints; existing guard kept |
 | Write-once seed trap | Task 4 Step 2-3, documented in Task 5 |
-| 5-minute scan timeout | Global Constraints; Task 2 Step 5 keeps page depth fixed |
+| 5-minute scan timeout | Global Constraints; Task 3 owns the depth number and Task 4 checks the receipt |
 
 No gaps.
 
-**Placeholder scan** — one intentional, in Task 5 Step 2: the `<new_added>` / `<total>` / `<perusahaan>` / `<tanggal>` tokens are filled from Task 4's measurements, and Step 3 is a hard gate that matches exactly those four names (not any angle-bracket token, because `local-db.md:195` already carries a legitimate `careevo_test_<seed>`). Task 3 Step 5 names the exact paste shape and its `enabled: true` requirement, and states the incompleteness condition rather than leaving a "paste here" comment. Every other code and YAML block is complete and runnable.
+**Placeholder scan** — one intentional, in Task 5 Step 2: the `<new_added>` / `<total>` / `<perusahaan>` / `<tanggal>` tokens are filled from Task 4's measurements, and Step 3 is a hard gate that matches exactly those four names (not any angle-bracket token, because `local-db.md:195` already carries a legitimate `careevo_test_<seed>`). Task 3 Step 3 states the exact `grep` counts (`16` and `11`) that prove the scope, rather than leaving a "edit the right entries" comment. Every other code and YAML block is complete and runnable.
 
 **Type consistency**
 
@@ -957,8 +897,11 @@ No gaps.
 - `BarisFaset` carries `company` (Task 1); `Pick<InboxJob, "url" | "role" | "location" | "company">` matches `InboxJobShape.company` (`string`, required) in `src/lib/career-ops/pipeline-table.ts:19`. The test helper `baris()` in `faset-inbox.test.ts` supplies `company: "Contoh Perusahaan"` so the required field is satisfied.
 - `RingkasanLoker` requires `jumlahPerusahaan: number`; its only call site is `inbox-list.tsx:213`.
 - `PanelCariLoker` takes `perusahaan: string`, `onPerusahaan: (next: string) => void`, `pilihanPerusahaan: readonly string[]`; its only call site is `inbox-list.tsx:193-204`.
-- `papanAktif(): Papan[]` — declared in Task 2 Step 2, used by all four new guards in Steps 3. Consistent.
-- `Papan` fields added in Task 2 Step 1 (`name`, `provider`, `pageSize`, `maxPages`, `searchKeywords`) are exactly the fields the Step 3 guards read. `daftarPapan` already exists and returns `Papan[]`.
+- `papanAktif(): Papan[]` — declared in Task 2 Step 2, used by all four Task 2 guards and both Task 3 guards. Consistent.
+- `Papan` fields added in Task 2 Step 1 (`name`, `provider`, `pageSize`, `maxPages`, `searchKeywords`) are exactly the fields the Task 2 and Task 3 guards read; Task 3 adds no interface field because `provider` and `maxPages` are already declared. `daftarPapan` already exists and returns `Papan[]`.
+- `tracked_companies` is untouched by this plan; the existing `"membawa perusahaan yang bisa dipindai"` guard stays at its floor of 8 and its nine shipped companies.
+
+**Measured-claim check** — every number in Part B is a value this session produced, not an estimate: `maxPages: 3` → 416–456 rows / 276–296 employers / 56–85s and `maxPages: 12` → 862 rows / 516 employers / 42–58s both come from `engine/scan.mjs` runs against scratch data roots; the per-keyword totals (software engineer 2,226; quality assurance 2,876; data analyst 2,114; backend 906; full stack 611; frontend 446; DevOps 403; board total 61,887) come from direct Jobstreet API reads; and the ATS-resolver verdict comes from a ~5,700-probe sweep. Task 4 re-measures on the live root rather than trusting these numbers, and Task 5 records what Task 4 actually saw.
 
 **Cross-document check** — the spec numbers its findings `T1`-`T6` and its failure modes `G1`-`G5`. This plan deliberately does not cite those codes: it extends the config the spec produced rather than re-deriving the spec's diagnosis, and it names the two facts it does rely on in prose instead — the WAF-blocked Glints board (the spec's `G2`) in Task 2 Step 5's comment and Task 4 Step 4's `auth` note, and the write-once seed trap (the spec's `G5`) in the Global Constraints and Task 4 Step 2. Citing the codes without the prose would make the plan unreadable on its own; citing the prose without the codes keeps it self-contained. The spec is linked in the header for anyone who wants the full diagnosis.
 
