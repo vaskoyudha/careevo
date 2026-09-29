@@ -248,4 +248,33 @@ describe("config pindai Indonesia", () => {
     // families). A drop below 27 means the keyword widening was partly reverted.
     expect(papanAktif().length).toBeGreaterThanOrEqual(27);
   });
+
+  it("memindai lebih dalam di Jobstreet dan Kalibrr — minimal 12 halaman", () => {
+    // Depth is the lever, not breadth. At maxPages 3 each keyword family stops
+    // at 90 postings, while Jobstreet lists 2,226 for "software engineer" and
+    // 2,876 for "quality assurance" (measured 2026-09-29). Nothing in the
+    // engine errors when depth is too shallow: the scan completes with a
+    // plausible-looking count, a third of what the board offered. That silence
+    // is exactly why this needs a guard.
+    //
+    // Only the two boards that answer are held to 12. Glints is WAF-blocked
+    // (zero at any depth) and Dealls dries out at page 1, so requiring 12 of
+    // them would demand a setting that buys nothing.
+    const dalam = papanAktif().filter(
+      (b) => b.provider === "jobstreet" || b.provider === "kalibrr",
+    );
+    expect(dalam.length).toBeGreaterThanOrEqual(16);
+    for (const b of dalam) {
+      expect(Number(b.maxPages), `${b.name}: maxPages`).toBeGreaterThanOrEqual(12);
+    }
+  });
+
+  it("anggaran halaman total minimal 200", () => {
+    // The ceiling arithmetic the docs quote is sum(maxPages) x pageSize. With
+    // 16 entries at 12 and 11 at 3 that is 225. A revert of the deepening drops
+    // it to 81 (27 x 3), which this catches even if the provider-scoped guard
+    // above were ever loosened.
+    const total = papanAktif().reduce((n, b) => n + (Number(b.maxPages) || 0), 0);
+    expect(total).toBeGreaterThanOrEqual(200);
+  });
 });

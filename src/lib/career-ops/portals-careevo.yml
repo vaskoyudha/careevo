@@ -206,13 +206,25 @@ location_filter:
 # Ceiling is entries x pageSize x maxPages = 12 x 30 x 3 = 1080 per scan. That is
 # a provider limit, not national coverage — do not let UI copy imply otherwise.
 job_boards:
+  # --- Kedalaman 2026-09-29 -------------------------------------------------
+  #
+  # Jobstreet dan Kalibrr dipindai 12 halaman per keluarga peran, bukan 3.
+  # Diukur lewat engine/scan.mjs terhadap data root sementara: 27 entri pada
+  # maxPages 3 menghasilkan 416-456 baris / 276-296 perusahaan; dengan Jobstreet
+  # dan Kalibrr di 12, hasilnya 862 baris / 516 perusahaan, dua kali lipat,
+  # dalam ~58 detik (timeout jalur aplikasi 5 menit).
+  #
+  # Glints dan Dealls tetap 3: Glints diblokir WAF dan mengembalikan nol di
+  # kedalaman berapa pun, Dealls kering di halaman 1. Menaikkan keduanya hanya
+  # menambah waktu pindai tanpa menambah baris.
+
   - name: Jobstreet Indonesia — software engineer
     provider: jobstreet
     api: https://id.jobstreet.com/api/jobsearch/v5/search
     siteKey: ID-Main
     searchKeywords: software engineer
     pageSize: 30
-    maxPages: 3
+    maxPages: 12
     enabled: true
     notes: SEEK v5 REST, no auth token. searchLocation intentionally omitted so location_filter does the narrowing and non-Jabodetabek roles are not lost.
 
@@ -222,7 +234,7 @@ job_boards:
     siteKey: ID-Main
     searchKeywords: mobile developer
     pageSize: 30
-    maxPages: 3
+    maxPages: 12
     enabled: true
     notes: Android/iOS/Flutter is one of the largest Indonesian tech categories.
 
@@ -232,7 +244,7 @@ job_boards:
     siteKey: ID-Main
     searchKeywords: data analyst
     pageSize: 30
-    maxPages: 3
+    maxPages: 12
     enabled: true
     notes: Data roles for learners coming from non-CS backgrounds.
 
@@ -272,7 +284,7 @@ job_boards:
     countryCode: ID
     searchKeywords: software engineer
     pageSize: 30
-    maxPages: 3
+    maxPages: 12
     enabled: true
     notes: Public REST API, no auth token. Covers Indonesian banking, corporate, and tech sectors.
 
@@ -282,7 +294,7 @@ job_boards:
     countryCode: ID
     searchKeywords: mobile developer
     pageSize: 30
-    maxPages: 3
+    maxPages: 12
     enabled: true
     notes: Android/iOS/Flutter postings in Indonesia.
 
@@ -292,7 +304,7 @@ job_boards:
     countryCode: ID
     searchKeywords: data analyst
     pageSize: 30
-    maxPages: 3
+    maxPages: 12
     enabled: true
     notes: Data analyst and data engineer roles in Indonesia.
 
@@ -345,7 +357,7 @@ job_boards:
     siteKey: ID-Main
     searchKeywords: backend developer
     pageSize: 30
-    maxPages: 3
+    maxPages: 12
     enabled: true
     notes: Backend adalah keluarga terbesar setelah software engineer di pasar Indonesia.
 
@@ -355,7 +367,7 @@ job_boards:
     siteKey: ID-Main
     searchKeywords: frontend developer
     pageSize: 30
-    maxPages: 3
+    maxPages: 12
     enabled: true
     notes: React/Vue/Angular; audiens utama jalur Fullstack & Frontend Careevo.
 
@@ -365,7 +377,7 @@ job_boards:
     siteKey: ID-Main
     searchKeywords: full stack developer
     pageSize: 30
-    maxPages: 3
+    maxPages: 12
     enabled: true
     notes: Judul fullstack sering tidak menyebut "backend" maupun "frontend", jadi tidak tertangkap dua entri di atas.
 
@@ -375,7 +387,7 @@ job_boards:
     siteKey: ID-Main
     searchKeywords: devops engineer
     pageSize: 30
-    maxPages: 3
+    maxPages: 12
     enabled: true
     notes: DevOps, SRE, dan cloud; kategori "DevOps & Infrastruktur" di facet.
 
@@ -385,7 +397,7 @@ job_boards:
     siteKey: ID-Main
     searchKeywords: quality assurance
     pageSize: 30
-    maxPages: 3
+    maxPages: 12
     enabled: true
     notes: QA manual dan otomasi; kategori "QA & Pengujian" di facet.
 
@@ -395,7 +407,7 @@ job_boards:
     countryCode: ID
     searchKeywords: backend developer
     pageSize: 30
-    maxPages: 3
+    maxPages: 12
     enabled: true
     notes: REST publik tanpa token; mencakup sektor perbankan dan korporat Indonesia.
 
@@ -405,7 +417,7 @@ job_boards:
     countryCode: ID
     searchKeywords: frontend developer
     pageSize: 30
-    maxPages: 3
+    maxPages: 12
     enabled: true
     notes: Posting frontend di papan Kalibrr Indonesia.
 
@@ -415,7 +427,7 @@ job_boards:
     countryCode: ID
     searchKeywords: full stack developer
     pageSize: 30
-    maxPages: 3
+    maxPages: 12
     enabled: true
     notes: Peran fullstack di startup dan korporat Indonesia.
 
@@ -425,7 +437,7 @@ job_boards:
     countryCode: ID
     searchKeywords: devops engineer
     pageSize: 30
-    maxPages: 3
+    maxPages: 12
     enabled: true
     notes: DevOps dan SRE di papan Kalibrr Indonesia.
 
@@ -435,7 +447,7 @@ job_boards:
     countryCode: ID
     searchKeywords: quality assurance
     pageSize: 30
-    maxPages: 3
+    maxPages: 12
     enabled: true
     notes: QA manual dan otomasi di papan Kalibrr Indonesia.
 
