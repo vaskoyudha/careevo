@@ -293,8 +293,10 @@ ketiga yang sudah dibahas di §6, dan `portals.yml`-nya punya aturan seeding
 sendiri.
 
 `/loker/inbox` menyemai `.data/career-ops/portals.yml` dari
-`src/lib/career-ops/portals-careevo.yml`: enam entri papan aktif (tiga Jobstreet
-ID, tiga Glints ID), sembilan perusahaan terlacak, dan 14 kota dalam
+`src/lib/career-ops/portals-careevo.yml`: 27 entri papan aktif — Jobstreet,
+Kalibrr, dan Dealls masing-masing delapan keluarga peran, plus tiga Glints yang
+diblokir WAF. Jobstreet dan Kalibrr dipindai **12 halaman** per keluarga
+(Glinks dan Dealls tetap 3), sembilan perusahaan terlacak, dan 14 kota dalam
 `location_filter`. Bila berkas Careevo tidak ada, ia jatuh ke
 `engine/templates/portals.example.yml`. `engine/` sendiri tidak pernah diubah —
 hanya berkas mana yang disalin yang berubah.
@@ -338,9 +340,9 @@ receipt-nya tidak bisa dipakai menilai config ini.
 Dua yang paling sering ditanyakan adalah `boards` dan `new_added`.
 
 `boards` menghitung entri yang **aktif**, bukan entri yang menjawab. Nilai yang
-benar adalah `6`. Hanya tiga yang menjawab: ketiga entri Glints mengembalikan
+benar adalah `27`. Hanya tiga yang menjawab: ketiga entri Glints mengembalikan
 `HTTP 403` dari halaman `Glints - Firewall`, yang tercatat sebagai `auth` di
-`data/portal-health.tsv`. Maka `boards: 6` dengan kontribusi nol dari Glints
+`data/portal-health.tsv`. Maka `boards: 27` dengan kontribusi nol dari Glints
 adalah **bentuk keberhasilan yang diharapkan**, bukan kegagalan sebagian.
 `boards: 1` baru berarti config Careevo tidak terbaca sama sekali.
 
@@ -355,7 +357,7 @@ berbeda, `portals.yml` yang **hilang** atau tidak bisa diurai itu keras —
 `boards: 0` bukan salah satu dari keduanya. Kalau `boards: 0`, periksa
 `enabled:` di config yang benar-benar tersemai, bukan `filtered_*`.
 
-`boards: 6` dengan `new_added: 0` berarti tidak ada yang cocok; periksa
+`boards: 27` dengan `new_added: 0` berarti tidak ada yang cocok; periksa
 `filtered_location` dan `filtered_title` di baris yang sama. `filtered_title`
 yang mendekati `found` punya dua arti yang sama-sama sah: `title_filter` terlalu
 sempit, **atau** filter itu bekerja dengan benar karena banyak papan Indonesia
@@ -372,27 +374,33 @@ hitung ulang daripada memperlakukannya sebagai konstanta.)
 
 Batas-batas ini harus dibaca apa adanya, bukan sebagai jangkauan pasar:
 
-- Pindai bersih terakhir menambah **201** baris tech — angka hasil ukur, bukan
-  perkiraan, dan sudah sesudah `title_filter` serta `location_filter` menyisir.
-  (Bukan 175: itu hitungan pindai 09:32, tujuh menit sebelumnya. Yang di disk
-  adalah keluaran pindai 09:39 — 201 baris, semuanya `first_seen
-  2026-09-27`, dan 175 + 201 akan jadi 376, bukan 201.)
-- Enam entri papan memberi batas mentah `6 x pageSize 30 x maxPages 3 = 540`.
-  Karena Glints tidak menjawab, yang benar-benar menyumbang paling banyak
-  `3 x 90 = 270` dari Jobstreet.
-
-Langit-langit mentahnya sekitar 445 **tidak dapat dipertahankan** dari data ini:
-angka itu menjumlahkan 270 + 175, yaitu 270 Jobstreet di pindai kedua ditambah
-176 hasil pindai pertama — dua pindai yang berbeda, bukan satu. Pada pindai yang
-benar-benar menghasilkan korpus di disk, sembilan perusahaan hanya menyumbang
-**25** baris (18 breezy, 7 smartrecruiters) dan Jobstreet **176**; kelima papan
-Workable mengembalikan nol karena rate-limiting. Jadi batas yang terukur pada
-satu pindai adalah **270 + 25 = 295**, dan itu pun belum menjamin apa yang akan
-muncul. Yang benar-benar terukur pada 2026-09-27: **201 baris, 150 perusahaan
-berbeda, seluruhnya Indonesia** — naik dari 486 baris yang sebelumnya hanya memuat satu
-lowongan Indonesia dan 485 sisanya Barat. Jadi ini **bukan cakupan nasional**,
-dan copy UI tidak boleh menjanjikan sebegitu. Frasa seperti "ribuan lowongan
-tech Indonesia" tidak didukung bukti yang ada sekarang.
+- Pindai bersih terakhir menambah **620** baris — angka hasil ukur,
+  bukan perkiraan, dan sudah sesudah `title_filter` serta `location_filter`
+  menyisir. Korpus di disk: **877** baris, **523** perusahaan
+  berbeda, seluruhnya Indonesia.
+- Anggaran halaman sekarang `16 x 12 + 11 x 3 = 225`, jadi batas mentah per
+  pindai adalah `225 x pageSize 30 = 6.750`. Karena Glints tidak menjawab
+  (tiga entri, sembilan halaman), yang benar-benar menyumbang paling banyak
+  `216 x 30 = 6.480`. Ini naik dari `27 x 3 x 30 = 2.430` sebelum Jobstreet
+  dan Kalibrr diperdalam.
+- Kedalaman 12 dipilih dari pengukuran, bukan ditebak: 27 entri pada
+  `maxPages 3` menghasilkan 416-456 baris / 276-296 perusahaan, sedangkan
+  Jobstreet dan Kalibrr di 12 menghasilkan 862 baris / 516 perusahaan dalam
+  ~58 detik. Naik lagi ke 20 memberi 945 baris, ke 30 memberi 1.069 — imbal
+  hasilnya mengecil sementara margin timeout 5 menit
+  (`src/lib/career-ops/tracker.ts`) menyempit.
+- Angka terukur pada 2026-09-29: **877 baris, 523 perusahaan
+  berbeda**. Jadi ini **bukan cakupan nasional**, dan copy UI tidak boleh
+  menjanjikan sebegitu. Frasa seperti "ribuan lowongan tech Indonesia" tidak
+  didukung bukti yang ada sekarang.
+- Kedalaman bukan satu-satunya tuas, dan bukan yang terbesar untuk semua
+  papan. Mencari perusahaan lewat `engine/discover-ats.mjs` (Greenhouse, Ashby,
+  Lever, Workable, SmartRecruiters, dll.) hanya menemukan sekitar sembilan
+  papan Indonesia yang bersih, hampir semuanya berisi 1-9 lowongan; hit
+  besarnya salah entitas (Super ke perusahaan gim Irlandia, Flip ke Los
+  Angeles, Fuse ke perusahaan laser AS). Pemberi kerja Indonesia umumnya tidak
+  memakai ATS Barat, jadi `tracked_companies` adalah tuas yang lemah di pasar
+  ini.
 
 ### Pindai dua kali berturut-turut mengukur rate limit, bukan config
 
