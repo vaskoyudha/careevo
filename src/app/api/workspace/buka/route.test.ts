@@ -33,6 +33,8 @@ const statusManajer = vi.hoisted(() => ({
   },
 }));
 const batasRate = vi.hoisted(() => ({ nilai: null as null | Response }));
+/** Argumen yang diterima `batasiRequestMasuk` — untuk memastikan kebijakannya. */
+const kebijakanRate = vi.hoisted(() => ({ nama: null as null | string }));
 /** Argumen terakhir yang diterima `prosesManajer.status` — untuk memeriksa `host`. */
 const argumenStatus = vi.hoisted(() => ({ nilai: null as null | Record<string, unknown> }));
 
@@ -41,7 +43,10 @@ vi.mock("@/lib/auth/session", () => ({
 }));
 
 vi.mock("@/lib/rate-limit/next", () => ({
-  batasiRequestMasuk: async () => batasRate.nilai,
+  batasiRequestMasuk: async (_req: Request, nama: string) => {
+    kebijakanRate.nama = nama;
+    return batasRate.nilai;
+  },
 }));
 
 vi.mock("@/lib/workspace", () => ({
@@ -160,6 +165,18 @@ describe("GET /api/workspace/buka", () => {
     batasRate.nilai = new Response("dibatasi", { status: 429 });
     const res = await GET(minta(`?courseId=c1&tiket=${encodeURIComponent(tiket("u-1", "c1"))}`));
     expect(res.status).toBe(429);
+  });
+
+  it("memakai kebijakan `bukaWorkspace`, bukan `workspace`", async () => {
+    // Ini regresi yang pernah terukur di peramban: gerbang ini dimuat sebagai
+    // `src` iframe setiap kali halaman `/ruang-kerja` dibuka, jadi memakai
+    // bucket `workspace` yang sama dengan `mulai`/`berhenti` membuat kuota
+    // **membuat** kontainer habis hanya karena halaman dimuat ulang. Setelah
+    // sepuluh muat, permintaan gerbang dijawab 429 dan yang tergambar di kolom
+    // IDE adalah JSON galat, bukan IDE — padahal kontainernya hidup.
+    batasRate.nilai = null;
+    await GET(minta(`?courseId=c1&tiket=${encodeURIComponent(tiket("u-1", "c1"))}`));
+    expect(kebijakanRate.nama).toBe("bukaWorkspace");
   });
 
   it("menolak 403 bila rahasia server belum diisi", async () => {

@@ -1,4 +1,128 @@
 /**
+ * Perbaikan kelayakan Project untuk kursus ini.
+ *
+ * **Masalah yang diperbaiki.** Dasar C++ tidak pernah punya kuis: `createModul`
+ * di skrip ini tidak mengisi `kuis`, dan modul hanya menjadi `terverifikasi`
+ * lewat `selesaikanModulKuisVerified` — yaitu lulus kuis yang dipasang di modul.
+ * Akibatnya `hitungCompletionPath` selalu `null`, `course_completions` tidak
+ * pernah terbentuk, dan `kelayakanKursusSubmission` (gerbang panel Project)
+ * terkunci permanen. Gejalanya di UI: "Terbuka setelah seluruh modul di atas
+ * selesai lewat sesi terverifikasi", walau semua materi sudah dibaca.
+ *
+ * Dua kuis di bank soal sudah ditulis untuk kursus ini namun tidak pernah
+ * dipasang. Modul 1–4 memakai dua kuis itu (Percabangan dan Perulangan
+ * berbagi satu kuis — soalnya memang mencakup keduanya), dan modul "Fungsi"
+ * memakai kuis yang dibuat di sini karena bank belum punya.
+ *
+ * **Idempoten.** Kuis "Fungsi" dicari lewat `getKuis`/`listKuis` berdasarkan
+ * judul, bukan id yang ditulis manual — jadi menjalankan seed dua kali
+ * memperbarui yang sama, bukan membuat entri kedua dengan id acak.
+ */
+export async function pasangKuisKelayakan(kursusId: string): Promise<void> {
+  const modul = await listModul(kursusId);
+  const perJudul = new Map(modul.map((m) => [m.judul, m]));
+
+  // Kuis modul "Fungsi" tidak ada di bank: buat sekali, perbarui pada run
+  // berikutnya. Id dikembalikan oleh store, jadi tidak ada id yang ditulis
+  // manual di sini.
+  const adaFungsi = (await listKuis()).find((k) => k.judul === KUIS_FUNGSI.judul);
+  const kuisFungsi = adaFungsi
+    ? await updateKuis(adaFungsi.id, KUIS_FUNGSI)
+    : await createKuis(KUIS_FUNGSI);
+  if (!kuisFungsi) throw new Error(`kuis gagal dibuat: ${KUIS_FUNGSI.judul}`);
+
+  /**
+   * Bagi kuis ke modul. Urutannya **semua id secara berurutan**, bukan satu
+   * id: `pasangKuis` menambahkan ke ekor dan idempoten, sehingga daftar bersih
+   * hanya bisa dijamin dengan melepas lalu memasang lagi. Melepas tidak
+   * menghapus entri dari bank — kuis yang sama mungkin dipakai modul lain.
+   */
+  const peta: Array<{ judul: string; kuisIds: string[] }> = [
+    { judul: "Menulis Program Pertama", kuisIds: [KUIS_MODUL_1] },
+    { judul: "Variabel dan Masukan", kuisIds: [KUIS_MODUL_2] },
+    { judul: "Percabangan", kuisIds: [KUIS_PERULANGAN] },
+    { judul: "Perulangan", kuisIds: [KUIS_PERULANGAN] },
+    { judul: "Fungsi", kuisIds: [kuisFungsi.id] },
+  ];
+
+  for (const { judul, kuisIds } of peta) {
+    const m = perJudul.get(judul);
+    if (!m) throw new Error(`modul tidak ditemukan saat memasang kuis: ${judul}`);
+
+    for (const kuisId of m.kuis ?? []) {
+      if (!kuisIds.includes(kuisId)) await lepasKuis(kursusId, m.id, kuisId);
+    }
+    for (const kuisId of kuisIds) {
+      if (!(m.kuis ?? []).includes(kuisId)) await pasangKuis(kursusId, m.id, kuisId);
+    }
+  }
+}
+
+/** Id kuis yang sudah ada di bank soal (`data/kuis.json`), ditulis untuk kursus ini. */
+const KUIS_MODUL_1 = "kuis-mumd9emq-bx0z"; // Kuis: Modul 1 Halo C++
+const KUIS_MODUL_2 = "kuis-mumd9eo7-yqga"; // Kuis: Variabel dan Tipe Data C++
+const KUIS_PERULANGAN = "kuis-mumd9epm-yn8m"; // Kuis: Percabangan dan Perulangan
+
+/** Kuis modul "Fungsi" — dibuat lewat store bila belum ada, dicari lewat judul. */
+const KUIS_FUNGSI: CreateKuisInput = {
+  judul: "Kuis: Fungsi di C++",
+  deskripsi: "Menguji cara mendefinisikan fungsi, parameter, nilai kembalian, dan void.",
+  nilai_lulus: 70,
+  soal: [
+    {
+      id: "kuis-fungsi-s1",
+      pertanyaan: "Manakah bentuk deklarasi fungsi yang benar untuk menghitung luas persegi?",
+      pilihan: [
+        "int luas(int sisi) { return sisi * sisi; }",
+        "function luas(sisi) { return sisi * sisi; }",
+        "int luas(sisi) => sisi * sisi;",
+        "def luas(sisi): return sisi * sisi",
+      ],
+      jawaban_benar: 0,
+    },
+    {
+      id: "kuis-fungsi-s2",
+      pertanyaan: "Apa yang terjadi bila sebuah fungsi bertipe `void` menjalankan `return 5;`?",
+      pilihan: [
+        "Program mengabaikan nilai itu dan lanjut",
+        "Galat kompilasi, karena fungsi `void` tidak boleh mengembalikan nilai",
+        "Nilai 5 menjadi nilai kembalian fungsi",
+        "Program berhenti dengan kode keluar 5",
+      ],
+      jawaban_benar: 1,
+    },
+    {
+      id: "kuis-fungsi-s3",
+      pertanyaan: "Apa kegunaan kata kunci `return` di dalam sebuah fungsi?",
+      pilihan: [
+        "Mencetak nilai ke layar",
+        "Mendeklarasikan variabel baru di dalam fungsi",
+        "Mengembalikan kendali ke pemanggil, sekaligus dapat membawa satu nilai",
+        "Mengulang pemanggilan fungsi",
+      ],
+      jawaban_benar: 2,
+    },
+    {
+      id: "kuis-fungsi-s4",
+      pertanyaan: "Pada `int tambah(int a, int b)`, apa yang disebut `a` dan `b`?",
+      pilihan: ["Nilai kembalian", "Parameter fungsi", "Tipe kembalian", "Prototipe"],
+      jawaban_benar: 1,
+    },
+    {
+      id: "kuis-fungsi-s5",
+      pertanyaan: "Kapan sebuah fungsi harus ditulis tipe kembaliannya `void`?",
+      pilihan: [
+        "Bila fungsi tidak mengembalikan nilai apa pun",
+        "Bila fungsi mengembalikan angka pecahan",
+        "Bila fungsi memanggil fungsi lain",
+        "Bila fungsi menerima parameter",
+      ],
+      jawaban_benar: 0,
+    },
+  ],
+};
+
+/**
  * Seed kursus "Dasar C++" — kursus pertama yang seluruh contoh di dalamnya
  * benar-benar bisa dijalankan peserta lewat blok `kode`.
  *
@@ -37,18 +161,23 @@
 import {
   createCourse,
   createHalaman,
+  createKuis,
   createModul,
   deleteHalaman,
   deleteModul,
   getCourseBySlug,
+  lepasKuis,
   listCourses,
   listHalaman,
+  listKuis,
   listModul,
+  pasangKuis,
   updateCourse,
   updateHalaman,
+  updateKuis,
   updateModul,
 } from "@/lib/courses/store";
-import type { BlokInput, CreateHalamanInput } from "@/types/course";
+import type { BlokInput, CreateHalamanInput, CreateKuisInput } from "@/types/course";
 import type { Course } from "@/types/course";
 
 const SLUG = "dasar-cpp";
@@ -907,6 +1036,15 @@ async function main() {
   for (const modul of modulSekarang) {
     if (!judulModulSeed.has(modul.judul)) await deleteModul(kursus.id, modul.id);
   }
+
+  // Kuis dipasang **setelah** modul diselaraskan: `pasangKuis` mencocokkan
+  // modul berdasarkan id, dan modul yang baru dibuat belum punya id sebelum
+  // `selaraskanModul` selesai. Tanpa kuis, kursus ini tidak bisa menghasilkan
+  // `completion_path = "terverifikasi"`, sehingga panel Project-nya terkunci
+  // permanen — lihat docstring `pasangKuisKelayakan`.
+  await pasangKuisKelayakan(kursus.id);
+  const berkuis = (await listModul(kursus.id)).filter((m) => (m.kuis ?? []).length > 0).length;
+  console.log(`  ✓ kuis kelayakan terpasang di ${berkuis}/${KURSUS.modul.length} modul`);
 
   const total = (await listCourses()).filter((c) => c.slug === SLUG).length;
   const blokKode = KURSUS.modul.flatMap((m) => m.halaman).filter((h) => h.blok.some((b) => b.tipe === "kode"));

@@ -16,10 +16,15 @@ import { tiketUntuk } from "@/lib/workspace/tiket";
  * Urutannya:
  *
  * 1. **Sesi.** Ini yang menjadikan alamat itu bukan lagi satu-satunya rahasia.
- * 2. Tiket bertanda tangan dari query, diperiksa terhadap **identitas sesi**
+ * 2. **Batas `bukaWorkspace`**, kebijakan tersendiri yang **bukan** `workspace`.
+ *    Gerbang ini tersentuh sekali setiap halaman `/ruang-kerja` dimuat, jadi
+ *    berbagi bucket dengan `mulai`/`berhenti` akan membuat membuka IDE menghabiskan
+ *    kuota *membuat* kontainer — dan itu 429 di dalam iframe. Alasan lengkapnya di
+ *    `AMBANG.bukaWorkspace`.
+ * 3. Tiket bertanda tangan dari query, diperiksa terhadap **identitas sesi**
  *    (bukan terhadap dirinya sendiri), sehingga tiket milik orang lain tidak
  *    berguna walaupun dicuri.
- * 3. Keadaan ruang kerja ditanyakan ke manajer.
+ * 4. Keadaan ruang kerja ditanyakan ke manajer.
  *
  * ## Kenapa **tidak** ada pemeriksaan Origin di sini
  *
@@ -84,8 +89,14 @@ export async function GET(request: Request): Promise<Response> {
     return galat(401, "Sesi tidak ditemukan. Silakan masuk terlebih dahulu.");
   }
 
-  const batas = await batasiRequestMasuk(request, "workspace", {
-    tambahan: `workspace:${sesi.email}`,
+  // Batas tersendiri (`bukaWorkspace`), **bukan** `workspace`. Gerbang ini
+  // dimuat sebagai `src` iframe, jadi ia tersentuh sekali setiap halaman
+  // `/ruang-kerja` dimuat ulang — memakainya untuk bucket yang sama dengan
+  // `mulai`/`berhenti` berarti membuka IDE menghabiskan kuota *membuat*
+  // kontainer, dan setelah sepuluh muat iframe menerima 429 alih-alih IDE.
+  // Alasannya lengkap di `AMBANG.bukaWorkspace`.
+  const batas = await batasiRequestMasuk(request, "bukaWorkspace", {
+    tambahan: `buka:${sesi.email}`,
   });
   if (batas) return batas;
 

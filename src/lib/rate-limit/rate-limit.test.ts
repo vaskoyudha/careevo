@@ -100,6 +100,23 @@ describe("tabel kebijakan", () => {
   it("jalankanKode gagal tertutup, karena endpoint ini menjalankan biner", () => {
     expect(AMBANG.jalankanKode.failOpen).toBe(false);
   });
+
+  it("gerbang buka ruang kerja punya anggaran tersendiri, terpisah dari pembuatan kontainer", () => {
+    // Regresi: gerbang iframe (`GET /api/workspace/buka`) pernah memakai
+    // kebijakan `workspace`. Karena gerbang itu tersentuh sekali setiap halaman
+    // `/ruang-kerja` dimuat, kuota **membuat** kontainer habis hanya karena
+    // halaman dimuat ulang; setelah ~10 muat iframe menerima 429 dan kolom IDE
+    // menampilkan JSON galat padahal ruang kerjanya hidup. Dua operasi berbeban
+    // sangat berbeda tidak boleh berbagi satu anggaran.
+    expect(NAMA_KEBIJAKAN).toContain("bukaWorkspace");
+    // Membuat mematikan kontainer 2 GB tetap ketat; membuka gerbang lebih longgar
+    // karena satu sesi kerja yang wajar membukanya berkali-kali.
+    expect(AMBANG.bukaWorkspace.limit).toBeGreaterThan(AMBANG.workspace.limit);
+    // Tapi tidak boleh menjadi pintu terbuka: ia tetap gagal tertutup dan tetap
+    // menambah bucket per akun seperti `workspace`.
+    expect(AMBANG.bukaWorkspace.failOpen).toBe(false);
+    expect(AMBANG.bukaWorkspace.bucketPrincipal).toBe(true);
+  });
 });
 
 describe("identifierUntuk", () => {

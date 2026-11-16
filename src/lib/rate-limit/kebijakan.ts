@@ -31,6 +31,7 @@ export const NAMA_KEBIJAKAN = [
   "pdfPublik",
   "jalankanKode",
   "workspace",
+  "bukaWorkspace",
 ] as const;
 
 export type NamaKebijakan = (typeof NAMA_KEBIJAKAN)[number];
@@ -212,6 +213,41 @@ export const AMBANG: Record<NamaKebijakan, SpesifikasiKebijakan> = {
     failOpen: false,
     bucketPrincipal: true,
     label: "Ruang kerja",
+  },
+  // Gerbang iframe (`GET /api/workspace/buka`) — **kebijakan tersendiri, dan
+  // pemisahan itu yang penting.**
+  //
+  // Sebelum ini route gerbang ikut menghitung di bucket `workspace`. Akibatnya
+  // terukur di peramban: bucket `workspace` habis bukan karena membuat ruang
+  // kerja, melainkan karena **membuka halaman** — setiap kali halaman
+  // `/ruang-kerja` memuat ulang, iframe menembak gerbang ini sekali. Setelah
+  // sepuluh muat, permintaannya dijawab 429 dan yang tergambar di kolom IDE
+  // adalah JSON galat, bukan IDE — padahal kontainernya hidup. Yang lebih buruk:
+  // memuat ulang untuk memperbaiki keadaan justru menghabiskan sisa jatah, jadi
+  // gangguannya mengunci dirinya sendiri.
+  //
+  // Dua operasi yang berbeda biayanya tidak boleh berbagi satu anggaran:
+  // `mulai`/`berhenti` **menyalakan/mematikan kontainer 2 GB** (mahal, karena itu
+  // `workspace` ketat), sedangkan gerbang ini hanya melakukan satu pengalihan 302
+  // setelah tiket diperiksa (murah, dan tidak menyalakan apa pun — lihat
+  // `status()` yang sengaja bebas efek samping).
+  //
+  // Angkanya lebih longgar dari `workspace` karena satu sesi kerja yang normal
+  // memang membuka gerbang berkali-kali (muat ulang, kembali dari tab lain,
+  // pindah perangkat), sementara `mulai` tetap dijaga 10 per 10 menit. Bucket
+  // terpisah inilah yang membuat pemakaian IDE tidak pernah memakan kuota
+  // pembuatan kontainer, dan sebaliknya.
+  //
+  // `bucketPrincipal: true` dan `failOpen: false` mengikuti `workspace`: ruang
+  // kerja milik satu akun, dan menolak lebih aman daripada membuka gerbang saat
+  // penghitungnya tidak bisa dipercaya.
+  bukaWorkspace: {
+    limit: 60,
+    window: "10 m",
+    resetDetik: 600,
+    failOpen: false,
+    bucketPrincipal: true,
+    label: "Buka ruang kerja",
   },
 };
 
